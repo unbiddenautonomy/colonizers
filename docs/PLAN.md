@@ -2,125 +2,164 @@
 
 A private, browser-based hex-and-resources trading game for our friend groups, in the style of Catan and Colonist.io. This document is the plan only. No game code is written yet.
 
-Status: draft v1, for review by Nachi.
+Status: draft v2, updated with Nachi's feedback from the first review.
+
+What changed in v2:
+- The engine is built around expansion modules from day one. Seafarers and Cities & Knights come right after the base game works online.
+- Added special maps (Gold Rush, Volcano, forest-heavy and others), map generation rules for Seafarers, and support for 7–8 players.
+- Fair map generation is now an option, not the default.
+- Added bots with difficulty levels and play styles.
+- Added Traders & Barbarians, Explorers & Pirates and fan-made expansions as later phases.
+- Added an in-game rulebook and guide that opens as a pop-up during a game.
+- Login is Google plus our own email sign-up only. Async play is supported but low priority.
 
 ---
 
-## 0. Quick answers to the open questions
+## 0. Quick answers
 
 | Question | Short answer |
 |---|---|
-| Preset and random maps? | Yes, both. Presets are stored map files. Random maps come from a generator with three modes: Classic, Balanced (default) and Wild. See section 3. |
-| Should generated maps be very fair? Do the originals care? | The originals care a little. The official rulebook only forbids red numbers (6 and 8) from touching, and its spiral token order spreads numbers out. It does nothing to balance resources or starting spots. Colonist adds options like balanced dice but, as far as we know, its random maps mostly enforce the same "no touching 6/8" rule. So a properly fair generator is a real improvement over the originals, and we will build one with a visible fairness report. |
-| Do we know the tile and piece counts? | Yes. Exact counts for base 3–4 players and the 5–6 extension are in section 2. For Seafarers and Cities & Knights, each scenario sets its own layout, so we store each scenario as a map file and only need the per-player piece limits, which are listed. |
-| Multi-device sync, login, achievements? | Yes. One authoritative game server per room keeps every device in sync, including reconnecting and switching devices mid-game. Login, profiles, stats and achievements are phases 5 and 6. |
-| Webapp or full app? | A webapp is enough. We will build it as a PWA, so friends can "install" it to their home screen on iPhone, Android and desktop, get full-screen play and notifications, with no app store. If we ever want store listings, the same code can be wrapped later with Capacitor. |
-| Free hosting? | Yes. Recommended stack is Cloudflare (Pages + Workers + Durable Objects + D1), all on the free plan. No paid storage needed at friend-group scale. See section 6. |
-| Clean, beautiful UI? | Yes. Board-first, calm layout, mobile-first, with smooth animations. See section 7. |
-| Original Catan or Colonist graphics, plus our own sets? | We can't use or recreate the official Catan or Colonist art, pieces or logos. They are copyrighted and trademarked, even for a private game. What we can do is a swappable theme system with our own sets, including a "Heritage" theme that gives the same warm, classic board-game feel (wood, parchment, painted terrain) with original artwork. See section 8. |
+| Preset and random maps? | Both. Presets are stored map files, including special maps like Gold Rush and Volcano. Random maps come from a generator (section 3). |
+| Do maps have to be fair? Do the originals care? | Fairness is optional. The host picks Classic (official rules only), Balanced (our fairness rules) or Wild. The official rules only stop 6s and 8s from touching. They don't balance resources or starting spots. |
+| Tile and piece counts? | Exact counts for base, 5–6 and the two main expansions are in section 2, plus our own 7–8 player design. |
+| Seafarers and Cities & Knights? | The core engine is designed for them from the start (section 4.1), and they are phases 5 and 6, right after online play works. |
+| Bots? | Yes. Easy, Medium and Hard bots, each with a play style such as Builder, Trader or Army (section 5). |
+| More expansions? | Traders & Barbarians, Explorers & Pirates, then fan-made expansions, after the two main ones (sections 1.6–1.7). |
+| Rulebook during a game? | Yes. A searchable rulebook and guide opens as a pop-up any time, showing only the rules active in that game (section 9). |
+| Multi-device sync, login, achievements? | One game server per room keeps every device in sync. Login is Google or our own email and password. Achievements are checked on the server. |
+| Webapp or full app? | A webapp is enough. It's built as a PWA, so it installs to the home screen with no app store. |
+| Free hosting? | Cloudflare's free plan (Pages, Workers, Durable Objects, D1). See section 7. |
+| Original Catan or Colonist graphics? | We can't use or recreate the official art, pieces or logos. They are copyrighted and trademarked, even for a private game. We'll build swappable themes with our own art, including "Heritage", which has the same classic wood-and-parchment feel (section 10). |
 
 ---
 
 ## 1. Rules
 
-The rules engine implements the base game exactly, and every house rule or Colonist-style option is a switch in the game settings.
+Every rule set is a module. The base game is one module; each expansion and each special map adds its own. House rules and Colonist-style options are switches in the game settings.
 
 ### 1.1 Base game (3–4 players)
 
 **Goal.** First player to reach 10 victory points (VP) **on their own turn** wins.
 
 **Victory points.**
-- Settlement: 1 VP. City: 2 VP.
-- Longest Road card: 2 VP (first player with an unbroken road of at least 5 segments; taken by anyone who beats it strictly).
-- Largest Army card: 2 VP (first player to play 3 knights; taken by anyone who exceeds it strictly).
-- Victory Point development card: 1 VP each (kept hidden until the player wins, or revealed at game end).
+- Settlement 1 VP, city 2 VP.
+- Longest Road: 2 VP for the first player with an unbroken road of at least 5 segments. Someone takes it only by being strictly longer.
+- Largest Army: 2 VP for the first player to play 3 knights. Someone takes it only by having strictly more.
+- Victory Point development cards: 1 VP each, hidden until the player wins or the game ends.
 
 **Setup (snake draft).**
 1. Random seat order. Round 1 goes 1 → N: each player places a settlement and a road touching it.
 2. Round 2 goes N → 1: each player places a second settlement and road.
-3. Each player collects one resource for each terrain hex next to their **second** settlement.
-4. Distance rule applies: no settlement may be on a corner adjacent to another settlement or city (of anyone).
+3. Each player takes one resource for each terrain hex next to their **second** settlement.
+4. Distance rule: no settlement may sit on a corner next to another settlement or city.
 
-**Turn order.**
-1. **Roll** two dice (a knight may be played before the roll).
-2. **Production.** Every hex with the rolled number produces: 1 resource per adjacent settlement, 2 per adjacent city. The hex with the robber produces nothing.
-   - Bank shortage: if the bank can't pay everyone owed a resource, nobody gets that resource, unless only one player is owed it, in which case they get whatever is left.
-3. **Rolled a 7.** No production. Every player with more than 7 cards discards half, rounded down. The roller moves the robber to a different hex and steals one random card from a player with a building on that hex.
-4. **Trade and build** (one combined phase, in any order):
-   - Domestic trade with other players (only with the active player; no giving cards away for nothing unless the house rule allows it).
-   - Maritime trade with the bank: 4:1 always, 3:1 at a generic harbor, 2:1 of a specific resource at that resource's harbor.
-   - Build and buy (costs below).
-   - Play at most **one** development card per turn, and not one bought this turn (VP cards excepted, they are never "played").
+**A turn.**
+1. **Roll** two dice. A knight may be played before rolling.
+2. **Production.** Every hex with the rolled number pays 1 resource per adjacent settlement and 2 per adjacent city. The robber's hex pays nothing.
+   - Bank shortage: if the bank can't pay everyone owed a resource, nobody gets it, unless only one player is owed it; they get what is left.
+3. **A 7.** No production. Everyone with more than 7 cards discards half, rounded down. The roller moves the robber to another hex and steals one random card from a player with a building there.
+4. **Trade and build**, in any order:
+   - Trade with other players (always involving the active player).
+   - Trade with the bank: 4:1, or 3:1 at a generic harbor, or 2:1 for that resource at a specific harbor.
+   - Build and buy.
+   - Play at most **one** development card, and not one bought this turn.
 5. End turn.
 
-**Building costs.**
+**Costs.**
 
 | Item | Cost | Notes |
 |---|---|---|
-| Road | 1 brick, 1 lumber | Must connect to your road, settlement or city. |
-| Settlement | 1 brick, 1 lumber, 1 wool, 1 grain | Must touch your road; distance rule. |
-| City | 2 grain, 3 ore | Upgrades your settlement; the settlement piece returns to supply. |
+| Road | 1 brick, 1 lumber | Connects to your road, settlement or city. |
+| Settlement | 1 brick, 1 lumber, 1 wool, 1 grain | Touches your road; distance rule. |
+| City | 2 grain, 3 ore | Replaces your settlement, which goes back to your supply. |
 | Development card | 1 wool, 1 grain, 1 ore | Drawn face down. |
 
-**Development cards.**
-- **Knight**: move the robber and steal, counts toward Largest Army.
-- **Road Building**: place 2 free roads.
-- **Year of Plenty**: take any 2 resources from the bank.
-- **Monopoly**: name a resource; every other player gives you all of theirs.
-- **Victory Point**: 1 VP, hidden.
+**Development cards.** Knight (move robber and steal, counts for Largest Army), Road Building (2 free roads), Year of Plenty (take any 2 resources), Monopoly (everyone gives you all of one named resource), Victory Point (1 hidden VP).
 
-**Longest Road details.** Counted as the longest single path with no repeated segments. An opponent's settlement or city on a corner breaks the path. If the holder's road is broken and there is a tie for the new longest, the card is set aside until one player is strictly longest. Ships (Seafarers) count as part of a road path only if connected through a settlement or city.
+**Longest Road details.** Longest single path with no repeated segment. An opponent's settlement or city on a corner breaks it. If the holder's road is broken and there is a tie for longest, the card is set aside until one player is strictly longest.
 
-**Piece limits.** A player can't build what they don't have left in supply: 15 roads, 5 settlements, 4 cities.
+**Supply limits per player.** 15 roads, 5 settlements, 4 cities.
 
-### 1.2 5–6 player extension
+### 1.2 5–6 players
 
-- Bigger board and more cards (counts in section 2.2).
-- Between turns, a **Special Building Phase**: after each player's turn, every other player in order may build or buy development cards (no trading, no playing cards).
-- Newer printings offer an alternative "Paired Players" rule, where two players take turns at once. We will support the Special Building Phase first and keep Paired Players as an option for later.
+- Bigger board and more cards (section 2.2).
+- **Special Building Phase**: after each player's turn, every other player in order may build or buy development cards (no trading, no playing cards).
+- Alternative "Paired Players" turns, from newer printings, as an option.
 
-### 1.3 Colonist-style options (to verify against Colonist's current lobby settings before coding)
+### 1.3 7–8 players (our own design)
 
-These are the online-specific options Colonist is known for. We will match their behaviour where it makes sense.
+There's no official 7–8 board for the base game, so we design one.
+- A bigger board of about 37 land hexes (draft counts in section 2.3), tuned by bot simulation so every seat gets fair chances.
+- Paired turns by default: two players take their turns at the same time, so a round doesn't drag. Special Building Phase as an alternative.
+- Bank and development deck scaled up.
+- The UI must fit 8 player panels on a phone (compact strip with tap-to-expand).
 
-- **Friendly robber**: robber can't be placed on a hex touching a player with 2 or fewer visible VP.
-- **Balanced dice**: rolls are drawn so the long-run distribution matches the true odds more closely and streaks are damped. Our design: a shuffled "deck" of all 36 dice outcomes, reshuffled when 5–10 cards remain, plus a mild penalty on numbers that came up very recently. Fully seeded and auditable.
-- **VP target**: 10 by default, adjustable (e.g. 8 to 20).
-- **Discard limit**: 7 by default, adjustable.
-- **Turn timer**: off or a set number of seconds per action, with a time bank.
-- **Hide bank card counts**: on or off.
-- **Visible hand sizes**: everyone always sees how many cards each player holds (on by default in online play).
-- **Trade offers UI**: active player posts an offer; others accept, decline or counter; active player picks who to trade with.
-- **Bots** to fill empty seats (later phase).
+### 1.4 Colonist-style options
 
-### 1.4 House rules we will support as switches
+These are the online options Colonist is known for. We'll check their current lobby settings before coding and match behaviour where it makes sense.
+- **Friendly robber**: the robber can't go on a hex touching a player with 2 or fewer visible VP.
+- **Balanced dice**: a shuffled "deck" of all 36 outcomes, reshuffled when 5–10 cards remain, with a mild penalty on numbers rolled very recently. Seeded and auditable.
+- **VP target** (10 by default), **discard limit** (7 by default), **turn timer** with a time bank, **hide bank card counts**, **visible hand sizes**, and a **trade offer board** where others accept, decline or counter.
 
-- No robber (or friendly robber) until every player has had N turns.
-- First settlement gives resources too (faster starts).
-- Gifting cards allowed or not.
-- Trading only on your own turn (official) vs. between any players.
-- 2-player variant (neutral player pieces).
-- Fixed vs. random seat order; random vs. chosen starting player.
-- Number of starting placements (2 standard, 3 for big boards).
-- "Robber returns to desert after each 7" variant.
+### 1.5 House rules as switches
 
-### 1.5 Expansions (later phases)
+- No robber for the first N rounds.
+- First settlement also gives starting resources.
+- Allow gifting cards.
+- Trading only on your own turn, or between any players.
+- 2-player variant with neutral pieces.
+- Three starting placements on big boards.
+- Robber goes back to the desert after each 7.
 
-**Seafarers.** Adds sea, islands, ships, gold fields and a pirate.
-- Ships: cost 1 lumber + 1 wool, built on edges between sea and land or sea and sea. Open ends can be moved once per turn (not a ship placed this turn).
-- Gold field hex: produces 1 resource of the owner's choice per building (2 for a city).
-- Pirate: on a 7 or knight, a player may move the pirate instead of the robber; it blocks ships next to it and steals from a ship owner.
-- Bonus VP tokens for settling new islands (scenario-dependent).
-- VP target set by scenario (usually 12–14).
+### 1.6 The two main expansions
 
-**Cities & Knights.** A deeper rework.
-- Commodities: paper (forest cities), cloth (pasture cities), coin (mountain cities).
-- City improvements in three tracks (trade, politics, science), unlocking progress cards and metropolises.
-- Knights (basic, strong, mighty), activated with grain, defend against barbarians.
-- Barbarian ship track and an event die. If barbarians win, the weakest-defended players lose a city.
-- Progress cards replace development cards. Robber is inactive until the first barbarian attack.
-- City walls raise the hand limit by 2 each.
-- VP target 13.
+These are top priority after the base game.
+
+**Seafarers**
+- Sea hexes, islands and ships. A ship costs 1 lumber + 1 wool and sits on an edge next to sea. Once per turn you may move one ship at the open end of a shipping line (not one built this turn).
+- Ships and roads connect only through a settlement or city. Shipping lines count toward Longest Road (renamed "Longest Trade Route").
+- **Gold field** hex: pays 1 resource of the owner's choice per settlement (2 per city).
+- **Pirate**: on a 7 or a knight, you can move the pirate instead of the robber. It stops ships next to it from being built or moved, and steals from a ship owner beside it.
+- **Island bonus**: VP tokens for the first settlement on each new island, per scenario.
+- **Fog of war** (exploration scenarios): face-down hexes revealed when a ship or road reaches them, sometimes paying a resource on discovery.
+- Scenarios set their own map, VP target (usually 12–14) and special rules. Each scenario is a map file plus a small rules module.
+
+**Cities & Knights**
+- **Commodities**: cities on forest make paper, on pasture make cloth, on mountains make coin (a city there takes 1 resource + 1 commodity instead of 2 resources).
+- **City improvements** in three tracks: trade (cloth), politics (coin), science (paper), 5 levels each. Level 3 unlocks a special ability; reaching level 4 first earns a **metropolis** (+2 VP; another player can take it only by reaching level 5 in that track first).
+- **Knights** (basic, strong, mighty) placed on corners, activated with grain. Active knights can move, chase away the robber, displace weaker enemy knights and defend.
+- **Barbarians**: an event die moves the barbarian ship. When it lands, total active knight strength is compared to the number of cities. If the barbarians win, the player(s) with the lowest knight strength lose a city back to a settlement. If Catan wins, the strongest defender gets a "Defender of Catan" VP card (or a progress card on a tie).
+- **Progress cards** replace development cards: three decks (green science, yellow trade, blue politics), drawn by event die rolls based on your improvement levels.
+- **City walls** raise your hand limit by 2 each (max 3).
+- The robber is inactive until the first barbarian attack.
+- **Merchant** piece: placed on a hex, it lets its owner trade that hex's resource 2:1 with the bank and is worth 1 VP while they hold it.
+- VP target 13. The hand limit counts commodities.
+
+**Combinations.** Seafarers + Cities & Knights together is an official combination, and 5–6 player versions exist for both. The module system must allow any valid mix, with a test suite for each combination we support.
+
+### 1.7 Later expansions
+
+After the two main ones, in this order (we can reorder).
+
+**Traders & Barbarians** (official). A box of separate scenarios and variants:
+- *Fishermen of Catan*: fish shoal tiles around the coast pay fish tokens, spent on actions (move robber off, steal, free road, buy a development card). Includes the "old boot" that costs a VP.
+- *Rivers of Catan*: rivers between hexes; bridges cost extra and pay gold coins; the wealthiest player gets a VP and the poorest loses one.
+- *The Caravans*: camel lines vote-placed between oases; roads along camels count double toward Longest Road.
+- *Barbarian Attack*: barbarians land on coastal hexes and block production; knights fight them for prisoners.
+- *Traders & Barbarians* (main scenario): wagons carry goods between castle, quarry and glassworks for VP.
+- Variants: event card deck instead of dice (also a good fairness option on its own), Harbormaster bonus card, 2-player rules.
+
+**Explorers & Pirates** (official). Missions on an unexplored sea:
+- Ships carry settlers and crews; harbor settlements are needed to build ships.
+- Fog-of-war map revealed by exploring.
+- Missions: land settlers, fish for the Council, deliver spice, fight pirate lairs with crews. Each mission pays gold and VP.
+- Gold can buy resources. The pirate ship moves on 7s.
+
+**Fan-made expansions** (requested: Harbors and Artisans, Civilizations of Catan, Oil Springs, Explorers of Catan, Combats and Politics, Dragons and Wizards).
+- We need the rule text for each. Some are well documented online, some have several versions. Before each one, I'll gather its rules and write a short summary for Nachi to confirm which version your group plays.
+- Oil Springs is an official scenario released by the Catan publisher (oil tiles produce oil for upgrades and metropolises, with spills and disasters as a downside).
+- These rules belong to their authors. We implement the mechanics for private play and credit each source in the rulebook.
+- The module system (section 4.1) is what makes these cheap to add: most need new hex types, new pieces, a new card deck and a few turn hooks.
 
 ---
 
@@ -139,28 +178,24 @@ These are the online-specific options Colonist is known for. We will match their
 | Mountains | Ore | 3 |
 | Desert | (none) | 1 |
 
-**Number tokens: 18** (A–R in the official spiral order)
+**Number tokens: 18**
 
 | Number | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 10 | 11 | 12 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Tokens | 1 | 2 | 2 | 2 | 2 | 2 | 2 | 2 | 2 | 1 |
 | Pips (ways to roll, out of 36) | 1 | 2 | 3 | 4 | 5 | 5 | 4 | 3 | 2 | 1 |
 
-Total pips on the board: 58. Official spiral order for the A–R tokens: 5, 2, 6, 3, 8, 10, 9, 12, 11, 4, 8, 10, 9, 4, 5, 6, 3, 11.
+Total pips on the board: 58. Official spiral order (A–R): 5, 2, 6, 3, 8, 10, 9, 12, 11, 4, 8, 10, 9, 4, 5, 6, 3, 11.
 
-**Harbors: 9** (4 generic 3:1, plus one 2:1 each for lumber, wool, grain, brick, ore)
+**Harbors: 9.** 4 generic 3:1 and one 2:1 each for lumber, wool, grain, brick and ore.
 
-**Pieces per player (4 colors):** 15 roads, 5 settlements, 4 cities.
+**Per player (4 colors):** 15 roads, 5 settlements, 4 cities.
 
-**Cards**
-- Resource cards: 95 (19 each of lumber, wool, grain, brick, ore).
-- Development cards: 25 = 14 Knight, 5 Victory Point, 2 Road Building, 2 Year of Plenty, 2 Monopoly.
-- Special cards: Longest Road, Largest Army.
-- Building cost reference cards (UI only for us).
+**Cards.** 95 resource cards (19 of each). 25 development cards: 14 Knight, 5 Victory Point, 2 Road Building, 2 Year of Plenty, 2 Monopoly. Longest Road and Largest Army cards.
 
-**Other:** 1 robber, 2 dice, frame/sea border.
+**Other.** 1 robber, 2 dice, sea frame.
 
-### 2.2 5–6 player extension (combined totals with the base game)
+### 2.2 5–6 players (totals including the base game)
 
 | Component | Base | Added | Total |
 |---|---|---|---|
@@ -174,20 +209,30 @@ Total pips on the board: 58. Official spiral order for the A–R tokens: 5, 2, 6
 | Development cards | 25 | 9 | 34 |
 | Player colors | 4 | 2 | 6 |
 
-- Number tokens for 5–6 players: 2 and 12 have 2 each; 3, 4, 5, 6, 8, 9, 10, 11 have 3 each (28 total).
-- Development cards for 5–6 players: 20 Knight, 5 Victory Point, 3 Road Building, 3 Year of Plenty, 3 Monopoly.
+- Tokens: 2 and 12 have 2 each; 3, 4, 5, 6, 8, 9, 10 and 11 have 3 each.
+- Development cards: 20 Knight, 5 Victory Point, 3 Road Building, 3 Year of Plenty, 3 Monopoly.
 
-### 2.3 Seafarers (what we need to know)
+### 2.3 7–8 players (our draft, tuned later by simulation)
 
-Each Seafarers scenario defines its own map, so we encode every scenario as a preset file (hexes, numbers, harbors, starting rules, VP target). The fixed parts:
-- Ships: 15 per player.
+| Component | Draft total |
+|---|---|
+| Land hexes | 37: Forest 8, Pasture 8, Fields 8, Hills 6, Mountains 6, Desert 1 |
+| Number tokens | 36: 2 and 12 ×2, all others ×4 |
+| Harbors | 13: 6 generic, 7 specific (2 wool, 2 grain, 1 each other) |
+| Resource cards | 30 of each (150) |
+| Development cards | 44: 26 Knight, 6 VP, 4 Road Building, 4 Year of Plenty, 4 Monopoly |
+| Player colors | 8, all colorblind-safe with a shape per player |
+
+### 2.4 Seafarers
+
+Each scenario sets its own layout, so scenarios are stored as map files. Fixed parts:
+- 15 ships per player.
 - 1 pirate ship.
-- Gold field hexes and sea hexes, placed per scenario.
-- Bonus VP tokens for new islands, per scenario.
+- Sea hexes, gold field hexes and island bonus tokens, used per scenario.
 
-Full box counts will be cross-checked against the rulebook in phase 10 before coding scenarios.
+The full box inventory gets checked against the rulebook at the start of phase 5. Because the engine doesn't depend on box totals, a wrong box count can't break anything; only scenario files matter.
 
-### 2.4 Cities & Knights (what we need to know)
+### 2.5 Cities & Knights
 
 - Commodity cards: 36 (12 each of paper, cloth, coin).
 - Progress cards: 54, three decks of 18.
@@ -195,7 +240,12 @@ Full box counts will be cross-checked against the rulebook in phase 10 before co
   - Trade (yellow): Commercial Harbor 2, Master Merchant 2, Merchant 6, Merchant Fleet 2, Resource Monopoly 4, Trade Monopoly 2.
   - Politics (blue): Bishop 2, Constitution 1, Deserter 2, Diplomat 2, Intrigue 2, Saboteur 2, Spy 3, Warlord 2, Wedding 2.
 - Per player: 6 knights (2 basic, 2 strong, 2 mighty), 3 city walls, 1 city improvement chart.
-- 3 metropolises, 1 merchant, 6 "Defender" VP cards, barbarian ship and track, event die (3 barbarian ship faces and 3 colored city-gate faces), and a red die that pairs with the regular yellow die.
+- 3 metropolises, 1 merchant, 6 "Defender of Catan" VP cards, barbarian ship and track.
+- Event die (3 barbarian ship faces, 3 colored city-gate faces) and a red die that pairs with the regular yellow die.
+
+### 2.6 Later expansions
+
+Component lists for Traders & Barbarians, Explorers & Pirates and each fan expansion get written at the start of their phase, together with their rule summaries.
 
 ---
 
@@ -203,235 +253,339 @@ Full box counts will be cross-checked against the rulebook in phase 10 before co
 
 ### 3.1 Board model
 
-- Hexes use axial (cube) coordinates. Corners (where settlements go) and edges (where roads go) get stable ids derived from coordinates, so the same map always has the same ids for replays.
-- A map file (JSON) holds: hex list with terrain, number tokens, harbors (edge + type), robber start, allowed player counts, and optional rules (VP target, special pieces).
+- Hexes use axial (cube) coordinates. Corners and edges get stable ids from coordinates, so replays always line up.
+- A map file (JSON) holds hexes (terrain, number token, face-up or hidden), harbors, starting pieces (robber, pirate), allowed player counts, required modules, VP target and any special rules.
+- Hex types are open-ended. New ones (gold, volcano, oasis, oil, fish shoal, river edge, pirate lair, fog) are added by modules, not by changing the core.
 
 ### 3.2 Preset maps
 
-- **Starter**: the classic beginner layout feel, re-created with our own coordinates (layouts are not copyrightable art, but we will design our own balanced starter rather than copy the printed one exactly).
-- **Classic 5–6**: our own fixed layout for the bigger board.
-- **Original shapes** (later): diamond, ring with a lake in the middle, two continents, long river, small 3-player island. Each one ships with hand-checked fairness.
-- **Seafarers scenarios** (phase 10).
-- **Custom map editor** (stretch goal): paint hexes, drop tokens, save and share with the group.
+**Standard boards**
+- Starter (our own balanced layout for learners), Classic 5–6, Big 7–8.
 
-### 3.3 Random generation and fairness
+**Special maps** (inspired by the kinds of special maps Colonist offers; layouts and names are our own designs)
+- **Gold Rush**: several gold field hexes in the middle of the board, fewer normal resource hexes. Fast and swingy.
+- **Volcano**: one or more volcano hexes. A volcano pays like a gold field. When its number is rolled, a die picks one of its corners: a settlement there is destroyed, a city drops to a settlement.
+- **Deep Forest**: a forest-heavy board with clearings, lumber plentiful and brick rare. Roads are cheap, settlements are not.
+- **Lakes**: inland lakes break the board into regions. Lake shores have harbors.
+- **Diamond**, **Twirl**, **Ring** and **Mini**: shape variants that change where the best spots are.
+- **World** and **Archipelago**: continent-style maps (with Seafarers ships).
+- More can be added any time as data files, and the map editor (phase 13) lets the group make their own.
 
-**How fair are the originals?**
-- The official variable setup has one hard rule: red numbers (6 and 8) must never touch. The A–R spiral order also spreads tokens naturally.
-- Nothing balances resources. A board can easily have both ore hexes on 2 and 12, or all the good numbers on grain. Players often complain about this in online play.
-- So "very fair" is our improvement, not something the originals do. We will keep a Classic mode for purists.
+**Seafarers scenarios**: Heading for New Shores, Four Islands, Fog Islands, Through the Desert, the Forgotten Tribe, Cloth for Catan, the Pirate Islands, Wonders of Catan, and others from the box, each as a map file plus rules module.
 
-**Generator modes**
-- **Classic**: shuffle terrain, then tokens in spiral order or random with only the official rule (no touching 6/8).
-- **Balanced** (default): hard constraints plus a scored search (below).
-- **Wild**: fully random, with only "no touching 6/8". For chaos nights.
+### 3.3 Random generation
 
-**Hard constraints (Balanced mode)**
-1. No 6 touches an 8, and no two 6s or two 8s touch.
+The host chooses a mode in the lobby. **Classic is the default.** Fairness is optional.
+
+| Mode | What it does |
+|---|---|
+| **Classic** (default) | Shuffles terrain and places numbers by the official rule: 6s and 8s never touch. Matches how the originals do it. |
+| **Balanced** | Classic, plus our fairness rules and a scored search (below). |
+| **Wild** | Fully random, even red numbers may touch. Chaos nights. |
+| **Custom** | Host turns individual rules on or off, and sets resource weights (e.g. "more ore"). |
+
+**Balanced mode rules**
+
+Hard rules:
+1. No 6 or 8 touches another 6 or 8.
 2. No two identical numbers touch.
 3. 2 and 12 don't touch each other.
-4. No three hexes of the same terrain form a connected cluster.
-5. The four red tokens (6, 6, 8, 8) sit on at least three different resources.
-6. No resource gets both of its tokens only from 2/3/11/12 (each resource has at least one hex with 4+ pips).
+4. No three hexes of the same terrain in a connected cluster.
+5. The red tokens sit on at least three different resources.
+6. Every resource has at least one hex with 4 or more pips.
 
-**Soft goals, scored (lower score is better)**
-1. **Pips per resource** close to its fair share. Fair share = total pips × (hexes of that resource / producing hexes). For the base game: lumber, wool and grain about 12.9 pips each; brick and ore about 9.7. Ore and brick are meant to be scarcer, so we balance per hex, not to equal totals.
-2. **Spot quality.** A snake draft for 4 players picks 8 starting spots. We look at the best 8 corners (by pip sum, with a bonus for resource variety) and keep the gap between the best and 8th-best small, so seat 4 isn't punished.
-3. **No monster spots.** Cap the best corner at 12 pips (the maximum possible with the red rule is 13).
-4. **Regional balance.** Split the board into three sectors; pips per sector stay within a few points of each other.
-5. **Harbor fairness.** A 2:1 harbor next to a high-pip hex of the same resource gets a penalty.
-6. **Desert placement.** Not fixed to the center, but scored so it doesn't wipe out a whole coast's options.
+Scored goals:
+1. **Pips per resource** near its fair share (share of the total pips in proportion to that resource's hex count). Base game: about 12.9 for lumber, wool and grain; about 9.7 for brick and ore. Brick and ore stay scarcer by design.
+2. **Starting spot spread**: the best 2N corners (N players) are close in value, so the last seat isn't punished.
+3. **No monster spots**: cap on the best corner's pip total.
+4. **Regional balance**: board split into sectors with similar total pips.
+5. **Harbor balance**: a 2:1 harbor beside a strong hex of its own resource gets a penalty.
 
-**Algorithm**
-1. Seeded random generation (the seed is shown so the board can be replayed or shared).
-2. Rejection sampling until hard constraints pass.
-3. Hill-climbing: swap pairs of tokens or terrains for a few thousand steps to lower the score.
-4. Accept when the score is below a threshold; otherwise restart with a new seed. Runs in well under a second in the browser.
+Algorithm: seeded generation → reject until the hard rules pass → swap pairs of tokens or terrains a few thousand times to lower the score → accept below a threshold. Runs in the browser in well under a second. The seed is shown so any board can be shared or replayed.
 
-**Fairness report (shown in the lobby)**
-- Pips per resource bar chart, best starting spots, a simple "Fairness: A/B/C" grade, and a Reroll button. The host can lock the board before starting.
+**Fairness report** (any mode): pips per resource, best starting spots, an A/B/C grade, a Reroll button, and Lock board.
 
-**Testing**
-- Property tests on thousands of seeds: every generated board meets the hard constraints, and the score distribution stays inside targets.
-- Simulation with simple bots to check that seat position doesn't affect win rate much.
+### 3.4 Seafarers map generation
+
+Sea boards need more rules than land boards.
+
+**Structure**
+1. A **home island** (or two) big enough for every player's starting settlements: at least 2N good corners that obey the distance rule.
+2. **Outer islands** of 2–6 hexes each, with the number of islands and their sizes set by the host (or random).
+3. **Sea gaps**: every outer island is reachable by ship. Each must be 1–3 sea hexes from another island, so no island is unreachable and none is too easy.
+4. **Sea share**: a target share of sea hexes (for example 35–50%), chosen by board size.
+
+**Resources and numbers**
+5. The home island has every resource, so nobody is shut out at the start.
+6. Outer islands may be resource-skewed (an ore island, a wool island), which gives a reason to sail.
+7. **Gold fields** only on outer islands, never next to each other, and not on 6 or 8 in Balanced mode.
+8. Small islands get at least one decent number (4+ pips) so they're worth reaching.
+9. The usual number rules (no touching 6/8) apply inside each island and across a one-hex strait.
+
+**Harbors and pieces**
+10. Harbors only on coastal edges, facing sea, spread across the home island and some outer islands.
+11. The pirate starts in open sea, away from the home island's coast.
+
+**Fog of war** (optional)
+12. Outer hexes are face down. The generator still checks all its rules on the hidden layout, so exploring can't reveal an impossible board.
+
+**Island bonus**: each outer island is tagged so the first settler there gets the bonus VP.
+
+**Checks**: property tests on thousands of seeds (every island reachable, home island has all resources, enough starting spots for every player count).
 
 ---
 
 ## 4. Architecture
 
-### 4.1 Shared rules engine
+### 4.1 Rules engine built for expansions
 
-- Written in TypeScript, used by both the browser and the server.
-- Pure function: `apply(state, action) → { state, events }`. No randomness inside; dice and shuffles come from a seeded RNG owned by the server.
-- Every game is stored as its seed plus the action log, so any game can be replayed, audited, or resumed exactly.
-- Validators return clear reasons ("not your turn", "too close to another settlement") that the UI can show.
+The engine is written in TypeScript and shared by the browser and the server. The core knows nothing about specific expansions. Everything game-specific lives in modules.
+
+**What the core provides**
+- **Board graph**: hexes, corners, edges, with an open list of hex types.
+- **Pieces**: a generic "piece on a corner / edge / hex" model. Roads, ships, settlements, cities, metropolises, knights, walls, harbor settlements, camels, bridges, robber, pirate, barbarians, merchants and dragons are all pieces with properties defined by modules.
+- **Cards and tokens**: a registry of card types and decks (resources, commodities, development, three progress decks, event cards, fish, gold coins, VP tokens).
+- **Dice**: a pluggable source of rolls: 2d6, balanced dice, event card deck, or the Cities & Knights trio (yellow, red, event die).
+- **Costs**: data, not code. A module can add an item or change a cost.
+- **Turn phases**: a state machine that modules can add phases to (Special Building Phase, barbarian movement, ship moves, mission resolution).
+- **Hooks**: modules react to events like "dice rolled", "production", "7 rolled", "piece built", "turn ended", "compute VP", "hand limit".
+- **VP**: computed from contributions every module reports.
+- **Seeded RNG and event log**: every game is its seed plus a list of actions, so games can be replayed and resumed exactly.
+
+**What a module provides**
+- An id, which modules it needs and which it conflicts with.
+- New hex types, pieces, cards, costs, phases, actions and hooks.
+- Its own rulebook pages (section 9) and UI panels (for example the C&K city improvement chart or the barbarian track).
+- Bot hints so bots understand its pieces (section 5).
+
+**Designing for the main two from the start.** Before the base game is coded, phase 1 writes down everything Seafarers and Cities & Knights need from the core and checks the core design against it:
+- Seafarers: sea edges, ships as a second kind of edge piece, moving pieces, hidden hexes, gold choice during production, pirate as a second hex occupant, island ownership.
+- Cities & Knights: a second production type (commodities), a third die, three card decks drawn by dice, pieces with levels and active/inactive state, a global event track (barbarians), per-player improvement charts, hand limit changes, an inactive robber at the start, VP target 13.
+
+This list is the acceptance test for the core. The base game ships only once the core passes it, so Seafarers and C&K slot in without a rewrite.
 
 ### 4.2 Realtime multi-device sync
 
-- **Authoritative server.** One server-side game room per game. Clients never change state themselves; they send intents ("build road on edge 34"), the server validates with the shared engine, then broadcasts events.
-- **Hidden information.** Each player gets their own view: their hand and dev cards in full, everyone else as counts only. The server strips hidden data before sending.
-- **Ordered events.** Every event has a sequence number. A client that misses events (sleep, bad Wi-Fi) asks for "everything after #N" or gets a fresh snapshot.
-- **Multiple devices.** A seat belongs to an account, not a device. Opening the game on a phone while it's open on a laptop just attaches a second live view; either can act.
-- **Optimistic UI.** Moves like placing a road show instantly with a subtle pending state, and roll back if the server rejects them.
-- **Persistent rooms.** Game state is saved after every action, so games survive server restarts and can be paused and resumed days later (good for async play across time zones).
-- **Presence.** Show who's online, who is reconnecting, and a "nudge" button.
+- **Authoritative server.** One server-side room per game. Clients send intents ("build road on edge 34"). The server checks them with the shared engine and sends out events.
+- **Hidden information.** Each player gets their own view: their hand and cards in full, others as counts only.
+- **Ordered events** with sequence numbers. A client that missed some (sleep, bad Wi-Fi) asks for "everything after #N" or gets a fresh snapshot.
+- **Multiple devices.** A seat belongs to an account, not a device. A phone and a laptop can both be open; either can act.
+- **Optimistic UI.** Moves show instantly and roll back if the server rejects them.
+- **Persistent rooms.** State is saved after every action, so games survive restarts.
+- **Async play** (low priority): because rooms persist, async is mostly a lobby setting (long turn timer) plus "your turn" notifications. It comes in the polish phase.
+- **Presence**: who's online, who's reconnecting, and a nudge button.
 
 ### 4.3 Accounts, profiles, achievements
 
-- **Login**: Google and Discord sign-in (Discord suits gaming friend groups), plus guest play via invite link so nobody is blocked. Guests can upgrade to an account and keep their stats.
+- **Login**: Google sign-in, plus our own email and password sign-up. Nothing else. Email verification and password reset need an email service; Resend's free tier (a few thousand emails a month) is more than enough. Players can also join a game as a guest from an invite link and upgrade later.
 - **Profiles**: display name, avatar, favorite color, chosen theme, stats.
-- **Groups ("crews")**: a friend group with its own leaderboard, game history and invite link.
-- **Stats**: games, wins, win rate by seat, average VP, longest road record, favorite resource, dice luck (expected vs actual production).
-- **Achievements** (examples):
-  - First win; win from last seat; win with no ore; win in under 60 minutes.
-  - Longest road of 12+; 5 knights in a game; Monopoly for 6+ cards.
-  - Roll a 7 three times in a row (unlucky), get robbed 5 times in a game.
-  - Play 10 games with the same crew; win on every preset map.
-  - Achievements are computed on the server from the event log at game end, so they can't be faked and can be added later and back-filled from old games.
-- **Game history and replays**: step through any finished game.
+- **Crews**: a friend group with its own leaderboard, history and invite link.
+- **Stats**: games, wins, win rate by seat and by map, average VP, records, favorite resource, dice luck (expected vs actual production).
+- **Achievements** (examples): first win; win from the last seat; win with no ore; longest road of 12+; 5 knights in a game; Monopoly for 6+ cards; win on every special map; defend Catan from barbarians 3 times; settle 4 islands in one game; beat a Hard bot. Achievements are computed on the server from the game log, so they can't be faked and new ones back-fill from old games.
+- **History and replays**: step through any finished game.
 
 ---
 
-## 5. Webapp vs native app
+## 5. Bots
+
+Bots fill empty seats, give practice games, and let one person play alone.
+
+**Difficulty**
+
+| Level | How it thinks |
+|---|---|
+| **Easy** | Picks reasonable legal moves with some randomness. Rarely trades, sometimes wastes cards. Good for beginners. |
+| **Medium** | Scores moves with rules of thumb: production value of spots, resource variety, what it can build next, blocking leaders with the robber, sensible bank trades. |
+| **Hard** | Medium's scoring plus look-ahead. It simulates many possible futures (guessing hidden cards from what it has seen played) and picks the move that wins most often. It tracks what's in each opponent's hand from public events. |
+
+**Play styles** (any difficulty)
+- **Builder**: roads and settlements, goes for Longest Road.
+- **City**: grain and ore, cities and development cards.
+- **Army**: development cards and knights, Largest Army.
+- **Trader**: trades a lot and uses harbors.
+- **Balanced**: adapts to the board.
+
+**Trading with humans.** Bots post and answer trade offers. They won't make trades that help a player who is close to winning, and their offers are judged by how much each resource is worth to them right now.
+
+**Expansions.** Every module includes bot hints (how to value its pieces and actions), so bots can play Seafarers, Cities & Knights and later expansions. Hard bots get the most from this because look-ahead works with any rules.
+
+**Where bots run.** The free server plan has tight limits on processing time per request, so Easy and Medium bots run on the server (they're cheap). Hard bots do their thinking in the host player's browser (in a background worker) and send moves through the server like any player. The server still checks every move. If that turns out to be a problem, Hard bots move to a small free-tier server later.
+
+**Testing.** Bots playing thousands of games against each other also test the rules engine and the fairness of maps and seats.
+
+---
+
+## 6. Webapp vs native app
 
 **Recommendation: a PWA (Progressive Web App).**
-
-- Works on every phone, tablet and computer from one link. Friends just open the invite.
-- Can be installed to the home screen on iOS, Android and desktop, opens full screen like an app.
-- Web push notifications ("your turn") work on Android and desktop, and on iOS for installed web apps (iOS 16.4+).
-- No app store fees, reviews or developer accounts.
-- If we later want App Store or Play Store listings, we wrap the same code with Capacitor. Nothing is lost by starting as a PWA.
-
-A native app would only be worth it for heavy 3D graphics or deep OS integration, and we need neither.
+- One link works on every phone, tablet and computer.
+- Installs to the home screen on iOS, Android and desktop, and opens full screen like an app.
+- "Your turn" notifications on Android, desktop, and iOS 16.4+ for installed web apps.
+- No app store fees or reviews.
+- If store listings are wanted later, the same code can be wrapped with Capacitor.
 
 ---
 
-## 6. Free hosting stack
+## 7. Free hosting stack
 
 **Recommended: Cloudflare, free plan**
 
 | Need | Service | Why |
 |---|---|---|
-| Website and assets | Cloudflare Pages | Free, global CDN, auto-deploy from GitHub. |
-| API | Cloudflare Workers | Free tier is generous for a friend group. |
-| Live game rooms | Durable Objects (SQLite storage, on the free plan) | One object per game: holds state, runs the rules engine, keeps WebSocket connections. Hibernating WebSockets mean idle games cost nothing. |
-| Accounts, stats, achievements, history | Cloudflare D1 (SQLite) | Free tier storage is far more than we need. |
-| Auth | Better Auth (or Auth.js) running on Workers + D1, with Google and Discord OAuth | No paid auth service; no email sending needed. |
-| Avatars and theme uploads (later) | Cloudflare R2 | Free tier storage, no egress fees. |
+| Website and assets | Cloudflare Pages | Free, global CDN, deploys from GitHub. |
+| API | Cloudflare Workers | Free tier is generous for friend groups. |
+| Live game rooms | Durable Objects (SQLite storage, available on the free plan) | One object per game holds state, runs the rules engine and keeps the live connections. Idle games cost nothing. |
+| Accounts, stats, achievements, history | Cloudflare D1 | Free storage is far beyond our needs. |
+| Auth | Better Auth on Workers + D1, Google sign-in + email and password | No paid auth service. |
+| Emails (verify, reset password) | Resend free tier | Enough for a friend group. |
+| Avatars and theme uploads (later) | Cloudflare R2 | Free storage, no download fees. |
 
-Free limits change over time, so we re-check them in phase 0. At our scale (a few groups, a few games a day), we should stay far below them.
+**Things to check in phase 0**
+- Free plan limits change. Re-check them first.
+- Free Workers get very little processing time per request. Password hashing and bot thinking must fit inside it. Password hashing uses the platform's built-in crypto (fast), and Hard bots run in the browser (section 5). If password login still doesn't fit, Supabase Auth (free, handles Google and email logins and sends emails itself) is the fallback.
 
-**Alternatives considered**
-- **Supabase** (Postgres + Auth + Realtime): great auth and database, but free projects pause after a week of inactivity, and game logic would still need a separate server for hidden info. Good fallback for accounts only.
-- **Firebase (Spark plan)**: free auth and database, but no server functions on the free plan, which makes hidden hands and fair dice hard.
-- **Render / Railway / Fly**: free tiers sleep, have shrunk, or were removed; not reliable for live games.
-- **Colyseus or boardgame.io**: game frameworks that need an always-on Node server; we'd rather use Durable Objects, which fit "one room per game" naturally.
+**Alternatives considered**: Supabase (free projects pause after a week idle, and game logic would still need a server), Firebase free plan (no server functions, so hidden hands and fair dice are hard), Render, Railway and Fly (free tiers sleep, shrank or ended), Colyseus and boardgame.io (need an always-on server).
 
 ---
 
-## 7. UI direction
+## 8. UI direction
 
 **Principles**
-- Board first. The map takes most of the screen; everything else sits around it and gets out of the way.
-- Calm and readable. Soft colors, generous spacing, one accent color per player.
-- Show, don't tell. Valid placements glow when you pick "Build road". Resources visibly fly from hexes to hands on each roll.
-- Fast for regulars. One-tap actions, keyboard shortcuts on desktop, and a clear "what can I do now" bar.
+- Board first. Everything else sits around it and gets out of the way.
+- Calm and readable: soft colors, generous spacing, one accent color per player.
+- Show, don't tell. Valid spots glow when you pick a build. Resources fly from hexes to hands.
+- Fast for regulars: one-tap actions, keyboard shortcuts on desktop, a clear "what can I do now" bar.
 
 **Layout**
-- Desktop: board in the center, players along the top or side (avatar, VP, card count, dev count, knights, longest road), your hand along the bottom, action bar bottom right, log and chat in a collapsible side panel.
-- Phone (portrait): board on top with pinch-zoom and pan, compact player strip, hand and actions in a bottom sheet that slides up.
-- Trades in a dedicated sheet: drag cards into "give" and "get", see responses from each player live.
+- Desktop: board in the center, player panels along the side (VP, card count, development cards, knights, longest road), your hand at the bottom, actions bottom right, log and chat in a side panel.
+- Phone (portrait): board on top with pinch-zoom, compact player strip (fits 8), hand and actions in a bottom sheet.
+- Expansion panels slot in: C&K improvement chart and barbarian track, Seafarers ship counter, mission boards.
+- Trades in their own sheet: drag cards into "give" and "get", see each player's answer live.
+- A **?** button in the corner opens the rulebook (section 9) at any time.
 
 **Visual language**
-- Rendering in SVG (crisp at any zoom, easy to theme, works with CSS animations). Upgrade to a canvas/WebGL renderer such as PixiJS only if performance needs it.
-- Number tokens show pips (dots), with 6 and 8 highlighted, for quick reading.
-- Dice roll animation, gentle sounds (toggleable), haptics on phones.
-- Light and dark mode.
+- SVG rendering (crisp at any zoom, easy to theme). PixiJS only if performance needs it.
+- Number tokens with pips, 6 and 8 highlighted.
+- Dice animation, gentle sounds (toggleable), haptics on phones, light and dark mode.
 
-**Accessibility**
-- Colorblind-safe player colors, plus a shape or pattern per player.
-- Terrain readable without color (each hex has a distinct icon).
-- Large tap targets, screen reader labels on actions, reduced-motion setting.
+**Accessibility**: colorblind-safe colors plus a shape per player, terrain icons readable without color, large tap targets, screen reader labels, reduced motion.
 
-**Design process**
-- Phase 3 starts with a clickable mockup of the main screen on desktop and phone for Nachi to approve before building.
+**Process**: phase 3 starts with a clickable mockup on desktop and phone for Nachi to approve.
 
 ---
 
-## 8. Graphics, themes and skins
+## 9. In-game rulebook and guide
 
-**What we can't do.** We won't use, trace, or recreate the official Catan or Colonist artwork, piece designs, card art, logos, or names in the product. They are copyrighted and trademarked, even for a private game. Game mechanics themselves aren't owned, so the rules are fine.
+Available from the home screen, the lobby, and during a game as a pop-up window (a side panel on desktop, a bottom sheet on phone). Opening it never interrupts the game.
 
-**What we will do: a swappable theme system.**
+**Contents**
+- **Rules for this game**: only the modules active in this game (base, Seafarers, Cities & Knights, the map's special rules, house rules and options the host turned on), with the current VP target and limits filled in.
+- **Full rulebook**: every module, browsable and searchable.
+- **Cost card**: everything you can build or buy right now, greyed out if you can't afford it.
+- **Card glossary**: every development and progress card, with what it does.
+- **Map guide**: what each special hex does (gold, volcano, fog, fish, oil).
+- **Strategy tips** for beginners, per module.
 
-A theme is a folder with a manifest file:
-- Palette and fonts (as design tokens).
-- Terrain hex art for each terrain (and sea, gold, etc.).
+**Context help**
+- Long-press (or hover) any hex, piece, card or button to see the rule behind it.
+- When a move is rejected, the message links to the rule ("Too close to another settlement → distance rule").
+- First-time tutorial game against Easy bots, with step-by-step hints.
+
+**How it's written**
+- Each module ships its own rulebook pages, so the rulebook grows with the game.
+- We write the rules text ourselves, in plain language. We don't copy the official rulebooks' wording.
+- Fan expansions credit their original authors.
+
+---
+
+## 10. Graphics, themes and skins
+
+**What we can't do.** We won't use, trace, or recreate the official Catan or Colonist artwork, piece designs, card art, logos, or names in the product. They're copyrighted and trademarked, even for a private game. Game mechanics aren't owned, so the rules are fine.
+
+**What we will do: a swappable theme system.** A theme is a folder with a manifest:
+- Palette and fonts.
+- Art for every hex type (including sea, gold, volcano, fog and expansion hexes).
 - Number token style.
-- Piece art per player color: road, settlement, city, ship, knight.
-- Robber and pirate.
-- Card faces and backs (resources, development, progress).
-- Dice, harbor markers, board frame and background.
-- Optional sounds and animation settings.
+- Pieces per player color: road, settlement, city, ship, knight (3 levels), wall, metropolis and expansion pieces.
+- Robber, pirate, barbarians, merchant.
+- Card faces and backs for every deck.
+- Dice, harbors, frame, background, sounds.
 
-Themes are swappable per player (each person can see the board in their own theme) and per game. The game engine never knows about art.
+Each player can see the board in their own theme. The engine never knows about art. A theme that's missing art for a new expansion falls back to the default theme's art for that piece.
 
 **Planned original themes**
-1. **Heritage**: the classic board-game feel, our own art. Warm painted terrain, wooden-looking pieces, parchment cards, a carved-wood frame. Evokes the original's mood without copying any of it.
-2. **Clean** (default): flat, modern, geometric. Soft pastel terrain with simple icons, very readable on phones.
-3. **Night Market**: dark mode theme with glowing accents, lanterns, deep blues.
-4. **Papercraft** (stretch): cut-paper look with soft shadows.
+1. **Heritage**: the classic board-game feel with our own art. Painted terrain, wooden-looking pieces, parchment cards, carved-wood frame.
+2. **Clean** (default): flat, modern, geometric, very readable on phones.
+3. **Night Market**: dark theme with glowing accents.
+4. **Papercraft** (stretch): cut-paper look.
 
-**How the art gets made**
-- I can draw the Clean theme as hand-made SVG directly in code.
-- Heritage and others: original illustration in SVG, optionally starting from CC0 asset packs (for example Kenney's free hex kits) as a base, and refined by hand.
-- Every asset's source and license is listed in a `CREDITS.md` file.
+**How the art gets made**: the Clean theme as hand-made SVG in code. Heritage and others as original SVG illustration, optionally starting from CC0 asset packs (such as Kenney's free hex kits) and refined by hand. Every asset's source and license goes in `CREDITS.md`.
 
 ---
 
-## 9. Build phases
+## 11. Build phases
 
-Each phase ends with something we can play or use.
+Each phase ends with something we can play or use. Seafarers and Cities & Knights come straight after the base game works online.
 
 | Phase | What | Done when |
 |---|---|---|
-| **0. Foundations** | Monorepo (web app, server, shared engine), TypeScript, lint, tests, CI on GitHub, Cloudflare deploy pipeline, check current free-tier limits. | A "hello" page and a test room deploy automatically on every push. |
-| **1. Rules engine** | Base game rules as a pure, seeded, event-logged engine. Full unit tests for every rule in section 1.1. | A script can play full random games end to end with no rule errors. |
-| **2. Board and maps** | Hex model, map files, Starter and Classic presets, random generator with Classic/Balanced/Wild modes, fairness score and report. | 10,000 generated boards all pass the hard constraints; fairness report renders. |
-| **3. Local play UI** | Mockup approval, then a playable hotseat game in the browser with the Clean theme. | We can play a full game on one device. |
-| **4. Online multiplayer** | Durable Object game rooms, WebSockets, hidden info, reconnect, multi-device, lobby, invite links, guest play, turn timer, chat. | 4 friends finish a game on different devices, including one who refreshes mid-game. |
-| **5. Accounts and crews** | Google/Discord login, profiles, guest upgrade, friend groups. | Games are linked to accounts and show up in each person's history. |
-| **6. Stats and achievements** | Stats pages, achievements, crew leaderboards, game replays. | Achievements unlock live at game end and back-fill from old games. |
-| **7. Themes** | Theme system plus Heritage and Night Market themes, per-player theme choice. | Switching theme mid-game changes every asset instantly. |
-| **8. PWA polish** | Installable app, push notifications for "your turn", sounds, haptics, accessibility pass, performance on older phones. | Installed on an iPhone and an Android phone, notifications work. |
-| **9. Options and 5–6 players** | Colonist-style options (friendly robber, balanced dice, VP target, discard limit, hide bank), house rules, 5–6 player board with Special Building Phase. | A 6-player game works with all options. |
-| **10. Expansions and bots** | Seafarers scenarios, then Cities & Knights; simple bots to fill seats; map editor. | Each scenario playable online. |
+| **0. Foundations** | Monorepo, TypeScript, tests, CI, Cloudflare deploy, check free-tier limits. | A test page and test room deploy on every push. |
+| **1. Engine core + base game** | Module system, board graph, pieces, cards, dice, phases, hooks. Base game as the first module. Checked against the Seafarers and C&K requirements list (section 4.1). | Scripted random games finish with no rule errors, and the requirements list is signed off. |
+| **2. Maps and generator** | Map files, Starter / 5–6 presets, Classic / Balanced / Wild / Custom generator, fairness report. | 10,000 boards per mode pass their rules. |
+| **3. Local play UI + rulebook** | Approved mockup, hotseat play with the Clean theme, in-game rulebook pop-up and cost card. | A full game on one device, with the rulebook open mid-game. |
+| **4. Online multiplayer** | Game rooms, live sync, hidden info, reconnect, multi-device, lobby, invite links, guest play, turn timer, chat. | 4 friends finish a game on different devices, one refreshing mid-game. |
+| **5. Seafarers** | Ships, pirate, gold, fog of war, island bonus, scenarios, Seafarers map generator. | Every included scenario playable online; generator checks pass. |
+| **6. Cities & Knights** | Commodities, improvements, metropolises, knights, barbarians, progress cards, walls, merchant. Seafarers + C&K combined. | C&K and the combined game playable online. |
+| **7. Accounts and crews** | Google and email sign-up, profiles, guest upgrade, crews. | Games show up in each person's history. |
+| **8. Bots** | Easy and Medium on the server, Hard in the browser, play styles, bot trading, bots for Seafarers and C&K. | A full game with 3 bots; Hard beats Medium most of the time. |
+| **9. Bigger games and options** | 5–6 players, 7–8 player board and paired turns, Colonist-style options, house rules, special maps (Gold Rush, Volcano, Deep Forest, Lakes and shapes). | An 8-player game and every special map work. |
+| **10. Stats and achievements** | Stats, achievements, leaderboards, replays. | Achievements unlock at game end and back-fill. |
+| **11. Themes** | Theme system plus Heritage and Night Market. | Switching theme mid-game swaps every asset. |
+| **12. PWA polish and async** | Installable app, notifications, async games, sounds, accessibility, performance on older phones. | Installed on iPhone and Android with working notifications. |
+| **13. More expansions** | Traders & Barbarians, Explorers & Pirates, then fan expansions one at a time (rules confirmed with Nachi first), map editor. | Each expansion playable online with rulebook pages and bot support. |
 
-Phases 1 and 2 can run in parallel. Phase 7 art can start any time after phase 3.
+Phases 1 and 2 can overlap. Theme art (phase 11) can start any time after phase 3. Phase 9's 5–6 player work can move earlier if needed.
 
 ---
 
-## 10. Repository layout (planned)
+## 12. Repository layout (planned)
 
 ```
 colonizers/
   apps/
-    web/          # React + Vite PWA (UI, themes, SVG board)
-    server/       # Cloudflare Worker + Durable Objects (rooms, auth, API)
+    web/            # React + Vite PWA (UI, themes, SVG board, rulebook)
+    server/         # Cloudflare Worker + Durable Objects (rooms, auth, API, bots)
   packages/
-    engine/       # Pure rules engine, shared by web and server
-    maps/         # Map files, generator, fairness scoring
-    themes/       # Theme manifests and assets
+    engine/         # Core rules engine (no expansion-specific code)
+    modules/
+      base/
+      five-six/
+      seven-eight/
+      seafarers/
+      cities-knights/
+      special-maps/ # gold rush, volcano, ...
+      ...           # later expansions
+    maps/           # Map files, generators, fairness scoring
+    bots/           # Bot logic, shared by server and browser
+    rulebook/       # Rule pages per module
+    themes/         # Theme manifests and assets
   docs/
     PLAN.md
 ```
 
 ---
 
-## 11. Questions for Nachi
+## 13. Decisions so far
 
-1. How big are the groups usually? If 5–6 players is common, we can move the 5–6 board earlier.
-2. Do you want async play (games over several days, with "your turn" notifications), or mostly live sessions?
-3. Login: are Google and Discord the right sign-in options for your friends?
-4. Which expansion matters most after the base game: Seafarers or Cities & Knights?
-5. Any favorite house rules your groups already use?
+From Nachi's answers to the first draft:
+1. Groups are usually 4 players. 5–6 and 7–8 must be supported.
+2. Async play is allowed but low priority.
+3. Login is Google plus our own email sign-up, nothing else.
+4. Seafarers and Cities & Knights are both top priority.
+5. No favorite house rules, so standard rules are the default.
+6. Fair map generation is optional; Classic is the default.
+
+## 14. Open questions
+
+1. For each fan expansion, which version do you play? I'll gather the rules and send a summary to confirm before that phase.
+2. Is the order of later expansions in section 1.7 right, or is one more important?
