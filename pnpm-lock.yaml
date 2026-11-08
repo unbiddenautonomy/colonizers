@@ -38,6 +38,12 @@ importers:
       '@colonizers/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@colonizers/maps':
+        specifier: workspace:*
+        version: link:../../packages/maps
+      '@colonizers/module-base':
+        specifier: workspace:*
+        version: link:../../packages/modules/base
     devDependencies:
       '@cloudflare/vitest-plugin':
         specifier: ^1.6.0

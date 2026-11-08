@@ -1,118 +1,564 @@
 import { DurableObject } from 'cloudflare:workers';
-import { Rng, rollDice, type RngState } from '@colonizers/engine';
+import {
+  RuleError,
+  type Action,
+  type GameConfig,
+  type GameEvent,
+  type GameState,
+} from '@colonizers/engine';
 import type { Env } from './env.ts';
-import { parseClientMessage, type RollEvent, type ServerMessage } from './protocol.ts';
+import {
+  cleanSettings,
+  DEFAULT_SETTINGS,
+  parseClientMessage,
+  type ChatMessage,
+  type ClientMessage,
+  type GameSnapshot,
+  type LogEntry,
+  type MemberInfo,
+  type RoomInfo,
+  type RoomSettings,
+  type RoomStatus,
+  type ServerMessage,
+} from './protocol.ts';
+import { buildConfig, library, timedSeats, timeoutAction, timerKey } from './rules.ts';
 
-const HISTORY_SENT_ON_JOIN = 20;
+const LOG_KEPT = 400;
+const LOG_SENT_ON_JOIN = 250;
+const CHAT_SENT_ON_JOIN = 60;
+const CHAT_GAP_MS = 600;
+const NUDGE_GAP_MS = 20_000;
+
+interface Member {
+  id: string;
+  token: string;
+  name: string;
+  role: 'player' | 'spectator';
+  seat: number | null;
+  joined: number;
+}
+
+interface Attachment {
+  memberId: string;
+}
+
+interface LiveGame {
+  config: GameConfig;
+  state: GameState;
+  /** Recent events with their visibility, filtered per player when sent. */
+  log: LogEntry[];
+}
+
+export interface RoomSummary {
+  exists: boolean;
+  status: RoomStatus | null;
+  players: number;
+  maxPlayers: number;
+}
 
 /**
- * One Durable Object per game room. It keeps the authoritative state in its
- * own SQLite database and holds every player's WebSocket. It uses the
- * hibernation API, so an idle room costs nothing.
- *
- * In phase 0 this is a test room: anyone connected can roll dice, every roll
- * gets a sequence number, and clients that missed events can catch up.
+ * One Durable Object per game room. It holds the lobby, every player's
+ * WebSockets, and the authoritative game. Each move is checked with the shared
+ * engine and saved as one row, so the game survives restarts and hibernation:
+ * on wake-up the room replays the saved moves from the seed.
  */
 export class GameRoom extends DurableObject<Env> {
   private readonly sql: SqlStorage;
+  private readonly members = new Map<string, Member>();
+  private game: LiveGame | null = null;
+  private readonly lastChat = new Map<string, number>();
+  private readonly lastNudge = new Map<string, number>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS events (
-        seq INTEGER PRIMARY KEY,
+      CREATE TABLE IF NOT EXISTS members (
+        id TEXT PRIMARY KEY,
+        token TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
-        d1 INTEGER NOT NULL,
-        d2 INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        seat INTEGER,
+        joined INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS actions (seq INTEGER PRIMARY KEY, json TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS chat (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        member TEXT,
+        name TEXT NOT NULL,
+        text TEXT NOT NULL,
         at INTEGER NOT NULL
       );
     `);
+    for (const m of this.sql.exec<Member & Record<string, SqlStorageValue>>(
+      'SELECT id, token, name, role, seat, joined FROM members ORDER BY joined',
+    )) {
+      this.members.set(m.id, { ...m });
+    }
+  }
+
+  // ---- Called by the Worker ----
+
+  /** Sets up a new room. Returns false if the code is already taken. */
+  async create(code: string): Promise<boolean> {
+    if (this.getMeta('code')) return false;
+    this.setMeta('code', code);
+    this.setMeta('status', 'lobby');
+    this.setMeta('settings', JSON.stringify(DEFAULT_SETTINGS));
+    return true;
+  }
+
+  async summary(): Promise<RoomSummary> {
+    if (!this.getMeta('code')) return { exists: false, status: null, players: 0, maxPlayers: 0 };
+    return {
+      exists: true,
+      status: this.status,
+      players: this.players().length,
+      maxPlayers: this.settings.maxPlayers,
+    };
   }
 
   override async fetch(request: Request): Promise<Response> {
+    if (!this.getMeta('code')) return Response.json({ error: 'Room not found' }, { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected a WebSocket upgrade', { status: 426 });
     }
-    const roomId = request.headers.get('X-Room-Id') ?? 'unknown';
-    this.setMeta('roomId', roomId);
-
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server);
-
-    const seq = this.lastSeq();
-    this.send(server, {
-      type: 'welcome',
-      roomId,
-      seq,
-      history: this.eventsAfter(seq - HISTORY_SENT_ON_JOIN),
-      online: this.ctx.getWebSockets().length,
-    });
-    this.broadcast({ type: 'presence', online: this.ctx.getWebSockets().length }, server);
-
+    // The client says who it is in its first message ("hello").
     return new Response(null, { status: 101, webSocket: client });
   }
 
+  // ---- WebSocket events ----
+
   override async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
     const msg = parseClientMessage(raw);
-    if (!msg) {
-      this.send(ws, { type: 'error', message: 'Unknown message' });
-      return;
-    }
-    if (msg.type === 'sync') {
-      this.send(ws, { type: 'events', events: this.eventsAfter(msg.afterSeq) });
-      return;
-    }
-    const event = this.roll(msg.name);
-    this.broadcast({ type: 'rolled', event });
+    if (!msg) return this.send(ws, { type: 'error', message: 'Unknown message' });
+    if (msg.type === 'hello') return this.hello(ws, msg.token, msg.name);
+    const member = this.memberOf(ws);
+    if (!member) return this.send(ws, { type: 'error', message: 'Say hello first' });
+    this.handle(ws, member, msg);
   }
 
   override async webSocketClose(ws: WebSocket, code: number): Promise<void> {
-    ws.close(code === 1005 ? 1000 : code, 'closing');
-    this.broadcast({ type: 'presence', online: this.ctx.getWebSockets().length - 1 }, ws);
+    try {
+      ws.close(code === 1005 ? 1000 : code, 'closing');
+    } catch {
+      // Already closed.
+    }
+    if (this.memberOf(ws)) this.broadcastRoom(ws);
   }
 
-  /** Rolls with the room's seeded RNG and appends the result to the event log. */
-  roll(name: string): RollEvent {
-    const rng = this.loadRng();
-    const { dice, total } = rollDice(rng);
-    this.setMeta('rng', JSON.stringify(rng.getState()));
-    const seq = this.lastSeq() + 1;
+  override async alarm(): Promise<void> {
+    if (this.status !== 'playing') return;
+    const game = this.load();
+    if (!game) return;
+    const expired = timerKey(game.state);
+    const rand = () => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32;
+    // Play safe moves until the stalled step is over (at most a few).
+    const timedOut = new Set<number>();
+    for (let i = 0; i < 12 && game.state.winner === null; i++) {
+      if (timerKey(game.state) !== expired) break;
+      const seat = timedSeats(game.state).find((s) => timeoutAction(game.state, s, rand));
+      if (seat === undefined) break;
+      timedOut.add(seat);
+      this.applyAction(timeoutAction(game.state, seat, rand)!);
+    }
+    for (const seat of timedOut) {
+      this.systemChat(`Time ran out for ${game.state.players[seat]?.name ?? 'a player'}.`);
+    }
+    this.updateTimer(timedOut.size > 0);
+  }
+
+  // ---- Messages ----
+
+  private hello(ws: WebSocket, token: string, name: string): void {
+    let member = [...this.members.values()].find((m) => m.token === token);
+    if (!member) {
+      const room = this.status === 'lobby' && this.players().length < this.settings.maxPlayers;
+      member = {
+        id: crypto.randomUUID().slice(0, 8),
+        token,
+        name,
+        role: room ? 'player' : 'spectator',
+        seat: null,
+        joined: Date.now(),
+      };
+      this.members.set(member.id, member);
+      this.sql.exec(
+        'INSERT INTO members (id, token, name, role, seat, joined) VALUES (?, ?, ?, ?, ?, ?)',
+        member.id,
+        token,
+        name,
+        member.role,
+        null,
+        member.joined,
+      );
+      if (!this.getMeta('host')) this.setMeta('host', member.id);
+    } else if (this.status === 'lobby' && member.name !== name) {
+      this.rename(member, name);
+    }
+    ws.serializeAttachment({ memberId: member.id } satisfies Attachment);
+    this.sendWelcome(ws);
+    this.broadcastRoom();
+  }
+
+  private handle(ws: WebSocket, member: Member, msg: ClientMessage): void {
+    const isHost = this.getMeta('host') === member.id;
+    const deny = (message: string) => this.send(ws, { type: 'error', message, code: 'denied' });
+    switch (msg.type) {
+      case 'rename':
+        if (this.status !== 'lobby') return deny('Names are fixed once the game starts');
+        this.rename(member, msg.name);
+        return this.broadcastRoom();
+      case 'settings': {
+        if (!isHost) return deny('Only the host can change settings');
+        if (this.status !== 'lobby') return deny('The game has already started');
+        const settings = cleanSettings(msg.settings);
+        settings.maxPlayers = Math.max(settings.maxPlayers, this.players().length);
+        this.setMeta('settings', JSON.stringify(settings));
+        return this.broadcastRoom();
+      }
+      case 'start':
+        if (!isHost) return deny('Only the host can start the game');
+        if (this.status !== 'lobby') return deny('The game has already started');
+        if (this.players().length < 2) return deny('You need at least 2 players');
+        return this.start();
+      case 'remove': {
+        if (!isHost) return deny('Only the host can remove players');
+        if (this.status !== 'lobby') return deny('Players can only be removed in the lobby');
+        const target = this.members.get(msg.member);
+        if (!target || target.id === member.id) return;
+        return this.removeMember(target, 'The host removed you from this room');
+      }
+      case 'leave':
+        if (this.status !== 'lobby' && member.seat !== null)
+          return deny('Your seat stays yours until the game ends');
+        return this.removeMember(member, 'You left the room');
+      case 'act':
+        return this.act(ws, member, msg.action);
+      case 'chat': {
+        const now = Date.now();
+        if (now - (this.lastChat.get(member.id) ?? 0) < CHAT_GAP_MS) return;
+        this.lastChat.set(member.id, now);
+        return this.chat(member.id, member.name, msg.text);
+      }
+      case 'nudge': {
+        const game = this.load();
+        const target = game?.state.players[msg.seat];
+        if (!target) return;
+        const now = Date.now();
+        if (now - (this.lastNudge.get(member.id) ?? 0) < NUDGE_GAP_MS)
+          return deny('You can nudge again in a few seconds');
+        this.lastNudge.set(member.id, now);
+        return this.systemChat(`${member.name} nudged ${target.name}.`);
+      }
+      case 'rematch':
+        if (!isHost) return deny('Only the host can set up the next game');
+        if (this.status !== 'finished') return deny('The game is still going');
+        return this.backToLobby();
+    }
+  }
+
+  private start(): void {
+    const players = this.players();
+    // Shuffle seats so nobody always goes first.
+    const order = [...players];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = crypto.getRandomValues(new Uint32Array(1))[0]! % (i + 1);
+      [order[i], order[j]] = [order[j]!, order[i]!];
+    }
+    order.forEach((m, seat) => {
+      m.seat = seat;
+      this.sql.exec('UPDATE members SET seat = ? WHERE id = ?', seat, m.id);
+    });
+    const seed = crypto.randomUUID();
+    const config = buildConfig(
+      this.settings,
+      order.map((m) => m.name),
+      seed,
+    );
+    this.sql.exec('DELETE FROM actions');
+    this.setMeta('config', JSON.stringify(config));
+    this.setMeta('status', 'playing');
+    this.game = null;
+    this.load();
+    this.updateTimer();
+    this.sendWelcomeToAll();
+  }
+
+  private act(ws: WebSocket, member: Member, raw: Action): void {
+    if (this.status !== 'playing') {
+      return this.send(ws, { type: 'error', message: 'No game is running', code: 'denied' });
+    }
+    if (member.seat === null) {
+      return this.send(ws, { type: 'error', message: 'Spectators can watch only', code: 'denied' });
+    }
+    try {
+      this.applyAction({ ...raw, player: member.seat });
+    } catch (e) {
+      if (e instanceof RuleError) {
+        return this.send(ws, { type: 'error', message: e.message, code: 'rule' });
+      }
+      throw e;
+    }
+    this.updateTimer();
+  }
+
+  /** Applies, saves and sends one move. Throws RuleError if it is illegal. */
+  private applyAction(action: Action): void {
+    const game = this.load();
+    if (!game) throw new RuleError('No game is running');
+    const r = library.apply(game.state, action);
+    game.state = r.state;
+    this.sql.exec(
+      'INSERT INTO actions (seq, json) VALUES (?, ?)',
+      r.state.seq,
+      JSON.stringify(action),
+    );
+    const entries = r.events.map((event) => ({ seq: r.state.seq, event }));
+    game.log.push(...entries);
+    if (game.log.length > LOG_KEPT) game.log.splice(0, game.log.length - LOG_KEPT);
+    this.broadcastGame(entries);
+    if (r.state.winner !== null) {
+      this.setMeta('status', 'finished');
+      this.broadcastRoom();
+    }
+  }
+
+  private backToLobby(): void {
+    this.sql.exec('DELETE FROM actions');
+    this.deleteMeta('config');
+    this.deleteMeta('deadline');
+    this.deleteMeta('timerKey');
+    this.setMeta('status', 'lobby');
+    this.game = null;
+    let players = 0;
+    for (const m of this.members.values()) {
+      m.seat = null;
+      m.role = players < this.settings.maxPlayers ? 'player' : 'spectator';
+      if (m.role === 'player') players++;
+      this.sql.exec('UPDATE members SET seat = NULL, role = ? WHERE id = ?', m.role, m.id);
+    }
+    void this.ctx.storage.deleteAlarm();
+    this.sendWelcomeToAll();
+  }
+
+  private rename(member: Member, name: string): void {
+    member.name = name;
+    this.sql.exec('UPDATE members SET name = ? WHERE id = ?', name, member.id);
+  }
+
+  private removeMember(member: Member, reason: string): void {
+    this.members.delete(member.id);
+    this.sql.exec('DELETE FROM members WHERE id = ?', member.id);
+    if (this.getMeta('host') === member.id) {
+      const next = [...this.members.values()][0];
+      if (next) this.setMeta('host', next.id);
+      else this.deleteMeta('host');
+    }
+    // A spectator moves up into a free seat.
+    const waiting = [...this.members.values()].find((m) => m.role === 'spectator');
+    if (waiting && this.status === 'lobby' && this.players().length < this.settings.maxPlayers) {
+      waiting.role = 'player';
+      this.sql.exec("UPDATE members SET role = 'player' WHERE id = ?", waiting.id);
+    }
+    for (const ws of this.ctx.getWebSockets()) {
+      if ((ws.deserializeAttachment() as Attachment | null)?.memberId !== member.id) continue;
+      this.send(ws, { type: 'error', message: reason, code: 'removed' });
+      ws.serializeAttachment(null);
+      ws.close(4001, 'removed');
+    }
+    this.broadcastRoom();
+  }
+
+  private chat(from: string | null, name: string, text: string): void {
     const at = Date.now();
     this.sql.exec(
-      'INSERT INTO events (seq, name, d1, d2, at) VALUES (?, ?, ?, ?, ?)',
-      seq,
+      'INSERT INTO chat (member, name, text, at) VALUES (?, ?, ?, ?)',
+      from,
       name,
-      dice[0],
-      dice[1],
+      text,
       at,
     );
-    return { seq, name, dice: [dice[0], dice[1]], total, at };
+    const id = this.sql.exec<{ id: number }>('SELECT last_insert_rowid() AS id').one().id;
+    const message: ChatMessage = { id, from, name, text, at };
+    for (const ws of this.ctx.getWebSockets()) {
+      if (this.memberOf(ws)) this.send(ws, { type: 'chat', message });
+    }
   }
 
-  private loadRng(): Rng {
-    const saved = this.getMeta('rng');
-    if (saved) return Rng.fromState(JSON.parse(saved) as RngState);
-    const seed = crypto.randomUUID();
-    this.setMeta('seed', seed);
-    return Rng.fromSeed(seed);
+  private systemChat(text: string): void {
+    this.chat(null, 'Room', text);
   }
 
-  private lastSeq(): number {
-    const row = this.sql.exec<{ seq: number | null }>('SELECT MAX(seq) AS seq FROM events').one();
-    return row.seq ?? 0;
+  // ---- Turn timer ----
+
+  private updateTimer(force = false): void {
+    const game = this.status === 'playing' ? this.load() : null;
+    if (!game || this.settings.turnTimer === 0 || game.state.winner !== null) {
+      if (this.getMeta('deadline')) {
+        this.deleteMeta('deadline');
+        void this.ctx.storage.deleteAlarm();
+      }
+      return;
+    }
+    const key = timerKey(game.state);
+    if (!force && key === this.getMeta('timerKey')) return;
+    const deadline = Date.now() + this.settings.turnTimer * 1000;
+    this.setMeta('timerKey', key);
+    this.setMeta('deadline', String(deadline));
+    void this.ctx.storage.setAlarm(deadline);
+    // Tell everyone about the new deadline.
+    this.broadcastGame([]);
   }
 
-  private eventsAfter(afterSeq: number): RollEvent[] {
-    return this.sql
-      .exec<{ seq: number; name: string; d1: number; d2: number; at: number }>(
-        'SELECT seq, name, d1, d2, at FROM events WHERE seq > ? ORDER BY seq',
-        afterSeq,
+  // ---- Loading ----
+
+  /** The running game, replayed from saved moves after a restart. */
+  private load(): LiveGame | null {
+    if (this.game) return this.game;
+    const raw = this.getMeta('config');
+    if (!raw) return null;
+    const config = JSON.parse(raw) as GameConfig;
+    const created = library.createGame(config);
+    let state = created.state;
+    const log: LogEntry[] = created.events.map((event) => ({ seq: 0, event }));
+    for (const row of this.sql.exec<{ json: string }>('SELECT json FROM actions ORDER BY seq')) {
+      const r = library.apply(state, JSON.parse(row.json) as Action);
+      state = r.state;
+      for (const event of r.events) log.push({ seq: state.seq, event });
+    }
+    if (log.length > LOG_KEPT) log.splice(0, log.length - LOG_KEPT);
+    this.game = { config, state, log };
+    return this.game;
+  }
+
+  // ---- Sending ----
+
+  private snapshot(seat: number | null): GameSnapshot | null {
+    const game = this.status === 'lobby' ? null : this.load();
+    if (!game) return null;
+    const deadline = this.getMeta('deadline');
+    return {
+      view: library.view(game.state, seat),
+      seq: game.state.seq,
+      deadline: deadline ? Number(deadline) : null,
+    };
+  }
+
+  private visibleLog(entries: LogEntry[], seat: number | null): LogEntry[] {
+    const out: LogEntry[] = [];
+    for (const e of entries) {
+      for (const event of library.viewEvents([e.event], seat) as GameEvent[]) {
+        out.push({ seq: e.seq, event });
+      }
+    }
+    return out;
+  }
+
+  private sendWelcome(ws: WebSocket): void {
+    const member = this.memberOf(ws);
+    if (!member) return;
+    const seat = member.seat;
+    const game = this.snapshot(seat);
+    const chat = this.sql
+      .exec<ChatMessage & Record<string, SqlStorageValue>>(
+        'SELECT id, member AS "from", name, text, at FROM chat ORDER BY id DESC LIMIT ?',
+        CHAT_SENT_ON_JOIN,
       )
       .toArray()
-      .map((r) => ({ seq: r.seq, name: r.name, dice: [r.d1, r.d2], total: r.d1 + r.d2, at: r.at }));
+      .reverse()
+      .map((c) => ({ ...c }));
+    this.send(ws, {
+      type: 'welcome',
+      you: member.id,
+      room: this.roomInfo(),
+      game,
+      log: game && this.game ? this.visibleLog(this.game.log.slice(-LOG_SENT_ON_JOIN), seat) : [],
+      chat,
+      now: Date.now(),
+    });
+  }
+
+  private sendWelcomeToAll(): void {
+    for (const ws of this.ctx.getWebSockets()) this.sendWelcome(ws);
+  }
+
+  private broadcastGame(entries: LogEntry[]): void {
+    const bySeat = new Map<number | null, ServerMessage>();
+    const now = Date.now();
+    for (const ws of this.ctx.getWebSockets()) {
+      const member = this.memberOf(ws);
+      if (!member) continue;
+      let msg = bySeat.get(member.seat);
+      if (!msg) {
+        const game = this.snapshot(member.seat);
+        if (!game) continue;
+        msg = { type: 'game', game, events: this.visibleLog(entries, member.seat), now };
+        bySeat.set(member.seat, msg);
+      }
+      this.send(ws, msg);
+    }
+  }
+
+  private broadcastRoom(closing?: WebSocket): void {
+    const room = this.roomInfo(closing);
+    for (const ws of this.ctx.getWebSockets()) {
+      if (ws !== closing && this.memberOf(ws)) this.send(ws, { type: 'room', room });
+    }
+  }
+
+  private roomInfo(closing?: WebSocket): RoomInfo {
+    const online = new Set<string>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const m = ws !== closing ? this.memberOf(ws) : null;
+      if (m) online.add(m.id);
+    }
+    const members: MemberInfo[] = [...this.members.values()].map((m) => ({
+      id: m.id,
+      name: m.name,
+      seat: m.seat,
+      role: m.role,
+      online: online.has(m.id),
+    }));
+    return {
+      code: this.getMeta('code') ?? '',
+      status: this.status,
+      hostId: this.getMeta('host'),
+      settings: this.settings,
+      members,
+    };
+  }
+
+  private send(ws: WebSocket, msg: ServerMessage): void {
+    try {
+      ws.send(JSON.stringify(msg));
+    } catch {
+      // Socket already closed; webSocketClose cleans up.
+    }
+  }
+
+  // ---- Helpers ----
+
+  private memberOf(ws: WebSocket): Member | null {
+    const att = ws.deserializeAttachment() as Attachment | null;
+    return att ? (this.members.get(att.memberId) ?? null) : null;
+  }
+
+  private players(): Member[] {
+    return [...this.members.values()].filter((m) => m.role === 'player');
+  }
+
+  private get status(): RoomStatus {
+    return (this.getMeta('status') as RoomStatus | null) ?? 'lobby';
+  }
+
+  private get settings(): RoomSettings {
+    const raw = this.getMeta('settings');
+    return raw ? cleanSettings(JSON.parse(raw)) : { ...DEFAULT_SETTINGS };
   }
 
   private getMeta(key: string): string | null {
@@ -126,17 +572,7 @@ export class GameRoom extends DurableObject<Env> {
     this.sql.exec('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)', key, value);
   }
 
-  private send(ws: WebSocket, msg: ServerMessage): void {
-    try {
-      ws.send(JSON.stringify(msg));
-    } catch {
-      // Socket already closed; it will be cleaned up by webSocketClose.
-    }
-  }
-
-  private broadcast(msg: ServerMessage, except?: WebSocket): void {
-    for (const ws of this.ctx.getWebSockets()) {
-      if (ws !== except) this.send(ws, msg);
-    }
+  private deleteMeta(key: string): void {
+    this.sql.exec('DELETE FROM meta WHERE key = ?', key);
   }
 }
