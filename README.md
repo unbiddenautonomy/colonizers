@@ -12,6 +12,7 @@ packages/
   engine/       Rules engine core shared by browser and server (no game-specific rules)
   modules/
     base/       The base game as the first module
+  maps/         Map files, preset boards, board generator and fairness report
 docs/
   PLAN.md       Master plan
   DEPLOY.md     How deploys work and the one-time Cloudflare setup
