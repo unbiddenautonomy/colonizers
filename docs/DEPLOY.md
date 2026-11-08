@@ -17,11 +17,15 @@ This takes about 10 minutes, once.
 
 ## 3. Create an API token
 
+You don't need to create the `colonizers` Worker yourself. The first deploy creates it.
+
 1. Click your profile icon (top right) → **My Profile** → **API Tokens**, or go straight to <https://dash.cloudflare.com/profile/api-tokens>.
 2. Click **Create Token**.
-3. Next to **Edit Cloudflare Workers**, click **Use template**.
-4. Under **Account Resources**, choose **Include** and your account.
-5. Under **Zone Resources**, choose **Include** → **All zones** (you have none, so this grants nothing extra).
+3. If you see an **Edit Cloudflare Workers** template, use it, pick your account, and skip to step 6. Otherwise choose **Create Custom Token** (or "start from scratch").
+4. Give it a name, for example `colonizers-github`.
+5. Add this permission. Depending on the page version it is either a row of three dropdowns or a policy with type **Account**:
+   - **Account** → **Workers Scripts** → **Edit**
+   - Limit it to your account (under **Account Resources**, or the policy's resource rule).
 6. Click **Continue to summary**, then **Create Token**.
 7. Copy the token now. Cloudflare only shows it once. If you lose it, delete it and make a new one.
 
