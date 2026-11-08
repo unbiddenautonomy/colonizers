@@ -1,0 +1,727 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Ctx,
+  type Action,
+  type CornerId,
+  type EdgeId,
+  type GameState,
+  type HexId,
+} from '@colonizers/engine';
+import { baseData, publicVp } from '@colonizers/module-base';
+import { nameOf, pageForError } from '@colonizers/rulebook';
+import { Board, noTargets, type Targets } from '../board/Board.tsx';
+import { describe } from '../game/describe.ts';
+import { library } from '../game/library.ts';
+import { clearSavedGame, useLocalGame, type SavedGame } from '../game/useLocalGame.ts';
+import { cleanTheme } from '../theme/clean.ts';
+import { CardPicker, clean, CostLine, RESOURCES, ResourceCard, total } from '../ui/Cards.tsx';
+import { Modal } from '../ui/Modal.tsx';
+import { PlayerBadge } from '../ui/PlayerBadge.tsx';
+import { Rulebook } from '../ui/Rulebook.tsx';
+
+type Mode = null | 'road' | 'settlement' | 'city';
+type Dialog = null | 'bank' | 'offer' | 'yearOfPlenty' | 'monopoly';
+
+const theme = cleanTheme;
+
+function targetsFor(state: GameState, legal: Action[], mode: Mode): Targets {
+  const t: Targets = { corners: new Map(), edges: new Map(), hexes: new Map() };
+  const want = new Set<string>();
+  const ph = state.phase.id;
+  if (ph === 'setup')
+    want.add((state.phase.step as string) === 'road' ? 'placeSetupRoad' : 'placeSetupSettlement');
+  if (ph === 'moveRobber') want.add('moveRobber');
+  if (ph === 'roadBuilding') want.add('placeFreeRoad');
+  if (ph === 'main' && mode === 'road') want.add('buildRoad');
+  if (ph === 'main' && mode === 'settlement') want.add('buildSettlement');
+  if (ph === 'main' && mode === 'city') want.add('buildCity');
+  for (const a of legal) {
+    if (!want.has(a.type)) continue;
+    if (typeof a.corner === 'string') t.corners.set(a.corner as CornerId, a);
+    if (typeof a.edge === 'string') t.edges.set(a.edge as EdgeId, a);
+    if (typeof a.hex === 'string') t.hexes.set(a.hex as HexId, a);
+  }
+  return t;
+}
+
+function prompt(state: GameState, actor: number | null, names: string[], mode: Mode): string {
+  const who = actor === null ? '' : names[actor];
+  switch (state.phase.id) {
+    case 'setup':
+      return (state.phase.step as string) === 'road'
+        ? `${who}: place a road next to your new settlement.`
+        : `${who}: place a settlement${(state.phase.index as number) >= state.players.length ? ' (your second, which collects resources)' : ''}.`;
+    case 'roll':
+      return `${who}: roll the dice${hasKnight(state, actor) ? ', or play a Knight first' : ''}.`;
+    case 'discard':
+      return `${who}: discard ${(state.phase.owed as Record<number, number>)[actor ?? -1]} cards.`;
+    case 'moveRobber':
+      return `${who}: move the robber to a new hex.`;
+    case 'steal':
+      return `${who}: choose who to steal from.`;
+    case 'roadBuilding':
+      return `${who}: place a free road (${state.phase.remaining as number} left).`;
+    case 'main':
+      if (mode)
+        return `${who}: tap a glowing spot to build a ${mode}. Tap the button again to cancel.`;
+      return `${who}: trade, build, or end your turn.`;
+    case 'gameOver':
+      return `${names[state.winner ?? 0]} wins!`;
+    default:
+      return '';
+  }
+}
+
+function hasKnight(state: GameState, seat: number | null) {
+  if (seat === null) return false;
+  return (state.players[seat]?.held.dev ?? []).some(
+    (c) => c.card === 'knight' && c.acquiredTurn < state.turn.number,
+  );
+}
+
+export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }) {
+  const g = useLocalGame(saved);
+  const { state, actor } = g;
+  const names = state.players.map((p) => p.name);
+  const [chosenMode, setMode] = useState<Mode>(null);
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
+  const [privateHands, setPrivateHands] = useState(false);
+  const [revealedFor, setRevealedFor] = useState<number | null>(null);
+
+  // Build mode only applies in the main phase.
+  const mode: Mode = state.phase.id === 'main' ? chosenMode : null;
+  const legal = useMemo(
+    () => (actor === null ? [] : library.legalActions(state, actor)),
+    [state, actor],
+  );
+  const has = (type: string, pred: (a: Action) => boolean = () => true) =>
+    legal.some((a) => a.type === type && pred(a));
+  const ctx = useMemo(() => new Ctx(state, library.registry(state.modules)), [state]);
+  const targets = useMemo(
+    () => (actor === null ? noTargets : targetsFor(state, legal, mode)),
+    [state, legal, mode, actor],
+  );
+  const lastRoll =
+    (state.data.base?.lastRoll as { dice: Record<string, number>; total: number } | undefined) ??
+    null;
+  const offer = baseData(ctx).trade;
+
+  const act = (a: Action) => {
+    if (g.act(a)) setMode(null);
+  };
+
+  const hiddenHand = privateHands && actor !== null && revealedFor !== actor;
+  const viewer = actor;
+
+  const logRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+  }, [g.log.length]);
+
+  const errorPage = g.error ? pageForError(g.error) : null;
+
+  return (
+    <div className="game">
+      <header className="game-head">
+        <h1 className="game-title">Colonizers</h1>
+        <p className="prompt" aria-live="polite">
+          {actor !== null && (
+            <PlayerBadge color={theme.players[actor]!.color} shape={theme.players[actor]!.shape} />
+          )}{' '}
+          {prompt(state, actor, names, mode)}
+        </p>
+        <div className="head-actions">
+          <label className="toggle" title="Cover the hand when passing the device">
+            <input
+              type="checkbox"
+              checked={privateHands}
+              onChange={(e) => setPrivateHands(e.target.checked)}
+            />{' '}
+            Private hands
+          </label>
+          <button
+            type="button"
+            className="icon help"
+            onClick={() => setRulebook({ page: null })}
+            aria-label="Open rulebook"
+          >
+            ?
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Leave this game? It stays saved on this device until you start a new one.',
+                )
+              )
+                onQuit();
+            }}
+          >
+            Menu
+          </button>
+        </div>
+      </header>
+
+      <aside className="players" aria-label="Players">
+        {state.players.map((p) => {
+          const t = theme.players[p.seat]!;
+          const data = baseData(ctx);
+          return (
+            <div
+              key={p.seat}
+              className={`player${state.turn.player === p.seat ? ' active' : ''}`}
+              style={{ borderColor: t.color }}
+            >
+              <div className="player-name">
+                <PlayerBadge color={t.color} shape={t.shape} />
+                <strong>{p.name}</strong>
+                <span className="vp" title="Victory points">
+                  {publicVp(ctx, p.seat)}
+                  <small> VP</small>
+                </span>
+              </div>
+              <div className="player-stats">
+                <span title="Cards in hand">🂠 {ctx.handSize(p.seat, false)}</span>
+                <span title="Development cards">📜 {p.held.dev?.length ?? 0}</span>
+                <span title="Knights played">⚔️ {p.played.knight ?? 0}</span>
+                <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
+                {data.longestRoad === p.seat && <span className="award">Longest Road</span>}
+                {data.largestArmy === p.seat && <span className="award">Largest Army</span>}
+              </div>
+            </div>
+          );
+        })}
+      </aside>
+
+      <main className="board-wrap">
+        <Board
+          state={state}
+          targets={targets}
+          onAction={act}
+          rolled={state.phase.id === 'main' ? lastRoll?.total : null}
+        />
+        {lastRoll && (
+          <div className="dice" aria-label={`Last roll ${lastRoll.total}`}>
+            {Object.values(lastRoll.dice).map((d, i) => (
+              <span key={i} className="die">
+                {d}
+              </span>
+            ))}
+          </div>
+        )}
+      </main>
+
+      <section className="controls" aria-label="Your turn">
+        {g.error && (
+          <div className="error" role="alert">
+            {g.error}
+            {errorPage && (
+              <button
+                type="button"
+                className="link"
+                onClick={() => setRulebook({ page: errorPage })}
+              >
+                See the rule
+              </button>
+            )}
+            <button type="button" className="icon" onClick={g.clearError} aria-label="Dismiss">
+              ✕
+            </button>
+          </div>
+        )}
+
+        {actor !== null && (
+          <div className="hand">
+            <div className="hand-head">
+              <strong>{names[actor]}'s hand</strong>
+              {hiddenHand && (
+                <button type="button" onClick={() => setRevealedFor(actor)}>
+                  Show my cards
+                </button>
+              )}
+            </div>
+            {!hiddenHand && (
+              <>
+                <div className="hand-cards">
+                  {RESOURCES.map((r) => (
+                    <ResourceCard
+                      key={r}
+                      card={r}
+                      count={state.players[actor]!.hand[r] ?? 0}
+                      dim={!state.players[actor]!.hand[r]}
+                    />
+                  ))}
+                </div>
+                <div className="dev-cards">
+                  {(state.players[actor]!.held.dev ?? []).map((c, i) => {
+                    const card = c.card;
+                    const playable =
+                      card === 'yearOfPlenty' || card === 'monopoly'
+                        ? has('playDevCard', (a) => a.card === card)
+                        : has('playDevCard', (a) => a.card === card);
+                    const isNew = c.acquiredTurn === state.turn.number;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        className="dev"
+                        disabled={!playable}
+                        title={isNew ? 'Bought this turn' : undefined}
+                        onClick={() => {
+                          if (card === 'yearOfPlenty') setDialog('yearOfPlenty');
+                          else if (card === 'monopoly') setDialog('monopoly');
+                          else act({ type: 'playDevCard', player: actor, card });
+                        }}
+                      >
+                        {nameOf(card).icon} {nameOf(card).name}
+                        {isNew && <small> (new)</small>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="actions">
+          {has('roll') && (
+            <button
+              type="button"
+              className="primary"
+              onClick={() => act({ type: 'roll', player: actor! })}
+            >
+              🎲 Roll
+            </button>
+          )}
+          {state.phase.id === 'main' && actor === state.turn.player && (
+            <>
+              {(['road', 'settlement', 'city'] as const).map((m) => {
+                const type =
+                  m === 'road' ? 'buildRoad' : m === 'settlement' ? 'buildSettlement' : 'buildCity';
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    className={mode === m ? 'on' : ''}
+                    disabled={!has(type)}
+                    onClick={() => setMode(mode === m ? null : m)}
+                    aria-pressed={mode === m}
+                  >
+                    {m === 'road' ? 'Road' : m === 'settlement' ? 'Settlement' : 'City'}{' '}
+                    <CostLine cost={ctx.cost(m, actor)} />
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                disabled={!has('buyDevCard')}
+                onClick={() => act({ type: 'buyDevCard', player: actor })}
+              >
+                Dev card <CostLine cost={ctx.cost('devCard', actor)} />
+              </button>
+              <button type="button" disabled={!has('bankTrade')} onClick={() => setDialog('bank')}>
+                Bank trade
+              </button>
+              <button type="button" disabled={!!offer} onClick={() => setDialog('offer')}>
+                Offer trade
+              </button>
+              <button
+                type="button"
+                className="primary"
+                disabled={!has('endTurn')}
+                onClick={() => act({ type: 'endTurn', player: actor })}
+              >
+                End turn
+              </button>
+            </>
+          )}
+        </div>
+
+        {offer && (
+          <div className="offer">
+            <p>
+              <strong>{names[offer.from]}</strong> offers <CostLine cost={offer.give} /> for{' '}
+              <CostLine cost={offer.get} />
+            </p>
+            <ul className="responses">
+              {state.players
+                .filter((p) => p.seat !== offer.from && (!offer.to || offer.to.includes(p.seat)))
+                .map((p) => {
+                  const r = offer.responses[p.seat];
+                  const canAccept =
+                    library.check(state, {
+                      type: 'respondTrade',
+                      player: p.seat,
+                      offer: offer.id,
+                      accept: true,
+                    }) === null;
+                  return (
+                    <li key={p.seat}>
+                      <PlayerBadge
+                        color={theme.players[p.seat]!.color}
+                        shape={theme.players[p.seat]!.shape}
+                      />{' '}
+                      {p.name}:{' '}
+                      {r === 'accept' ? (
+                        <>
+                          accepts{' '}
+                          <button
+                            type="button"
+                            className="primary small"
+                            onClick={() =>
+                              act({
+                                type: 'confirmTrade',
+                                player: offer.from,
+                                offer: offer.id,
+                                with: p.seat,
+                              })
+                            }
+                          >
+                            Trade with {p.name}
+                          </button>
+                        </>
+                      ) : r === 'decline' ? (
+                        'declines'
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="small"
+                            disabled={!canAccept}
+                            onClick={() =>
+                              act({
+                                type: 'respondTrade',
+                                player: p.seat,
+                                offer: offer.id,
+                                accept: true,
+                              })
+                            }
+                          >
+                            Accept
+                          </button>{' '}
+                          <button
+                            type="button"
+                            className="small ghost"
+                            onClick={() =>
+                              act({
+                                type: 'respondTrade',
+                                player: p.seat,
+                                offer: offer.id,
+                                accept: false,
+                              })
+                            }
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+            </ul>
+            <button
+              type="button"
+              className="ghost small"
+              onClick={() => act({ type: 'cancelTrade', player: offer.from })}
+            >
+              Withdraw offer
+            </button>
+          </div>
+        )}
+
+        <details className="log-wrap" open>
+          <summary>Game log</summary>
+          <ol className="log" ref={logRef}>
+            {g.log.map((l, i) => {
+              const text = describe(l.event, names);
+              if (!text) return null;
+              return (
+                <li key={i} className={l.event.type === 'turnStarted' ? 'turn-line' : ''}>
+                  {text}
+                </li>
+              );
+            })}
+          </ol>
+        </details>
+      </section>
+
+      {state.phase.id === 'discard' && actor !== null && (
+        <DiscardDialog
+          key={actor}
+          name={names[actor]!}
+          hand={state.players[actor]!.hand}
+          owed={(state.phase.owed as Record<number, number>)[actor]!}
+          onDiscard={(cards) => act({ type: 'discard', player: actor, cards })}
+        />
+      )}
+
+      {state.phase.id === 'steal' && actor !== null && (
+        <Modal title="Steal a card">
+          <p>Pick a player to steal one random card from.</p>
+          <div className="row">
+            {legal
+              .filter((a) => a.type === 'steal')
+              .map((a) => (
+                <button key={a.from as number} type="button" onClick={() => act(a)}>
+                  {names[a.from as number]} ({ctx.handSize(a.from as number, false)} cards)
+                </button>
+              ))}
+          </div>
+        </Modal>
+      )}
+
+      {dialog === 'bank' && actor !== null && (
+        <BankDialog
+          legal={legal.filter((a) => a.type === 'bankTrade')}
+          ratio={(card) => ctx.reduce('tradeRatio', actor, card, 4)}
+          onTrade={(a) => act(a)}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'offer' && actor !== null && (
+        <OfferDialog
+          hand={state.players[actor]!.hand}
+          onOffer={(give, get) => {
+            if (g.act({ type: 'offerTrade', player: actor, give, get })) setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {(dialog === 'yearOfPlenty' || dialog === 'monopoly') && actor !== null && (
+        <PickDialog
+          kind={dialog}
+          onPick={(picked) => {
+            const ok =
+              dialog === 'monopoly'
+                ? g.act({
+                    type: 'playDevCard',
+                    player: actor,
+                    card: 'monopoly',
+                    resource: picked[0],
+                  })
+                : g.act({
+                    type: 'playDevCard',
+                    player: actor,
+                    card: 'yearOfPlenty',
+                    resources: picked,
+                  });
+            if (ok) setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {privateHands && actor !== null && revealedFor !== actor && state.phase.id !== 'gameOver' && (
+        <div className="pass-cover">
+          <div>
+            <PlayerBadge
+              color={theme.players[actor]!.color}
+              shape={theme.players[actor]!.shape}
+              size={40}
+            />
+            <h2>Pass to {names[actor]}</h2>
+            <button type="button" className="primary" onClick={() => setRevealedFor(actor)}>
+              I'm {names[actor]}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {state.winner !== null && (
+        <Modal title="Game over">
+          <h3>🏆 {names[state.winner]} wins!</h3>
+          <ol className="scores">
+            {[...state.players]
+              .sort((a, b) => ctx.vp(b.seat) - ctx.vp(a.seat))
+              .map((p) => (
+                <li key={p.seat}>
+                  {p.name}: {ctx.vp(p.seat)} VP
+                </li>
+              ))}
+          </ol>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              clearSavedGame();
+              onQuit();
+            }}
+          >
+            New game
+          </button>
+        </Modal>
+      )}
+
+      {rulebook && (
+        <Rulebook
+          state={state}
+          viewer={viewer}
+          initialPage={rulebook.page}
+          onClose={() => setRulebook(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function DiscardDialog({
+  name,
+  hand,
+  owed,
+  onDiscard,
+}: {
+  name: string;
+  hand: Record<string, number>;
+  owed: number;
+  onDiscard: (c: Record<string, number>) => void;
+}) {
+  const [pick, setPick] = useState<Record<string, number>>({});
+  return (
+    <Modal title={`${name}: discard ${owed}`}>
+      <p>A 7 was rolled and you hold too many cards. Choose {owed} to give back.</p>
+      <CardPicker value={pick} onChange={setPick} max={hand} label="Cards to discard" />
+      <button
+        type="button"
+        className="primary"
+        disabled={total(pick) !== owed}
+        onClick={() => onDiscard(clean(pick))}
+      >
+        Discard {total(pick)}/{owed}
+      </button>
+    </Modal>
+  );
+}
+
+function BankDialog({
+  legal,
+  ratio,
+  onTrade,
+  onClose,
+}: {
+  legal: Action[];
+  ratio: (card: string) => number;
+  onTrade: (a: Action) => void;
+  onClose: () => void;
+}) {
+  const [give, setGive] = useState<string | null>(null);
+  const gives = [...new Set(legal.map((a) => a.give as string))];
+  return (
+    <Modal title="Trade with the bank" onClose={onClose}>
+      <p>Give:</p>
+      <div className="row">
+        {RESOURCES.map((r) => (
+          <button
+            key={r}
+            type="button"
+            className={give === r ? 'on' : ''}
+            disabled={!gives.includes(r)}
+            onClick={() => setGive(r)}
+          >
+            {ratio(r)} × <ResourceCard card={r} />
+          </button>
+        ))}
+      </div>
+      {give && (
+        <>
+          <p>Get one:</p>
+          <div className="row">
+            {legal
+              .filter((a) => a.give === give)
+              .map((a) => (
+                <button key={a.get as string} type="button" onClick={() => onTrade(a)}>
+                  <ResourceCard card={a.get as string} />
+                </button>
+              ))}
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+function OfferDialog({
+  hand,
+  onOffer,
+  onClose,
+}: {
+  hand: Record<string, number>;
+  onOffer: (give: Record<string, number>, get: Record<string, number>) => void;
+  onClose: () => void;
+}) {
+  const [give, setGive] = useState<Record<string, number>>({});
+  const [get, setGet] = useState<Record<string, number>>({});
+  return (
+    <Modal title="Offer a trade" onClose={onClose}>
+      <div className="two-col">
+        <div>
+          <h3>You give</h3>
+          <CardPicker value={give} onChange={setGive} max={hand} label="Cards you give" />
+        </div>
+        <div>
+          <h3>You get</h3>
+          <CardPicker value={get} onChange={setGet} label="Cards you want" />
+        </div>
+      </div>
+      <button
+        type="button"
+        className="primary"
+        disabled={!total(give) || !total(get)}
+        onClick={() => onOffer(clean(give), clean(get))}
+      >
+        Offer to everyone
+      </button>
+    </Modal>
+  );
+}
+
+function PickDialog({
+  kind,
+  onPick,
+  onClose,
+}: {
+  kind: 'yearOfPlenty' | 'monopoly';
+  onPick: (r: string[]) => void;
+  onClose: () => void;
+}) {
+  const [picked, setPicked] = useState<string[]>([]);
+  const need = kind === 'monopoly' ? 1 : 2;
+  return (
+    <Modal
+      title={kind === 'monopoly' ? 'Monopoly: name a resource' : 'Year of Plenty: take two'}
+      onClose={onClose}
+    >
+      <div className="row">
+        {RESOURCES.map((r) => (
+          <button
+            key={r}
+            type="button"
+            disabled={picked.length >= need}
+            onClick={() => setPicked([...picked, r])}
+          >
+            <ResourceCard card={r} />
+          </button>
+        ))}
+      </div>
+      <p>
+        Chosen: {picked.map((r) => nameOf(r).icon).join(' ') || 'none'}{' '}
+        {picked.length > 0 && (
+          <button type="button" className="link" onClick={() => setPicked([])}>
+            Clear
+          </button>
+        )}
+      </p>
+      <button
+        type="button"
+        className="primary"
+        disabled={picked.length !== need}
+        onClick={() => onPick(picked)}
+      >
+        Play card
+      </button>
+    </Modal>
+  );
+}
