@@ -9,11 +9,14 @@ apps/
   web/          React + Vite web app (the board, lobby and rulebook later)
   server/       Cloudflare Worker: serves the web app, the API, and one Durable Object per game room
 packages/
-  engine/       Rules engine shared by browser and server (no expansion-specific code)
+  engine/       Rules engine core shared by browser and server (no game-specific rules)
+  modules/
+    base/       The base game as the first module
 docs/
   PLAN.md       Master plan
   DEPLOY.md     How deploys work and the one-time Cloudflare setup
   FREE-TIER.md  Cloudflare free plan limits and what they mean for the design
+  EXPANSION-REQUIREMENTS.md  What Seafarers and Cities & Knights need from the core, with tests
 ```
 
 Expansion modules, maps, bots, rulebook pages and themes get their own packages under `packages/` as their phases start (see PLAN.md section 12).
