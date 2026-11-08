@@ -362,7 +362,7 @@ The engine is written in TypeScript and shared by the browser and the server. Th
 - Seafarers: sea edges, ships as a second kind of edge piece, moving pieces, hidden hexes, gold choice during production, pirate as a second hex occupant, island ownership.
 - Cities & Knights: a second production type (commodities), a third die, three card decks drawn by dice, pieces with levels and active/inactive state, a global event track (barbarians), per-player improvement charts, hand limit changes, an inactive robber at the start, VP target 13.
 
-This list is the acceptance test for the core. The base game ships only once the core passes it, so Seafarers and C&K slot in without a rewrite.
+This list is the acceptance test for the core. The base game ships only once the core passes it, so Seafarers and C&K slot in without a rewrite. The signed-off list, with a test for each line, is in [EXPANSION-REQUIREMENTS.md](EXPANSION-REQUIREMENTS.md).
 
 ### 4.2 Realtime multi-device sync
 
@@ -530,7 +530,7 @@ Each phase ends with something we can play or use. Seafarers and Cities & Knight
 | Phase | What | Done when |
 |---|---|---|
 | **0. Foundations** ✅ | Monorepo, TypeScript, tests, CI, Cloudflare deploy, check free-tier limits. | A test page and test room deploy on every push. |
-| **1. Engine core + base game** | Module system, board graph, pieces, cards, dice, phases, hooks. Base game as the first module. Checked against the Seafarers and C&K requirements list (section 4.1). | Scripted random games finish with no rule errors, and the requirements list is signed off. |
+| **1. Engine core + base game** ✅ | Module system, board graph, pieces, cards, dice, phases, hooks. Base game as the first module. Checked against the Seafarers and C&K requirements list (section 4.1). | Scripted random games finish with no rule errors, and the requirements list is signed off. |
 | **2. Maps and generator** | Map files, Starter / 5–6 presets, Classic / Balanced / Wild / Custom generator, fairness report. | 10,000 boards per mode pass their rules. |
 | **3. Local play UI + rulebook** | Approved mockup, hotseat play with the Clean theme, in-game rulebook pop-up and cost card. | A full game on one device, with the rulebook open mid-game. |
 | **4. Online multiplayer** | Game rooms, live sync, hidden info, reconnect, multi-device, lobby, invite links, guest play, turn timer, chat. | 4 friends finish a game on different devices, one refreshing mid-game. |
