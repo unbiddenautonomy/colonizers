@@ -235,3 +235,34 @@ function checkWith(ctx: Ctx, registry: Registry, action: Action): string | null 
     throw e;
   }
 }
+
+/** Card name used for cards a viewer can't see. */
+export const HIDDEN_CARD = 'hidden';
+
+/**
+ * Turns a player's view back into a full GameState shape so the same rules
+ * code (legal moves, costs, scores) can run in the browser. Cards the viewer
+ * can't see become placeholder "hidden" cards, so counts stay right. The
+ * result can't be passed to `apply`, because it has no RNG and no real decks.
+ */
+export function stateFromView(view: GameView): GameState {
+  const { viewer, ...rest } = view;
+  const open = view.winner !== null;
+  const players: PlayerState[] = view.players.map(({ handCount, heldCount, ...p }) => {
+    if (p.seat === viewer || open) return p;
+    return {
+      ...p,
+      hand: handCount > 0 ? { [HIDDEN_CARD]: handCount } : {},
+      held: Object.fromEntries(
+        Object.entries(heldCount).map(([deck, n]) => [
+          deck,
+          Array.from({ length: n }, () => ({ card: HIDDEN_CARD, acquiredTurn: -1 })),
+        ]),
+      ),
+    };
+  });
+  const decks = Object.fromEntries(
+    Object.entries(view.decks).map(([id, n]) => [id, Array<string>(n).fill(HIDDEN_CARD)]),
+  );
+  return { ...rest, players, decks, rng: [0, 0, 0, 0] } as GameState;
+}
