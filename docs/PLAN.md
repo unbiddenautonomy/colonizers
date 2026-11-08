@@ -409,7 +409,7 @@ Bots fill empty seats, give practice games, and let one person play alone.
 
 **Expansions.** Every module includes bot hints (how to value its pieces and actions), so bots can play Seafarers, Cities & Knights and later expansions. Hard bots get the most from this because look-ahead works with any rules.
 
-**Where bots run.** The free server plan has tight limits on processing time per request, so Easy and Medium bots run on the server (they're cheap). Hard bots do their thinking in the host player's browser (in a background worker) and send moves through the server like any player. The server still checks every move. If that turns out to be a problem, Hard bots move to a small free-tier server later.
+**Where bots run.** All bots run on the server, inside the game room's Durable Object, which gets 30 seconds of processing time per message even on the free plan (checked in phase 0, see [FREE-TIER.md](FREE-TIER.md)). If a Hard bot's thinking makes players wait too long, it can move to the host player's browser (in a background worker) and send moves through the server like any player; the server still checks every move.
 
 **Testing.** Bots playing thousands of games against each other also test the rules engine and the fairness of maps and seats.
 
@@ -432,17 +432,17 @@ Bots fill empty seats, give practice games, and let one person play alone.
 
 | Need | Service | Why |
 |---|---|---|
-| Website and assets | Cloudflare Pages | Free, global CDN, deploys from GitHub. |
-| API | Cloudflare Workers | Free tier is generous for friend groups. |
+| Website, assets and API | One Cloudflare Worker with static assets | Static files are free and unlimited. One address for site and API keeps login cookies simple. (Changed from Pages + Worker in phase 0.) |
 | Live game rooms | Durable Objects (SQLite storage, available on the free plan) | One object per game holds state, runs the rules engine and keeps the live connections. Idle games cost nothing. |
 | Accounts, stats, achievements, history | Cloudflare D1 | Free storage is far beyond our needs. |
-| Auth | Better Auth on Workers + D1, Google sign-in + email and password | No paid auth service. |
+| Auth | Better Auth on Workers + D1, Google sign-in + email and password, password hashing inside a Durable Object | No paid auth service. |
 | Emails (verify, reset password) | Resend free tier | Enough for a friend group. |
 | Avatars and theme uploads (later) | Cloudflare R2 | Free storage, no download fees. |
 
-**Things to check in phase 0**
-- Free plan limits change. Re-check them first.
-- Free Workers get very little processing time per request. Password hashing and bot thinking must fit inside it. Password hashing uses the platform's built-in crypto (fast), and Hard bots run in the browser (section 5). If password login still doesn't fit, Supabase Auth (free, handles Google and email logins and sends emails itself) is the fallback.
+**Checked in phase 0** (details in [FREE-TIER.md](FREE-TIER.md))
+- Plain Workers get only 10 ms of processing time per request, but Durable Objects get 30 seconds per request or message on the free plan. So password hashing and all bots run inside Durable Objects. Supabase Auth stays the fallback for logins if the phase 7 benchmark fails.
+- Every message a player sends to a room counts toward 100,000 requests a day, enough for about 50 or more full games a day. Keep the protocol lean (no chatty heartbeats).
+- Durable Objects and D1 each allow 100,000 row writes a day, so a game writes one row per action and snapshots only occasionally.
 
 **Alternatives considered**: Supabase (free projects pause after a week idle, and game logic would still need a server), Firebase free plan (no server functions, so hidden hands and fair dice are hard), Render, Railway and Fly (free tiers sleep, shrank or ended), Colyseus and boardgame.io (need an always-on server).
 
@@ -529,7 +529,7 @@ Each phase ends with something we can play or use. Seafarers and Cities & Knight
 
 | Phase | What | Done when |
 |---|---|---|
-| **0. Foundations** | Monorepo, TypeScript, tests, CI, Cloudflare deploy, check free-tier limits. | A test page and test room deploy on every push. |
+| **0. Foundations** ✅ | Monorepo, TypeScript, tests, CI, Cloudflare deploy, check free-tier limits. | A test page and test room deploy on every push. |
 | **1. Engine core + base game** | Module system, board graph, pieces, cards, dice, phases, hooks. Base game as the first module. Checked against the Seafarers and C&K requirements list (section 4.1). | Scripted random games finish with no rule errors, and the requirements list is signed off. |
 | **2. Maps and generator** | Map files, Starter / 5–6 presets, Classic / Balanced / Wild / Custom generator, fairness report. | 10,000 boards per mode pass their rules. |
 | **3. Local play UI + rulebook** | Approved mockup, hotseat play with the Clean theme, in-game rulebook pop-up and cost card. | A full game on one device, with the rulebook open mid-game. |
@@ -554,7 +554,7 @@ Phases 1 and 2 can overlap. Theme art (phase 11) can start any time after phase 
 colonizers/
   apps/
     web/            # React + Vite PWA (UI, themes, SVG board, rulebook)
-    server/         # Cloudflare Worker + Durable Objects (rooms, auth, API, bots)
+    server/         # Cloudflare Worker: serves web/, API, Durable Objects (rooms, auth, bots)
   packages/
     engine/         # Core rules engine (no expansion-specific code)
     modules/
@@ -571,6 +571,8 @@ colonizers/
     themes/         # Theme manifests and assets
   docs/
     PLAN.md
+    DEPLOY.md       # Deploy pipeline and one-time Cloudflare setup
+    FREE-TIER.md    # Free plan limits and their effect on the design
 ```
 
 ---
