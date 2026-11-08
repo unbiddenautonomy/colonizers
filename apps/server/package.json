@@ -1,0 +1,24 @@
+{
+  "name": "@colonizers/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:check": "wrangler deploy --dry-run --outdir dist",
+    "typegen": "wrangler types",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.6.0",
+    "@cloudflare/workers-types": "^5.20261108.1",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12",
+    "wrangler": "^4.158.0"
+  }
+}
