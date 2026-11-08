@@ -6,8 +6,8 @@ A private hex-and-resources trading game for friend groups. The plan is in [docs
 
 ```
 apps/
-  web/          React + Vite web app: new-game screen, SVG board, hotseat play, rulebook pop-up
-  server/       Cloudflare Worker: serves the web app, the API, and one Durable Object per game room
+  web/          React + Vite web app: home, online lobby and game, hotseat play, SVG board, rulebook
+  server/       Cloudflare Worker: serves the web app, the room API, and one Durable Object per room (lobby, chat, timer, authoritative game)
 packages/
   engine/       Rules engine core shared by browser and server (no game-specific rules)
   modules/

@@ -12,7 +12,17 @@ import { nameOf, pageForError } from '@colonizers/rulebook';
 import { Board, noTargets, type Targets } from '../board/Board.tsx';
 import { describe } from '../game/describe.ts';
 import { library } from '../game/library.ts';
-import { clearSavedGame, useLocalGame, type SavedGame } from '../game/useLocalGame.ts';
+import {
+  actorOf,
+  clearSavedGame,
+  useLocalGame,
+  type LogEntry,
+  type SavedGame,
+} from '../game/useLocalGame.ts';
+import type { ChatMessage, MemberInfo } from '../../../server/src/protocol.ts';
+import type { Connection } from '../online/roomState.ts';
+import { Chat } from '../ui/Chat.tsx';
+import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { cleanTheme } from '../theme/clean.ts';
 import { CardPicker, clean, CostLine, RESOURCES, ResourceCard, total } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
@@ -54,6 +64,8 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
     case 'roll':
       return `${who}: roll the dice${hasKnight(state, actor) ? ', or play a Knight first' : ''}.`;
     case 'discard':
+      if (!(state.phase.owed as Record<number, number>)[actor ?? -1])
+        return 'Waiting for players to discard.';
       return `${who}: discard ${(state.phase.owed as Record<number, number>)[actor ?? -1]} cards.`;
     case 'moveRobber':
       return `${who}: move the robber to a new hex.`;
@@ -79,10 +91,55 @@ function hasKnight(state: GameState, seat: number | null) {
   );
 }
 
-export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }) {
+/** What the game screen needs, whether the game runs on this device or online. */
+export interface GameController {
+  state: GameState;
+  log: LogEntry[];
+  act: (a: Action) => boolean;
+  error: string | null;
+  clearError: () => void;
+}
+
+export interface OnlineExtras {
+  code: string;
+  conn: Connection;
+  you: string | null;
+  members: MemberInfo[];
+  isHost: boolean;
+  deadline: number | null;
+  chat: ChatMessage[];
+  sendChat: (text: string) => void;
+  nudge: (seat: number) => void;
+  rematch: () => void;
+}
+
+export function LocalGame({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }) {
   const g = useLocalGame(saved);
-  const { state, actor } = g;
+  return <Game g={g} seat={g.actor} onQuit={onQuit} />;
+}
+
+export function Game({
+  g,
+  seat,
+  online,
+  onQuit,
+}: {
+  g: GameController;
+  /** Whose hand and moves this screen shows: the device holder, or your seat online. */
+  seat: number | null;
+  online?: OnlineExtras;
+  onQuit: () => void;
+}) {
+  const { state } = g;
+  const actor = seat;
   const names = state.players.map((p) => p.name);
+  const promptNames = online ? names.map((n, i) => (i === seat ? 'You' : n)) : names;
+  const owedMe =
+    state.phase.id === 'discard' && actor !== null
+      ? ((state.phase.owed as Record<number, number>)[actor] ?? 0)
+      : 0;
+  const promptSeat = online && !owedMe && state.phase.id !== 'discard' ? actorOf(state) : actor;
+  const canControl = (s: number) => !online || s === seat;
   const [chosenMode, setMode] = useState<Mode>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
@@ -111,7 +168,7 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
     if (g.act(a)) setMode(null);
   };
 
-  const hiddenHand = privateHands && actor !== null && revealedFor !== actor;
+  const hiddenHand = !online && privateHands && actor !== null && revealedFor !== actor;
   const viewer = actor;
 
   const logRef = useRef<HTMLOListElement>(null);
@@ -126,20 +183,30 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
       <header className="game-head">
         <h1 className="game-title">Colonizers</h1>
         <p className="prompt" aria-live="polite">
-          {actor !== null && (
-            <PlayerBadge color={theme.players[actor]!.color} shape={theme.players[actor]!.shape} />
+          {promptSeat !== null && (
+            <PlayerBadge
+              color={theme.players[promptSeat]!.color}
+              shape={theme.players[promptSeat]!.shape}
+            />
           )}{' '}
-          {prompt(state, actor, names, mode)}
+          {prompt(state, promptSeat, promptNames, mode)}
+          {online?.deadline && state.winner === null && <TurnTimer deadline={online.deadline} />}
         </p>
         <div className="head-actions">
-          <label className="toggle" title="Cover the hand when passing the device">
-            <input
-              type="checkbox"
-              checked={privateHands}
-              onChange={(e) => setPrivateHands(e.target.checked)}
-            />{' '}
-            Private hands
-          </label>
+          {online ? (
+            <span className={`conn conn-${online.conn}`} title={`Room ${online.code}`}>
+              {online.conn === 'open' ? `Room ${online.code}` : 'Reconnecting…'}
+            </span>
+          ) : (
+            <label className="toggle" title="Cover the hand when passing the device">
+              <input
+                type="checkbox"
+                checked={privateHands}
+                onChange={(e) => setPrivateHands(e.target.checked)}
+              />{' '}
+              Private hands
+            </label>
+          )}
           <button
             type="button"
             className="icon help"
@@ -153,6 +220,7 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
             className="ghost"
             onClick={() => {
               if (
+                online ||
                 window.confirm(
                   'Leave this game? It stays saved on this device until you start a new one.',
                 )
@@ -160,7 +228,7 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
                 onQuit();
             }}
           >
-            Menu
+            {online ? 'Home' : 'Menu'}
           </button>
         </div>
       </header>
@@ -169,6 +237,14 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
         {state.players.map((p) => {
           const t = theme.players[p.seat]!;
           const data = baseData(ctx);
+          const member = online?.members.find((m) => m.seat === p.seat);
+          const waitingOnThem =
+            online &&
+            p.seat !== seat &&
+            state.winner === null &&
+            (state.phase.id === 'discard'
+              ? !!(state.phase.owed as Record<number, number>)[p.seat]
+              : state.turn.player === p.seat);
           return (
             <div
               key={p.seat}
@@ -178,6 +254,14 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
               <div className="player-name">
                 <PlayerBadge color={t.color} shape={t.shape} />
                 <strong>{p.name}</strong>
+                {online && (
+                  <span
+                    className={`presence${member?.online ? ' on' : ''}`}
+                    title={member?.online ? 'Online' : 'Offline'}
+                    aria-label={member?.online ? 'Online' : 'Offline'}
+                  />
+                )}
+                {p.seat === seat && online && <small className="muted">you</small>}
                 <span className="vp" title="Victory points">
                   {publicVp(ctx, p.seat)}
                   <small> VP</small>
@@ -190,6 +274,16 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
                 <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
                 {data.longestRoad === p.seat && <span className="award">Longest Road</span>}
                 {data.largestArmy === p.seat && <span className="award">Largest Army</span>}
+                {waitingOnThem && (
+                  <button
+                    type="button"
+                    className="small ghost"
+                    onClick={() => online.nudge(p.seat)}
+                    title={`Remind ${p.name} it's their move`}
+                  >
+                    👋 Nudge
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -236,7 +330,7 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
         {actor !== null && (
           <div className="hand">
             <div className="hand-head">
-              <strong>{names[actor]}'s hand</strong>
+              <strong>{online ? 'Your hand' : `${names[actor]}'s hand`}</strong>
               {hiddenHand && (
                 <button type="button" onClick={() => setRevealedFor(actor)}>
                   Show my cards
@@ -352,6 +446,7 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
                 .filter((p) => p.seat !== offer.from && (!offer.to || offer.to.includes(p.seat)))
                 .map((p) => {
                   const r = offer.responses[p.seat];
+                  const mine = canControl(p.seat);
                   const canAccept =
                     library.check(state, {
                       type: 'respondTrade',
@@ -369,23 +464,27 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
                       {r === 'accept' ? (
                         <>
                           accepts{' '}
-                          <button
-                            type="button"
-                            className="primary small"
-                            onClick={() =>
-                              act({
-                                type: 'confirmTrade',
-                                player: offer.from,
-                                offer: offer.id,
-                                with: p.seat,
-                              })
-                            }
-                          >
-                            Trade with {p.name}
-                          </button>
+                          {canControl(offer.from) && (
+                            <button
+                              type="button"
+                              className="primary small"
+                              onClick={() =>
+                                act({
+                                  type: 'confirmTrade',
+                                  player: offer.from,
+                                  offer: offer.id,
+                                  with: p.seat,
+                                })
+                              }
+                            >
+                              Trade with {p.name}
+                            </button>
+                          )}
                         </>
                       ) : r === 'decline' ? (
                         'declines'
+                      ) : !mine ? (
+                        'thinking…'
                       ) : (
                         <>
                           <button
@@ -423,13 +522,15 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
                   );
                 })}
             </ul>
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => act({ type: 'cancelTrade', player: offer.from })}
-            >
-              Withdraw offer
-            </button>
+            {canControl(offer.from) && (
+              <button
+                type="button"
+                className="ghost small"
+                onClick={() => act({ type: 'cancelTrade', player: offer.from })}
+              >
+                Withdraw offer
+              </button>
+            )}
           </div>
         )}
 
@@ -447,9 +548,17 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
             })}
           </ol>
         </details>
+        {online && (
+          <Chat
+            messages={online.chat}
+            you={online.you}
+            members={online.members}
+            onSend={online.sendChat}
+          />
+        )}
       </section>
 
-      {state.phase.id === 'discard' && actor !== null && (
+      {owedMe > 0 && actor !== null && (
         <DiscardDialog
           key={actor}
           name={names[actor]!}
@@ -459,7 +568,7 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
         />
       )}
 
-      {state.phase.id === 'steal' && actor !== null && (
+      {state.phase.id === 'steal' && legal.some((a) => a.type === 'steal') && (
         <Modal title="Steal a card">
           <p>Pick a player to steal one random card from.</p>
           <div className="row">
@@ -515,7 +624,7 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
         />
       )}
 
-      {privateHands && actor !== null && revealedFor !== actor && state.phase.id !== 'gameOver' && (
+      {hiddenHand && state.phase.id !== 'gameOver' && (
         <div className="pass-cover">
           <div>
             <PlayerBadge
@@ -543,16 +652,34 @@ export function Game({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }
                 </li>
               ))}
           </ol>
-          <button
-            type="button"
-            className="primary"
-            onClick={() => {
-              clearSavedGame();
-              onQuit();
-            }}
-          >
-            New game
-          </button>
+          {online ? (
+            <div className="row">
+              {online.isHost && (
+                <button type="button" className="primary" onClick={online.rematch}>
+                  Back to the lobby
+                </button>
+              )}
+              <button
+                type="button"
+                className={online.isHost ? 'ghost' : 'primary'}
+                onClick={onQuit}
+              >
+                Home
+              </button>
+              {!online.isHost && <p className="muted">The host can set up the next game.</p>}
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                clearSavedGame();
+                onQuit();
+              }}
+            >
+              New game
+            </button>
+          )}
         </Modal>
       )}
 

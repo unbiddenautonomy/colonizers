@@ -12,6 +12,8 @@ import { cleanTheme } from '../theme/clean.ts';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { RESOURCE_ICON } from '../theme/clean.ts';
 import type { SavedGame } from '../game/useLocalGame.ts';
+import { createRoom, parseRoomCode } from '../online/api.ts';
+import { saveName, savedName } from '../online/identity.ts';
 
 const DEFAULT_NAMES = ['Alex', 'Blair', 'Casey', 'Devon', 'Emery', 'Finley', 'Gray', 'Harper'];
 
@@ -26,7 +28,9 @@ export function NewGame({
   onResume,
   canResume,
   onRules,
+  onOnline,
 }: {
+  onOnline: (code: string) => void;
   onStart: (g: SavedGame) => void;
   onResume: () => void;
   canResume: boolean;
@@ -72,9 +76,7 @@ export function NewGame({
     <main className="setup-page">
       <header>
         <h1>Colonizers</h1>
-        <p className="muted">
-          Play on one device, passing it around the table. Online play comes next.
-        </p>
+        <p className="muted">Play online with friends, or on one device passed around the table.</p>
         <div className="row">
           {canResume && (
             <button type="button" className="primary" onClick={onResume}>
@@ -86,6 +88,10 @@ export function NewGame({
           </button>
         </div>
       </header>
+
+      <OnlinePanel onOnline={onOnline} />
+
+      <h2 className="section-title">Play on this device</h2>
 
       <section className="card">
         <h2>Players</h2>
@@ -213,5 +219,80 @@ export function NewGame({
         Start game
       </button>
     </main>
+  );
+}
+
+function OnlinePanel({ onOnline }: { onOnline: (code: string) => void }) {
+  const [name, setName] = useState(savedName);
+  const [joinCode, setJoinCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ready = name.trim().length > 0;
+
+  const go = (code: string) => {
+    saveName(name.trim().slice(0, 20));
+    onOnline(code);
+  };
+
+  return (
+    <section className="card online-card">
+      <h2>Play online</h2>
+      <label>
+        Your name{' '}
+        <input
+          value={name}
+          maxLength={20}
+          onChange={(e) => setName(e.target.value)}
+          aria-label="Your name"
+          placeholder="Name shown to others"
+        />
+      </label>
+      <div className="row wrap">
+        <button
+          type="button"
+          className="primary"
+          disabled={!ready || busy}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              go(await createRoom());
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Could not create a room');
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? 'Creating…' : 'Create a room'}
+        </button>
+        <form
+          className="inline"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const code = parseRoomCode(joinCode);
+            if (!code) return setError('That does not look like a room code or invite link.');
+            go(code);
+          }}
+        >
+          <input
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)}
+            placeholder="Room code or link"
+            aria-label="Room code or invite link"
+            size={14}
+          />
+          <button type="submit" disabled={!ready || !joinCode.trim()}>
+            Join
+          </button>
+        </form>
+      </div>
+      {!ready && <p className="muted">Pick a name first.</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
