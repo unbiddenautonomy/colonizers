@@ -1,0 +1,366 @@
+{
+  "id": "classic-5-6",
+  "name": "Classic 5–6",
+  "description": "The bigger 30-hex board for 5 or 6 players.",
+  "players": {
+    "min": 5,
+    "max": 6
+  },
+  "modules": ["base"],
+  "hexes": [
+    {
+      "q": 0,
+      "r": -3,
+      "type": "forest",
+      "token": 5
+    },
+    {
+      "q": 1,
+      "r": -3,
+      "type": "pasture",
+      "token": 2
+    },
+    {
+      "q": 2,
+      "r": -3,
+      "type": "mountains",
+      "token": 10
+    },
+    {
+      "q": -1,
+      "r": -2,
+      "type": "hills",
+      "token": 4
+    },
+    {
+      "q": 0,
+      "r": -2,
+      "type": "pasture",
+      "token": 8
+    },
+    {
+      "q": 1,
+      "r": -2,
+      "type": "desert"
+    },
+    {
+      "q": 2,
+      "r": -2,
+      "type": "hills",
+      "token": 3
+    },
+    {
+      "q": -2,
+      "r": -1,
+      "type": "desert"
+    },
+    {
+      "q": -1,
+      "r": -1,
+      "type": "fields",
+      "token": 3
+    },
+    {
+      "q": 0,
+      "r": -1,
+      "type": "mountains",
+      "token": 9
+    },
+    {
+      "q": 1,
+      "r": -1,
+      "type": "forest",
+      "token": 4
+    },
+    {
+      "q": 2,
+      "r": -1,
+      "type": "mountains",
+      "token": 6
+    },
+    {
+      "q": -3,
+      "r": 0,
+      "type": "forest",
+      "token": 8
+    },
+    {
+      "q": -2,
+      "r": 0,
+      "type": "forest",
+      "token": 9
+    },
+    {
+      "q": -1,
+      "r": 0,
+      "type": "pasture",
+      "token": 11
+    },
+    {
+      "q": 0,
+      "r": 0,
+      "type": "fields",
+      "token": 6
+    },
+    {
+      "q": 1,
+      "r": 0,
+      "type": "pasture",
+      "token": 5
+    },
+    {
+      "q": 2,
+      "r": 0,
+      "type": "forest",
+      "token": 2
+    },
+    {
+      "q": -3,
+      "r": 1,
+      "type": "fields",
+      "token": 10
+    },
+    {
+      "q": -2,
+      "r": 1,
+      "type": "fields",
+      "token": 6
+    },
+    {
+      "q": -1,
+      "r": 1,
+      "type": "hills",
+      "token": 9
+    },
+    {
+      "q": 0,
+      "r": 1,
+      "type": "fields",
+      "token": 12
+    },
+    {
+      "q": 1,
+      "r": 1,
+      "type": "mountains",
+      "token": 11
+    },
+    {
+      "q": -3,
+      "r": 2,
+      "type": "hills",
+      "token": 5
+    },
+    {
+      "q": -2,
+      "r": 2,
+      "type": "forest",
+      "token": 3
+    },
+    {
+      "q": -1,
+      "r": 2,
+      "type": "pasture",
+      "token": 8
+    },
+    {
+      "q": 0,
+      "r": 2,
+      "type": "hills",
+      "token": 10
+    },
+    {
+      "q": -3,
+      "r": 3,
+      "type": "pasture",
+      "token": 11
+    },
+    {
+      "q": -2,
+      "r": 3,
+      "type": "mountains",
+      "token": 12
+    },
+    {
+      "q": -1,
+      "r": 3,
+      "type": "fields",
+      "token": 4
+    },
+    {
+      "q": 1,
+      "r": -4,
+      "type": "sea"
+    },
+    {
+      "q": -1,
+      "r": -3,
+      "type": "sea"
+    },
+    {
+      "q": 0,
+      "r": -4,
+      "type": "sea"
+    },
+    {
+      "q": 2,
+      "r": -4,
+      "type": "sea"
+    },
+    {
+      "q": 3,
+      "r": -4,
+      "type": "sea"
+    },
+    {
+      "q": 3,
+      "r": -3,
+      "type": "sea"
+    },
+    {
+      "q": -2,
+      "r": -2,
+      "type": "sea"
+    },
+    {
+      "q": 3,
+      "r": -2,
+      "type": "sea"
+    },
+    {
+      "q": -3,
+      "r": -1,
+      "type": "sea"
+    },
+    {
+      "q": 3,
+      "r": -1,
+      "type": "sea"
+    },
+    {
+      "q": -4,
+      "r": 1,
+      "type": "sea"
+    },
+    {
+      "q": -4,
+      "r": 0,
+      "type": "sea"
+    },
+    {
+      "q": 3,
+      "r": 0,
+      "type": "sea"
+    },
+    {
+      "q": 2,
+      "r": 1,
+      "type": "sea"
+    },
+    {
+      "q": -4,
+      "r": 2,
+      "type": "sea"
+    },
+    {
+      "q": 1,
+      "r": 2,
+      "type": "sea"
+    },
+    {
+      "q": -4,
+      "r": 3,
+      "type": "sea"
+    },
+    {
+      "q": 0,
+      "r": 3,
+      "type": "sea"
+    },
+    {
+      "q": -3,
+      "r": 4,
+      "type": "sea"
+    },
+    {
+      "q": -4,
+      "r": 4,
+      "type": "sea"
+    },
+    {
+      "q": -2,
+      "r": 4,
+      "type": "sea"
+    },
+    {
+      "q": -1,
+      "r": 4,
+      "type": "sea"
+    }
+  ],
+  "harbors": [
+    {
+      "edge": "e:-4,0,E",
+      "resource": "any",
+      "ratio": 3
+    },
+    {
+      "edge": "e:-2,-2,SE",
+      "resource": "grain",
+      "ratio": 2
+    },
+    {
+      "edge": "e:-1,-3,E",
+      "resource": "any",
+      "ratio": 3
+    },
+    {
+      "edge": "e:1,-3,NE",
+      "resource": "brick",
+      "ratio": 2
+    },
+    {
+      "edge": "e:2,-3,E",
+      "resource": "any",
+      "ratio": 3
+    },
+    {
+      "edge": "e:2,-1,E",
+      "resource": "lumber",
+      "ratio": 2
+    },
+    {
+      "edge": "e:2,0,SE",
+      "resource": "any",
+      "ratio": 3
+    },
+    {
+      "edge": "e:0,2,SE",
+      "resource": "ore",
+      "ratio": 2
+    },
+    {
+      "edge": "e:-2,4,NE",
+      "resource": "any",
+      "ratio": 3
+    },
+    {
+      "edge": "e:-4,4,NE",
+      "resource": "wool",
+      "ratio": 2
+    },
+    {
+      "edge": "e:-4,2,E",
+      "resource": "wool",
+      "ratio": 2
+    }
+  ],
+  "pieces": [
+    {
+      "type": "robber",
+      "at": {
+        "kind": "hex",
+        "id": "h:1,-2"
+      }
+    }
+  ]
+}
