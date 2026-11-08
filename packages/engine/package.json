@@ -1,0 +1,18 @@
+{
+  "name": "@colonizers/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Core rules engine shared by the browser and the server. Knows nothing about specific expansions.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}
