@@ -1,0 +1,21 @@
+{
+  "name": "@colonizers/module-base",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The base game rules as an engine module.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}
