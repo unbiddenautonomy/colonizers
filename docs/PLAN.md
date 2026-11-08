@@ -567,7 +567,7 @@ colonizers/
       ...           # later expansions
     maps/           # Map files, generators, fairness scoring
     bots/           # Bot logic, shared by server and browser
-    rulebook/       # Rule pages per module
+    rulebook/       # Rule pages per module (base game done)
     themes/         # Theme manifests and assets
   docs/
     PLAN.md
