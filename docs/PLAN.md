@@ -533,7 +533,7 @@ Each phase ends with something we can play or use. Seafarers and Cities & Knight
 | **1. Engine core + base game** ✅ | Module system, board graph, pieces, cards, dice, phases, hooks. Base game as the first module. Checked against the Seafarers and C&K requirements list (section 4.1). | Scripted random games finish with no rule errors, and the requirements list is signed off. |
 | **2. Maps and generator** ✅ | Map files, Starter / 5–6 presets, Classic / Balanced / Wild / Custom generator, fairness report. | 10,000 boards per mode pass their rules. |
 | **3. Local play UI + rulebook** | Approved mockup, hotseat play with the Clean theme, in-game rulebook pop-up and cost card. | A full game on one device, with the rulebook open mid-game. |
-| **4. Online multiplayer** | Game rooms, live sync, hidden info, reconnect, multi-device, lobby, invite links, guest play, turn timer, chat. | 4 friends finish a game on different devices, one refreshing mid-game. |
+| **4. Online multiplayer** ✅ | Game rooms, live sync, hidden info, reconnect, multi-device, lobby, invite links, guest play, turn timer, chat. | 4 friends finish a game on different devices, one refreshing mid-game. |
 | **5. Seafarers** | Ships, pirate, gold, fog of war, island bonus, scenarios, Seafarers map generator. | Every included scenario playable online; generator checks pass. |
 | **6. Cities & Knights** | Commodities, improvements, metropolises, knights, barbarians, progress cards, walls, merchant. Seafarers + C&K combined. | C&K and the combined game playable online. |
 | **7. Accounts and crews** | Google and email sign-up, profiles, guest upgrade, crews. | Games show up in each person's history. |

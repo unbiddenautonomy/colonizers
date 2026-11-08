@@ -21,5 +21,11 @@ export {
   type Registry,
 } from './module.ts';
 export { Ctx } from './context.ts';
-export { ModuleLibrary, type GameConfig, type GameView } from './game.ts';
+export {
+  ModuleLibrary,
+  stateFromView,
+  HIDDEN_CARD,
+  type GameConfig,
+  type GameView,
+} from './game.ts';
 export { cardsTotal, addCards, subtractCards, isCards } from './cards.ts';

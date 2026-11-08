@@ -721,6 +721,147 @@ select {
   font-size: 1.1rem;
 }
 
+/* ---------- Online ---------- */
+
+.section-title {
+  margin-top: 28px;
+  font-size: 1.05rem;
+  color: var(--muted);
+}
+
+.online-card {
+  border-color: var(--accent);
+}
+
+.online-card label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+form.inline {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.setup-page.narrow {
+  max-width: 460px;
+}
+
+.lobby .code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 8px;
+}
+
+.members {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.members li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.presence {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--border);
+  flex: none;
+}
+
+.presence.on {
+  background: #2e9d5b;
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.field > span {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.settings-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.waiting {
+  text-align: center;
+  font-weight: 600;
+  padding: 12px;
+}
+
+.conn {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.conn-reconnecting,
+.conn-connecting {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.timer {
+  margin-left: 8px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.timer.low {
+  color: var(--danger);
+}
+
+.chat {
+  margin-top: 10px;
+}
+
+.chat-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+.chat-list li {
+  padding: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-list li.system {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chat-form {
+  display: flex;
+  gap: 6px;
+}
+
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ---------- Phone ---------- */
 
 @media (max-width: 900px) {
@@ -767,7 +908,8 @@ select {
     font-size: 0.78rem;
   }
 
-  .player-stats .award {
+  .player-stats .award,
+  .player-name small {
     display: none;
   }
 

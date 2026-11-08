@@ -1,26 +1,142 @@
 /**
- * Messages between the browser and a game room. Phase 0 only has a test room
- * that rolls dice; phase 4 replaces this with real game intents and events.
+ * Messages between the browser and a game room. The browser imports this file
+ * too, so keep it free of Worker-only code.
  */
-export type ClientMessage = { type: 'roll'; name: string } | { type: 'sync'; afterSeq: number };
+import type { Action, GameEvent, GameView } from '@colonizers/engine';
 
-export interface RollEvent {
-  seq: number;
+export type MapChoice =
+  { kind: 'preset'; id: string } | { kind: 'random'; mode: 'classic' | 'balanced' | 'wild' };
+
+export interface RoomSettings {
+  map: MapChoice;
+  vpTarget: number;
+  /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
+  turnTimer: number;
+  maxPlayers: number;
+}
+
+export const TURN_TIMERS = [0, 60, 90, 120, 180, 300] as const;
+export const VP_TARGETS = [8, 9, 10, 11, 12, 13, 14, 15] as const;
+
+export const DEFAULT_SETTINGS: RoomSettings = {
+  map: { kind: 'random', mode: 'classic' },
+  vpTarget: 10,
+  turnTimer: 0,
+  maxPlayers: 4,
+};
+
+export type RoomStatus = 'lobby' | 'playing' | 'finished';
+
+export interface MemberInfo {
+  id: string;
   name: string;
-  dice: [number, number];
-  total: number;
+  /** Seat in the running game, or null for spectators and everyone in the lobby. */
+  seat: number | null;
+  role: 'player' | 'spectator';
+  online: boolean;
+}
+
+export interface RoomInfo {
+  code: string;
+  status: RoomStatus;
+  hostId: string | null;
+  settings: RoomSettings;
+  members: MemberInfo[];
+}
+
+export interface LogEntry {
+  seq: number;
+  event: GameEvent;
+}
+
+export interface GameSnapshot {
+  view: GameView;
+  seq: number;
+  /** When the turn timer runs out, in server time (ms), or null. */
+  deadline: number | null;
+}
+
+export interface ChatMessage {
+  id: number;
+  /** Member id, or null for messages from the room itself. */
+  from: string | null;
+  name: string;
+  text: string;
   at: number;
 }
 
+export type ClientMessage =
+  | { type: 'hello'; token: string; name: string }
+  | { type: 'rename'; name: string }
+  | { type: 'settings'; settings: RoomSettings }
+  | { type: 'start' }
+  | { type: 'remove'; member: string }
+  | { type: 'leave' }
+  | { type: 'act'; action: Action }
+  | { type: 'chat'; text: string }
+  | { type: 'nudge'; seat: number }
+  | { type: 'rematch' };
+
 export type ServerMessage =
-  | { type: 'welcome'; roomId: string; seq: number; history: RollEvent[]; online: number }
-  | { type: 'rolled'; event: RollEvent }
-  | { type: 'events'; events: RollEvent[] }
-  | { type: 'presence'; online: number }
-  | { type: 'error'; message: string };
+  | {
+      type: 'welcome';
+      you: string;
+      room: RoomInfo;
+      game: GameSnapshot | null;
+      log: LogEntry[];
+      chat: ChatMessage[];
+      now: number;
+    }
+  | { type: 'room'; room: RoomInfo }
+  | { type: 'game'; game: GameSnapshot; events: LogEntry[]; now: number }
+  | { type: 'chat'; message: ChatMessage }
+  | { type: 'error'; message: string; code?: 'removed' | 'notFound' | 'rule' | 'denied' };
+
+export const MAX_MESSAGE = 8192;
+export const MAX_CHAT = 300;
+export const ROOM_CODE = /^[a-z0-9-]{1,40}$/;
+
+const TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
+
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\u0000-\u001f\u007f]/g;
+// Like CONTROL but keeps newlines in chat.
+// eslint-disable-next-line no-control-regex
+const CONTROL_KEEP_NEWLINE = /[\u0000-\u0009\u000b-\u001f\u007f]/g;
+
+/** Cleans a display name: no control characters, 1 to 20 characters. */
+export function cleanName(raw: unknown): string {
+  if (typeof raw !== 'string') return 'Guest';
+  const name = raw.replace(CONTROL, '').trim().slice(0, 20);
+  return name || 'Guest';
+}
+
+function int(v: unknown, allowed: readonly number[], fallback: number): number {
+  return typeof v === 'number' && allowed.includes(v) ? v : fallback;
+}
+
+/** Makes any settings object safe, keeping what is valid. */
+export function cleanSettings(raw: unknown): RoomSettings {
+  const s = (typeof raw === 'object' && raw ? raw : {}) as Record<string, unknown>;
+  const m = (typeof s.map === 'object' && s.map ? s.map : {}) as Record<string, unknown>;
+  let map: MapChoice = DEFAULT_SETTINGS.map;
+  if (m.kind === 'preset' && typeof m.id === 'string' && /^[a-z0-9-]{1,40}$/.test(m.id))
+    map = { kind: 'preset', id: m.id };
+  else if (
+    m.kind === 'random' &&
+    (m.mode === 'classic' || m.mode === 'balanced' || m.mode === 'wild')
+  )
+    map = { kind: 'random', mode: m.mode };
+  return {
+    map,
+    vpTarget: int(s.vpTarget, VP_TARGETS, DEFAULT_SETTINGS.vpTarget),
+    turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
+    maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
+  };
+}
 
 export function parseClientMessage(raw: string | ArrayBuffer): ClientMessage | null {
-  if (typeof raw !== 'string' || raw.length > 4096) return null;
+  if (typeof raw !== 'string' || raw.length > MAX_MESSAGE) return null;
   let data: unknown;
   try {
     data = JSON.parse(raw);
@@ -29,12 +145,36 @@ export function parseClientMessage(raw: string | ArrayBuffer): ClientMessage | n
   }
   if (typeof data !== 'object' || data === null) return null;
   const msg = data as Record<string, unknown>;
-  if (msg.type === 'roll' && typeof msg.name === 'string') {
-    const name = msg.name.trim().slice(0, 32) || 'Anonymous';
-    return { type: 'roll', name };
+  switch (msg.type) {
+    case 'hello':
+      if (typeof msg.token !== 'string' || !TOKEN.test(msg.token)) return null;
+      return { type: 'hello', token: msg.token, name: cleanName(msg.name) };
+    case 'rename':
+      return { type: 'rename', name: cleanName(msg.name) };
+    case 'settings':
+      return { type: 'settings', settings: cleanSettings(msg.settings) };
+    case 'start':
+    case 'leave':
+    case 'rematch':
+      return { type: msg.type };
+    case 'remove':
+      return typeof msg.member === 'string' ? { type: 'remove', member: msg.member } : null;
+    case 'act': {
+      const a = msg.action as Record<string, unknown> | null;
+      if (typeof a !== 'object' || a === null || typeof a.type !== 'string') return null;
+      // The room fills in the player from the seat; never trust the sender.
+      return { type: 'act', action: { ...a, type: a.type, player: -1 } };
+    }
+    case 'chat': {
+      if (typeof msg.text !== 'string') return null;
+      const text = msg.text.replace(CONTROL_KEEP_NEWLINE, '').trim();
+      return text ? { type: 'chat', text: text.slice(0, MAX_CHAT) } : null;
+    }
+    case 'nudge':
+      return typeof msg.seat === 'number' && Number.isInteger(msg.seat)
+        ? { type: 'nudge', seat: msg.seat }
+        : null;
+    default:
+      return null;
   }
-  if (msg.type === 'sync' && typeof msg.afterSeq === 'number' && Number.isInteger(msg.afterSeq)) {
-    return { type: 'sync', afterSeq: msg.afterSeq };
-  }
-  return null;
 }
