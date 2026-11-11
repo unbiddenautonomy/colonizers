@@ -12,11 +12,12 @@
   },
   "dependencies": {
     "@colonizers/engine": "workspace:*",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "@colonizers/module-base": "workspace:*",
     "@colonizers/maps": "workspace:*",
-    "@colonizers/rulebook": "workspace:*"
+    "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*",
+    "@colonizers/rulebook": "workspace:*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

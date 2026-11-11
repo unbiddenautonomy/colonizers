@@ -1,13 +1,6 @@
 import type { ActionDef, CornerId, GameModule, HexId } from '@colonizers/engine';
 import { freeSpots, seaActions } from './actions.ts';
-import {
-  explore,
-  islandOf,
-  MODULE_ID,
-  seaData,
-  startGoldPick,
-  type SeaData,
-} from './rules.ts';
+import { explore, islandOf, MODULE_ID, seaData, startGoldPick, type SeaData } from './rules.ts';
 
 /**
  * Seafarers: ships on sea edges, moving ships, the pirate, gold fields, fog

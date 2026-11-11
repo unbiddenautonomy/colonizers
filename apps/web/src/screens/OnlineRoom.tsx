@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MODES, PRESETS } from '@colonizers/maps';
+import { MODES, PRESETS, SEA_SCENARIOS } from '@colonizers/maps';
 import {
   TURN_TIMERS,
   VP_TARGETS,
@@ -200,10 +200,16 @@ function Lobby({
   const presets = PRESETS.filter(
     (p) => players.length >= p.players.min && players.length <= p.players.max,
   );
+  const scenarios = SEA_SCENARIOS.filter((x) => players.length <= x.players.max);
   const mapLabel = (m: MapChoice) =>
     m.kind === 'random'
       ? `${MODES[m.mode].name} (random)`
-      : (PRESETS.find((p) => p.id === m.id)?.name ?? m.id);
+      : m.kind === 'scenario'
+        ? `Seafarers: ${SEA_SCENARIOS.find((x) => x.id === m.id)?.name ?? m.id}`
+        : (PRESETS.find((p) => p.id === m.id)?.name ?? m.id);
+  const map = s.map;
+  const seaPick =
+    map.kind === 'scenario' ? (SEA_SCENARIOS.find((x) => x.id === map.id) ?? null) : null;
 
   return (
     <main className="setup-page lobby">
@@ -348,6 +354,25 @@ function Lobby({
                 ))}
               </div>
             </div>
+            {scenarios.length > 0 && (
+              <div className="field">
+                <span>Seafarers</span>
+                <div className="row wrap">
+                  {scenarios.map((x) => (
+                    <button
+                      key={x.id}
+                      type="button"
+                      className={s.map.kind === 'scenario' && s.map.id === x.id ? 'on' : ''}
+                      title={x.description}
+                      onClick={() => set({ map: { kind: 'scenario', id: x.id } })}
+                    >
+                      ⛵ {x.name}
+                    </button>
+                  ))}
+                </div>
+                {seaPick && <p className="muted">{seaPick.description}</p>}
+              </div>
+            )}
             <div className="row wrap">
               <label>
                 Points to win{' '}
@@ -391,7 +416,7 @@ function Lobby({
         ) : (
           <ul className="settings-list">
             <li>Map: {mapLabel(s.map)}</li>
-            <li>Points to win: {s.vpTarget}</li>
+            <li>Points to win: {seaPick ? 'set by the scenario' : s.vpTarget}</li>
             <li>Turn timer: {s.turnTimer ? `${s.turnTimer / 60} min` : 'off'}</li>
           </ul>
         )}
