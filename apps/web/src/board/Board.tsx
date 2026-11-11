@@ -63,6 +63,51 @@ function HouseShape({ x, y, color, city }: { x: number; y: number; color: string
   return <path d={d} fill={color} stroke="#1d2321" strokeWidth={2.5} strokeLinejoin="round" />;
 }
 
+/** A small boat in the middle of the edge, over a thin wake line. */
+function Ship({
+  a,
+  b,
+  color,
+}: {
+  a: { x: number; y: number };
+  b: { x: number; y: number };
+  color: string;
+}) {
+  const mx = (a.x + b.x) / 2;
+  const my = (a.y + b.y) / 2;
+  const k = S * 0.2;
+  return (
+    <g filter="url(#lift)">
+      <line
+        x1={a.x + (b.x - a.x) * 0.12}
+        y1={a.y + (b.y - a.y) * 0.12}
+        x2={b.x - (b.x - a.x) * 0.12}
+        y2={b.y - (b.y - a.y) * 0.12}
+        stroke={color}
+        strokeWidth={S * 0.06}
+        strokeLinecap="round"
+        strokeDasharray={`${S * 0.08} ${S * 0.07}`}
+      />
+      <g transform={`translate(${mx} ${my})`}>
+        <path
+          d={`M${-k * 1.3},${-k * 0.1} h${k * 2.6} l${-k * 0.5},${k * 0.7} h${-k * 1.6} z`}
+          fill={color}
+          stroke="#1d2321"
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
+        <path
+          d={`M${-k * 0.1},${-k * 0.15} v${-k * 1.1} l${k * 0.85},${k * 1.1} z`}
+          fill="#fbf6e9"
+          stroke="#1d2321"
+          strokeWidth={1.5}
+        />
+      </g>
+      <title>Ship</title>
+    </g>
+  );
+}
+
 function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: BoardProps) {
   const hexes = useMemo(() => Object.values(state.hexes), [state.hexes]);
   const g = useMemo(() => buildGeometry(hexes.map((h) => h.id)), [hexes]);
@@ -87,6 +132,7 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
   const color = (seat: number | null) =>
     seat === null ? '#444' : (theme.players[seat]?.color ?? '#999');
   const robberHex = pieces.find((p) => p.type === 'robber')?.at;
+  const pirateHex = pieces.find((p) => p.type === 'pirate')?.at;
 
   return (
     <svg className="board" viewBox={viewBox} role="img" aria-label="Game board">
@@ -97,9 +143,11 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
       </defs>
 
       {hexes.map((h) => {
-        const isSea = h.type === 'sea';
+        const fog = !!h.hidden || h.type === 'hidden';
+        const type = fog ? 'hidden' : h.type;
+        const isSea = type === 'sea';
         const c = hexToPixel(h.q, h.r, S);
-        const fill = isSea ? theme.sea : (theme.terrain[h.type] ?? '#ccc');
+        const fill = isSea ? theme.sea : (theme.terrain[type] ?? '#ccc');
         return (
           <g key={h.id}>
             <polygon
@@ -109,9 +157,9 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
               strokeWidth={isSea ? 0.5 : 3}
               strokeOpacity={isSea ? 0.5 : 1}
             >
-              <title>{h.hidden ? 'Unexplored' : h.type}</title>
+              <title>{fog ? 'Fog: not explored yet' : h.type}</title>
             </polygon>
-            {!isSea && theme.terrainIcon[h.type] && (
+            {!isSea && theme.terrainIcon[type] && (
               <text
                 x={c.x}
                 y={c.y - S * 0.48}
@@ -119,10 +167,10 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
                 fontSize={S * 0.28}
                 aria-hidden="true"
               >
-                {theme.terrainIcon[h.type]}
+                {theme.terrainIcon[type]}
               </text>
             )}
-            {h.token && (
+            {h.token && !fog && (
               <g className={rolled === h.token ? 'token hot' : 'token'}>
                 <circle
                   cx={c.x}
@@ -191,6 +239,7 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
         .map((p) => {
           const [a, b] = edgeEnds((p.at as { id: EdgeId }).id, g);
           const k = 0.16;
+          if (p.type === 'ship') return <Ship key={p.id} a={a} b={b} color={color(p.owner)} />;
           return (
             <line
               key={p.id}
@@ -205,6 +254,34 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
             />
           );
         })}
+
+      {pirateHex?.kind === 'hex' &&
+        (() => {
+          const h = state.hexes[pirateHex.id];
+          if (!h) return null;
+          const c = hexToPixel(h.q, h.r, S);
+          return (
+            <g className="pirate" filter="url(#lift)">
+              <path
+                d={`M${c.x - S * 0.32},${c.y + S * 0.05} h${S * 0.64} l${-S * 0.12},${S * 0.2} h${-S * 0.4} z`}
+                fill={theme.pirate}
+              />
+              <line
+                x1={c.x}
+                y1={c.y + S * 0.05}
+                x2={c.x}
+                y2={c.y - S * 0.38}
+                stroke={theme.pirate}
+                strokeWidth={S * 0.04}
+              />
+              <path
+                d={`M${c.x},${c.y - S * 0.36} l${S * 0.26},${S * 0.1} l${-S * 0.26},${S * 0.1} z`}
+                fill={theme.pirate}
+              />
+              <title>Pirate</title>
+            </g>
+          );
+        })()}
 
       {robberHex?.kind === 'hex' &&
         (() => {

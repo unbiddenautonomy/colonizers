@@ -106,7 +106,7 @@ export function useLocalGame(saved: SavedGame) {
 
 export function actorOf(state: GameState): number | null {
   if (state.winner !== null) return null;
-  if (state.phase.id === 'discard') {
+  if (state.phase.id === 'discard' || state.phase.id === 'pickGold') {
     const owed = state.phase.owed as Record<number, number>;
     const seats = Object.keys(owed).map(Number);
     return seats.length ? Math.min(...seats) : null;

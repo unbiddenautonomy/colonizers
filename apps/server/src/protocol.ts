@@ -5,7 +5,9 @@
 import type { Action, GameEvent, GameView } from '@colonizers/engine';
 
 export type MapChoice =
-  { kind: 'preset'; id: string } | { kind: 'random'; mode: 'classic' | 'balanced' | 'wild' };
+  | { kind: 'preset'; id: string }
+  | { kind: 'random'; mode: 'classic' | 'balanced' | 'wild' }
+  | { kind: 'scenario'; id: string };
 
 export interface RoomSettings {
   map: MapChoice;
@@ -127,6 +129,8 @@ export function cleanSettings(raw: unknown): RoomSettings {
     (m.mode === 'classic' || m.mode === 'balanced' || m.mode === 'wild')
   )
     map = { kind: 'random', mode: m.mode };
+  else if (m.kind === 'scenario' && typeof m.id === 'string' && /^[a-z0-9-]{1,40}$/.test(m.id))
+    map = { kind: 'scenario', id: m.id };
   return {
     map,
     vpTarget: int(s.vpTarget, VP_TARGETS, DEFAULT_SETTINGS.vpTarget),
