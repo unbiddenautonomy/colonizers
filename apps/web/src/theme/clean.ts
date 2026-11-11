@@ -16,6 +16,7 @@ export interface Theme {
   players: { color: string; shape: PlayerShape; name: string }[];
   outline: string;
   robber: string;
+  pirate: string;
   highlight: string;
 }
 
@@ -32,7 +33,8 @@ export const cleanTheme: Theme = {
     fields: '#e9c46a',
     mountains: '#8d99a6',
     desert: '#e8dcb5',
-    hidden: '#55606b',
+    hidden: '#7d8a96',
+    gold: '#d4a017',
   },
   terrainIcon: {
     forest: '🌲',
@@ -41,6 +43,8 @@ export const cleanTheme: Theme = {
     fields: '🌾',
     mountains: '⛰️',
     desert: '🏜️',
+    gold: '✨',
+    hidden: '🌫️',
   },
   sea: '#4f9bd1',
   seaEdge: '#3d86bb',
@@ -60,6 +64,7 @@ export const cleanTheme: Theme = {
   ],
   outline: '#1d2321',
   robber: '#2a2a2a',
+  pirate: '#1b1b2f',
   highlight: '#ffffff',
 };
 

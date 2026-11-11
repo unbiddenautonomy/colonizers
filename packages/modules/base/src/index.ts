@@ -101,6 +101,7 @@ export {
   robber,
   robberHexes,
   routesAt,
+  setupSeat,
   startNextTurn,
   stealCandidates,
   stealFrom,

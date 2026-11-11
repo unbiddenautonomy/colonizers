@@ -32,6 +32,24 @@ export function describe(e: GameEvent, names: string[]): string | null {
     }
     case 'built':
       return `${n(e.player)} built a ${e.piece as string}${e.free ? ' (free)' : ''}.`;
+    case 'shipMoved':
+      return `${n(e.player)} moved a ship.`;
+    case 'pirateMoved':
+      return `${n(e.player)} moved the pirate.`;
+    case 'revealed':
+      return `${e.player === null || e.player === undefined ? 'Fog lifted' : `${n(e.player)} explored`}: ${nameOf(e.terrain as string).icon ?? ''} ${nameOf(e.terrain as string).name}${e.token ? ` (${e.token as number})` : ''}.`;
+    case 'discovered':
+      return `${n(e.player)} found ${cards(e.cards as Record<string, number>)}.`;
+    case 'goldOwed': {
+      const owed = e.owed as Record<number, number>;
+      return `Gold! ${Object.entries(owed)
+        .map(([seat, k]) => `${n(Number(seat))} picks ${k}`)
+        .join(', ')}.`;
+    }
+    case 'goldPicked':
+      return `${n(e.player)} took ${cards(e.cards as Record<string, number>)} from the gold field.`;
+    case 'islandBonus':
+      return `${n(e.player)} settled a new island: +${e.vp as number} points!`;
     case 'startingResources':
       return `${n(e.player)} starts with ${cards(e.cards as Record<string, number>)}.`;
     case 'discarded':
@@ -68,6 +86,7 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return 'Trade offer withdrawn.';
     case 'award': {
       const label = e.award === 'longestRoad' ? 'Longest Road' : 'Largest Army';
+      // Seafarers calls it Longest Trade Route; the log keeps one name.
       return e.to === null ? `Nobody holds ${label} now.` : `${n(e.to)} takes ${label}!`;
     }
     case 'gameOver':

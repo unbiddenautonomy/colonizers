@@ -39,3 +39,14 @@ export {
 } from './generate.ts';
 export { validateMapFile, type MapFile } from './mapfile.ts';
 export { PRESETS, presetById } from './presets.ts';
+export {
+  SEA_SCENARIOS,
+  seaScenarioById,
+  generateSeaBoard,
+  checkSeaBoard,
+  type SeaBoard,
+  type SeaBoardInfo,
+  type SeaBoardOptions,
+  type SeaLayout,
+  type SeaScenario,
+} from './seafarers.ts';

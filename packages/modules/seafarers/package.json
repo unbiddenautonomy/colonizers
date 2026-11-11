@@ -1,0 +1,23 @@
+{
+  "name": "@colonizers/module-seafarers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Seafarers rules as an engine module: ships, the pirate, gold fields, fog and island bonuses.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}
