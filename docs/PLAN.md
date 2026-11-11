@@ -273,6 +273,8 @@ Component lists for Traders & Barbarians, Explorers & Pirates and each fan expan
 
 **Seafarers scenarios**: Heading for New Shores, Four Islands, Fog Islands, Through the Desert, the Forgotten Tribe, Cloth for Catan, the Pirate Islands, Wonders of Catan, and others from the box, each as a map file plus rules module.
 
+*Shipped in phase 5*: our own versions of New Shores, Four Islands and Fog Islands, plus Archipelago. Each is a generator recipe plus settings (`packages/maps/src/seafarers.ts`), so every game gets a fresh board that passes the section 3.4 checks. Scenarios with extra rules (Through the Desert, the Forgotten Tribe, Cloth, Pirate Islands, Wonders) come later as small rules modules on top.
+
 ### 3.3 Random generation
 
 The host chooses a mode in the lobby. **Classic is the default.** Fairness is optional.
@@ -534,7 +536,7 @@ Each phase ends with something we can play or use. Seafarers and Cities & Knight
 | **2. Maps and generator** ✅ | Map files, Starter / 5–6 presets, Classic / Balanced / Wild / Custom generator, fairness report. | 10,000 boards per mode pass their rules. |
 | **3. Local play UI + rulebook** | Approved mockup, hotseat play with the Clean theme, in-game rulebook pop-up and cost card. | A full game on one device, with the rulebook open mid-game. |
 | **4. Online multiplayer** ✅ | Game rooms, live sync, hidden info, reconnect, multi-device, lobby, invite links, guest play, turn timer, chat. | 4 friends finish a game on different devices, one refreshing mid-game. |
-| **5. Seafarers** | Ships, pirate, gold, fog of war, island bonus, scenarios, Seafarers map generator. | Every included scenario playable online; generator checks pass. |
+| **5. Seafarers** ✅ | Ships, pirate, gold, fog of war, island bonus, scenarios, Seafarers map generator. | Every included scenario playable online; generator checks pass. |
 | **6. Cities & Knights** | Commodities, improvements, metropolises, knights, barbarians, progress cards, walls, merchant. Seafarers + C&K combined. | C&K and the combined game playable online. |
 | **7. Accounts and crews** | Google and email sign-up, profiles, guest upgrade, crews. | Games show up in each person's history. |
 | **8. Bots** | Easy and Medium on the server, Hard in the browser, play styles, bot trading, bots for Seafarers and C&K. | A full game with 3 bots; Hard beats Medium most of the time. |

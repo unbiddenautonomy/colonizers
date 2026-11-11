@@ -60,23 +60,13 @@ export function shipsAt(ctx: Ctx, seat: number, corner: CornerId, ignore?: strin
 }
 
 /** A ship can grow from the player's own building, or from their own ship where no rival building sits. */
-export function shipConnectsAt(
-  ctx: Ctx,
-  seat: number,
-  corner: CornerId,
-  ignore?: string,
-): boolean {
+export function shipConnectsAt(ctx: Ctx, seat: number, corner: CornerId, ignore?: string): boolean {
   const b = ctx.buildingAt(corner);
   if (b) return b.owner === seat;
   return shipsAt(ctx, seat, corner, ignore).length > 0;
 }
 
-export function canPlaceShip(
-  ctx: Ctx,
-  seat: number,
-  edge: EdgeId,
-  moving?: Piece,
-): string | null {
+export function canPlaceShip(ctx: Ctx, seat: number, edge: EdgeId, moving?: Piece): string | null {
   const corners = ctx.geometry.edgeCorners.get(edge);
   if (!corners) return 'That edge is not on the board';
   if (!ctx.isSeaEdge(edge)) return 'Ships must sail next to the sea';
@@ -127,7 +117,8 @@ export function shipIsOpen(ctx: Ctx, ship: Piece): boolean {
 
 export function canMoveShip(ctx: Ctx, seat: number, ship: Piece | undefined): string | null {
   if (!ship || ship.owner !== seat || !isShip(ctx, ship)) return 'That is not your ship';
-  if (ship.placedTurn === ctx.state.turn.number) return 'A ship can not move on the turn it was built';
+  if (ship.placedTurn === ctx.state.turn.number)
+    return 'A ship can not move on the turn it was built';
   if (seaData(ctx).shipMovedTurn[seat] === ctx.state.turn.number)
     return 'You already moved a ship this turn';
   if (ship.at.kind === 'edge' && pirateEdges(ctx).has(ship.at.id))

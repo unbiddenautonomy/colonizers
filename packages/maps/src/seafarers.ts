@@ -105,7 +105,18 @@ export interface SeaBoard {
 
 const RESOURCE_TERRAIN = ['forest', 'pasture', 'fields', 'hills', 'mountains'] as const;
 const TOKENS = [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12];
-const PIPS: Record<number, number> = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1 };
+const PIPS: Record<number, number> = {
+  2: 1,
+  3: 2,
+  4: 3,
+  5: 4,
+  6: 5,
+  8: 5,
+  9: 4,
+  10: 3,
+  11: 2,
+  12: 1,
+};
 
 interface Plan {
   radius: number;
@@ -168,7 +179,12 @@ function dist(a: HexId, b: HexId): number {
 }
 
 /** Grows a blob of `size` hexes from `start`, staying inside `allowed`. */
-function grow(rng: Rng, start: HexId, size: number, allowed: (h: HexId) => boolean): HexId[] | null {
+function grow(
+  rng: Rng,
+  start: HexId,
+  size: number,
+  allowed: (h: HexId) => boolean,
+): HexId[] | null {
   const blob = new Set<HexId>([start]);
   let guard = 0;
   while (blob.size < size && guard++ < 500) {
@@ -342,15 +358,18 @@ function assignTokens(
       if (!ok) break;
     }
     // Every island has at least one decent number.
-    if (ok)
-      ok = islands.every((isle) => isle.some((h) => (PIPS[map.get(h) ?? 0] ?? 0) >= 3));
+    if (ok) ok = islands.every((isle) => isle.some((h) => (PIPS[map.get(h) ?? 0] ?? 0) >= 3));
     if (ok) return map;
   }
   return null;
 }
 
 /** Greedy count of starting corners on the given hexes that keep the distance rule. */
-function countStartingSpots(boardHexes: HexId[], area: Set<HexId>, tokens: Map<HexId, number>): number {
+function countStartingSpots(
+  boardHexes: HexId[],
+  area: Set<HexId>,
+  tokens: Map<HexId, number>,
+): number {
   const g = buildGeometry(boardHexes);
   const scored = g.corners
     .filter((c) => (g.cornerHexes.get(c) ?? []).some((h) => area.has(h)))
@@ -398,7 +417,12 @@ function placeHarbors(
     for (const e of rng.shuffle(coastal(isle))) {
       if (placed >= count) break;
       const [a, b] = g.edgeCorners.get(e)!;
-      const near = [a, b, ...(g.cornerNeighbours.get(a) ?? []), ...(g.cornerNeighbours.get(b) ?? [])];
+      const near = [
+        a,
+        b,
+        ...(g.cornerNeighbours.get(a) ?? []),
+        ...(g.cornerNeighbours.get(b) ?? []),
+      ];
       if (near.some((c) => used.has(c))) continue;
       used.add(a);
       used.add(b);
@@ -468,7 +492,29 @@ export function generateSeaBoard(opts: SeaBoardOptions): SeaBoard {
 
     // The pirate starts out at sea, as far from the home island as possible.
     const ref = layout.home ?? layout.islands.flat();
-    const seaHexes = layout.board.filter((h) => !land.has(h) && !hidden.has(h));
+    // It stays next to some island and inside the land's bounding box, so it is
+    // on screen (the board view crops to the land).
+    const px = (h: HexId) => {
+      const { q, r } = parseHexId(h);
+      return { x: 2 * q + r, y: r };
+    };
+    const lx = [...land].map((h) => px(h).x);
+    const ly = [...land].map((h) => px(h).y);
+    const inBox = (h: HexId) => {
+      const { x, y } = px(h);
+      return (
+        x > Math.min(...lx) && x < Math.max(...lx) && y > Math.min(...ly) && y < Math.max(...ly)
+      );
+    };
+    const near = layout.board.filter(
+      (h) =>
+        !land.has(h) &&
+        !hidden.has(h) &&
+        layout.interior.has(h) &&
+        neighbours(h).some((n) => land.has(n)),
+    );
+    const boxed = near.filter(inBox);
+    const seaHexes = boxed.length ? boxed : near;
     const pirateHex = seaHexes
       .map((h) => ({ h, d: Math.min(...ref.map((x) => dist(h, x))) }))
       .sort((a, b) => b.d - a.d || (a.h < b.h ? -1 : 1))[0]!.h;
@@ -546,7 +592,8 @@ export function checkSeaBoard(board: SeaBoard, players: number): string[] {
       }
     });
   }
-  if (reached.size !== islands.length) problems.push('some islands can not be reached by short hops');
+  if (reached.size !== islands.length)
+    problems.push('some islands can not be reached by short hops');
   const types = new Map(board.map.hexes.map((h) => [hexId(h.q, h.r), h]));
   if (home) {
     const kinds = new Set(home.map((h) => types.get(h)?.type));

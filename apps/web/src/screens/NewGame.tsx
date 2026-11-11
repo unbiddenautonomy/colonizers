@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import {
   analyzeMap,
   generateBoard,
+  generateSeaBoard,
   MODES,
   PRESETS,
+  SEA_SCENARIOS,
   type FairnessReport,
   type Mode,
 } from '@colonizers/maps';
@@ -21,7 +23,10 @@ function randomSeed(): string {
   return Math.random().toString(36).slice(2, 8);
 }
 
-type MapChoice = { kind: 'preset'; id: string } | { kind: 'random'; mode: Mode };
+type MapChoice =
+  | { kind: 'preset'; id: string }
+  | { kind: 'random'; mode: Mode }
+  | { kind: 'scenario'; id: string };
 
 export function NewGame({
   onStart,
@@ -43,21 +48,50 @@ export function NewGame({
   const [vpTarget, setVpTarget] = useState(10);
 
   const presets = PRESETS.filter((p) => count >= p.players.min && count <= p.players.max);
+  const scenarios = SEA_SCENARIOS.filter((x) => count >= x.players.min && count <= x.players.max);
   const effective: MapChoice =
-    choice.kind === 'preset' && !presets.some((p) => p.id === choice.id)
+    (choice.kind === 'preset' && !presets.some((p) => p.id === choice.id)) ||
+    (choice.kind === 'scenario' && !scenarios.some((x) => x.id === choice.id))
       ? { kind: 'random', mode: 'classic' }
       : choice;
 
+  const sea = useMemo(
+    () =>
+      effective.kind === 'scenario'
+        ? generateSeaBoard({ seed, players: count, scenario: effective.id })
+        : null,
+    [effective.kind, effective.kind === 'scenario' ? effective.id : '', seed, count], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   const board = useMemo((): { map: MapSpec; report: FairnessReport } => {
+    if (effective.kind === 'scenario') {
+      // Fairness grading is for land boards; Seafarers boards are checked by the generator.
+      const b = generateBoard({ seed, players: count, mode: 'classic' });
+      return { map: b.map, report: b.report };
+    }
     if (effective.kind === 'preset') {
       const p = PRESETS.find((x) => x.id === effective.id)!;
       return { map: p, report: analyzeMap(p, count) };
     }
     const b = generateBoard({ seed, players: count, mode: effective.mode });
     return { map: b.map, report: b.report };
-  }, [effective.kind, effective.kind === 'preset' ? effective.id : effective.mode, seed, count]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effective.kind, effective.kind === 'random' ? effective.mode : effective.id, seed, count]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const start = () => {
+    if (sea) {
+      onStart({
+        config: {
+          seed: `${seed}-${Date.now().toString(36)}`,
+          players: names.slice(0, count).map((n, i) => n.trim() || `Player ${i + 1}`),
+          modules: ['base', 'seafarers'],
+          map: sea.map,
+          settings: { ...sea.settings },
+          fixedSeats: true,
+        },
+        actions: [],
+      });
+      return;
+    }
     onStart({
       config: {
         seed: `${seed}-${Date.now().toString(36)}`,
@@ -160,12 +194,32 @@ export function NewGame({
             </button>
           ))}
         </div>
+        {scenarios.length > 0 && (
+          <>
+            <h3 className="subhead">Seafarers</h3>
+            <div className="row wrap">
+              {scenarios.map((x) => (
+                <button
+                  key={x.id}
+                  type="button"
+                  className={effective.kind === 'scenario' && effective.id === x.id ? 'on' : ''}
+                  onClick={() => setChoice({ kind: 'scenario', id: x.id })}
+                  title={x.description}
+                >
+                  ⛵ {x.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <p className="muted">
           {effective.kind === 'random'
             ? MODES[effective.mode].description
-            : PRESETS.find((p) => p.id === effective.id)?.description}
+            : effective.kind === 'scenario'
+              ? SEA_SCENARIOS.find((x) => x.id === effective.id)?.description
+              : PRESETS.find((p) => p.id === effective.id)?.description}
         </p>
-        {effective.kind === 'random' && (
+        {effective.kind !== 'preset' && (
           <div className="row">
             <label>
               Seed{' '}
@@ -181,39 +235,49 @@ export function NewGame({
             </button>
           </div>
         )}
-        <div className="fairness">
-          <span className={`grade grade-${r.grade}`} title="Fairness grade">
-            {r.grade}
-          </span>
-          <div>
-            <div className="pips">
-              {Object.entries(r.pipsPerResource).map(([res, n]) => (
-                <span
-                  key={res}
-                  title={`${res}: ${n} pips (fair share ${r.fairShare[res]?.toFixed(1)})`}
-                >
-                  {RESOURCE_ICON[res]} {n}
-                </span>
-              ))}
+        {sea ? (
+          <p className="muted">
+            {sea.info.islands.length} islands, {sea.info.gold.length} gold fields
+            {sea.map.hexes.some((h) => h.hidden) ? ', fog' : ''}. First to{' '}
+            {String(sea.settings.vpTarget)} points wins.
+          </p>
+        ) : (
+          <div className="fairness">
+            <span className={`grade grade-${r.grade}`} title="Fairness grade">
+              {r.grade}
+            </span>
+            <div>
+              <div className="pips">
+                {Object.entries(r.pipsPerResource).map(([res, n]) => (
+                  <span
+                    key={res}
+                    title={`${res}: ${n} pips (fair share ${r.fairShare[res]?.toFixed(1)})`}
+                  >
+                    {RESOURCE_ICON[res]} {n}
+                  </span>
+                ))}
+              </div>
+              <small className="muted">
+                Best starting spots: {r.startingSpots.join(', ')} pips. Best corner {r.bestCorner}.
+              </small>
             </div>
-            <small className="muted">
-              Best starting spots: {r.startingSpots.join(', ')} pips. Best corner {r.bestCorner}.
-            </small>
           </div>
-        </div>
+        )}
       </section>
 
-      <section className="card">
-        <h2>Rules</h2>
-        <label>
-          Points to win{' '}
-          <select value={vpTarget} onChange={(e) => setVpTarget(Number(e.target.value))}>
-            {[8, 9, 10, 11, 12, 13, 14, 15].map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </select>
-        </label>
-      </section>
+      {!sea && (
+        <section className="card">
+          <h2>Rules</h2>
+          <label>
+            Points to win{' '}
+            <select value={vpTarget} onChange={(e) => setVpTarget(Number(e.target.value))}>
+              {[8, 9, 10, 11, 12, 13, 14, 15].map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </select>
+          </label>
+        </section>
+      )}
 
       <button type="button" className="primary big" onClick={start}>
         Start game

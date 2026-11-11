@@ -12,7 +12,8 @@ packages/
   engine/       Rules engine core shared by browser and server (no game-specific rules)
   modules/
     base/       The base game as the first module
-  maps/         Map files, preset boards, board generator and fairness report
+    seafarers/  Seafarers: ships, pirate, gold fields, fog, island bonus
+  maps/         Map files, preset boards, board generator, fairness report, Seafarers scenarios
   rulebook/     Plain-language rule pages, card glossary, cost card data
 docs/
   PLAN.md       Master plan
