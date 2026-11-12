@@ -16,11 +16,19 @@ function cards(c: Record<string, number> | undefined): string {
   return parts.join(', ') || 'nothing';
 }
 
+const COMMODITY_TEXT: Record<string, string> = {
+  glass: '🔮 glass',
+  marble: '🪨 marble',
+  sand: '⏳ sand',
+  tools: '🔨 tools',
+};
+
 const GOLD_REASON: Record<string, string> = {
   bridge: ' for a bridge',
   road: ' by the river',
   settlement: ' by the river',
   fight: ' from the fight',
+  delivery: ' for the delivery',
 };
 
 const EVENT_TEXT: Record<string, string> = {
@@ -271,6 +279,24 @@ export function describe(e: GameEvent, names: string[]): string | null {
       const lost = (e.lost as number[]).length;
       return `⚔️ Knights drove off the barbarians: ${got}.${lost ? ` ${lost} knight${lost === 1 ? '' : 's'} fell (die ${e.die as number}).` : ''}`;
     }
+    case 'commodityLoaded':
+      return `🛒 ${n(e.player)} loaded ${COMMODITY_TEXT[e.commodity as string] ?? e.commodity} at the ${e.at as string}.`;
+    case 'commodityDelivered':
+      return `🛒 ${n(e.player)} delivered ${COMMODITY_TEXT[e.commodity as string] ?? e.commodity} to the ${e.at as string}.`;
+    case 'wagonMoved':
+      return typeof e.tollTo === 'number'
+        ? `🛒 ${n(e.player)} paid ${n(e.tollTo)} 1 gold to use their road.`
+        : null;
+    case 'wagonBoost':
+      return `🛒 ${n(e.player)} fed the horses: 2 more moves.`;
+    case 'wagonUpgraded':
+      return `🛒 ${n(e.player)} upgraded their wagon to level ${e.level as number}.`;
+    case 'barbarianChallenged':
+      return e.won
+        ? `⚔️ ${n(e.player)} drove off a barbarian (rolled ${e.die as number}).`
+        : `⚔️ ${n(e.player)} tried to drive off a barbarian, but rolled ${e.die as number} (needed ${e.need as number}).`;
+    case 'edgeBarbarianMoved':
+      return `🪓 ${n(e.player)} moved a barbarian.`;
     case 'tbKnightPlaced':
       return `♞ ${n(e.player)} sent a knight out from the castle.`;
     case 'tbKnightMoved':
