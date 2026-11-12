@@ -14,7 +14,8 @@
   "dependencies": {
     "@colonizers/engine": "workspace:*",
     "@colonizers/maps": "workspace:*",
-    "@colonizers/module-base": "workspace:*"
+    "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.6.0",

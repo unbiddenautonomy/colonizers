@@ -21,6 +21,8 @@ Each line is proven by a test in `packages/modules/base/test/expansion-readiness
 
 ## Seafarers
 
+The real module (`packages/modules/seafarers`, phase 5) was built on these same extension points with one small addition to the base module's exports (`setupSeat`). No engine change was needed.
+
 | Need                                           | Core feature                                                          | Test                                         |
 | ---------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------- |
 | Sea hexes and sea edges                        | Hex types with `terrain: 'sea'`; `isSeaEdge`                          | ships are a second kind of edge piece...     |

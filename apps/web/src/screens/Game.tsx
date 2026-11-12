@@ -29,22 +29,65 @@ import { Modal } from '../ui/Modal.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
 
-type Mode = null | 'road' | 'settlement' | 'city';
+type Mode = null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip';
+type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'yearOfPlenty' | 'monopoly';
 
 const theme = cleanTheme;
 
-function targetsFor(state: GameState, legal: Action[], mode: Mode): Targets {
+/** Road or ship action types for the current step, when the step places one of them. */
+function edgeChoices(state: GameState): [string, string] | null {
+  const ph = state.phase.id;
+  if (ph === 'setup' && (state.phase.step as string) === 'road')
+    return ['placeSetupRoad', 'placeSetupShip'];
+  if (ph === 'roadBuilding') return ['placeFreeRoad', 'placeFreeShip'];
+  return null;
+}
+
+/** Which of road or ship the player is placing now, when both are possible. */
+function edgeKindFor(state: GameState, legal: Action[], chosen: EdgeKind): EdgeKind {
+  const pair = edgeChoices(state);
+  if (!pair) return chosen;
+  const road = legal.some((a) => a.type === pair[0]);
+  const ship = legal.some((a) => a.type === pair[1]);
+  if (road && !ship) return 'road';
+  if (ship && !road) return 'ship';
+  return chosen;
+}
+
+function targetsFor(
+  state: GameState,
+  legal: Action[],
+  mode: Mode,
+  edgeKind: EdgeKind,
+  selectedShip: string | null,
+): Targets {
   const t: Targets = { corners: new Map(), edges: new Map(), hexes: new Map() };
   const want = new Set<string>();
   const ph = state.phase.id;
-  if (ph === 'setup')
-    want.add((state.phase.step as string) === 'road' ? 'placeSetupRoad' : 'placeSetupSettlement');
-  if (ph === 'moveRobber') want.add('moveRobber');
-  if (ph === 'roadBuilding') want.add('placeFreeRoad');
+  const pair = edgeChoices(state);
+  if (pair) want.add(edgeKind === 'ship' ? pair[1] : pair[0]);
+  if (ph === 'setup' && (state.phase.step as string) !== 'road') want.add('placeSetupSettlement');
+  if (ph === 'moveRobber') {
+    want.add('moveRobber');
+    want.add('movePirate');
+  }
   if (ph === 'main' && mode === 'road') want.add('buildRoad');
   if (ph === 'main' && mode === 'settlement') want.add('buildSettlement');
   if (ph === 'main' && mode === 'city') want.add('buildCity');
+  if (ph === 'main' && mode === 'ship') want.add('buildShip');
+  if (ph === 'main' && mode === 'moveShip') {
+    // First pick a ship, then where it sails to.
+    for (const a of legal) {
+      if (a.type !== 'moveShip') continue;
+      if (selectedShip === null) {
+        const ship = state.pieces[a.ship as string];
+        if (ship?.at.kind === 'edge')
+          t.edges.set(ship.at.id, { type: 'selectShip', player: a.player, ship: a.ship });
+      } else if (a.ship === selectedShip) t.edges.set(a.to as EdgeId, a);
+    }
+    return t;
+  }
   for (const a of legal) {
     if (!want.has(a.type)) continue;
     if (typeof a.corner === 'string') t.corners.set(a.corner as CornerId, a);
@@ -59,7 +102,7 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
   switch (state.phase.id) {
     case 'setup':
       return (state.phase.step as string) === 'road'
-        ? `${who}: place a road next to your new settlement.`
+        ? `${who}: place a ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} next to your new settlement.`
         : `${who}: place a settlement${(state.phase.index as number) >= state.players.length ? ' (your second, which collects resources)' : ''}.`;
     case 'roll':
       return `${who}: roll the dice${hasKnight(state, actor) ? ', or play a Knight first' : ''}.`;
@@ -68,12 +111,21 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
         return 'Waiting for players to discard.';
       return `${who}: discard ${(state.phase.owed as Record<number, number>)[actor ?? -1]} cards.`;
     case 'moveRobber':
-      return `${who}: move the robber to a new hex.`;
+      return state.modules.includes('seafarers')
+        ? `${who}: move the robber to a land hex, or the pirate to a sea hex.`
+        : `${who}: move the robber to a new hex.`;
+    case 'pickGold': {
+      const owed = (state.phase.owed as Record<number, number>)[actor ?? -1];
+      if (!owed) return 'Waiting for players to pick their gold.';
+      return `${who}: gold! Pick ${owed} resource${owed === 1 ? '' : 's'}.`;
+    }
     case 'steal':
       return `${who}: choose who to steal from.`;
     case 'roadBuilding':
-      return `${who}: place a free road (${state.phase.remaining as number} left).`;
+      return `${who}: place a free ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} (${state.phase.remaining as number} left).`;
     case 'main':
+      if (mode === 'moveShip')
+        return `${who}: tap the ship to move, then where it should sail. Tap the button again to cancel.`;
       if (mode)
         return `${who}: tap a glowing spot to build a ${mode}. Tap the button again to cancel.`;
       return `${who}: trade, build, or end your turn.`;
@@ -138,7 +190,15 @@ export function Game({
     state.phase.id === 'discard' && actor !== null
       ? ((state.phase.owed as Record<number, number>)[actor] ?? 0)
       : 0;
-  const promptSeat = online && !owedMe && state.phase.id !== 'discard' ? actorOf(state) : actor;
+  const goldOwed =
+    state.phase.id === 'pickGold' && actor !== null
+      ? ((state.phase.owed as Record<number, number>)[actor] ?? 0)
+      : 0;
+  const owedPhase = state.phase.id === 'discard' || state.phase.id === 'pickGold';
+  const promptSeat = online && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
+  const seafarers = state.modules.includes('seafarers');
+  const [chosenEdgeKind, setEdgeKind] = useState<EdgeKind>('road');
+  const [selectedShip, setSelectedShip] = useState<string | null>(null);
   const canControl = (s: number) => !online || s === seat;
   const [chosenMode, setMode] = useState<Mode>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
@@ -155,9 +215,14 @@ export function Game({
   const has = (type: string, pred: (a: Action) => boolean = () => true) =>
     legal.some((a) => a.type === type && pred(a));
   const ctx = useMemo(() => new Ctx(state, library.registry(state.modules)), [state]);
+  const edgeKind = edgeKindFor(state, legal, chosenEdgeKind);
+  const pair = edgeChoices(state);
+  const bothEdgeKinds =
+    !!pair && legal.some((a) => a.type === pair[0]) && legal.some((a) => a.type === pair[1]);
+  const shipPick = mode === 'moveShip' ? selectedShip : null;
   const targets = useMemo(
-    () => (actor === null ? noTargets : targetsFor(state, legal, mode)),
-    [state, legal, mode, actor],
+    () => (actor === null ? noTargets : targetsFor(state, legal, mode, edgeKind, shipPick)),
+    [state, legal, mode, actor, edgeKind, shipPick],
   );
   const lastRoll =
     (state.data.base?.lastRoll as { dice: Record<string, number>; total: number } | undefined) ??
@@ -165,7 +230,14 @@ export function Game({
   const offer = baseData(ctx).trade;
 
   const act = (a: Action) => {
-    if (g.act(a)) setMode(null);
+    if (a.type === 'selectShip') {
+      setSelectedShip(a.ship as string);
+      return;
+    }
+    if (g.act(a)) {
+      setMode(null);
+      setSelectedShip(null);
+    }
   };
 
   const hiddenHand = !online && privateHands && actor !== null && revealedFor !== actor;
@@ -272,7 +344,11 @@ export function Game({
                 <span title="Development cards">📜 {p.held.dev?.length ?? 0}</span>
                 <span title="Knights played">⚔️ {p.played.knight ?? 0}</span>
                 <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
-                {data.longestRoad === p.seat && <span className="award">Longest Road</span>}
+                {data.longestRoad === p.seat && (
+                  <span className="award">
+                    {seafarers ? 'Longest Trade Route' : 'Longest Road'}
+                  </span>
+                )}
                 {data.largestArmy === p.seat && <span className="award">Largest Army</span>}
                 {waitingOnThem && (
                   <button
@@ -382,6 +458,21 @@ export function Game({
         )}
 
         <div className="actions">
+          {bothEdgeKinds && (
+            <div className="row" role="group" aria-label="Place a road or a ship">
+              {(['road', 'ship'] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={edgeKind === k ? 'on' : ''}
+                  aria-pressed={edgeKind === k}
+                  onClick={() => setEdgeKind(k)}
+                >
+                  {k === 'road' ? '🛣️ Road' : '⛵ Ship'}
+                </button>
+              ))}
+            </div>
+          )}
           {has('roll') && (
             <button
               type="button"
@@ -410,6 +501,31 @@ export function Game({
                   </button>
                 );
               })}
+              {seafarers && (
+                <>
+                  <button
+                    type="button"
+                    className={mode === 'ship' ? 'on' : ''}
+                    disabled={!has('buildShip')}
+                    onClick={() => setMode(mode === 'ship' ? null : 'ship')}
+                    aria-pressed={mode === 'ship'}
+                  >
+                    Ship <CostLine cost={ctx.cost('ship', actor)} />
+                  </button>
+                  <button
+                    type="button"
+                    className={mode === 'moveShip' ? 'on' : ''}
+                    disabled={!has('moveShip')}
+                    onClick={() => {
+                      setSelectedShip(null);
+                      setMode(mode === 'moveShip' ? null : 'moveShip');
+                    }}
+                    aria-pressed={mode === 'moveShip'}
+                  >
+                    ⛵ Move ship
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 disabled={!has('buyDevCard')}
@@ -568,6 +684,19 @@ export function Game({
         />
       )}
 
+      {goldOwed > 0 && actor !== null && (
+        <GoldDialog
+          key={`${actor}-${state.seq}`}
+          name={online ? 'You' : names[actor]!}
+          owed={Math.min(
+            goldOwed,
+            RESOURCES.reduce((sum, r) => sum + (state.bank[r] ?? 0), 0),
+          )}
+          bank={state.bank}
+          onPick={(cards) => act({ type: 'pickGold', player: actor, cards })}
+        />
+      )}
+
       {state.phase.id === 'steal' && legal.some((a) => a.type === 'steal') && (
         <Modal title="Steal a card">
           <p>Pick a player to steal one random card from.</p>
@@ -692,6 +821,36 @@ export function Game({
         />
       )}
     </div>
+  );
+}
+
+function GoldDialog({
+  name,
+  owed,
+  bank,
+  onPick,
+}: {
+  name: string;
+  owed: number;
+  bank: Record<string, number>;
+  onPick: (c: Record<string, number>) => void;
+}) {
+  const [pick, setPick] = useState<Record<string, number>>({});
+  return (
+    <Modal title={`${name}: gold!`}>
+      <p>
+        A gold field paid out. Choose {owed} resource{owed === 1 ? '' : 's'} from the bank.
+      </p>
+      <CardPicker value={pick} onChange={setPick} max={bank} label="Resources to take" />
+      <button
+        type="button"
+        className="primary"
+        disabled={total(pick) !== owed}
+        onClick={() => onPick(clean(pick))}
+      >
+        Take {total(pick)}/{owed}
+      </button>
+    </Modal>
   );
 }
 

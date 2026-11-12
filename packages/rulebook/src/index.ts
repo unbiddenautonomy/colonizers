@@ -1,10 +1,11 @@
 import { baseRules } from './base.ts';
+import { seafarersRules } from './seafarers.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 /** Every module's rulebook. Expansions add theirs here. */
-export const RULEBOOKS: RulebookModule[] = [baseRules];
+export const RULEBOOKS: RulebookModule[] = [baseRules, seafarersRules];
 
 export function rulebookFor(modules: readonly string[]): RulebookModule[] {
   return RULEBOOKS.filter((r) => modules.includes(r.module));
@@ -56,6 +57,10 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
  * move can link straight to the rule.
  */
 export const ERROR_PAGES: [RegExp, string][] = [
+  [/pirate/i, 'pirate'],
+  [/ship|sail/i, 'ships'],
+  [/gold/i, 'gold'],
+  [/home island/i, 'islands'],
   [/too close/i, 'distance-rule'],
   [/connect/i, 'building'],
   [/afford|not enough/i, 'building'],

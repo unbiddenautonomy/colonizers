@@ -419,6 +419,31 @@ describe('Online game', () => {
     [a, b].forEach((c) => c.close());
   });
 
+  it('starts a Seafarers scenario with fog hidden from every player', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    a.send({
+      type: 'settings',
+      settings: {
+        map: { kind: 'scenario', id: 'fog-islands' },
+        vpTarget: 10,
+        turnTimer: 0,
+        maxPlayers: 4,
+      },
+    });
+    const b = await join(code, 'B');
+    expect(b.room!.settings.map).toEqual({ kind: 'scenario', id: 'fog-islands' });
+    await startGame([a, b]);
+    const view = a.game!.view;
+    expect(view.modules).toContain('seafarers');
+    expect(view.settings.vpTarget).toBeGreaterThanOrEqual(11);
+    const fog = Object.values(view.hexes).filter((h) => h.hidden);
+    expect(fog.length).toBeGreaterThan(0);
+    expect(fog.every((h) => h.type === 'hidden' && h.token === undefined)).toBe(true);
+    expect(Object.values(view.pieces).some((p) => p.type === 'pirate')).toBe(true);
+    [a, b].forEach((c) => c.close());
+  });
+
   it('lets spectators watch without seeing any hand', async () => {
     const code = await createRoom();
     const a = await join(code, 'A');

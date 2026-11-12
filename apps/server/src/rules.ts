@@ -1,14 +1,27 @@
 import { ModuleLibrary, type Action, type GameConfig, type GameState } from '@colonizers/engine';
 import { baseModule } from '@colonizers/module-base';
-import { generateBoard, PRESETS } from '@colonizers/maps';
+import { seafarersModule } from '@colonizers/module-seafarers';
+import { generateBoard, generateSeaBoard, PRESETS, seaScenarioById } from '@colonizers/maps';
 import type { RoomSettings } from './protocol.ts';
 
 /** Every rules module the server knows. Expansions are added here as they ship. */
-export const library = new ModuleLibrary([baseModule]);
+export const library = new ModuleLibrary([baseModule, seafarersModule]);
 
 /** Builds the game for a room. Names are already in seat order. */
 export function buildConfig(settings: RoomSettings, names: string[], seed: string): GameConfig {
   const n = names.length;
+  if (settings.map.kind === 'scenario' && seaScenarioById(settings.map.id)) {
+    const sea = generateSeaBoard({ seed: `${seed}-map`, players: n, scenario: settings.map.id });
+    return {
+      seed,
+      players: names,
+      modules: ['base', 'seafarers'],
+      map: sea.map,
+      // The scenario sets its own target; the host's choice only applies to the base game.
+      settings: { ...sea.settings },
+      fixedSeats: true,
+    };
+  }
   const preset =
     settings.map.kind === 'preset'
       ? PRESETS.find(
@@ -34,7 +47,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
 /** Seats the turn timer is waiting on. */
 export function timedSeats(state: GameState): number[] {
   if (state.winner !== null) return [];
-  if (state.phase.id === 'discard') {
+  if (state.phase.id === 'discard' || state.phase.id === 'pickGold') {
     return Object.keys(state.phase.owed as Record<number, number>).map(Number);
   }
   return [state.turn.player];
@@ -54,9 +67,11 @@ export function timerKey(state: GameState): string {
 
 const SAFE_ORDER = [
   'discard',
+  'pickGold',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',
+  'placeSetupShip',
   'moveRobber',
   'steal',
   'placeFreeRoad',
