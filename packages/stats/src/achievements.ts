@@ -153,7 +153,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     text: 'Win on every special map.',
     icon: '🗺️',
     unlockedBy(games) {
-      const left = new Set(SPECIAL_MAPS.map((m) => `special:${m.id}`));
+      const left = new Set(SPECIAL_MAPS.filter((m) => !m.group).map((m) => `special:${m.id}`));
       for (const g of games) {
         if (g.won) left.delete(g.map);
         if (!left.size) return g;

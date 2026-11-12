@@ -58,3 +58,4 @@ export {
   type SpecialBoard,
   type SpecialMap,
 } from './special.ts';
+export { TB_SCENARIOS, tbScenarioById, generateTbBoard, type TbScenarioInfo } from './traders.ts';

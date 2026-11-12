@@ -2,6 +2,7 @@ import { hexDistance, hexEdges, hexId, Rng, type MapSpec } from '@colonizers/eng
 import { componentsFor } from './components.ts';
 import { generateBoard } from './generate.ts';
 import { hexagon, shapeFor, SHAPES, type Coord } from './shapes.ts';
+import { generateTbBoard, TB_SCENARIOS } from './traders.ts';
 
 /**
  * Special maps: our own layouts that change how a game plays. Each one is a
@@ -14,6 +15,10 @@ export interface SpecialMap {
   players: { min: number; max: number };
   /** Modules the map needs on top of the base game. */
   modules: string[];
+  /** Traders & Barbarians scenarios are listed under their own heading. */
+  group?: 'traders';
+  /** The map's module can't be played with Cities & Knights. */
+  noCitiesKnights?: boolean;
 }
 
 export const SPECIAL_MAPS: SpecialMap[] = [
@@ -76,6 +81,12 @@ export const SPECIAL_MAPS: SpecialMap[] = [
     players: { min: 2, max: 3 },
     modules: [],
   },
+  ...TB_SCENARIOS.map((t): SpecialMap => ({
+    ...t,
+    modules: ['traders-barbarians'],
+    group: 'traders',
+    noCitiesKnights: true,
+  })),
 ];
 
 export function specialMapById(id: string): SpecialMap | undefined {
@@ -161,6 +172,7 @@ export function generateSpecialBoard(opts: {
 }): SpecialBoard {
   const spec = specialMapById(opts.map);
   if (!spec) throw new Error(`Unknown special map "${opts.map}"`);
+  if (spec.group === 'traders') return generateTbBoard({ ...opts, scenario: spec.id });
   const { seed, players } = opts;
   const rng = Rng.fromSeed(`special:${opts.map}:${players}:${seed}`);
   const modules = ['base', ...spec.modules];

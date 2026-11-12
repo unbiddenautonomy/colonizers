@@ -219,6 +219,8 @@ function Lobby({
     s.map.kind === 'special'
       ? (SPECIAL_MAPS.find((x) => x.id === (s.map as { id: string }).id) ?? null)
       : null;
+  const noCk = specialPick?.noCitiesKnights === true;
+  const ck = s.citiesKnights && !noCk;
   const optionList = describeOptions(s.options, players.length);
   const map = s.map;
   const seaPick =
@@ -402,11 +404,17 @@ function Lobby({
             <label className="toggle">
               <input
                 type="checkbox"
-                checked={s.citiesKnights}
+                checked={ck}
+                disabled={noCk}
                 onChange={(e) => set({ citiesKnights: e.target.checked })}
               />{' '}
               ⚔️ Cities &amp; Knights (knights, barbarians, city improvements; +3 points to win)
             </label>
+            {noCk && (
+              <p className="muted small">
+                Traders &amp; Barbarians scenarios use the base game only.
+              </p>
+            )}
             <div className="row wrap">
               <label>
                 Points to win{' '}
@@ -452,13 +460,17 @@ function Lobby({
             <li>Map: {mapLabel(s.map)}</li>
             <li>
               Expansions:{' '}
-              {[seaPick && 'Seafarers', s.citiesKnights && 'Cities & Knights']
+              {[
+                seaPick && 'Seafarers',
+                specialPick?.group === 'traders' && 'Traders & Barbarians',
+                ck && 'Cities & Knights',
+              ]
                 .filter(Boolean)
                 .join(' + ') || 'none'}
             </li>
             <li>
               Points to win: {seaPick ? 'set by the scenario' : s.vpTarget}
-              {s.citiesKnights ? ' + 3' : ''}
+              {ck ? ' + 3' : ''}
             </li>
             <li>Turn timer: {s.turnTimer ? `${s.turnTimer / 60} min` : 'off'}</li>
             {optionList.map((o) => (
@@ -470,7 +482,7 @@ function Lobby({
           <OptionsPanel
             options={s.options}
             players={Math.max(players.length, s.maxPlayers)}
-            citiesKnights={s.citiesKnights}
+            citiesKnights={ck}
             onChange={(options) => set({ options })}
           />
         )}

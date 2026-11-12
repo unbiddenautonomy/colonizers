@@ -83,4 +83,22 @@ describe('game options', () => {
     const config = buildConfig(settings, names(6), 'seed');
     expect(config.modules).toEqual(['base', 'variants']);
   });
+
+  it('builds Traders & Barbarians scenarios on the base game only', () => {
+    for (const id of ['fishermen', 'rivers']) {
+      const settings = cleanSettings({
+        ...DEFAULT_SETTINGS,
+        citiesKnights: true,
+        map: { kind: 'special', id },
+        options: { harbormaster: true },
+      });
+      const config = buildConfig(settings, names(4), 'seed');
+      expect(config.modules).toEqual(['base', 'traders-barbarians', 'variants']);
+      expect(config.settings?.tbScenario).toBe(id);
+      expect(config.settings?.harbormaster).toBe(true);
+      expect(config.settings?.vpTarget).toBe(10);
+      const state = library.createGame(config).state;
+      expect(state.modules).toContain('traders-barbarians');
+    }
+  });
 });

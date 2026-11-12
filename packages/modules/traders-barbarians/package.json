@@ -1,0 +1,25 @@
+{
+  "name": "@colonizers/module-traders-barbarians",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Traders & Barbarians scenarios: Fishermen (fishing grounds, fish tokens, the old boot) and Rivers (rivers, bridges and gold).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/bots": "workspace:*",
+    "@colonizers/maps": "workspace:*",
+    "@colonizers/module-variants": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}

@@ -113,7 +113,14 @@ export interface GameEvent {
 }
 
 export interface MapSpec {
-  hexes: { q: number; r: number; type: string; token?: number; hidden?: boolean }[];
+  hexes: {
+    q: number;
+    r: number;
+    type: string;
+    token?: number;
+    hidden?: boolean;
+    props?: Record<string, unknown>;
+  }[];
   harbors?: Harbor[];
   /** Neutral pieces to place at the start, e.g. the robber on the desert. */
   pieces?: { type: string; at: Location; props?: Record<string, unknown> }[];
