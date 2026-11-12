@@ -10,6 +10,11 @@ import {
   tbData,
   GOLD_BUYS_PER_TURN,
   GOLD_PER_RESOURCE,
+  KNIGHT_STEPS,
+  KNIGHT_STEPS_GRAIN,
+  KNIGHTS_PER_PLAYER,
+  knightsOf,
+  prisonersOf,
   type FishUse,
 } from '@colonizers/module-traders-barbarians';
 import { harbormasterOf, type EventId } from '@colonizers/module-variants';
@@ -58,6 +63,19 @@ export function TbPlayerStats({
       </>
     );
   }
+  if (scenario === 'barbarians') {
+    const prisoners = prisonersOf(ctx, seat);
+    return (
+      <>
+        <span title="Gold">🪙 {goldOf(ctx, seat)}</span>
+        <span title={`Knights out (of ${KNIGHTS_PER_PLAYER})`}>
+          ♞ {knightsOf(ctx, seat).length}
+        </span>
+        <span title="Prisoners: every 2 are worth a point">⛓ {prisoners}</span>
+        {hm && <span className="award">Harbormaster</span>}
+      </>
+    );
+  }
   return hm ? <span className="award">Harbormaster</span> : null;
 }
 
@@ -78,6 +96,8 @@ export function TbActions({
   names,
   bridgeMode,
   toggleBridge,
+  knightMode,
+  toggleKnight,
 }: {
   ctx: Ctx;
   actor: number;
@@ -86,6 +106,8 @@ export function TbActions({
   names: string[];
   bridgeMode: boolean;
   toggleBridge: () => void;
+  knightMode: boolean;
+  toggleKnight: () => void;
 }) {
   const [open, setOpen] = useState<null | 'fish' | 'gold' | 'boot'>(null);
   const scenario = scenarioOf(ctx);
@@ -155,19 +177,31 @@ export function TbActions({
       </>
     );
   }
-  if (scenario === 'rivers') {
+  if (scenario === 'rivers' || scenario === 'barbarians') {
     const buys = of('buyWithGold');
     return (
       <>
-        <button
-          type="button"
-          className={bridgeMode ? 'on' : ''}
-          aria-pressed={bridgeMode}
-          disabled={!of('buildBridge').length}
-          onClick={toggleBridge}
-        >
-          🌉 Bridge <small>2🧱 1🪵</small>
-        </button>
+        {scenario === 'barbarians' ? (
+          <button
+            type="button"
+            className={knightMode ? 'on' : ''}
+            aria-pressed={knightMode}
+            disabled={!of('moveTbKnight').length}
+            onClick={toggleKnight}
+          >
+            ♞ Move knight
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={bridgeMode ? 'on' : ''}
+            aria-pressed={bridgeMode}
+            disabled={!of('buildBridge').length}
+            onClick={toggleBridge}
+          >
+            🌉 Bridge <small>2🧱 1🪵</small>
+          </button>
+        )}
         <button type="button" disabled={!buys.length} onClick={() => setOpen('gold')}>
           🪙 Buy with gold
         </button>
@@ -222,6 +256,8 @@ const EVENT_ASK: Partial<Record<EventId, string>> = {
 export function tbPrompt(state: GameState, who: string, actor: number | null): string | null {
   const owed = (state.phase.owed as Record<number, number> | undefined)?.[actor ?? -1];
   switch (state.phase.id) {
+    case 'tbKnight':
+      return `${who}: tap a glowing path by the castle for your new knight.`;
     case 'camelVote':
       return owed
         ? `${who}: vote on the next camel. Set your wool and grain, then tap a glowing path.`
@@ -236,6 +272,8 @@ export function tbPrompt(state: GameState, who: string, actor: number | null): s
       return null;
   }
 }
+
+export const TB_MOVE_PROMPT = `tap one of your knights, then where it goes: up to ${KNIGHT_STEPS} steps, or ${KNIGHT_STEPS_GRAIN} for 1 grain. Tap the button again to cancel.`;
 
 /** Wool and grain to put into the camel vote. */
 export function CamelBidPanel({

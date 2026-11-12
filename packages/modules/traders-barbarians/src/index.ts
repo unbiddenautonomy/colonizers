@@ -35,11 +35,16 @@ import {
  *   with wool and grain on where the next camel goes. A road under a camel
  *   counts double for Longest Road, and a building between two camels is
  *   worth a point more.
+ * - **barbarians**: barbarians land on the coast each time someone builds a
+ *   settlement or city. Three on a hex conquer it. Knight cards put knights
+ *   on the paths by the castle in the middle; knights move along the paths
+ *   and beat barbarians at the end of their owner's turn, for prisoners
+ *   (2 prisoners are worth a point) and gold.
  *
  * List it before the options module, so out-of-turn building covers bridges.
  */
 export const MODULE_ID = 'traders-barbarians';
-export type TbScenario = 'fishermen' | 'rivers' | 'caravans';
+export type TbScenario = 'fishermen' | 'rivers' | 'caravans' | 'barbarians';
 
 /** 11 one-fish, 10 two-fish and 8 three-fish tokens, plus the old boot (0). */
 export const FISH_TOKENS: readonly number[] = [
@@ -58,6 +63,20 @@ export const BRIDGES_PER_PLAYER = 3;
 export const CAMELS = 22;
 /** Most wool and grain one player can put into a single vote. */
 export const MAX_BID = 3;
+export const KNIGHTS_PER_PLAYER = 6;
+/** Barbarians it takes to conquer a hex. */
+export const CONQUER_AT = 3;
+/** Steps a knight can move, and how far with 1 grain. */
+export const KNIGHT_STEPS = 3;
+export const KNIGHT_STEPS_GRAIN = 5;
+/** Gold for each knight lost in a fight, and for a fighter who gets no prisoner. */
+export const FIGHT_GOLD = 3;
+
+export interface TbKnight {
+  id: string;
+  owner: number;
+  edge: EdgeId;
+}
 
 export interface TbData extends Record<string, unknown> {
   /** Fish tokens still face down, drawn from the end. */
@@ -78,6 +97,17 @@ export interface TbData extends Record<string, unknown> {
   caravans: { corners: CornerId[]; ended: boolean }[];
   /** A settlement or city was built since the last vote. */
   builtThisRound: boolean;
+  /** Barbarians on each coastal hex. */
+  barbarians: Record<string, number>;
+  /** Knights on the paths. */
+  knights: TbKnight[];
+  nextKnight: number;
+  /** Knights that moved this turn. */
+  moved: string[];
+  /** Barbarians each player has captured. */
+  prisoners: Record<number, number>;
+  /** A building went up during this action, so barbarians land after it. */
+  landing: boolean;
 }
 
 export function tbData(ctx: Ctx): TbData {
@@ -91,13 +121,25 @@ export function tbData(ctx: Ctx): TbData {
     camels: [],
     caravans: [],
     builtThisRound: false,
+    barbarians: {},
+    knights: [],
+    nextKnight: 0,
+    moved: [],
+    prisoners: {},
+    landing: false,
   } satisfies TbData;
-  return ctx.state.data[MODULE_ID] as TbData;
+  const d = ctx.state.data[MODULE_ID] as TbData;
+  // Games saved before Barbarian Attack lack these.
+  d.barbarians ??= {};
+  d.knights ??= [];
+  d.moved ??= [];
+  d.prisoners ??= {};
+  return d;
 }
 
 export function scenarioOf(ctx: Ctx): TbScenario | null {
   const s = ctx.setting<string>('tbScenario');
-  return s === 'fishermen' || s === 'rivers' || s === 'caravans' ? s : null;
+  return s === 'fishermen' || s === 'rivers' || s === 'caravans' || s === 'barbarians' ? s : null;
 }
 
 function shuffle(ctx: Ctx, list: number[]): number[] {
@@ -369,6 +411,12 @@ function riverCorners(ctx: Ctx): Set<CornerId> {
   return out;
 }
 
+/** Scenarios that pay gold. */
+export function hasGold(ctx: Ctx): boolean {
+  const s = scenarioOf(ctx);
+  return s === 'rivers' || s === 'barbarians';
+}
+
 export function goldOf(ctx: Ctx, seat: number): number {
   return tbData(ctx).gold[seat] ?? 0;
 }
@@ -423,7 +471,7 @@ const buildBridge: ActionDef = {
 const buyWithGold: ActionDef = {
   phases: ['main'],
   check(ctx, a) {
-    if (scenarioOf(ctx) !== 'rivers') return 'There is no gold in this game';
+    if (!hasGold(ctx)) return 'There is no gold in this game';
     if (a.player !== ctx.active) return 'Not your turn';
     if (tbData(ctx).goldBuys >= GOLD_BUYS_PER_TURN)
       return `You can buy with gold ${GOLD_BUYS_PER_TURN} times a turn`;
@@ -445,7 +493,7 @@ const buyWithGold: ActionDef = {
     });
   },
   enumerate(ctx, player) {
-    if (scenarioOf(ctx) !== 'rivers' || player !== ctx.active) return [];
+    if (!hasGold(ctx) || player !== ctx.active) return [];
     return RESOURCES.map((resource) => ({ type: 'buyWithGold', player, resource }));
   },
 };
@@ -594,6 +642,261 @@ function camelBonus(ctx: Ctx, seat: number): number {
     ).length;
 }
 
+// ---- Barbarian Attack ----
+
+export function castleHex(ctx: Ctx): HexId | null {
+  return Object.values(ctx.state.hexes).find((h) => h.type === 'castle')?.id ?? null;
+}
+
+export function barbariansOn(ctx: Ctx, hex: HexId): number {
+  return tbData(ctx).barbarians[hex] ?? 0;
+}
+
+export function isConquered(ctx: Ctx, hex: HexId): boolean {
+  return barbariansOn(ctx, hex) >= CONQUER_AT;
+}
+
+/** Land hexes on the coast, where barbarians land. */
+export function coastalHexes(ctx: Ctx): HexId[] {
+  return ctx.geometry.hexes.filter((h) => {
+    if (!ctx.isLand(h) || ctx.state.hexes[h]?.type === 'castle') return false;
+    const around = ctx.geometry.hexNeighbours.get(h) ?? [];
+    return around.length < 6 || around.some((n) => !ctx.isLand(n));
+  });
+}
+
+/** A building that touches only conquered land: no points, no harbor. */
+export function buildingConquered(ctx: Ctx, corner: CornerId): boolean {
+  const land = (ctx.geometry.cornerHexes.get(corner) ?? []).filter((h) => ctx.isLand(h));
+  return land.length > 0 && land.every((h) => isConquered(ctx, h));
+}
+
+function touchesConquered(ctx: Ctx, hexes: readonly HexId[] | undefined): boolean {
+  return (hexes ?? []).some((h) => isConquered(ctx, h));
+}
+
+export function knightsOf(ctx: Ctx, seat: number): TbKnight[] {
+  return tbData(ctx).knights.filter((k) => k.owner === seat);
+}
+
+export function prisonersOf(ctx: Ctx, seat: number): number {
+  return tbData(ctx).prisoners[seat] ?? 0;
+}
+
+/** Free paths that lead away from the castle: where new knights start. */
+export function knightStartEdges(ctx: Ctx): EdgeId[] {
+  const castle = castleHex(ctx);
+  if (!castle) return [];
+  const own = new Set(ctx.geometry.hexEdges.get(castle) ?? []);
+  const taken = new Set(tbData(ctx).knights.map((k) => k.edge));
+  const out = new Set<EdgeId>();
+  for (const c of ctx.geometry.hexCorners.get(castle) ?? [])
+    for (const e of ctx.geometry.cornerEdges.get(c) ?? [])
+      if (!own.has(e) && !taken.has(e) && ctx.isLandEdge(e)) out.add(e);
+  return [...out].sort();
+}
+
+/**
+ * Where a knight can go and how many steps it takes, up to the most a knight
+ * can ever move. Knights pass anything, but stop only on a free path that is
+ * not one of the castle's own sides.
+ */
+export function knightMoves(ctx: Ctx, knight: TbKnight): Map<EdgeId, number> {
+  const castle = castleHex(ctx);
+  const castleEdges = new Set(castle ? (ctx.geometry.hexEdges.get(castle) ?? []) : []);
+  const taken = new Set(tbData(ctx).knights.map((k) => k.edge));
+  const dist = new Map<EdgeId, number>([[knight.edge, 0]]);
+  let frontier: EdgeId[] = [knight.edge];
+  for (let step = 1; step <= KNIGHT_STEPS_GRAIN; step++) {
+    const next: EdgeId[] = [];
+    for (const e of frontier)
+      for (const c of ctx.geometry.edgeCorners.get(e) ?? [])
+        for (const n of ctx.geometry.cornerEdges.get(c) ?? []) {
+          if (dist.has(n) || !ctx.isLandEdge(n)) continue;
+          dist.set(n, step);
+          next.push(n);
+        }
+    frontier = next;
+  }
+  const out = new Map<EdgeId, number>();
+  for (const [e, n] of dist) if (n > 0 && !taken.has(e) && !castleEdges.has(e)) out.set(e, n);
+  return out;
+}
+
+/** Rolls up to three different numbers (never 7); a barbarian lands on each coastal hex showing one. */
+function landBarbarians(ctx: Ctx): void {
+  const d = tbData(ctx);
+  const numbers: number[] = [];
+  for (let tries = 0; numbers.length < 3 && tries < 100; tries++) {
+    const n = ctx.rng.int(1, 6) + ctx.rng.int(1, 6);
+    if (n !== 7 && !numbers.includes(n)) numbers.push(n);
+  }
+  const hexes: HexId[] = [];
+  for (const n of numbers)
+    for (const h of coastalHexes(ctx)) {
+      if (ctx.state.hexes[h]?.token !== n || isConquered(ctx, h)) continue;
+      d.barbarians[h] = barbariansOn(ctx, h) + 1;
+      hexes.push(h);
+    }
+  ctx.emit({
+    type: 'barbariansLanded',
+    numbers,
+    hexes,
+    conquered: hexes.filter((h) => isConquered(ctx, h)),
+  });
+}
+
+function dieSide(die: number): 'NE' | 'E' | 'SE' {
+  if (die === 1 || die === 6) return 'NE';
+  return die === 2 || die === 5 ? 'E' : 'SE';
+}
+
+/**
+ * Knights beat the barbarians on a hex when they outnumber them. Each
+ * fighter takes a prisoner while they last (the most knights takes the rest),
+ * and a fighter left without one gets gold. Then a die picks one direction of
+ * path: knights on those paths of the hex are lost, for gold.
+ */
+function fightBarbarians(ctx: Ctx): void {
+  const d = tbData(ctx);
+  for (const hex of Object.keys(d.barbarians).sort() as HexId[]) {
+    const n = d.barbarians[hex] ?? 0;
+    if (n <= 0) continue;
+    const edges = new Set(ctx.geometry.hexEdges.get(hex) ?? []);
+    const here = d.knights.filter((k) => edges.has(k.edge));
+    if (here.length <= n) continue;
+    delete d.barbarians[hex];
+    const count = new Map<number, number>();
+    for (const k of here) count.set(k.owner, (count.get(k.owner) ?? 0) + 1);
+    const fighters = [...count.keys()].sort((a, b) => a - b);
+    const got: Record<number, number> = {};
+    const gold: Record<number, number> = {};
+    const addGold = (seat: number, g: number) => (gold[seat] = (gold[seat] ?? 0) + g);
+    if (fighters.length === 1) got[fighters[0]!] = n;
+    else if (n >= fighters.length) {
+      for (const p of fighters) got[p] = 1;
+      const rest = n - fighters.length;
+      if (rest > 0) {
+        const most = Math.max(...count.values());
+        const top = fighters.filter((p) => count.get(p) === most);
+        const winner = top[ctx.rng.int(0, top.length - 1)]!;
+        got[winner] = (got[winner] ?? 0) + rest;
+        for (const p of top) if (p !== winner) addGold(p, FIGHT_GOLD);
+      }
+    } else {
+      shuffle(ctx, [...fighters]).forEach((p, i) => {
+        if (i < n) got[p] = 1;
+        else addGold(p, FIGHT_GOLD);
+      });
+    }
+    const die = ctx.rng.int(1, 6);
+    const side = dieSide(die);
+    const lost = here.filter((k) => k.edge.endsWith(`,${side}`));
+    for (const k of lost) addGold(k.owner, FIGHT_GOLD);
+    d.knights = d.knights.filter((k) => !lost.includes(k));
+    for (const [seat, p] of Object.entries(got))
+      d.prisoners[Number(seat)] = prisonersOf(ctx, Number(seat)) + p;
+    ctx.emit({
+      type: 'barbariansDefeated',
+      hex,
+      prisoners: got,
+      die,
+      lost: lost.map((k) => k.owner),
+    });
+    for (const [seat, g] of Object.entries(gold)) earnGold(ctx, Number(seat), g, 'fight');
+  }
+}
+
+interface TbKnightPhase extends Phase {
+  id: 'tbKnight';
+  returnTo: string;
+}
+
+const placeTbKnight: ActionDef = {
+  phases: ['tbKnight'],
+  check(ctx, a) {
+    if (a.player !== ctx.active) return 'Not your turn';
+    return knightStartEdges(ctx).includes(a.edge as EdgeId)
+      ? null
+      : 'New knights start on a free path leading away from the castle';
+  },
+  apply(ctx, a) {
+    const d = tbData(ctx);
+    const knight: TbKnight = { id: `k${d.nextKnight++}`, owner: a.player, edge: a.edge as EdgeId };
+    d.knights.push(knight);
+    ctx.emit({ type: 'tbKnightPlaced', player: a.player, edge: a.edge });
+    ctx.setPhase({ id: (ctx.state.phase as TbKnightPhase).returnTo });
+  },
+  enumerate(ctx, player) {
+    if (player !== ctx.active) return [];
+    return knightStartEdges(ctx).map((edge) => ({ type: 'placeTbKnight', player, edge }));
+  },
+};
+
+const moveTbKnight: ActionDef = {
+  phases: ['main'],
+  check(ctx, a) {
+    if (scenarioOf(ctx) !== 'barbarians') return 'There are no knights in this game';
+    if (a.player !== ctx.active) return 'Not your turn';
+    const d = tbData(ctx);
+    const knight = d.knights.find((k) => k.id === a.knight);
+    if (!knight || knight.owner !== a.player) return 'Pick one of your knights';
+    if (d.moved.includes(knight.id)) return 'That knight already moved this turn';
+    const steps = knightMoves(ctx, knight).get(a.to as EdgeId);
+    if (steps === undefined) return 'A knight can not go there';
+    if (steps > KNIGHT_STEPS && !ctx.has(a.player, { grain: 1 }))
+      return `Going more than ${KNIGHT_STEPS} steps costs 1 grain`;
+    return null;
+  },
+  apply(ctx, a) {
+    const d = tbData(ctx);
+    const knight = d.knights.find((k) => k.id === a.knight)!;
+    const steps = knightMoves(ctx, knight).get(a.to as EdgeId)!;
+    if (steps > KNIGHT_STEPS) ctx.pay(a.player, { grain: 1 });
+    ctx.emit({ type: 'tbKnightMoved', player: a.player, from: knight.edge, to: a.to, steps });
+    knight.edge = a.to as EdgeId;
+    d.moved.push(knight.id);
+  },
+  enumerate(ctx, player) {
+    if (scenarioOf(ctx) !== 'barbarians' || player !== ctx.active) return [];
+    const d = tbData(ctx);
+    const out: Action[] = [];
+    for (const k of knightsOf(ctx, player)) {
+      if (d.moved.includes(k.id)) continue;
+      for (const to of knightMoves(ctx, k).keys())
+        out.push({ type: 'moveTbKnight', player, knight: k.id, to });
+    }
+    return out;
+  },
+};
+
+/** Builds next to a conquered hex are not allowed. */
+const notOnConquered =
+  (where: 'edge' | 'corner') =>
+  (prev: ActionDef): ActionDef => ({
+    ...prev,
+    check(ctx, a) {
+      const err = prev.check(ctx, a);
+      if (err || scenarioOf(ctx) !== 'barbarians') return err;
+      const hexes =
+        where === 'edge'
+          ? ctx.geometry.edgeHexes.get(a.edge as EdgeId)
+          : ctx.geometry.cornerHexes.get(a.corner as CornerId);
+      return touchesConquered(ctx, hexes) ? 'Barbarians hold that land' : null;
+    },
+  });
+
+/** Points lost for buildings on conquered land. */
+function conqueredVp(ctx: Ctx, seat: number): number {
+  let lost = 0;
+  for (const p of ctx.piecesOf(seat)) {
+    const def = ctx.registry.pieceTypes[p.type];
+    if (!def?.building || p.at.kind !== 'corner') continue;
+    if (buildingConquered(ctx, cornerOf(p))) lost += def.vp ?? 0;
+  }
+  return lost;
+}
+
 // ---- Module ----
 
 export const tradersBarbariansModule: GameModule = {
@@ -604,6 +907,7 @@ export const tradersBarbariansModule: GameModule = {
   settings: { tbScenario: 'fishermen' },
   hexTypes: {
     oasis: { terrain: 'land' },
+    castle: { terrain: 'land', robber: false },
     shoal: { terrain: 'sea', robber: false },
     fishingLake: { terrain: 'land' },
     swamp: { terrain: 'land' },
@@ -613,7 +917,7 @@ export const tradersBarbariansModule: GameModule = {
     bridge: { on: 'edge', perPlayer: () => BRIDGES_PER_PLAYER, route: 'land' },
   },
   costs: { bridge: { brick: 2, lumber: 1 } },
-  actions: { spendFish, passBoot, buildBridge, buyWithGold, camelBid },
+  actions: { spendFish, passBoot, buildBridge, buyWithGold, camelBid, placeTbKnight, moveTbKnight },
   wrapActions: {
     roll: (prev): ActionDef => ({
       ...prev,
@@ -632,8 +936,41 @@ export const tradersBarbariansModule: GameModule = {
         // The second starting settlement by the water lands a first catch.
         if (scenarioOf(ctx) === 'fishermen' && second && touchesFishing(ctx, a.corner as CornerId))
           catchFish(ctx, a.player, 1);
+        // Against the barbarians, the second one starts as a city.
+        if (scenarioOf(ctx) === 'barbarians' && second) {
+          const b = ctx.buildingAt(a.corner as CornerId);
+          if (b?.type === 'settlement') ctx.upgrade(b, 'city');
+        }
       },
     }),
+    playDevCard: (prev): ActionDef => ({
+      ...prev,
+      check(ctx, a) {
+        const err = prev.check(ctx, a);
+        if (err || a.card !== 'knight' || scenarioOf(ctx) !== 'barbarians') return err;
+        if (knightsOf(ctx, a.player).length >= KNIGHTS_PER_PLAYER)
+          return 'All your knights are out';
+        return knightStartEdges(ctx).length ? null : 'There is no free path by the castle';
+      },
+      apply(ctx, a) {
+        const returnTo = ctx.state.phase.id;
+        prev.apply(ctx, a);
+        // A Knight card sends a knight out from the castle instead of moving the robber.
+        if (a.card === 'knight' && scenarioOf(ctx) === 'barbarians')
+          ctx.setPhase({ id: 'tbKnight', returnTo } satisfies TbKnightPhase);
+      },
+    }),
+    endTurn: (prev): ActionDef => ({
+      ...prev,
+      apply(ctx, a) {
+        if (scenarioOf(ctx) === 'barbarians') fightBarbarians(ctx);
+        prev.apply(ctx, a);
+      },
+    }),
+    buildRoad: notOnConquered('edge'),
+    placeFreeRoad: notOnConquered('edge'),
+    buildSettlement: notOnConquered('corner'),
+    buildCity: notOnConquered('corner'),
   },
   hooks: {
     init(ctx) {
@@ -652,9 +989,31 @@ export const tradersBarbariansModule: GameModule = {
           .filter((c): c is CornerId => !!c)
           .map((c) => ({ corners: [c], ended: false }));
       }
+      if (scenarioOf(ctx) === 'barbarians') {
+        // No robber and no Largest Army: Knight cards bring knights instead.
+        for (const r of ctx.piecesOfType('robber')) ctx.remove(r);
+        ctx.state.settings.largestArmyMin = 99;
+        // The first barbarians wait on the coast's 2 and 12.
+        for (const h of coastalHexes(ctx)) {
+          const t = ctx.state.hexes[h]?.token;
+          if (t === 2 || t === 12) d.barbarians[h] = 1;
+        }
+      }
+    },
+    afterAction(ctx) {
+      if (scenarioOf(ctx) !== 'barbarians') return;
+      const d = tbData(ctx);
+      if (d.landing) {
+        d.landing = false;
+        landBarbarians(ctx);
+      }
+      // A 7 still makes big hands discard, but there is no robber to move.
+      if (ctx.state.phase.id === 'moveRobber')
+        ctx.setPhase({ id: (ctx.state.phase.returnTo as string | undefined) ?? 'main' });
     },
     turnStarted(ctx) {
       tbData(ctx).goldBuys = 0;
+      tbData(ctx).moved = [];
       // A new round: vote on a camel if anyone built a settlement or city.
       if (scenarioOf(ctx) === 'caravans' && ctx.state.turn.player === 0) startCamelVote(ctx);
     },
@@ -667,6 +1026,14 @@ export const tradersBarbariansModule: GameModule = {
         ctx.state.phase.id !== 'setup'
       )
         tbData(ctx).builtThisRound = true;
+      if (
+        scenarioOf(ctx) === 'barbarians' &&
+        piece.owner !== null &&
+        previous === null &&
+        (piece.type === 'settlement' || piece.type === 'city') &&
+        ctx.state.phase.id !== 'setup'
+      )
+        tbData(ctx).landing = true;
       if (scenarioOf(ctx) !== 'rivers' || piece.owner === null || previous !== null) return;
       if (piece.type === 'bridge') return earnGold(ctx, piece.owner, 3, 'bridge');
       if (piece.type === 'road') {
@@ -688,7 +1055,24 @@ export const tradersBarbariansModule: GameModule = {
       if (g.richest === seat) v += 1;
       if (g.poorest.includes(seat)) v -= 2;
       if (scenarioOf(ctx) === 'caravans') v += camelBonus(ctx, seat);
+      if (scenarioOf(ctx) === 'barbarians')
+        v += Math.floor(prisonersOf(ctx, seat) / 2) - conqueredVp(ctx, seat);
       return v;
+    },
+    tradeRatio(ctx, seat, card, value) {
+      if (scenarioOf(ctx) !== 'barbarians') return value;
+      // Harbors only count from buildings the barbarians have not cut off.
+      let best = 4;
+      for (const h of ctx.state.harbors) {
+        if (h.resource !== 'any' && h.resource !== card) continue;
+        const corners = ctx.geometry.edgeCorners.get(h.edge) ?? [];
+        if (corners.some((c) => ctx.buildingAt(c)?.owner === seat && !buildingConquered(ctx, c)))
+          best = Math.min(best, h.ratio);
+      }
+      return Math.max(value, best);
+    },
+    hexYield(ctx, hex, _piece, value) {
+      return scenarioOf(ctx) === 'barbarians' && isConquered(ctx, hex.id) ? {} : value;
     },
     vpTarget(ctx, value) {
       return scenarioOf(ctx) === 'caravans' ? value + 2 : value;

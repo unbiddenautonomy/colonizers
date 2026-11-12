@@ -16,6 +16,13 @@ function cards(c: Record<string, number> | undefined): string {
   return parts.join(', ') || 'nothing';
 }
 
+const GOLD_REASON: Record<string, string> = {
+  bridge: ' for a bridge',
+  road: ' by the river',
+  settlement: ' by the river',
+  fight: ' from the fight',
+};
+
 const EVENT_TEXT: Record<string, string> = {
   prospers: 'good times, nothing happens',
   robberAttacks: 'the robber strikes',
@@ -229,7 +236,7 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🐟 ${n(e.player)} spent ${e.fish as number} fish ${what[e.use as string] ?? ''}.`;
     }
     case 'goldEarned':
-      return `🪙 ${n(e.player)} earned ${e.gold as number} gold${e.reason === 'bridge' ? ' for a bridge' : ' by the river'}.`;
+      return `🪙 ${n(e.player)} earned ${e.gold as number} gold${GOLD_REASON[e.reason as string] ?? ''}.`;
     case 'goldSpent':
       return `🪙 ${n(e.player)} paid ${e.gold as number} gold for ${cards({ [e.resource as string]: 1 })}.`;
     case 'eventCard':
@@ -250,6 +257,24 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `${n(e.player)} put ${e.votes as number} vote${e.votes === 1 ? '' : 's'} on a path.`;
     case 'camelPlaced':
       return '🐪 A camel joins the caravan.';
+    case 'barbariansLanded': {
+      const hexes = (e.hexes as string[]).length;
+      const took = (e.conquered as string[]).length;
+      const rolls = (e.numbers as number[]).join(', ');
+      if (!hexes) return `🪓 Barbarians rolled ${rolls}, but found nowhere to land.`;
+      return `🪓 Barbarians rolled ${rolls} and landed on ${hexes} hex${hexes === 1 ? '' : 'es'}${took ? `; ${took} ${took === 1 ? 'is' : 'are'} now held by barbarians` : ''}.`;
+    }
+    case 'barbariansDefeated': {
+      const got = Object.entries(e.prisoners as Record<string, number>)
+        .map(([seat, k]) => `${n(Number(seat))} took ${k} prisoner${k === 1 ? '' : 's'}`)
+        .join(', ');
+      const lost = (e.lost as number[]).length;
+      return `⚔️ Knights drove off the barbarians: ${got}.${lost ? ` ${lost} knight${lost === 1 ? '' : 's'} fell (die ${e.die as number}).` : ''}`;
+    }
+    case 'tbKnightPlaced':
+      return `♞ ${n(e.player)} sent a knight out from the castle.`;
+    case 'tbKnightMoved':
+      return `♞ ${n(e.player)} moved a knight ${e.steps as number} step${e.steps === 1 ? '' : 's'}.`;
     case 'eruption': {
       const hit = e.hit as string | null;
       const base = `🌋 The volcano erupted (die ${e.face as number})`;

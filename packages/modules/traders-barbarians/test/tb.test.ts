@@ -9,13 +9,19 @@ import {
   type EdgeId,
   type GameState,
 } from '@colonizers/engine';
-import { baseModule } from '@colonizers/module-base';
+import { baseModule, produce } from '@colonizers/module-base';
 import { variantsModule, harbormasterOf } from '@colonizers/module-variants';
 import { generateTbBoard, TB_SCENARIOS } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
 import {
+  barbariansOn,
+  castleHex,
+  coastalHexes,
   camelEdges,
   camelOptions,
+  knightMoves,
+  knightStartEdges,
+  prisonersOf,
   fishPayment,
   fishTotal,
   goldOf,
@@ -78,6 +84,7 @@ const WEIGHTS: Record<string, number> = {
   spendFish: 2,
   buyWithGold: 6,
   passBoot: 3,
+  moveTbKnight: 0.3,
   playDevCard: 4,
   bankTrade: 2,
   offerTrade: 0.2,
@@ -207,7 +214,8 @@ describe('Traders & Barbarians random games', () => {
         for (const t of ['fish:bank', 'fish:robber', 'fish:road']) expect(seen).toContain(t);
       else if (scenario.id === 'rivers')
         for (const t of ['buildBridge', 'buyWithGold']) expect(seen).toContain(t);
-      else expect(seen).toContain('camelBid');
+      else if (scenario.id === 'caravans') expect(seen).toContain('camelBid');
+      else for (const t of ['placeTbKnight', 'moveTbKnight']) expect(seen).toContain(t);
     }, 120_000);
 
     it(`${scenario.name}: bots finish a game`, () => {
@@ -467,5 +475,170 @@ describe('Caravans', () => {
     });
     expect(ctxOf(s).longestRoute(0)).toBe(4);
     expect(ctxOf(s).vp(0)).toBe(vp + 1);
+  });
+});
+
+describe('Barbarian Attack', () => {
+  it('a castle in the middle, no robber, and barbarians on the coastal 2 and 12', () => {
+    const s = game('barbarians');
+    const c = ctxOf(s);
+    expect(castleHex(c)).toBe('h:0,0');
+    expect(c.piecesOfType('robber')).toHaveLength(0);
+    const coast = coastalHexes(c);
+    for (const h of Object.values(s.hexes))
+      if (h.token === 2 || h.token === 12) {
+        expect(coast).toContain(h.id);
+        expect(barbariansOn(c, h.id)).toBe(1);
+      }
+    expect(knightStartEdges(c)).toHaveLength(6);
+  });
+
+  it('the second starting settlement is a city', () => {
+    const s = finishSetup(game('barbarians'));
+    for (const p of s.players) {
+      const c = ctxOf(s);
+      expect(c.piecesOf(p.seat, 'city')).toHaveLength(1);
+      expect(c.piecesOf(p.seat, 'settlement')).toHaveLength(1);
+    }
+  });
+
+  it('barbarians land after a settlement is built', () => {
+    let s = finishSetup(game('barbarians'));
+    const seat = s.turn.player;
+    const c0 = ctxOf(s);
+    const edge = c0.geometry.edges.find((e) =>
+      (c0.geometry.edgeHexes.get(e) ?? []).every((h) => c0.isLand(h)),
+    )!;
+    const corner = c0.geometry.edgeCorners.get(edge)![0];
+    s = edit(s, (c) => {
+      for (const p of Object.values(c.state.pieces)) if (p.owner !== null) c.remove(p);
+      c.place('road', seat, { kind: 'edge', id: edge });
+      c.setPhase({ id: 'main' });
+      c.player(seat).hand = { brick: 1, lumber: 1, wool: 1, grain: 1 };
+    });
+    const before = Object.values(tbData(ctxOf(s)).barbarians).reduce((a, b) => a + b, 0);
+    const r = lib.apply(s, { type: 'buildSettlement', player: seat, corner });
+    const landed = r.events.find((e) => e.type === 'barbariansLanded')!;
+    expect(r.events.findIndex((e) => e.type === 'built')).toBeLessThan(r.events.indexOf(landed));
+    expect((landed.numbers as number[]).length).toBe(3);
+    expect(landed.numbers).not.toContain(7);
+    const after = Object.values(tbData(ctxOf(r.state)).barbarians).reduce((a, b) => a + b, 0);
+    expect(after).toBe(before + (landed.hexes as string[]).length);
+  });
+
+  it('a held hex produces nothing, blocks building and cuts off buildings', () => {
+    let s = finishSetup(game('barbarians'));
+    const c0 = ctxOf(s);
+    const hex = coastalHexes(c0).find((h) => s.hexes[h]!.token && s.hexes[h]!.type !== 'desert')!;
+    const outer = c0.geometry.hexCorners
+      .get(hex)!
+      .find(
+        (c) => (c0.geometry.cornerHexes.get(c) ?? []).filter((h) => c0.isLand(h)).length === 1,
+      )!;
+    s = edit(s, (c) => {
+      for (const p of Object.values(c.state.pieces)) if (p.owner !== null) c.remove(p);
+      c.place('settlement', 0, { kind: 'corner', id: outer });
+      c.setPhase({ id: 'main' });
+      c.state.turn.player = 0;
+      c.player(0).hand = { brick: 2, lumber: 2 };
+    });
+    const vp = ctxOf(s).vp(0);
+    expect(lib.legalActions(s, 0).some((a) => a.type === 'buildRoad')).toBe(true);
+    s = edit(s, (c) => {
+      tbData(c).barbarians[hex] = 3;
+    });
+    expect(ctxOf(s).vp(0)).toBe(vp - 1);
+    const nextTo = new Set(ctxOf(s).geometry.cornerEdges.get(outer));
+    expect(
+      lib.legalActions(s, 0).some((a) => a.type === 'buildRoad' && nextTo.has(a.edge as EdgeId)),
+    ).toBe(false);
+    const token = s.hexes[hex]!.token!;
+    const count = (x: GameState) => Object.values(x.players[0]!.hand).reduce((a, b) => a + b, 0);
+    expect(count(edit(s, (c) => produce(c, token)))).toBe(count(s));
+    const free = edit(s, (c) => {
+      tbData(c).barbarians[hex] = 2;
+    });
+    expect(count(edit(free, (c) => produce(c, token)))).toBe(count(s) + 1);
+  });
+
+  it('a Knight card sends out a knight; knights move 3 steps, or 5 for a grain', () => {
+    let s = finishSetup(game('barbarians'));
+    const seat = s.turn.player;
+    s = edit(s, (c) => {
+      c.setPhase({ id: 'main' });
+      (c.player(seat).held.dev ??= []).push({ card: 'knight', acquiredTurn: 0 });
+      c.player(seat).hand = { grain: 1 };
+    });
+    s = act(s, { type: 'playDevCard', player: seat, card: 'knight' });
+    expect(s.phase.id).toBe('tbKnight');
+    const start = knightStartEdges(ctxOf(s))[0]!;
+    s = act(s, { type: 'placeTbKnight', player: seat, edge: start });
+    expect(s.phase.id).toBe('main');
+    expect(s.data.base?.largestArmy ?? null).toBeNull();
+    const c = ctxOf(s);
+    const knight = tbData(c).knights[0]!;
+    const moves = knightMoves(c, knight);
+    const far = [...moves].find(([, n]) => n === 5)![0];
+    const near = [...moves].find(([, n]) => n === 2)![0];
+    const castle = new Set(c.geometry.hexEdges.get(castleHex(c)!));
+    for (const e of moves.keys()) expect(castle.has(e)).toBe(false);
+    const paid = act(s, { type: 'moveTbKnight', player: seat, knight: knight.id, to: far });
+    expect(paid.players[seat]!.hand.grain ?? 0).toBe(0);
+    const free = act(s, { type: 'moveTbKnight', player: seat, knight: knight.id, to: near });
+    expect(free.players[seat]!.hand.grain).toBe(1);
+    expect(() =>
+      act(free, { type: 'moveTbKnight', player: seat, knight: knight.id, to: start }),
+    ).toThrow();
+  });
+
+  it('knights that outnumber barbarians capture them at the end of the turn', () => {
+    let s = finishSetup(game('barbarians'));
+    const c0 = ctxOf(s);
+    const hex = coastalHexes(c0)[0]!;
+    const edges = c0.geometry.hexEdges.get(hex)!;
+    s = edit(s, (c) => {
+      c.setPhase({ id: 'main' });
+      c.state.turn.player = 0;
+      const d = tbData(c);
+      d.barbarians = { [hex]: 2 };
+      d.knights = [
+        { id: 'k0', owner: 0, edge: edges[0]! },
+        { id: 'k1', owner: 0, edge: edges[1]! },
+        { id: 'k2', owner: 1, edge: edges[2]! },
+      ];
+    });
+    const r = lib.apply(s, { type: 'endTurn', player: 0 });
+    const c = ctxOf(r.state);
+    expect(barbariansOn(c, hex)).toBe(0);
+    expect(prisonersOf(c, 0)).toBe(1);
+    expect(prisonersOf(c, 1)).toBe(1);
+    const fight = r.events.find((e) => e.type === 'barbariansDefeated')!;
+    const lost = (fight.lost as number[]).length;
+    expect(tbData(c).knights).toHaveLength(3 - lost);
+    expect(goldOf(c, 0) + goldOf(c, 1)).toBe(3 * lost);
+  });
+
+  it('too few knights do not fight; two prisoners are a point', () => {
+    let s = finishSetup(game('barbarians'));
+    const c0 = ctxOf(s);
+    const hex = coastalHexes(c0)[0]!;
+    const edges = c0.geometry.hexEdges.get(hex)!;
+    s = edit(s, (c) => {
+      c.setPhase({ id: 'main' });
+      c.state.turn.player = 0;
+      const d = tbData(c);
+      d.barbarians = { [hex]: 2 };
+      d.knights = [
+        { id: 'k0', owner: 0, edge: edges[0]! },
+        { id: 'k1', owner: 1, edge: edges[1]! },
+      ];
+    });
+    const vp = ctxOf(s).vp(2);
+    s = act(s, { type: 'endTurn', player: 0 });
+    expect(barbariansOn(ctxOf(s), hex)).toBe(2);
+    s = edit(s, (c) => {
+      tbData(c).prisoners[2] = 3;
+    });
+    expect(ctxOf(s).vp(2)).toBe(vp + 1);
   });
 });

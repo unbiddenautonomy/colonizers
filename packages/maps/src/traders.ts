@@ -17,7 +17,7 @@ import type { SpecialBoard } from './special.ts';
  * gives a new layout.
  */
 export interface TbScenarioInfo {
-  id: 'fishermen' | 'rivers' | 'caravans';
+  id: 'fishermen' | 'rivers' | 'caravans' | 'barbarians';
   name: string;
   description: string;
   players: { min: number; max: number };
@@ -43,6 +43,13 @@ export const TB_SCENARIOS: TbScenarioInfo[] = [
     name: 'Caravans',
     description:
       'Camel caravans leave an oasis in the middle. Vote with wool and grain on where they go: roads under camels count double, and buildings between camels score a point.',
+    players: { min: 3, max: 8 },
+  },
+  {
+    id: 'barbarians',
+    name: 'Barbarian Attack',
+    description:
+      'Barbarians land on the coast whenever someone builds, and three take a hex. Knight cards send knights out from the castle to fight them for prisoners and gold.',
     players: { min: 3, max: 8 },
   },
 ];
@@ -181,6 +188,42 @@ function caravans(map: MapSpec): void {
   map.pieces = [{ type: 'robber', at: { kind: 'hex', id: hexId(oasis.q, oasis.r) } }];
 }
 
+function barbarians(map: MapSpec, rng: Rng): void {
+  // The castle takes the middle; whatever grew there moves to the desert.
+  const middle = map.hexes.find((h) => h.q === 0 && h.r === 0 && h.type !== 'sea');
+  const desert = map.hexes.find((h) => h.type === 'desert');
+  if (middle) {
+    if (desert && desert !== middle) {
+      desert.type = middle.type;
+      if (middle.token !== undefined) desert.token = middle.token;
+    }
+    middle.type = 'castle';
+    delete middle.token;
+  }
+  // No robber in this scenario.
+  map.pieces = [];
+  // The first barbarians wait on the 2 and the 12, so those belong on the coast.
+  const land = new Set(map.hexes.filter((h) => h.type !== 'sea').map((h) => hexId(h.q, h.r)));
+  const g = buildGeometry(map.hexes.map((h) => hexId(h.q, h.r)));
+  const coastal = (h: { q: number; r: number }) => {
+    const around = g.hexNeighbours.get(hexId(h.q, h.r)) ?? [];
+    return around.length < 6 || around.some((n) => !land.has(n));
+  };
+  for (const t of [2, 12]) {
+    for (const h of map.hexes.filter((x) => x.token === t && !coastal(x))) {
+      const swap = rng.shuffle(
+        map.hexes.filter(
+          (x) => x.token !== undefined && [3, 4, 5, 9, 10, 11].includes(x.token) && coastal(x),
+        ),
+      )[0];
+      if (!swap?.token) continue;
+      const other = swap.token;
+      swap.token = t;
+      h.token = other;
+    }
+  }
+}
+
 /** Generates a Traders & Barbarians board. The same options always give the same board. */
 export function generateTbBoard(opts: {
   seed: string;
@@ -193,6 +236,7 @@ export function generateTbBoard(opts: {
   const map = generateBoard({ seed: opts.seed, players: opts.players, mode: 'classic' }).map;
   if (spec.id === 'fishermen') fishermen(map, opts.players, rng);
   else if (spec.id === 'rivers') rivers(map, opts.players, rng);
+  else if (spec.id === 'barbarians') barbarians(map, rng);
   else caravans(map);
   return {
     map,
