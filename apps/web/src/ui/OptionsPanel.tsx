@@ -97,6 +97,16 @@ export function OptionsPanel({
         />{' '}
         ⚓ Harbormaster: 2 points for the most buildings on harbors (3 points' worth or more)
       </label>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={options.eventCards}
+          disabled={citiesKnights}
+          onChange={(e) => set({ eventCards: e.target.checked })}
+        />{' '}
+        🃏 Event cards instead of dice: numbers spread like the dice, with events
+        {citiesKnights && <small className="muted"> (not with Cities &amp; Knights)</small>}
+      </label>
       <div className="row wrap">
         <label>
           Quiet start{' '}
@@ -194,6 +204,7 @@ export function describeOptions(o: GameOptions, players: number): string[] {
   if (o.gifting) out.push('Gifts allowed');
   if (o.firstSettlementPays) out.push('Both starting settlements pay');
   if (o.harbormaster) out.push('Harbormaster');
+  if (o.eventCards) out.push('Event cards');
   if (o.robberFreeRounds) out.push(`7s do nothing for ${o.robberFreeRounds} round(s)`);
   if (o.discardLimit !== 7) out.push(`Discard above ${o.discardLimit} cards`);
   return out;

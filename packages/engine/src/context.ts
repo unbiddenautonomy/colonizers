@@ -374,8 +374,11 @@ export class Ctx {
     );
     if (!routePieces.length) return 0;
     const edgeRoute = new Map<EdgeId, string>();
+    const weight = new Map<EdgeId, number>();
     for (const p of routePieces) {
-      edgeRoute.set((p.at as { id: EdgeId }).id, this.registry.pieceTypes[p.type]?.route as string);
+      const id = (p.at as { id: EdgeId }).id;
+      edgeRoute.set(id, this.registry.pieceTypes[p.type]?.route as string);
+      weight.set(id, this.reduce('routeWeight', p, 1));
     }
     const blocked = (c: CornerId) => this.blocksRouteAt(c, seat);
     const ownBuilding = (c: CornerId) => this.buildingAt(c)?.owner === seat;
@@ -392,7 +395,7 @@ export class Ctx {
         if (lastRoute !== null && route !== lastRoute && !ownBuilding(corner)) continue;
         const [a, b] = this.geometry.edgeCorners.get(e) as [CornerId, CornerId];
         used.add(e);
-        dfs(a === corner ? b : a, route, length + 1);
+        dfs(a === corner ? b : a, route, length + (weight.get(e) ?? 1));
         used.delete(e);
       }
     };

@@ -9,6 +9,17 @@ import {
   type Phase,
 } from '@colonizers/engine';
 import { publicVp, robberHexes } from '@colonizers/module-base';
+import {
+  eventData,
+  eventPick,
+  quakeRoad,
+  quakeSettlement,
+  repairRoad,
+  startEventPicks,
+  turnEventCard,
+} from './events.ts';
+
+export * from './events.ts';
 
 /**
  * Options and house rules, each switched on in the game settings:
@@ -22,6 +33,7 @@ import { publicVp, robberHexes } from '@colonizers/module-base';
  * - `balancedDice`: the dice come from a shuffled deck of all 36 outcomes.
  * - `robberFreeRounds`: for the first N rounds a 7 does nothing.
  * - `gifting`: on your turn you may give cards to another player.
+ * - `eventCards`: a deck of 36 event cards replaces the dice (see events.ts).
  * - `harbormaster`: the first player with 3 points of buildings on harbors
  *   (settlement 1, city 2) takes a 2-point bonus; anyone with more takes it.
  *
@@ -212,9 +224,14 @@ export const variantsModule: GameModule = {
     robberFreeRounds: 0,
     gifting: false,
     harbormaster: false,
+    eventCards: false,
   },
-  actions: { endSpecialBuild, giveCards },
+  actions: { endSpecialBuild, giveCards, eventPick, repairRoad },
   dice(ctx) {
+    if (ctx.setting<boolean>('eventCards')) {
+      const card = turnEventCard(ctx);
+      return { dice: { card: card.total }, total: card.total };
+    }
     const [a, b] = ctx.setting<boolean>('balancedDice') ? balancedRoll(ctx) : standardRoll(ctx);
     return { dice: { white1: a, white2: b }, total: a + b };
   },
@@ -224,6 +241,8 @@ export const variantsModule: GameModule = {
   },
   wrapActions: {
     ...Object.fromEntries(BUILD_ACTIONS.map((t) => [t, wrapBuild('build')])),
+    buildRoad: (prev) => wrapBuild('build')(quakeRoad(prev)),
+    buildSettlement: (prev) => wrapBuild('build')(quakeSettlement(prev)),
     bankTrade: wrapBuild('bank'),
     endTurn: (prev): ActionDef => {
       const def: WithBelow = {
@@ -270,6 +289,10 @@ export const variantsModule: GameModule = {
           ctx.setPhase({ id: 'main' });
           ctx.emit({ type: 'robberResting', rounds: quiet });
         }
+        if (ctx.setting<boolean>('eventCards')) {
+          eventData(ctx).epidemic = false;
+          startEventPicks(ctx);
+        }
       },
     }),
   },
@@ -285,10 +308,15 @@ export const variantsModule: GameModule = {
     vp(ctx, seat, value) {
       return vData(ctx).harbormaster === seat ? value + HARBORMASTER_VP : value;
     },
+    hexYield(ctx, _hex, piece, value) {
+      // Epidemic: each city pays only one card this roll.
+      if (piece.type !== 'city' || !eventData(ctx)?.epidemic) return value;
+      return Object.fromEntries(Object.entries(value).map(([c, n]) => [c, Math.min(n, 1)]));
+    },
   },
   redact(data) {
     const d = data as unknown as VariantsData;
-    return { ...d, deck: [] } as unknown as Record<string, unknown>;
+    return { ...d, deck: [], eventDeck: [] } as unknown as Record<string, unknown>;
   },
 };
 
