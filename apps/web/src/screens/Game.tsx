@@ -25,7 +25,7 @@ import type { BotConfig } from '@colonizers/bots';
 import { partnerOf } from '@colonizers/module-variants';
 import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
-import { cleanTheme } from '../theme/clean.ts';
+import { ThemePicker, useTheme } from '../theme/themes.tsx';
 import {
   CardPicker,
   clean,
@@ -53,8 +53,6 @@ import {
 type Mode = null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip' | CkMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
-
-const theme = cleanTheme;
 
 const EVENT_ICON: Record<string, string> = {
   ship: '⛵',
@@ -275,6 +273,7 @@ export function Game({
   onQuit: () => void;
 }) {
   const { state } = g;
+  const theme = useTheme();
   const actor = seat;
   const names = state.players.map((p) => p.name);
   const bots = g.bots ?? {};
@@ -389,6 +388,7 @@ export function Game({
               Private hands
             </label>
           )}
+          <ThemePicker compact />
           <button
             type="button"
             className="icon help"

@@ -9,12 +9,36 @@
   --danger: #b3261e;
   --sea: #4f9bd1;
   color-scheme: light dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: var(--font, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
+}
+
+:root[data-theme='night-market'] {
+  color-scheme: dark;
+}
+
+:root[data-theme='heritage'] {
+  color-scheme: light;
+}
+
+:root[data-theme='heritage'] .board-wrap {
+  box-shadow:
+    inset 0 0 0 10px #5b3a1f,
+    inset 0 0 0 13px #3e2714;
+}
+
+:root[data-theme='heritage'] .rcard,
+:root[data-theme='heritage'] .card {
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.25), rgba(120, 80, 30, 0.08));
+}
+
+:root[data-theme='night-market'] .board .token circle {
+  filter: drop-shadow(0 0 3px #ffd23f88);
+}
+
+.theme-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -336,7 +360,7 @@ select {
   display: grid;
   place-items: center;
   padding: 8px;
-  background: radial-gradient(circle at 50% 45%, #6db3e2 0%, var(--sea) 70%);
+  background: var(--board-bg, radial-gradient(circle at 50% 45%, #6db3e2 0%, var(--sea) 70%));
 }
 
 .board {

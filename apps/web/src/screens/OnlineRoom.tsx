@@ -18,7 +18,7 @@ import {
 } from '../online/identity.ts';
 import { mySeat } from '../online/roomState.ts';
 import { useOnlineRoom } from '../online/useOnlineRoom.ts';
-import { cleanTheme } from '../theme/clean.ts';
+import { useTheme } from '../theme/themes.tsx';
 import { Chat } from '../ui/Chat.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
@@ -183,6 +183,7 @@ function Lobby({
   onRename: (n: string) => void;
   onHome: () => void;
 }) {
+  const theme = useTheme();
   const [copied, setCopied] = useState<string | null>(null);
   const [rules, setRules] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -273,8 +274,8 @@ function Lobby({
           {players.map((m, i) => (
             <li key={m.id}>
               <PlayerBadge
-                color={cleanTheme.players[i]!.color}
-                shape={cleanTheme.players[i]!.shape}
+                color={theme.players[i]!.color}
+                shape={theme.players[i]!.shape}
                 size={20}
               />
               {m.id === r.you && editing ? (
