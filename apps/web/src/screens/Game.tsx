@@ -22,6 +22,7 @@ import {
 import type { ChatMessage, MemberInfo } from '../../../server/src/protocol.ts';
 import type { Connection } from '../online/roomState.ts';
 import type { BotConfig } from '@colonizers/bots';
+import { partnerOf } from '@colonizers/module-variants';
 import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { cleanTheme } from '../theme/clean.ts';
@@ -51,7 +52,7 @@ import {
 
 type Mode = null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip' | CkMode;
 type EdgeKind = 'road' | 'ship';
-type Dialog = null | 'bank' | 'offer' | 'yearOfPlenty' | 'monopoly';
+type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
 const theme = cleanTheme;
 
@@ -99,10 +100,12 @@ function targetsFor(
     want.add('moveRobber');
     want.add('movePirate');
   }
-  if (ph === 'main' && mode === 'road') want.add('buildRoad');
-  if (ph === 'main' && mode === 'settlement') want.add('buildSettlement');
-  if (ph === 'main' && mode === 'city') want.add('buildCity');
-  if (ph === 'main' && mode === 'ship') want.add('buildShip');
+  // Out-of-turn building (Special Building Phase) uses the same build modes.
+  const building = ph === 'main' || ph === 'specialBuild';
+  if (building && mode === 'road') want.add('buildRoad');
+  if (building && mode === 'settlement') want.add('buildSettlement');
+  if (building && mode === 'city') want.add('buildCity');
+  if (building && mode === 'ship') want.add('buildShip');
   const knightCorner = (id: unknown) => {
     const k = typeof id === 'string' ? state.pieces[id] : undefined;
     return k?.at.kind === 'corner' ? k.at.id : null;
@@ -207,6 +210,15 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
       if (mode)
         return `${who}: tap a glowing spot to build a ${mode}. Tap the button again to cancel.`;
       return `${who}: trade, build, or end your turn.`;
+    case 'specialBuild': {
+      const q = state.phase.queue as number[];
+      const builder = q[0] ?? null;
+      if (builder === actor && mode)
+        return `${who}: tap a glowing spot to build a ${mode}. Tap the button again to cancel.`;
+      return builder === actor
+        ? `${who}: special build. Build or buy, then tap Done building.`
+        : `${builder === null ? '' : names[builder]} is building before the next turn.`;
+    }
     case 'gameOver':
       return `${names[state.winner ?? 0]} wins!`;
     default:
@@ -294,7 +306,18 @@ export function Game({
   const [revealedFor, setRevealedFor] = useState<number | null>(null);
 
   // Build mode only applies in the main phase.
-  const mode: Mode = state.phase.id === 'main' ? chosenMode : null;
+  const myTurnMain = state.phase.id === 'main' && actor === state.turn.player;
+  // Building out of turn: the Special Building Phase, or the partner in paired turns.
+  const sbpBuilder =
+    state.phase.id === 'specialBuild' ? ((state.phase.queue as number[])[0] ?? null) : null;
+  const pairedPartner =
+    state.phase.id === 'main' && state.settings.turnMode === 'paired'
+      ? partnerOf(state.turn.player, state.players.length)
+      : null;
+  const outOfTurn =
+    actor !== null && !myTurnMain && (sbpBuilder === actor || pairedPartner === actor);
+  const mode: Mode =
+    state.phase.id === 'main' || state.phase.id === 'specialBuild' ? chosenMode : null;
   const legal = useMemo(
     () => (actor === null ? [] : library.legalActions(state, actor)),
     [state, actor],
@@ -598,8 +621,13 @@ export function Game({
               🎲 Roll
             </button>
           )}
-          {state.phase.id === 'main' && actor === state.turn.player && (
+          {(myTurnMain || outOfTurn) && actor !== null && (
             <>
+              {outOfTurn && (
+                <span className="muted small">
+                  {sbpBuilder === actor ? 'Special build:' : 'Partner build:'}
+                </span>
+              )}
               {(['road', 'settlement', 'city'] as const).map((m) => {
                 const type =
                   m === 'road' ? 'buildRoad' : m === 'settlement' ? 'buildSettlement' : 'buildCity';
@@ -617,7 +645,7 @@ export function Game({
                   </button>
                 );
               })}
-              {ck && (
+              {ck && myTurnMain && (
                 <CkBuild
                   ctx={ctx}
                   actor={actor}
@@ -646,18 +674,20 @@ export function Game({
                   >
                     Ship <CostLine cost={ctx.cost('ship', actor)} />
                   </button>
-                  <button
-                    type="button"
-                    className={mode === 'moveShip' ? 'on' : ''}
-                    disabled={!has('moveShip')}
-                    onClick={() => {
-                      setSelectedShip(null);
-                      setMode(mode === 'moveShip' ? null : 'moveShip');
-                    }}
-                    aria-pressed={mode === 'moveShip'}
-                  >
-                    ⛵ Move ship
-                  </button>
+                  {myTurnMain && (
+                    <button
+                      type="button"
+                      className={mode === 'moveShip' ? 'on' : ''}
+                      disabled={!has('moveShip')}
+                      onClick={() => {
+                        setSelectedShip(null);
+                        setMode(mode === 'moveShip' ? null : 'moveShip');
+                      }}
+                      aria-pressed={mode === 'moveShip'}
+                    >
+                      ⛵ Move ship
+                    </button>
+                  )}
                 </>
               )}
               {!ck && (
@@ -669,20 +699,44 @@ export function Game({
                   Dev card <CostLine cost={ctx.cost('devCard', actor)} />
                 </button>
               )}
-              <button type="button" disabled={!has('bankTrade')} onClick={() => setDialog('bank')}>
-                Bank trade
-              </button>
-              <button type="button" disabled={!!offer} onClick={() => setDialog('offer')}>
-                Offer trade
-              </button>
-              <button
-                type="button"
-                className="primary"
-                disabled={!has('endTurn')}
-                onClick={() => act({ type: 'endTurn', player: actor })}
-              >
-                End turn
-              </button>
+              {(myTurnMain || pairedPartner === actor) && (
+                <button
+                  type="button"
+                  disabled={!has('bankTrade')}
+                  onClick={() => setDialog('bank')}
+                >
+                  Bank trade
+                </button>
+              )}
+              {myTurnMain && (
+                <button type="button" disabled={!!offer} onClick={() => setDialog('offer')}>
+                  Offer trade
+                </button>
+              )}
+              {myTurnMain && state.settings.gifting === true && (
+                <button type="button" onClick={() => setDialog('gift')}>
+                  🎁 Gift
+                </button>
+              )}
+              {myTurnMain && (
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={!has('endTurn')}
+                  onClick={() => act({ type: 'endTurn', player: actor })}
+                >
+                  End turn
+                </button>
+              )}
+              {sbpBuilder === actor && (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => act({ type: 'endSpecialBuild', player: actor })}
+                >
+                  Done building
+                </button>
+              )}
             </>
           )}
         </div>
@@ -859,6 +913,19 @@ export function Game({
           legal={legal.filter((a) => a.type === 'bankTrade')}
           ratio={(card) => ctx.reduce('tradeRatio', actor, card, 4)}
           onTrade={(a) => act(a)}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'gift' && actor !== null && (
+        <GiftDialog
+          cards={cardKinds}
+          hand={state.players[actor]!.hand}
+          players={state.players
+            .filter((p) => p.seat !== actor)
+            .map((p) => ({ seat: p.seat, name: p.name }))}
+          onGive={(to, cards) => {
+            if (g.act({ type: 'giveCards', player: actor, to, cards })) setDialog(null);
+          }}
           onClose={() => setDialog(null)}
         />
       )}
@@ -1120,6 +1187,46 @@ function OfferDialog({
         onClick={() => onOffer(clean(give), clean(get))}
       >
         Offer to everyone
+      </button>
+    </Modal>
+  );
+}
+
+function GiftDialog({
+  cards,
+  hand,
+  players,
+  onGive,
+  onClose,
+}: {
+  cards: readonly string[];
+  hand: Record<string, number>;
+  players: { seat: number; name: string }[];
+  onGive: (to: number, cards: Record<string, number>) => void;
+  onClose: () => void;
+}) {
+  const [to, setTo] = useState(players[0]?.seat ?? 0);
+  const [give, setGive] = useState<Record<string, number>>({});
+  return (
+    <Modal title="Give a gift" onClose={onClose}>
+      <label>
+        To{' '}
+        <select value={to} onChange={(e) => setTo(Number(e.target.value))}>
+          {players.map((p) => (
+            <option key={p.seat} value={p.seat}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <CardPicker value={give} onChange={setGive} max={hand} label="Cards to give" cards={cards} />
+      <button
+        type="button"
+        className="primary"
+        disabled={!total(give)}
+        onClick={() => onGive(to, clean(give))}
+      >
+        Give
       </button>
     </Modal>
   );

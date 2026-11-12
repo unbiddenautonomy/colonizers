@@ -14,6 +14,8 @@ packages/
     base/       The base game as the first module
     seafarers/  Seafarers: ships, pirate, gold fields, fog, island bonus
     cities-knights/  Cities & Knights: commodities, improvements, knights, barbarians, progress cards
+    special-maps/    Volcano and lake hexes for the special maps
+    variants/        Special Building Phase, paired turns and house rules
   bots/         Computer players (Easy, Medium, Hard; five play styles), used by rooms and local games
   maps/         Map files, preset boards, board generator, fairness report, Seafarers scenarios
   rulebook/     Plain-language rule pages, card glossary, cost card data

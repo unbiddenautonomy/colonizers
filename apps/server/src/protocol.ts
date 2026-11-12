@@ -7,7 +7,87 @@ import type { Action, GameEvent, GameView } from '@colonizers/engine';
 export type MapChoice =
   | { kind: 'preset'; id: string }
   | { kind: 'random'; mode: 'classic' | 'balanced' | 'wild' }
-  | { kind: 'scenario'; id: string };
+  | { kind: 'scenario'; id: string }
+  | { kind: 'special'; id: string };
+
+export type TurnModeChoice = 'auto' | 'normal' | 'specialBuild' | 'paired';
+
+/** Game options and house rules (PLAN.md sections 1.4 and 1.5). Off means the standard rules. */
+export interface GameOptions {
+  /** auto: Special Building Phase for 5–6 players, paired turns for 7–8, normal otherwise. */
+  turnMode: TurnModeChoice;
+  friendlyRobber: boolean;
+  balancedDice: boolean;
+  /** Rounds at the start in which a 7 does nothing. */
+  robberFreeRounds: number;
+  gifting: boolean;
+  /** Most cards you can hold when a 7 is rolled. */
+  discardLimit: number;
+  /** The first settlement pays starting resources too. */
+  firstSettlementPays: boolean;
+}
+
+export const TURN_MODES: readonly TurnModeChoice[] = ['auto', 'normal', 'specialBuild', 'paired'];
+export const ROBBER_FREE_ROUNDS = [0, 1, 2, 3] as const;
+export const DISCARD_LIMITS = [7, 8, 9, 10] as const;
+
+export const DEFAULT_OPTIONS: GameOptions = {
+  turnMode: 'auto',
+  friendlyRobber: false,
+  balancedDice: false,
+  robberFreeRounds: 0,
+  gifting: false,
+  discardLimit: 7,
+  firstSettlementPays: false,
+};
+
+export function cleanOptions(raw: unknown): GameOptions {
+  const o = (typeof raw === 'object' && raw ? raw : {}) as Record<string, unknown>;
+  return {
+    turnMode: TURN_MODES.includes(o.turnMode as TurnModeChoice)
+      ? (o.turnMode as TurnModeChoice)
+      : 'auto',
+    friendlyRobber: o.friendlyRobber === true,
+    balancedDice: o.balancedDice === true,
+    robberFreeRounds: int(o.robberFreeRounds, ROBBER_FREE_ROUNDS, 0),
+    gifting: o.gifting === true,
+    discardLimit: int(o.discardLimit, DISCARD_LIMITS, 7),
+    firstSettlementPays: o.firstSettlementPays === true,
+  };
+}
+
+export function resolvedTurnMode(
+  o: GameOptions,
+  players: number,
+): 'normal' | 'specialBuild' | 'paired' {
+  if (o.turnMode !== 'auto') return o.turnMode === 'paired' && players < 4 ? 'normal' : o.turnMode;
+  return players >= 7 ? 'paired' : players >= 5 ? 'specialBuild' : 'normal';
+}
+
+/** Engine settings for the options. */
+export function optionSettings(o: GameOptions, players: number): Record<string, unknown> {
+  return {
+    turnMode: resolvedTurnMode(o, players),
+    friendlyRobber: o.friendlyRobber,
+    balancedDice: o.balancedDice,
+    robberFreeRounds: o.robberFreeRounds,
+    gifting: o.gifting,
+    discardLimit: o.discardLimit,
+    startingResourcesBothRounds: o.firstSettlementPays,
+  };
+}
+
+/** Modules in the order they must load: options before Cities & Knights so its dice win. */
+export function moduleList(extra: readonly string[], citiesKnights: boolean): string[] {
+  const order = ['base', 'seafarers', 'special-maps', 'variants', 'cities-knights'];
+  const want = new Set([
+    'base',
+    'variants',
+    ...extra,
+    ...(citiesKnights ? ['cities-knights'] : []),
+  ]);
+  return order.filter((m) => want.has(m));
+}
 
 export interface RoomSettings {
   map: MapChoice;
@@ -17,6 +97,7 @@ export interface RoomSettings {
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
+  options: GameOptions;
 }
 
 export const TURN_TIMERS = [0, 60, 90, 120, 180, 300] as const;
@@ -28,6 +109,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   citiesKnights: false,
   turnTimer: 0,
   maxPlayers: 4,
+  options: DEFAULT_OPTIONS,
 };
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished';
@@ -142,12 +224,15 @@ export function cleanSettings(raw: unknown): RoomSettings {
     map = { kind: 'random', mode: m.mode };
   else if (m.kind === 'scenario' && typeof m.id === 'string' && /^[a-z0-9-]{1,40}$/.test(m.id))
     map = { kind: 'scenario', id: m.id };
+  else if (m.kind === 'special' && typeof m.id === 'string' && /^[a-z0-9-]{1,40}$/.test(m.id))
+    map = { kind: 'special', id: m.id };
   return {
     map,
     vpTarget: int(s.vpTarget, VP_TARGETS, DEFAULT_SETTINGS.vpTarget),
     citiesKnights: s.citiesKnights === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
+    options: cleanOptions(s.options),
   };
 }
 

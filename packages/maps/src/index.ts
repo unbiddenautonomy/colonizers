@@ -50,3 +50,11 @@ export {
   type SeaLayout,
   type SeaScenario,
 } from './seafarers.ts';
+export {
+  SPECIAL_MAPS,
+  specialMapById,
+  generateSpecialBoard,
+  scaledTerrain,
+  type SpecialBoard,
+  type SpecialMap,
+} from './special.ts';
