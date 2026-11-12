@@ -19,7 +19,8 @@
     "@colonizers/module-cities-knights": "workspace:*",
     "@colonizers/module-seafarers": "workspace:*",
     "@colonizers/module-special-maps": "workspace:*",
-    "@colonizers/module-variants": "workspace:*"
+    "@colonizers/module-variants": "workspace:*",
+    "@colonizers/stats": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.6.0",

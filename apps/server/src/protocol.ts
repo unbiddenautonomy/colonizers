@@ -89,6 +89,16 @@ export function moduleList(extra: readonly string[], citiesKnights: boolean): st
   return order.filter((m) => want.has(m));
 }
 
+/** A short key for the map, saved with each game for stats by map. */
+export function mapKey(map: MapChoice): string {
+  switch (map.kind) {
+    case 'random':
+      return `random:${map.mode}`;
+    default:
+      return `${map.kind}:${map.id}`;
+  }
+}
+
 export interface RoomSettings {
   map: MapChoice;
   vpTarget: number;
@@ -185,6 +195,8 @@ export type ServerMessage =
   | { type: 'room'; room: RoomInfo }
   | { type: 'game'; game: GameSnapshot; events: LogEntry[]; now: number }
   | { type: 'chat'; message: ChatMessage }
+  /** Achievements the game that just ended unlocked, by seat. */
+  | { type: 'achievements'; unlocked: { seat: number; ids: string[] }[] }
   | { type: 'error'; message: string; code?: 'removed' | 'notFound' | 'rule' | 'denied' };
 
 export const MAX_MESSAGE = 8192;

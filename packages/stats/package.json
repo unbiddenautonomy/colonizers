@@ -1,0 +1,26 @@
+{
+  "name": "@colonizers/stats",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Game stats and achievements, worked out by replaying a finished game's moves.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/maps": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/bots": "workspace:*",
+    "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-cities-knights": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}
