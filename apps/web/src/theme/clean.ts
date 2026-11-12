@@ -35,6 +35,8 @@ export const cleanTheme: Theme = {
     desert: '#e8dcb5',
     hidden: '#7d8a96',
     gold: '#d4a017',
+    volcano: '#7a3b2e',
+    lake: '#7cc0e8',
   },
   terrainIcon: {
     forest: '🌲',
@@ -44,6 +46,8 @@ export const cleanTheme: Theme = {
     mountains: '⛰️',
     desert: '🏜️',
     gold: '✨',
+    volcano: '🌋',
+    lake: '💧',
     hidden: '🌫️',
   },
   sea: '#4f9bd1',

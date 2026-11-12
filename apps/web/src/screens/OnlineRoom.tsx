@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MODES, PRESETS, SEA_SCENARIOS } from '@colonizers/maps';
+import { MODES, PRESETS, SEA_SCENARIOS, SPECIAL_MAPS } from '@colonizers/maps';
 import {
   TURN_TIMERS,
   VP_TARGETS,
@@ -23,6 +23,7 @@ import { Chat } from '../ui/Chat.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
 import { Game } from './Game.tsx';
+import { describeOptions, OptionsPanel, SpecialMapButtons } from '../ui/OptionsPanel.tsx';
 import { currentUser } from '../online/account.ts';
 import { LEVEL_INFO, LEVELS, STYLE_INFO, STYLES, type Level, type Style } from '@colonizers/bots';
 
@@ -209,7 +210,14 @@ function Lobby({
       ? `${MODES[m.mode].name} (random)`
       : m.kind === 'scenario'
         ? `Seafarers: ${SEA_SCENARIOS.find((x) => x.id === m.id)?.name ?? m.id}`
-        : (PRESETS.find((p) => p.id === m.id)?.name ?? m.id);
+        : m.kind === 'special'
+          ? (SPECIAL_MAPS.find((x) => x.id === m.id)?.name ?? m.id)
+          : (PRESETS.find((p) => p.id === m.id)?.name ?? m.id);
+  const specialPick =
+    s.map.kind === 'special'
+      ? (SPECIAL_MAPS.find((x) => x.id === (s.map as { id: string }).id) ?? null)
+      : null;
+  const optionList = describeOptions(s.options, players.length);
   const map = s.map;
   const seaPick =
     map.kind === 'scenario' ? (SEA_SCENARIOS.find((x) => x.id === map.id) ?? null) : null;
@@ -382,6 +390,12 @@ function Lobby({
                 {seaPick && <p className="muted">{seaPick.description}</p>}
               </div>
             )}
+            <SpecialMapButtons
+              players={Math.max(players.length, 2)}
+              selected={specialPick?.id ?? null}
+              onPick={(id) => set({ map: { kind: 'special', id } })}
+            />
+            {specialPick && <p className="muted">{specialPick.description}</p>}
             <label className="toggle">
               <input
                 type="checkbox"
@@ -444,7 +458,18 @@ function Lobby({
               {s.citiesKnights ? ' + 3' : ''}
             </li>
             <li>Turn timer: {s.turnTimer ? `${s.turnTimer / 60} min` : 'off'}</li>
+            {optionList.map((o) => (
+              <li key={o}>{o}</li>
+            ))}
           </ul>
+        )}
+        {isHost && (
+          <OptionsPanel
+            options={s.options}
+            players={Math.max(players.length, s.maxPlayers)}
+            citiesKnights={s.citiesKnights}
+            onChange={(options) => set({ options })}
+          />
         )}
         {s.turnTimer > 0 && (
           <p className="muted">

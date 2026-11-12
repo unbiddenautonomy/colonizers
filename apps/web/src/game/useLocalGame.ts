@@ -169,5 +169,9 @@ export function actorOf(state: GameState, bots: Record<number, unknown> = {}): n
       .filter((s) => !bots[s]);
     return seats.length ? Math.min(...seats) : null;
   }
+  if (state.phase.id === 'specialBuild') {
+    const builder = (state.phase.queue as number[] | undefined)?.[0];
+    return builder === undefined || bots[builder] ? null : builder;
+  }
   return bots[state.turn.player] ? null : state.turn.player;
 }
