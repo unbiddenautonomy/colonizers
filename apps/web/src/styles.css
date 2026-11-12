@@ -1314,3 +1314,19 @@ button.danger {
   gap: 4px;
   flex-wrap: wrap;
 }
+
+.dice .event-card {
+  align-self: center;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.camel-bid {
+  align-items: center;
+  gap: 8px;
+}

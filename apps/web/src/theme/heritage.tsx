@@ -18,6 +18,7 @@ const PAINT = {
   lake: '#6b9cb8',
   fishingLake: '#5d93b3',
   swamp: '#6f7a4c',
+  oasis: '#dcc27c',
   hidden: '#6f6a5e',
 };
 

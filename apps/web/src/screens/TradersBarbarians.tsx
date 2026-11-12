@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import type { Action, Ctx } from '@colonizers/engine';
+import type { Action, Ctx, GameState } from '@colonizers/engine';
 import {
+  MAX_BID,
   FISH_COST,
   fishOf,
   goldOf,
@@ -11,7 +12,7 @@ import {
   GOLD_PER_RESOURCE,
   type FishUse,
 } from '@colonizers/module-traders-barbarians';
-import { harbormasterOf } from '@colonizers/module-variants';
+import { harbormasterOf, type EventId } from '@colonizers/module-variants';
 import { RESOURCE_ICON } from '../theme/clean.ts';
 import { Modal } from '../ui/Modal.tsx';
 
@@ -189,4 +190,130 @@ export function TbActions({
     );
   }
   return null;
+}
+
+export const EVENT_NAME: Record<EventId, string> = {
+  prospers: 'Good times',
+  robberAttacks: 'The robber strikes',
+  epidemic: 'Epidemic',
+  earthquake: 'Earthquake',
+  goodNeighbors: 'Good neighbours',
+  tournament: 'Tournament',
+  tradeAdvantage: 'Trade advantage',
+  calmSeas: 'Calm seas',
+  robberFlees: 'The robber flees',
+  neighborlyAssistance: 'Helping hand',
+  conflict: 'Conflict',
+  plentifulYear: 'Plentiful year',
+};
+
+const EVENT_ASK: Partial<Record<EventId, string>> = {
+  earthquake: 'tap one of your roads to be damaged by the earthquake.',
+  goodNeighbors: 'give one resource to the player on your left.',
+  tournament: 'most knights played: take a resource from the bank.',
+  calmSeas: 'most harbors: take a resource from the bank.',
+  neighborlyAssistance: 'give one resource to a player with fewer points.',
+  tradeAdvantage: 'take a random resource from a player of your choice.',
+  conflict: 'take a random resource from a player of your choice.',
+  plentifulYear: 'take a resource of your choice from the bank.',
+};
+
+/** The line at the top of the screen for this module's steps. */
+export function tbPrompt(state: GameState, who: string, actor: number | null): string | null {
+  const owed = (state.phase.owed as Record<number, number> | undefined)?.[actor ?? -1];
+  switch (state.phase.id) {
+    case 'camelVote':
+      return owed
+        ? `${who}: vote on the next camel. Set your wool and grain, then tap a glowing path.`
+        : 'Everyone is voting on where the next camel goes.';
+    case 'eventPick': {
+      const event = state.phase.event as EventId;
+      return owed
+        ? `${who}: ${EVENT_NAME[event]}: ${EVENT_ASK[event] ?? 'make your choice.'}`
+        : `${EVENT_NAME[event]}: waiting for players to choose.`;
+    }
+    default:
+      return null;
+  }
+}
+
+/** Wool and grain to put into the camel vote. */
+export function CamelBidPanel({
+  hand,
+  bid,
+  setBid,
+}: {
+  hand: Record<string, number>;
+  bid: { wool: number; grain: number };
+  setBid: (b: { wool: number; grain: number }) => void;
+}) {
+  const step = (card: 'wool' | 'grain', d: number) => {
+    const next = { ...bid, [card]: bid[card] + d };
+    if (next[card] < 0 || next[card] > (hand[card] ?? 0) || next.wool + next.grain > MAX_BID)
+      return;
+    setBid(next);
+  };
+  return (
+    <div className="row wrap camel-bid" aria-label="Your camel vote">
+      <span>🐪 Votes:</span>
+      {(['wool', 'grain'] as const).map((c) => (
+        <span key={c} className="row">
+          {RESOURCE_ICON[c]}
+          <button
+            type="button"
+            className="small"
+            onClick={() => step(c, -1)}
+            aria-label={`Less ${c}`}
+          >
+            −
+          </button>
+          <strong>{bid[c]}</strong>
+          <button
+            type="button"
+            className="small"
+            onClick={() => step(c, 1)}
+            aria-label={`More ${c}`}
+          >
+            +
+          </button>
+        </span>
+      ))}
+      <small className="muted">Up to {MAX_BID}; cards bid are spent either way.</small>
+    </div>
+  );
+}
+
+/** Choices for an event card that are not on the board. */
+export function EventPickDialog({
+  state,
+  legal,
+  act,
+  names,
+}: {
+  state: GameState;
+  legal: Action[];
+  act: (a: Action) => void;
+  names: string[];
+}) {
+  const picks = legal.filter((a) => a.type === 'eventPick' && typeof a.edge !== 'string');
+  if (state.phase.id !== 'eventPick' || !picks.length) return null;
+  const event = state.phase.event as EventId;
+  const label = (a: Action) => {
+    const res = typeof a.resource === 'string' ? (RESOURCE_ICON[a.resource] ?? a.resource) : '';
+    if (typeof a.to === 'number') return `${res} to ${names[a.to]}`;
+    if (typeof a.from === 'number') return names[a.from] ?? '';
+    return res;
+  };
+  return (
+    <Modal title={EVENT_NAME[event]}>
+      <p>{EVENT_ASK[event]}</p>
+      <div className="row wrap">
+        {picks.map((a, i) => (
+          <button key={i} type="button" onClick={() => act(a)}>
+            {label(a)}
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
 }

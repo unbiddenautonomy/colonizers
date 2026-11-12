@@ -8,6 +8,7 @@ export const tradersBarbariansRules: RulebookModule = {
     shoal: { name: 'Fishing ground', icon: '🐟' },
     fishingLake: { name: 'Fishing lake', icon: '🎣' },
     swamp: { name: 'Swamp', icon: '🪷' },
+    oasis: { name: 'Oasis', icon: '🌴' },
     river: { name: 'River', icon: '🌊' },
     bridge: { name: 'Bridge', icon: '🌉' },
   },
@@ -18,11 +19,12 @@ export const tradersBarbariansRules: RulebookModule = {
       section: 'map',
       title: 'Traders & Barbarians',
       summary: 'Scenarios that add one new idea each to the base game.',
-      tags: ['traders', 'barbarians', 'scenario', 'fishermen', 'rivers'],
+      tags: ['traders', 'barbarians', 'scenario', 'fishermen', 'rivers', 'caravans'],
       body: `Traders & Barbarians is a set of small scenarios. Each one keeps the base game and adds one idea. Pick one under **Traders & Barbarians** when you choose the map.
 
 - **Fishermen**: fishing grounds and a lake pay fish, which buy small favours.
 - **Rivers**: rivers cross the island, bridges cost extra, and gold decides who gains or loses points.
+- **Caravans**: camels leave an oasis; everyone votes on where they go.
 
 These scenarios use the base game only, so Cities & Knights is switched off for them. The house rules (and the Harbormaster bonus) still work. More scenarios from the box will follow.`,
     },
@@ -93,6 +95,33 @@ On your turn, after rolling, pay **2 gold** for one resource of your choice. You
 - The one player with the **most gold** gains **1 point**. A tie for the most means nobody has it.
 - Every player tied for the **least gold** loses **2 points**. If everyone has the same, everyone loses 2.
 - Both are checked all the time from the start of the first full turn, so spending gold can change them.`,
+    },
+    {
+      id: 'caravans',
+      module: 'traders-barbarians',
+      section: 'rules',
+      title: 'Caravans',
+      summary:
+        'Vote with wool and grain on where camels go; camels double roads and reward buildings.',
+      tags: ['caravan', 'camel', 'oasis', 'vote', 'wool', 'grain'],
+      body: `**The board**
+
+The oasis sits in the middle of the island in place of the desert, and the robber starts there. Three caravans set out from every other corner of the oasis.
+
+**When a camel moves**
+
+At the start of each new round, if anyone built a settlement or a city during the last round, everyone votes on one new camel. (Only one camel per round, however much was built.)
+
+- Starting with the player whose turn it is, each player picks a path and may put up to **3** wool and grain on it as votes. Cards you bid are spent, win or lose. You may also bid nothing.
+- The path with the most votes gets the camel. On a tie, the path chosen by the first voter wins if it is among the tied ones.
+- A camel always goes one step on from the head of a caravan. Caravans never loop back on themselves. If a caravan reaches another one, they join and it stops there.
+- There are **22** camels in all.
+
+**What camels do**
+
+- A road with a camel on it counts as **two** roads for Longest Road.
+- A settlement or city with camels on two or more of its paths is worth **1 extra point**.
+- You need **2 more points** to win than usual (12 with the default target).`,
     },
   ],
 };

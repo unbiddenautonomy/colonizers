@@ -66,7 +66,8 @@ While a trade offer is open, the partner waits until it is settled.`,
 - **Both starting settlements pay**: you get resources for both of your starting settlements, not just the second.
 - **Quiet start**: for the first few rounds a 7 does nothing: no discards and no robber.
 - **Discard limit**: when a 7 is rolled, players holding more than this many cards discard half.
-- **Harbormaster**: a 2-point bonus for building on harbors. See the Harbormaster page.`,
+- **Harbormaster**: a 2-point bonus for building on harbors. See the Harbormaster page.
+- **Event cards**: a deck of cards replaces the dice. See the Event cards page.`,
     },
     {
       id: 'harbormaster',
@@ -83,6 +84,32 @@ While a trade offer is open, the partner waits until it is settled.`,
 - If the holder drops below 3, the bonus goes back until someone qualifies again.
 
 The bonus makes games a little shorter, so you may want to raise the points to win by one.`,
+    },
+    {
+      id: 'event-cards',
+      module: 'variants',
+      section: 'rules',
+      title: 'Event cards',
+      summary: 'A deck of 36 cards replaces the dice, and many cards carry an event.',
+      tags: ['event', 'cards', 'dice', 'earthquake', 'epidemic', 'plentiful', 'tournament'],
+      body: `Instead of rolling, the player whose turn it is turns the top event card. Its number works like a dice roll: the 36 cards hold each total exactly as often as two dice would (one 2, two 3s, up to six 7s). When only 5 cards are left, the whole deck is shuffled again, so the end of the deck can't be counted.
+
+The event happens first, then the number produces as usual. Events that need a choice are made right after production.
+
+- **Good times** (16 cards): nothing extra happens.
+- **The robber strikes** (the six 7s): a normal 7.
+- **Epidemic** (6, 8): every city pays only 1 card this turn.
+- **Earthquake** (6): everyone picks one of their roads to be damaged. A damaged road still counts for Longest Road, but its owner can't buy new roads until they repair it (1 brick and 1 lumber), and nobody can build a settlement next to it. Free roads still work.
+- **Good neighbours** (6): everyone gives one resource of their choice to the player on their left.
+- **Tournament** (5): whoever has played the most knights takes a resource from the bank.
+- **Trade advantage** (5): the Longest Road holder (or whoever has the most roads, alone) takes a random resource from a player of their choice.
+- **Calm seas** (9, 12): whoever has buildings on the most harbors takes a resource from the bank.
+- **The robber flees** (two 4s): the robber goes back to the desert.
+- **Helping hand** (10, 11): the leaders in points each give one resource to a player with fewer points.
+- **Conflict** (3): whoever alone has played the most knights takes a random resource from a player of their choice.
+- **Plentiful year** (2): everyone takes a resource of their choice from the bank.
+
+Event cards can't be used with Cities & Knights, which has its own dice.`,
     },
   ],
 };

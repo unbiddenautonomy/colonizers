@@ -86,6 +86,8 @@ export interface Reducers {
   tradeRatio(ctx: Ctx, player: number, card: string, value: number): number;
   /** Victory points needed to win. */
   vpTarget(ctx: Ctx, value: number): number;
+  /** How much one route piece counts toward the longest route (normally 1). */
+  routeWeight(ctx: Ctx, piece: Piece, value: number): number;
 }
 
 export interface DiceResult {
