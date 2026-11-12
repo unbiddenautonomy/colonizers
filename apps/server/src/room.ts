@@ -5,7 +5,9 @@ import {
   type GameConfig,
   type GameEvent,
   type GameState,
+  Ctx,
 } from '@colonizers/engine';
+import { accounts, USER_HEADER } from './auth.ts';
 import type { Env } from './env.ts';
 import {
   cleanSettings,
@@ -36,10 +38,14 @@ interface Member {
   role: 'player' | 'spectator';
   seat: number | null;
   joined: number;
+  /** The account behind this seat, when the player is signed in. */
+  userId: string | null;
 }
 
 interface Attachment {
-  memberId: string;
+  memberId: string | null;
+  /** Signed-in account, from the Worker. */
+  userId?: string | null;
 }
 
 interface LiveGame {
@@ -90,9 +96,20 @@ export class GameRoom extends DurableObject<Env> {
         text TEXT NOT NULL,
         at INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS played (
+        game_id TEXT NOT NULL,
+        member TEXT NOT NULL,
+        seat INTEGER NOT NULL,
+        PRIMARY KEY (game_id, seat)
+      );
     `);
+    try {
+      this.sql.exec('ALTER TABLE members ADD COLUMN user_id TEXT');
+    } catch {
+      // Already there.
+    }
     for (const m of this.sql.exec<Member & Record<string, SqlStorageValue>>(
-      'SELECT id, token, name, role, seat, joined FROM members ORDER BY joined',
+      'SELECT id, token, name, role, seat, joined, user_id AS userId FROM members ORDER BY joined',
     )) {
       this.members.set(m.id, { ...m });
     }
@@ -119,6 +136,17 @@ export class GameRoom extends DurableObject<Env> {
     };
   }
 
+  /**
+   * A guest who signs in later: the seat behind this token joins their
+   * account, with every game it played here. Returns how many games moved.
+   */
+  async claim(token: string, userId: string): Promise<number> {
+    if (!this.getMeta('code')) return 0;
+    const member = [...this.members.values()].find((m) => m.token === token);
+    if (!member || (member.userId && member.userId !== userId)) return 0;
+    return this.linkUser(member, userId);
+  }
+
   override async fetch(request: Request): Promise<Response> {
     if (!this.getMeta('code')) return Response.json({ error: 'Room not found' }, { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') {
@@ -127,6 +155,10 @@ export class GameRoom extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server);
+    server.serializeAttachment({
+      memberId: null,
+      userId: request.headers.get(USER_HEADER),
+    } satisfies Attachment);
     // The client says who it is in its first message ("hello").
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -175,7 +207,13 @@ export class GameRoom extends DurableObject<Env> {
   // ---- Messages ----
 
   private hello(ws: WebSocket, token: string, name: string): void {
-    let member = [...this.members.values()].find((m) => m.token === token);
+    const userId = (ws.deserializeAttachment() as Attachment | null)?.userId ?? null;
+    const all = [...this.members.values()];
+    // A signed-in player gets their seat on any device; otherwise the device token decides.
+    let member =
+      (userId ? all.find((m) => m.userId === userId) : undefined) ??
+      all.find((m) => m.token === token);
+    if (member && userId && !member.userId) this.linkUser(member, userId);
     if (!member) {
       const room = this.status === 'lobby' && this.players().length < this.settings.maxPlayers;
       member = {
@@ -185,22 +223,24 @@ export class GameRoom extends DurableObject<Env> {
         role: room ? 'player' : 'spectator',
         seat: null,
         joined: Date.now(),
+        userId,
       };
       this.members.set(member.id, member);
       this.sql.exec(
-        'INSERT INTO members (id, token, name, role, seat, joined) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO members (id, token, name, role, seat, joined, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
         member.id,
         token,
         name,
         member.role,
         null,
         member.joined,
+        userId,
       );
       if (!this.getMeta('host')) this.setMeta('host', member.id);
     } else if (this.status === 'lobby' && member.name !== name) {
       this.rename(member, name);
     }
-    ws.serializeAttachment({ memberId: member.id } satisfies Attachment);
+    ws.serializeAttachment({ memberId: member.id, userId } satisfies Attachment);
     this.sendWelcome(ws);
     this.broadcastRoom();
   }
@@ -283,6 +323,24 @@ export class GameRoom extends DurableObject<Env> {
     this.sql.exec('DELETE FROM actions');
     this.setMeta('config', JSON.stringify(config));
     this.setMeta('status', 'playing');
+    const gameId = `${this.getMeta('code') ?? 'room'}-${seed.slice(0, 8)}`;
+    this.setMeta('gameId', gameId);
+    order.forEach((m, seat) =>
+      this.sql.exec(
+        'INSERT OR REPLACE INTO played (game_id, member, seat) VALUES (?, ?, ?)',
+        gameId,
+        m.id,
+        seat,
+      ),
+    );
+    this.background(
+      accounts(this.env).recordGame({
+        id: gameId,
+        room: this.getMeta('code') ?? '',
+        modules: config.modules,
+        players: order.map((m, seat) => ({ seat, name: m.name, userId: m.userId })),
+      }),
+    );
     this.game = null;
     this.load();
     this.updateTimer();
@@ -323,6 +381,12 @@ export class GameRoom extends DurableObject<Env> {
     if (game.log.length > LOG_KEPT) game.log.splice(0, game.log.length - LOG_KEPT);
     this.broadcastGame(entries);
     if (r.state.winner !== null) {
+      const gameId = this.getMeta('gameId');
+      if (gameId) {
+        const ctx = new Ctx(r.state, library.registry(r.state.modules));
+        const vp = r.state.players.map((_, seat) => ctx.vp(seat));
+        this.background(accounts(this.env).finishGame(gameId, r.state.winner, vp));
+      }
       this.setMeta('status', 'finished');
       this.broadcastRoom();
     }
@@ -344,6 +408,26 @@ export class GameRoom extends DurableObject<Env> {
     }
     void this.ctx.storage.deleteAlarm();
     this.sendWelcomeToAll();
+  }
+
+  /** Ties a seat to an account, including the games it already played here. */
+  private linkUser(member: Member, userId: string): number {
+    member.userId = userId;
+    this.sql.exec('UPDATE members SET user_id = ? WHERE id = ?', userId, member.id);
+    const games = this.sql
+      .exec<{ game_id: string; seat: number }>(
+        'SELECT game_id, seat FROM played WHERE member = ?',
+        member.id,
+      )
+      .toArray();
+    for (const g of games)
+      this.background(accounts(this.env).attachPlayer(g.game_id, g.seat, userId));
+    return games.length;
+  }
+
+  /** Account bookkeeping must never break the game, so failures are only logged. */
+  private background(work: Promise<unknown>): void {
+    this.ctx.waitUntil(work.catch((e: unknown) => console.error('Accounts call failed', e)));
   }
 
   private rename(member: Member, name: string): void {
@@ -545,7 +629,7 @@ export class GameRoom extends DurableObject<Env> {
 
   private memberOf(ws: WebSocket): Member | null {
     const att = ws.deserializeAttachment() as Attachment | null;
-    return att ? (this.members.get(att.memberId) ?? null) : null;
+    return att?.memberId ? (this.members.get(att.memberId) ?? null) : null;
   }
 
   private players(): Member[] {

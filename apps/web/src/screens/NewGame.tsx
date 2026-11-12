@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   analyzeMap,
   generateBoard,
@@ -34,7 +34,9 @@ export function NewGame({
   canResume,
   onRules,
   onOnline,
+  account,
 }: {
+  account?: ReactNode;
   onOnline: (code: string) => void;
   onStart: (g: SavedGame) => void;
   onResume: () => void;
@@ -112,6 +114,7 @@ export function NewGame({
   return (
     <main className="setup-page">
       <header>
+        {account}
         <h1>Colonizers</h1>
         <p className="muted">Play online with friends, or on one device passed around the table.</p>
         <div className="row">

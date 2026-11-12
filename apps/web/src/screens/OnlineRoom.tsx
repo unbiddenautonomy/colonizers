@@ -22,13 +22,14 @@ import { Chat } from '../ui/Chat.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
 import { Game } from './Game.tsx';
+import { currentUser } from '../online/account.ts';
 
 type Room = ReturnType<typeof useOnlineRoom>;
 
 export function OnlineRoom({ code, onHome }: { code: string; onHome: () => void }) {
   const [name, setName] = useState(() => {
     adoptSeatFromUrl(code);
-    return savedName();
+    return savedName() || currentUser()?.name || '';
   });
   if (!name) {
     return <NamePrompt code={code} onName={(n) => (saveName(n), setName(n))} onHome={onHome} />;

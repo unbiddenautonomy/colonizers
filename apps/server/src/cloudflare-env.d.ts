@@ -3,9 +3,14 @@
 declare namespace Cloudflare {
   interface GlobalProps {
     mainModule: typeof import('./index.ts');
-    durableNamespaces: 'GameRoom';
+    durableNamespaces: 'GameRoom' | 'Accounts';
   }
   interface Env {
     ROOMS: DurableObjectNamespace<import('./room.ts').GameRoom>;
+    ACCOUNTS: DurableObjectNamespace<import('./accounts.ts').Accounts>;
+    GOOGLE_CLIENT_ID?: string;
+    GOOGLE_CLIENT_SECRET?: string;
+    RESEND_API_KEY?: string;
+    EMAIL_FROM?: string;
   }
 }
