@@ -77,7 +77,15 @@ export function ckPrompt(state: GameState, who: string, actor: number | null): s
     case 'smith':
       return `${who}: promote up to ${state.phase.remaining as number} knight(s) for free.`;
     case 'commercialHarbor':
+      if (state.phase.pending !== undefined)
+        return owed
+          ? `${who}: you were given a resource. Pick a commodity to give back.`
+          : 'Waiting for them to pick a commodity to give back.';
       return `${who}: offer resources for commodities.`;
+    case 'progressDiscard':
+      return owed
+        ? `${who}: you hold too many progress cards. Put one back under its deck.`
+        : 'Waiting for a player to put back a progress card.';
     case 'masterMerchant':
       return `${who}: take ${state.phase.take as number} card(s).`;
     case 'placeMerchant':
@@ -117,6 +125,10 @@ export function optionLabel(a: Action, names: string[]): string {
       return card(a.card);
     case 'harborSwap':
       return `Give ${n(a.with)} ${card(a.give)}`;
+    case 'harborGive':
+      return card(a.commodity);
+    case 'returnProgress':
+      return card(a.card);
     case 'takeProgress':
       return card(a.card);
     case 'playProgress':
@@ -397,10 +409,22 @@ export function CkChoices({
         'You got nothing this roll. Take any one resource.',
       );
     case 'commercialHarbor':
+      if (state.phase.pending !== undefined)
+        return list(
+          ['harborGive'],
+          'Commercial Harbor',
+          `${names[state.turn.player] ?? 'A player'} gave you a resource. Pick a commodity to give back.`,
+        );
       return list(
         ['harborSwap', 'ckDone'],
         'Commercial Harbor',
-        'Give a player one resource; they give you one of their commodities.',
+        'Give a player one resource; they pick one of their commodities to give you.',
+      );
+    case 'progressDiscard':
+      return list(
+        ['returnProgress'],
+        'Too many progress cards',
+        'You may hold 4 progress cards (points cards do not count). Pick one to put back under its deck.',
       );
     case 'spy':
       return list(['takeProgress', 'ckDone'], 'Spy', 'Their progress cards. Take one, or none.');

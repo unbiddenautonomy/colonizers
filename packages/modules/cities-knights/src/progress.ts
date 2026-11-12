@@ -465,12 +465,14 @@ const back = (ctx: Ctx) => ctx.setPhase(phase<Step>(ctx).returnTo);
 /** Ends an optional step (Smith, Commercial Harbor, Spy, a deserter with nowhere to stand). */
 const ckDone = action<object>({
   phases: ['smith', 'commercialHarbor', 'spy', 'placeDeserter'],
-  check: onlyActive,
+  check: (ctx, a) =>
+    onlyActive(ctx, a) ?? (harborWaiting(ctx) ? 'Wait for them to pick a commodity' : null),
   apply(ctx) {
     ckData(ctx).peek = null;
     back(ctx);
   },
-  enumerate: (ctx, player) => (player === ctx.active ? [{ type: 'ckDone', player }] : []),
+  enumerate: (ctx, player) =>
+    player === ctx.active && !harborWaiting(ctx) ? [{ type: 'ckDone', player }] : [],
 });
 
 const placeFreeWall = action<{ corner: CornerId }>({
@@ -577,11 +579,24 @@ const smithPromote = action<{ knight: string }>({
   },
 });
 
+interface HarborPhase extends Step {
+  left: number[];
+  /** The opponent who has been given a resource and now picks a commodity. */
+  pending?: number;
+  owed?: Record<number, number>;
+}
+
+const harborWaiting = (ctx: Ctx) => ctx.state.phase.pending !== undefined;
+const hasCommodity = (ctx: Ctx, seat: number) =>
+  COMMODITIES.some((c) => (ctx.player(seat).hand[c] ?? 0) > 0);
+
+/** Commercial Harbor, step 1: hand one resource to an opponent. */
 const harborSwap = action<{ with: number; give: string }>({
   phases: ['commercialHarbor'],
   check(ctx, a) {
     const err = onlyActive(ctx, a);
     if (err) return err;
+    if (harborWaiting(ctx)) return 'Wait for them to pick a commodity';
     const left = ctx.state.phase.left as number[];
     if (!left.includes(a.with)) return 'Pick a player you have not traded with';
     if (typeof a.give !== 'string' || !isResource(a.give)) return 'Offer a resource';
@@ -589,33 +604,73 @@ const harborSwap = action<{ with: number; give: string }>({
     return null;
   },
   apply(ctx, a) {
-    const ph = phase<Step & { left: number[] }>(ctx);
-    const theirs = COMMODITIES.flatMap((c) =>
-      Array<string>(ctx.player(a.with).hand[c] ?? 0).fill(c),
-    );
-    const got = theirs[ctx.rng.int(0, theirs.length - 1)] as string;
+    const ph = phase<HarborPhase>(ctx);
     ctx.transfer(a.player, a.with, { [a.give]: 1 });
-    ctx.transfer(a.with, a.player, { [got]: 1 });
     ctx.emit({
-      type: 'harborSwap',
+      type: 'harborGave',
       player: a.player,
       with: a.with,
       gave: { [a.give]: 1 },
-      got: { [got]: 1 },
       visibleTo: [a.player, a.with],
       redacted: { player: a.player, with: a.with },
     });
-    const left = ph.left.filter((s) => s !== a.with);
-    const canGive = RESOURCES.some((r) => (ctx.player(a.player).hand[r] ?? 0) > 0);
-    if (left.length && canGive) ctx.setPhase({ ...ph, left });
+    ctx.setPhase({
+      ...ph,
+      left: ph.left.filter((s) => s !== a.with),
+      pending: a.with,
+      owed: { [a.with]: 1 },
+      step: `give-${a.with}`,
+    });
+  },
+  enumerate(ctx, player) {
+    if (player !== ctx.active || harborWaiting(ctx)) return [];
+    // Only the public list: the active player cannot see who holds what.
+    const left = ctx.state.phase.left as number[];
+    return left.flatMap((w) =>
+      RESOURCES.filter((give) => ctx.has(player, { [give]: 1 })).map((give) => ({
+        type: 'harborSwap',
+        player,
+        with: w,
+        give,
+      })),
+    );
+  },
+});
+
+/** Commercial Harbor, step 2: the opponent picks which commodity to give back. */
+const harborGive = action<{ commodity: string }>({
+  phases: ['commercialHarbor'],
+  check(ctx, a) {
+    if (ctx.state.phase.pending !== a.player) return 'Nobody asked you for a commodity';
+    if (!(COMMODITIES as readonly string[]).includes(a.commodity)) return 'Pick a commodity';
+    if (!ctx.has(a.player, { [a.commodity]: 1 })) return 'You do not have that commodity';
+    return null;
+  },
+  apply(ctx, a) {
+    const ph = phase<HarborPhase>(ctx);
+    const to = ctx.active;
+    ctx.transfer(a.player, to, { [a.commodity]: 1 });
+    ctx.emit({
+      type: 'harborSwap',
+      player: to,
+      with: a.player,
+      got: { [a.commodity]: 1 },
+      visibleTo: [to, a.player],
+      redacted: { player: to, with: a.player },
+    });
+    const left = ph.left.filter((s) => hasCommodity(ctx, s));
+    const canGive = RESOURCES.some((r) => (ctx.player(to).hand[r] ?? 0) > 0);
+    if (left.length && canGive)
+      ctx.setPhase({ id: 'commercialHarbor', left, returnTo: ph.returnTo });
     else ctx.setPhase(ph.returnTo);
   },
   enumerate(ctx, player) {
-    if (player !== ctx.active) return [];
-    const left = ctx.state.phase.left as number[];
-    return left.flatMap((w) =>
-      RESOURCES.map((give) => ({ type: 'harborSwap', player, with: w, give })),
-    );
+    if (ctx.state.phase.pending !== player) return [];
+    return COMMODITIES.filter((c) => ctx.has(player, { [c]: 1 })).map((commodity) => ({
+      type: 'harborGive',
+      player,
+      commodity,
+    }));
   },
 });
 
@@ -913,6 +968,7 @@ export const progressActions: Record<string, ActionDef> = {
   medicineCity,
   smithPromote,
   harborSwap,
+  harborGive,
   takeCards,
   takeProgress,
   merchantHex,

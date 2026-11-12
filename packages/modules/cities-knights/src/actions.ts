@@ -16,6 +16,7 @@ import {
   displaceTargets,
   drawProgress,
   freeCities,
+  progressHeld,
   improveBlock,
   improveCost,
   isActive,
@@ -437,6 +438,53 @@ const pickDefenderCard = action<{ deck: Track }>({
   },
 });
 
+interface ProgressDiscardPhase extends OwedPhase {
+  returnTo: Phase;
+}
+
+/** Over the limit of 4 progress cards: put one back under its deck. */
+const returnProgress = action<{ deck: Track; card: string }>({
+  phases: ['progressDiscard'],
+  check(ctx, a) {
+    if (!owes(ctx, a.player)) return 'You have nothing to put back';
+    if (!isTrack(a.deck)) return 'Pick a card';
+    const held = ctx.player(a.player).held[a.deck] ?? [];
+    if (!held.some((h) => h.card === a.card)) return 'You do not hold that card';
+    return null;
+  },
+  apply(ctx, a) {
+    const ph = phase<ProgressDiscardPhase>(ctx);
+    const held = ctx.player(a.player).held[a.deck] ?? [];
+    held.splice(
+      held.findIndex((h) => h.card === a.card),
+      1,
+    );
+    (ctx.state.decks[a.deck] ??= []).push(a.card);
+    ctx.emit({
+      type: 'progressReturned',
+      player: a.player,
+      deck: a.deck,
+      card: a.card,
+      visibleTo: [a.player],
+      redacted: { player: a.player, deck: a.deck },
+    });
+    const owed = { ...ph.owed };
+    owed[a.player] = (owed[a.player] ?? 1) - 1;
+    if (owed[a.player]! <= 0) delete owed[a.player];
+    if (Object.keys(owed).length) ctx.setPhase({ ...ph, owed });
+    else ctx.setPhase(ph.returnTo);
+  },
+  enumerate(ctx, player) {
+    if (!owes(ctx, player)) return [];
+    const seen = new Set<string>();
+    return progressHeld(ctx, player).flatMap(({ card, deck }) => {
+      if (seen.has(`${deck}:${card}`)) return [];
+      seen.add(`${deck}:${card}`);
+      return [{ type: 'returnProgress', player, deck, card }];
+    });
+  },
+});
+
 interface AqueductPhase extends OwedPhase {
   returnTo: Phase;
 }
@@ -474,6 +522,7 @@ export const knightActions: Record<string, ActionDef> = {
   placeMetropolis,
   pillageCity,
   pickDefenderCard,
+  returnProgress,
   aqueductPick,
 };
 

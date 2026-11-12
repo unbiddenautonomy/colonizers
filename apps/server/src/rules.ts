@@ -99,6 +99,8 @@ const SAFE_ORDER = [
   'pickGold',
   'pillageCity',
   'pickDefenderCard',
+  'returnProgress',
+  'harborGive',
   'aqueductPick',
   'placeMetropolis',
   'relocateKnight',

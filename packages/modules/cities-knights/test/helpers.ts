@@ -122,7 +122,8 @@ export function checkInvariants(state: GameState): void {
       (s, t) => s + (p.held[t]?.length ?? 0),
       0,
     );
-    if (progress > 4) throw new Error('Too many progress cards');
+    if (progress > 4 && state.phase.id !== 'progressDiscard')
+      throw new Error('Too many progress cards');
   }
   const corners = Object.values(state.pieces).filter((p) => p.at.kind === 'corner');
   if (new Set(corners.map((p) => (p.at as { id: string }).id)).size !== corners.length)
