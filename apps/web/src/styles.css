@@ -1010,11 +1010,11 @@ form.inline {
   border-width: 2px;
   font-size: 0.85rem;
 }
-.die-red {
+.die.die-red {
   background: #c0392b;
   color: #fff;
 }
-.die-yellow {
+.die.die-yellow {
   background: #f1c40f;
   color: #1d2321;
 }
@@ -1329,4 +1329,102 @@ button.danger {
 .camel-bid {
   align-items: center;
   gap: 8px;
+}
+
+/* ---------- 3D dice ---------- */
+
+.dice {
+  perspective: 600px;
+  align-items: center;
+}
+.die3d {
+  --size: 44px;
+  --half: 22px;
+  width: var(--size);
+  height: var(--size);
+  position: relative;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.35));
+}
+.die-cube {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+}
+.die-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  background: var(--die-bg, #fbfaf6);
+  color: var(--die-ink, #1d2321);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08),
+    inset -3px -4px 8px rgba(0, 0, 0, 0.12);
+}
+.die-face .die-pips {
+  width: 74%;
+  height: 74%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  place-items: center;
+}
+.die-face .pip {
+  width: calc(var(--size) * 0.17);
+  height: calc(var(--size) * 0.17);
+  border-radius: 50%;
+  background: var(--die-pip, #1d2321);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+.die-face .pip.off {
+  visibility: hidden;
+}
+.die-label {
+  font-weight: 800;
+  font-size: 1.35rem;
+  color: var(--die-pip, #1d2321);
+}
+
+/* Skins */
+.skin-wood {
+  --die-bg: linear-gradient(135deg, #c99a62, #a8743d 60%, #8b5e2f);
+  --die-pip: #3a2414;
+}
+.skin-marble {
+  --die-bg: radial-gradient(circle at 30% 25%, #ffffff, #e7e4ef 45%, #c9c3d6);
+  --die-pip: #2c2a4a;
+}
+.skin-neon {
+  --die-bg: #12131f;
+  --die-pip: #39ffd2;
+}
+.skin-neon .die-face {
+  box-shadow:
+    inset 0 0 0 2px #39ffd2,
+    0 0 10px rgba(57, 255, 210, 0.55);
+}
+.skin-neon .pip {
+  box-shadow: 0 0 6px #39ffd2;
+}
+.skin-numbers {
+  --die-bg: #fbfaf6;
+  --die-pip: #1d2321;
+}
+/* Cities & Knights dice keep their colours whatever the skin. */
+.die3d.die-red {
+  --die-bg: #c0392b;
+  --die-pip: #fff;
+}
+.die3d.die-yellow {
+  --die-bg: #f1c40f;
+  --die-pip: #1d2321;
+}
+.die3d.die-event {
+  --die-bg: #f5efe2;
+}
+.die3d .die-face .die-label {
+  font-size: 1.25rem;
 }
