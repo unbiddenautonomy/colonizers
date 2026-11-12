@@ -68,6 +68,7 @@ export const cleanTheme: Theme = {
     fishingLake: '#6fb3dc',
     swamp: '#7d8a5a',
     oasis: '#e6cf8b',
+    castle: '#b7a99a',
   },
   terrainIcon: {
     forest: '🌲',
@@ -82,6 +83,7 @@ export const cleanTheme: Theme = {
     fishingLake: '🎣',
     swamp: '🪷',
     oasis: '🌴',
+    castle: '🏰',
     hidden: '🌫️',
   },
   sea: '#4f9bd1',

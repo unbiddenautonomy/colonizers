@@ -35,6 +35,7 @@ export const nightMarketTheme: Theme = {
     fishingLake: '#1d5f8a',
     swamp: '#34402a',
     oasis: '#6b5a2e',
+    castle: '#4b4652',
   },
   sea: '#0b1630',
   seaEdge: '#1a2a52',

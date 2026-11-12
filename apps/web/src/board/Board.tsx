@@ -210,6 +210,13 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const color = (seat: number | null) =>
     seat === null ? '#444' : (theme.players[seat]?.color ?? '#999');
   const robberHex = pieces.find((p) => p.type === 'robber')?.at;
+  const tb = state.data['traders-barbarians'] as
+    | {
+        barbarians?: Record<string, number>;
+        knights?: { id: string; owner: number; edge: EdgeId }[];
+      }
+    | undefined;
+  const barbarians = tb?.barbarians ?? {};
   const pirateHex = pieces.find((p) => p.type === 'pirate')?.at;
 
   return (
@@ -316,7 +323,17 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 {theme.terrainIcon[type]}
               </text>
             )}
-            {h.token && !fog && (
+            {(barbarians[h.id] ?? 0) >= 3 && (
+              <polygon
+                points={hexPoints(h.q, h.r)}
+                fill="#2b1d14"
+                opacity={0.45}
+                pointerEvents="none"
+              >
+                <title>Held by barbarians: no production, and no building next to it</title>
+              </polygon>
+            )}
+            {h.token && !fog && (barbarians[h.id] ?? 0) < 3 && (
               <g className={rolled === h.token ? 'token hot' : 'token'}>
                 <circle
                   cx={c.x}
@@ -500,6 +517,67 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           >
             🐪<title>Camel: a road here counts double</title>
           </text>
+        );
+      })}
+
+      {Object.entries(barbarians).map(([id, n]) => {
+        const h = state.hexes[id as HexId];
+        if (!h || n <= 0) return null;
+        const c = hexToPixel(h.q, h.r, S);
+        return (
+          <g key={`barb-${id}`} className="barbarians" filter="url(#lift)">
+            <circle
+              cx={c.x}
+              cy={c.y + S * 0.52}
+              r={S * 0.17}
+              fill={n >= 3 ? '#7a1f12' : '#3b2a20'}
+              stroke="#f1e3c8"
+              strokeWidth={2}
+            />
+            <text
+              x={c.x}
+              y={c.y + S * 0.59}
+              textAnchor="middle"
+              fontSize={S * 0.2}
+              fill="#f1e3c8"
+              fontWeight={700}
+              pointerEvents="none"
+            >
+              {n}
+            </text>
+            <title>
+              {n} barbarian{n === 1 ? '' : 's'}
+              {n >= 3 ? ': this hex is held' : ''}
+            </title>
+          </g>
+        );
+      })}
+
+      {(tb?.knights ?? []).map((k) => {
+        const [a, b] = edgeEnds(k.edge, g);
+        const x = (a.x + b.x) / 2;
+        const y = (a.y + b.y) / 2;
+        const r = S * 0.16;
+        return (
+          <g key={`knight-${k.id}`} className="tb-knight" filter="url(#lift)">
+            <path
+              d={`M${x - r},${y - r} h${2 * r} v${r * 0.9} q0,${r * 0.8} ${-r},${r * 1.2} q${-r},${-r * 0.4} ${-r},${-r * 1.2} z`}
+              fill={color(k.owner)}
+              stroke={theme.outline}
+              strokeWidth={2}
+            />
+            <text
+              x={x}
+              y={y + r * 0.45}
+              textAnchor="middle"
+              fontSize={r * 1.3}
+              fill="#fff"
+              pointerEvents="none"
+            >
+              ♞
+            </text>
+            <title>Knight</title>
+          </g>
         );
       })}
 

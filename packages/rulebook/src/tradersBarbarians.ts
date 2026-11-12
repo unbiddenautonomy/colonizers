@@ -9,6 +9,7 @@ export const tradersBarbariansRules: RulebookModule = {
     fishingLake: { name: 'Fishing lake', icon: '🎣' },
     swamp: { name: 'Swamp', icon: '🪷' },
     oasis: { name: 'Oasis', icon: '🌴' },
+    castle: { name: 'Castle', icon: '🏰' },
     river: { name: 'River', icon: '🌊' },
     bridge: { name: 'Bridge', icon: '🌉' },
   },
@@ -19,12 +20,21 @@ export const tradersBarbariansRules: RulebookModule = {
       section: 'map',
       title: 'Traders & Barbarians',
       summary: 'Scenarios that add one new idea each to the base game.',
-      tags: ['traders', 'barbarians', 'scenario', 'fishermen', 'rivers', 'caravans'],
+      tags: [
+        'traders',
+        'barbarians',
+        'scenario',
+        'fishermen',
+        'rivers',
+        'caravans',
+        'barbarian attack',
+      ],
       body: `Traders & Barbarians is a set of small scenarios. Each one keeps the base game and adds one idea. Pick one under **Traders & Barbarians** when you choose the map.
 
 - **Fishermen**: fishing grounds and a lake pay fish, which buy small favours.
 - **Rivers**: rivers cross the island, bridges cost extra, and gold decides who gains or loses points.
 - **Caravans**: camels leave an oasis; everyone votes on where they go.
+- **Barbarian Attack**: barbarians land on the coast; knights from the castle fight them.
 
 These scenarios use the base game only, so Cities & Knights is switched off for them. The house rules (and the Harbormaster bonus) still work. More scenarios from the box will follow.`,
     },
@@ -122,6 +132,55 @@ At the start of each new round, if anyone built a settlement or a city during th
 - A road with a camel on it counts as **two** roads for Longest Road.
 - A settlement or city with camels on two or more of its paths is worth **1 extra point**.
 - You need **2 more points** to win than usual (12 with the default target).`,
+    },
+    {
+      id: 'barbarian-attack',
+      module: 'traders-barbarians',
+      section: 'rules',
+      title: 'Barbarian Attack',
+      summary:
+        'Barbarians land on the coast and take hexes; knights fight them for prisoners and gold.',
+      tags: [
+        'barbarian',
+        'barbarians',
+        'knight',
+        'knights',
+        'castle',
+        'prisoner',
+        'prisoners',
+        'gold',
+        'conquered',
+      ],
+      body: `**The board**
+
+A castle stands in the middle of the island. There is **no robber** and **no Largest Army**. Your second starting settlement goes down as a **city**. One barbarian already waits on the coastal hex with the 2 and one on the 12.
+
+**Barbarians land**
+
+Each time anyone builds a settlement or a city, the barbarians roll for three different numbers (never 7). One barbarian lands on every coastal hex showing one of those numbers.
+
+- A hex with **3** barbarians is **held**. It produces nothing, nobody can build on its paths or corners, and no more barbarians land there.
+- A settlement or city that touches only held land is cut off: it is worth no points and its harbor can't be used until the land is freed.
+- A 7 still makes big hands discard, but nothing else happens.
+
+**Knights**
+
+- Playing a **Knight** card puts one of your knights on a free path leading away from the castle (you have **6**). It doesn't move a robber or count for Largest Army.
+- On your turn, each knight may move once: up to **3** steps along the paths, or up to **5** for 1 grain. Knights pass over anything, but must stop on a free path that isn't one of the castle's own sides.
+
+**Fights**
+
+At the end of each turn, knights on the six paths around a hex fight the barbarians there if the knights outnumber them.
+
+- The barbarians are captured. Every player with a knight there takes one prisoner while they last, and the player with the most knights there takes any left over (a tie is settled by a roll; the others tied get 3 gold). A player left without a prisoner gets 3 gold.
+- Then a die picks one direction of path. Your knights on those paths of the hex are lost, and you get **3 gold** for each.
+- Every **2 prisoners** are worth **1 point**.
+
+**Gold**
+
+2 gold buys one resource from the bank, up to twice a turn.
+
+This is our own version of the scenario: Knight cards stand in for the box's own development cards, and new knights start just outside the castle.`,
     },
   ],
 };
