@@ -101,6 +101,20 @@ These are the online options Colonist is known for. We'll check their current lo
 - **Balanced dice**: a shuffled "deck" of all 36 outcomes, reshuffled when 5–10 cards remain, with a mild penalty on numbers rolled very recently. Seeded and auditable.
 - **VP target** (10 by default), **discard limit** (7 by default), **turn timer** with a time bank, **hide bank card counts**, **visible hand sizes**, and a **trade offer board** where others accept, decline or counter.
 
+**Defaults per game type** (phase 14). Every setting starts at the right value for the map and expansions picked, and resets when the host changes them. Settings the host changed by hand are kept and marked, with a "Reset to defaults" button. Examples:
+- Base game: 10 points. Cities & Knights: 13. Seafarers and Traders & Barbarians scenarios: the scenario's own target (e.g. 12 for Caravans, 13 for the main Traders & Barbarians scenario).
+- 5–8 players: the Special Building Phase or paired turns switch on by default.
+- Options a game type can't use are hidden, not just greyed out. For example, the friendly robber is hidden when there is no robber, and event cards are hidden with Cities & Knights.
+
+**The Rules card in the lobby** (phase 14) shows every option grouped and open, instead of one Cities & Knights tick box and a closed "Options and house rules" list:
+- **Expansions**: Seafarers, Cities & Knights and Traders & Barbarians as cards. Each says what it adds and which maps it works with.
+- **Game**: points to win, discard limit, turn style.
+- **Robber and dice**: friendly robber, balanced dice or event cards, quiet start.
+- **Trading and cards**: gifts, both starting settlements pay, Harbormaster.
+- **Timer**: turn timer and time bank.
+- A one-line summary of everything that differs from the standard rules, so the host can check it at a glance.
+- The options still missing from section 1.4 and 1.5 are added here as they're built: time bank, hidden bank counts, trading between any players, 2-player neutral pieces, and the robber going back to the desert.
+
 ### 1.5 House rules as switches
 
 - No robber for the first N rounds.
@@ -307,6 +321,8 @@ Algorithm: seeded generation → reject until the hard rules pass → swap pairs
 
 **Fairness report** (any mode): pips per resource, best starting spots, an A/B/C grade, a Reroll button, and Lock board.
 
+From phase 14, the grade, pips and starting-spot numbers under the seed are shown **only to admins**: they spoil the board for players and read as noise. Everyone else sees the map name, its one-line description, the seed and Reroll. Admins are set by a server setting (a list of admin account emails), and the client asks the server whether the signed-in account is an admin.
+
 ### 3.4 Seafarers map generation
 
 Sea boards need more rules than land boards.
@@ -385,6 +401,7 @@ This list is the acceptance test for the core. The base game ships only once the
 - **Stats**: games, wins, win rate by seat and by map, average VP, records, favorite resource, dice luck (expected vs actual production).
 - **Achievements** (examples): first win; win from the last seat; win with no ore; longest road of 12+; 5 knights in a game; Monopoly for 6+ cards; win on every special map; defend Catan from barbarians 3 times; settle 4 islands in one game; beat a Hard bot. Achievements are computed on the server from the game log, so they can't be faked and new ones back-fill from old games.
 - **History and replays**: step through any finished game.
+- **Admins** (phase 14): accounts listed in a server setting. Admins see developer details, such as the fairness report and the map seed's numbers. Nobody else does.
 
 ---
 
@@ -463,6 +480,21 @@ Bots fill empty seats, give practice games, and let one person play alone.
 **Layout**
 - Desktop: board in the center, player panels along the side (VP, card count, development cards, knights, longest road), your hand at the bottom, actions bottom right, log and chat in a side panel.
 - Phone (portrait): board on top with pinch-zoom, compact player strip (fits 8), hand and actions in a bottom sheet.
+
+**Where we are and what changes (phase 14).** Today there is one layout that stacks into a column on narrow screens. On a phone, the actions and your hand end up below the board, so you scroll for every move, and the top bar loses its menu. Phase 14 builds a separate layout for each kind of device:
+- **Phone, portrait**:
+  - A slim top bar with the turn prompt, dice and a menu.
+  - A compact player strip that swipes sideways and fits 8.
+  - The board fills the rest, with pinch-zoom, pan and a fit-to-screen button.
+  - A fixed bottom bar with the 3–4 moves that make sense right now (roll, build, trade, end turn). Your hand slides up from it as a drawer.
+  - Log, chat and the rulebook open as full-height sheets.
+- **Phone, landscape**: the board on the left, and a narrow column on the right with the players, your hand and the action bar.
+- **Tablet**: the desktop layout with bigger touch targets, and the side panels can collapse.
+- **Desktop**:
+  - The board as large as the window allows.
+  - Players on the left, and the hand, actions, log and chat on the right, with no page scroll.
+  - Hover tooltips on hexes and pieces, and keyboard shortcuts (R roll, B build, T trade, E end turn, Esc cancel).
+- Each layout is checked with screenshots at 390×844, 844×390, 820×1180 and 1440×900 before it ships.
 - Expansion panels slot in: C&K improvement chart and barbarian track, Seafarers ship counter, mission boards.
 - Trades in their own sheet: drag cards into "give" and "get", see each player's answer live.
 - A **?** button in the corner opens the rulebook (section 9) at any time.
@@ -471,6 +503,15 @@ Bots fill empty seats, give practice games, and let one person play alone.
 - SVG rendering (crisp at any zoom, easy to theme). PixiJS only if performance needs it.
 - Number tokens with pips, 6 and 8 highlighted.
 - Dice animation, gentle sounds (toggleable), haptics on phones, light and dark mode.
+
+**Motion (phase 14).** Every change on the board gets a short animation, so you can see what happened without reading the log. Animations take 150–600 ms, never block your next tap, and are skipped with reduced motion. A setting picks Normal, Fast or Off.
+- **Dice**: the dice tumble across the board area with real spin and bounce for about 0.8 s, then settle on the rolled faces. The direction, starting corner, spin and bounce change every roll. Several dice skins are available (section 10). The result is known first and the animation lands on it, so the timing never changes the game.
+- **Building**: a settlement drops in with a small bounce, and a city grows out of the settlement it replaces. A road or ship draws along its path from the end it connects to. Knights, walls, bridges, camels, wagons and other expansion pieces get their own short entrance.
+- **Robber, pirate and other movers**: they hop along an arc from the old hex to the new one, and the hex they block dims.
+- **Production**: after a roll, the hexes that pay pulse, and a card for each payout flies from the hex to that player's row (or into your hand, for you). Gold, fish and commodities fly from their source too.
+- **Cards between players**: steals, trades, discards and Monopoly move cards between the right players. You see the card's back unless it's yours.
+- **Awards and points**: Longest Road, Largest Army and other awards slide to their new owner. Points count up.
+- **Turn change**: the active player's row lights up, with a short "your turn" cue for you.
 
 **Accessibility**: colorblind-safe colors plus a shape per player, terrain icons readable without color, large tap targets, screen reader labels, reduced motion.
 
@@ -523,6 +564,17 @@ Each player can see the board in their own theme. The engine never knows about a
 3. **Night Market**: dark theme with glowing accents.
 4. **Papercraft** (stretch): cut-paper look.
 
+**Theme redesign (phase 14).** Nachi's review: Clean and Night Market look bland, their terrain icons are hard to see, and Heritage is cluttered (its fields pattern doesn't read as grain). The redesign:
+- **Terrain art**: each terrain gets a proper illustration that fills the hex, instead of a flat fill with a small emoji: trees for forest, a brick pile for hills, sheep in a meadow for pasture, wheat rows for fields, rocky peaks for mountains, dunes for desert. The illustrations are drawn as SVG and stay readable at phone size. Every expansion hex gets the same treatment.
+- **Clean**: brighter, more saturated colours, a soft light from one side (gentle shading and an edge highlight on each hex), and a sea with a little texture. Icons are larger and outlined, so they read on any colour.
+- **Night Market**: deep colours with glowing outlines, lit number tokens, and lantern-style highlights on valid spots. Icons in light colours with a glow, so they stand out on the dark board.
+- **Heritage**: much less texture. One painted look per terrain, no busy patterns, a clear wheat field, and wooden pieces with a simple bevel.
+- **Pieces**: houses, cities, roads and ships with depth (a shade side and a highlight) in every theme, and player colours tuned for contrast against every terrain.
+- **Tokens and harbors**: bigger numbers, clear pips, and harbor icons readable without zooming.
+- A theme preview on the home screen shows a sample board before you pick.
+- **Dice skins**: Classic white, Wood, Marble, Neon (glows in Night Market), and Pips or Numbers faces. Each player picks one, and it's saved to their account. The dice follow your skin, not the theme.
+- **Logo and app icon**: the Colonizers logo replaces the current mark on the home screen, the browser tab (favicon), the installed-app icon and the share image.
+
 **How the art gets made**: the Clean theme as hand-made SVG in code. Heritage and others as original SVG illustration, optionally starting from CC0 asset packs (such as Kenney's free hex kits) and refined by hand. Every asset's source and license goes in `CREDITS.md`.
 
 ---
@@ -546,7 +598,9 @@ Each phase ends with something we can play or use. Seafarers and Cities & Knight
 | **10. Stats and achievements** ✅ | Stats, achievements, leaderboards, replays. Done: stats worked out by replaying each game on the server, 14 achievements that back-fill, profile stats, crew leaderboards with average points and achievements, replays of online games. Not yet: a global leaderboard and stats for games played on one device. | Achievements unlock at game end and back-fill. |
 | **11. Themes** ✅ | Theme system plus Heritage and Night Market. Done: themes for the board, pieces, harbors, cards and page; picker on the home screen, in games and replays; each device keeps its own choice. Not yet: saving the theme to the account, sounds, custom dice faces. | Switching theme mid-game swaps every asset. |
 | **12. PWA polish and async** ✅ | Installable app, notifications, async games, sounds, accessibility, performance on older phones. Done: manifest and icons, offline app shell, Web Push "your turn" notifications (needs VAPID secrets, see DEPLOY.md step 7), in-page notifications and tab title, turn timers up to 3 days, sounds and haptics with an off switch, dice animation, reduced motion, focus outlines. Not yet: testing on real iPhone/Android devices, a performance pass on older phones. | Installed on iPhone and Android with working notifications. |
-| **13. More expansions** | Traders & Barbarians, Explorers & Pirates, then fan expansions one at a time (rules confirmed with Nachi first), map editor. | Each expansion playable online with rulebook pages and bot support. |
+| **13. Traders & Barbarians** | Fishermen, Rivers, Caravans, Barbarian Attack and the main scenario, plus the Harbormaster, event cards and the 2-player variant. Done: Fishermen, Rivers, Harbormaster (PR #17); Caravans and event cards (PR #18); Barbarian Attack (PR #19); main scenario (PR #20, in review). Not yet: the 2-player variant. Barbarian Attack and the main scenario follow our own version in places (see section 14, question 3). | Each scenario playable online with rulebook pages and bot support. |
+| **14. Look, feel and devices** | The polish pass from Nachi's review, in this order. **(a) Quick fixes**: the new logo for the home screen, browser tab and app icon; a distinct icon for every map (each Seafarers scenario, Caravans, Barbarian Attack, the main Traders & Barbarians scenario); default settings per game type that refresh when the map or expansions change (section 1.4); the reorganised Rules card in the lobby (section 1.4); the fairness report for admins only (section 3.3). **(b) Dice**: dice skins and a physical roll with varied direction and spin (sections 8 and 10). **(c) Motion**: animations for building, moving pieces, production, cards between players, awards and turn changes (section 8). **(d) Themes**: redesigned Clean, Night Market and Heritage with illustrated terrain and readable icons (section 10). **(e) Device layouts**: separate phone portrait, phone landscape, tablet and desktop layouts (section 8). | Nachi plays a full game on a phone and on a desktop and signs off on the look and feel of each. |
+| **15. More expansions** | Explorers & Pirates, then fan expansions one at a time (rules confirmed with Nachi first), map editor. | Each expansion playable online with rulebook pages and bot support. |
 
 Phases 1 and 2 can overlap. Theme art (phase 11) can start any time after phase 3. Phase 9's 5–6 player work can move earlier if needed.
 
@@ -595,3 +649,5 @@ From Nachi's answers to the first draft:
 
 1. For each fan expansion, which version do you play? I'll gather the rules and send a summary to confirm before that phase.
 2. Is the order of later expansions in section 1.7 right, or is one more important?
+3. Traders & Barbarians: should Barbarian Attack and the main scenario match the box exactly? The rule sources I could read left out some numbers: Barbarian Attack's own development cards, and the wagon board values and goods per trade hex in the main scenario. Some details also don't fit our board as it is. The box's trade hexes have a plaza inside them, and Barbarian Attack uses paths marked by colour. Where something was missing, I filled it in with our own version and listed the differences in the PR. With a photo of the box's cards and wagon board, the numbers can match exactly. The plaza and colour-marked paths would need small board changes.
+4. Logo: the attached file didn't come through. Please attach it again (SVG or a large PNG) for phase 14a.
