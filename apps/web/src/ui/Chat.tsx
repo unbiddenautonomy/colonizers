@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage, MemberInfo } from '../../../server/src/protocol.ts';
-import { cleanTheme } from '../theme/clean.ts';
+import { useTheme } from '../theme/themes.tsx';
 
 const MAX = 300;
 
@@ -16,6 +16,7 @@ export function Chat({
   onSend: (text: string) => void;
 }) {
   const [text, setText] = useState('');
+  const theme = useTheme();
   const listRef = useRef<HTMLOListElement>(null);
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
@@ -23,7 +24,7 @@ export function Chat({
 
   const colorOf = (id: string | null) => {
     const seat = members.find((m) => m.id === id)?.seat;
-    return seat === null || seat === undefined ? undefined : cleanTheme.players[seat]?.color;
+    return seat === null || seat === undefined ? undefined : theme.players[seat]?.color;
   };
 
   return (

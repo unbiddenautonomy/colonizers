@@ -9,7 +9,8 @@ import {
   type GameState,
   type HexId,
 } from '@colonizers/engine';
-import { cleanTheme, RESOURCE_ICON, TRACK_COLOR, type Theme } from '../theme/clean.ts';
+import { RESOURCE_ICON, TRACK_COLOR, type Theme } from '../theme/clean.ts';
+import { useTheme } from '../theme/themes.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -55,12 +56,29 @@ function edgeEnds(edge: EdgeId, g: ReturnType<typeof buildGeometry>) {
   return [cornerToPixel(a, S), cornerToPixel(b, S)] as const;
 }
 
-function HouseShape({ x, y, color, city }: { x: number; y: number; color: string; city: boolean }) {
+function HouseShape({
+  x,
+  y,
+  color,
+  city,
+  theme,
+}: {
+  x: number;
+  y: number;
+  color: string;
+  city: boolean;
+  theme: Theme;
+}) {
   const k = S * 0.2;
   const d = city
     ? `M${x - k * 1.3},${y + k * 0.9} v${-k * 1.2} l${k * 0.65},${-k * 0.7} l${k * 0.65},${k * 0.7} h${k * 1.3} v${k * 1.2} z`
     : `M${x - k * 0.85},${y + k * 0.8} v${-k * 1.0} l${k * 0.85},${-k * 0.8} l${k * 0.85},${k * 0.8} v${k * 1.0} z`;
-  return <path d={d} fill={color} stroke="#1d2321" strokeWidth={2.5} strokeLinejoin="round" />;
+  return (
+    <>
+      <path d={d} fill={color} stroke={theme.outline} strokeWidth={2.5} strokeLinejoin="round" />
+      {theme.shadePieces && <path d={d} fill="url(#wood-shade)" pointerEvents="none" />}
+    </>
+  );
 }
 
 const KNIGHT_LEVEL: Record<string, number> = { knight1: 1, knight2: 2, knight3: 3 };
@@ -72,16 +90,20 @@ function Knight({
   color,
   level,
   active,
+  theme,
+  fx,
 }: {
   x: number;
   y: number;
   color: string;
   level: number;
   active: boolean;
+  theme: Theme;
+  fx: string;
 }) {
   const k = S * 0.22;
   return (
-    <g filter="url(#lift)" opacity={active ? 1 : 0.85}>
+    <g filter={fx} opacity={active ? 1 : 0.85}>
       <path
         d={`M${x - k},${y - k} h${2 * k} v${k * 0.9} q0,${k * 0.9} ${-k},${k * 1.3} q${-k},${-k * 0.4} ${-k},${-k * 1.3} z`}
         fill={active ? color : '#fbf6e9'}
@@ -91,7 +113,7 @@ function Knight({
       <path
         d={`M${x - k},${y - k} h${2 * k} v${k * 0.9} q0,${k * 0.9} ${-k},${k * 1.3} q${-k},${-k * 0.4} ${-k},${-k * 1.3} z`}
         fill="none"
-        stroke="#1d2321"
+        stroke={theme.outline}
         strokeWidth={1.2}
       />
       {Array.from({ length: level }, (_, i) => (
@@ -116,16 +138,20 @@ function Ship({
   a,
   b,
   color,
+  theme,
+  fx,
 }: {
   a: { x: number; y: number };
   b: { x: number; y: number };
   color: string;
+  theme: Theme;
+  fx: string;
 }) {
   const mx = (a.x + b.x) / 2;
   const my = (a.y + b.y) / 2;
   const k = S * 0.2;
   return (
-    <g filter="url(#lift)">
+    <g filter={fx}>
       <line
         x1={a.x + (b.x - a.x) * 0.12}
         y1={a.y + (b.y - a.y) * 0.12}
@@ -140,14 +166,14 @@ function Ship({
         <path
           d={`M${-k * 1.3},${-k * 0.1} h${k * 2.6} l${-k * 0.5},${k * 0.7} h${-k * 1.6} z`}
           fill={color}
-          stroke="#1d2321"
+          stroke={theme.outline}
           strokeWidth={2}
           strokeLinejoin="round"
         />
         <path
           d={`M${-k * 0.1},${-k * 0.15} v${-k * 1.1} l${k * 0.85},${k * 1.1} z`}
-          fill="#fbf6e9"
-          stroke="#1d2321"
+          fill={theme.harborFace}
+          stroke={theme.outline}
           strokeWidth={1.5}
         />
       </g>
@@ -156,7 +182,11 @@ function Ship({
   );
 }
 
-function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: BoardProps) {
+function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProps) {
+  const chosen = useTheme();
+  const theme = given ?? chosen;
+  const fx = theme.pieceEffect === 'glow' ? 'url(#glow)' : 'url(#lift)';
+  const patterned = new Set(theme.patterned ?? []);
   const hexes = useMemo(() => Object.values(state.hexes), [state.hexes]);
   const g = useMemo(() => buildGeometry(hexes.map((h) => h.id)), [hexes]);
 
@@ -188,6 +218,19 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
         <filter id="lift" x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.35" />
         </filter>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <linearGradient id="wood-shade" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.35" />
+          <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
+          <stop offset="1" stopColor="#000" stopOpacity="0.3" />
+        </linearGradient>
+        {theme.patterns?.()}
       </defs>
 
       {hexes.map((h) => {
@@ -195,19 +238,24 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
         const type = fog ? 'hidden' : h.type;
         const isSea = type === 'sea';
         const c = hexToPixel(h.q, h.r, S);
-        const fill = isSea ? theme.sea : (theme.terrain[type] ?? '#ccc');
+        const key = isSea ? 'sea' : type;
+        const fill = patterned.has(key)
+          ? `url(#pat-${key})`
+          : isSea
+            ? theme.sea
+            : (theme.terrain[type] ?? '#ccc');
         return (
           <g key={h.id}>
             <polygon
               points={hexPoints(h.q, h.r)}
               fill={fill}
-              stroke={isSea ? theme.seaEdge : '#f6f3ea'}
+              stroke={isSea ? theme.seaEdge : theme.landStroke}
               strokeWidth={isSea ? 0.5 : 3}
               strokeOpacity={isSea ? 0.5 : 1}
             >
               <title>{fog ? 'Fog: not explored yet' : h.type}</title>
             </polygon>
-            {!isSea && theme.terrainIcon[type] && (
+            {!isSea && theme.terrainIcons && theme.terrainIcon[type] && (
               <text
                 x={c.x}
                 y={c.y - S * 0.48}
@@ -225,7 +273,7 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
                   cy={c.y}
                   r={S * 0.33}
                   fill={theme.token}
-                  stroke="#1d2321"
+                  stroke={theme.outline}
                   strokeWidth={1.5}
                 />
                 <text
@@ -264,13 +312,33 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
         const py = my + (sc.y - my) * 0.55;
         return (
           <g key={hb.edge} className="harbor">
-            <line x1={a.x} y1={a.y} x2={px} y2={py} stroke="#7b5b3a" strokeWidth={4} />
-            <line x1={b.x} y1={b.y} x2={px} y2={py} stroke="#7b5b3a" strokeWidth={4} />
-            <circle cx={px} cy={py} r={S * 0.27} fill="#fbf6e9" stroke="#7b5b3a" strokeWidth={2} />
-            <text x={px} y={py - S * 0.02} textAnchor="middle" fontSize={S * 0.17} fontWeight={700}>
+            <line x1={a.x} y1={a.y} x2={px} y2={py} stroke={theme.harborWood} strokeWidth={4} />
+            <line x1={b.x} y1={b.y} x2={px} y2={py} stroke={theme.harborWood} strokeWidth={4} />
+            <circle
+              cx={px}
+              cy={py}
+              r={S * 0.27}
+              fill={theme.harborFace}
+              stroke={theme.harborWood}
+              strokeWidth={2}
+            />
+            <text
+              x={px}
+              y={py - S * 0.02}
+              textAnchor="middle"
+              fontSize={S * 0.17}
+              fontWeight={700}
+              fill={theme.harborText}
+            >
               {hb.ratio}:1
             </text>
-            <text x={px} y={py + S * 0.17} textAnchor="middle" fontSize={S * 0.15}>
+            <text
+              x={px}
+              y={py + S * 0.17}
+              textAnchor="middle"
+              fontSize={S * 0.15}
+              fill={theme.harborText}
+            >
               {hb.resource === 'any' ? '?' : RESOURCE_ICON[hb.resource]}
             </text>
             <title>
@@ -287,7 +355,8 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
         .map((p) => {
           const [a, b] = edgeEnds((p.at as { id: EdgeId }).id, g);
           const k = 0.16;
-          if (p.type === 'ship') return <Ship key={p.id} a={a} b={b} color={color(p.owner)} />;
+          if (p.type === 'ship')
+            return <Ship key={p.id} a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />;
           return (
             <line
               key={p.id}
@@ -298,7 +367,7 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
               stroke={color(p.owner)}
               strokeWidth={S * 0.13}
               strokeLinecap="round"
-              filter="url(#lift)"
+              filter={fx}
             />
           );
         })}
@@ -366,7 +435,7 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
                 cy={y}
                 r={S * 0.15}
                 fill={color(p.owner)}
-                stroke="#1d2321"
+                stroke={theme.outline}
                 strokeWidth={2}
               />
               <text
@@ -398,10 +467,12 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
                 color={color(p.owner)}
                 level={level}
                 active={p.props.active === true}
+                theme={theme}
+                fx={fx}
               />
             );
           return (
-            <g key={p.id} filter="url(#lift)">
+            <g key={p.id} filter={fx}>
               {p.props.wall === true && (
                 <rect
                   x={c.x - S * 0.32}
@@ -410,13 +481,19 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
                   height={S * 0.14}
                   rx={2}
                   fill="#8a7f72"
-                  stroke="#1d2321"
+                  stroke={theme.outline}
                   strokeWidth={2}
                 >
                   <title>City wall</title>
                 </rect>
               )}
-              <HouseShape x={c.x} y={c.y} color={color(p.owner)} city={p.type === 'city'} />
+              <HouseShape
+                x={c.x}
+                y={c.y}
+                color={color(p.owner)}
+                city={p.type === 'city'}
+                theme={theme}
+              />
               {typeof p.props.metropolis === 'string' && (
                 <g>
                   <rect
@@ -425,7 +502,7 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
                     width={S * 0.14}
                     height={S * 0.24}
                     fill={TRACK_COLOR[p.props.metropolis] ?? '#fff'}
-                    stroke="#1d2321"
+                    stroke={theme.outline}
                     strokeWidth={2}
                   />
                   <title>{`Metropolis (${p.props.metropolis})`}</title>
