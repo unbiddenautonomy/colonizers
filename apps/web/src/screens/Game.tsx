@@ -28,6 +28,7 @@ import { partnerOf, type EventId } from '@colonizers/module-variants';
 import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { ThemePicker, useTheme } from '../theme/themes.tsx';
+import { DicePicker, DiceTray } from '../ui/Dice.tsx';
 import {
   CardPicker,
   clean,
@@ -493,6 +494,7 @@ export function Game({
           )}
           <SoundToggle />
           <ThemePicker compact />
+          <DicePicker compact />
           <button
             type="button"
             className="icon help"
@@ -603,22 +605,17 @@ export function Game({
           rolled={state.phase.id === 'main' ? lastRoll?.total : null}
         />
         {lastRoll && (
-          <div className="dice" aria-label={`Last roll ${lastRoll.total}`}>
-            {Object.entries(lastRoll.dice).map(([name, d]) => (
-              <span
-                key={`${name}-${state.turn.number}-${lastRoll.total}`}
-                className={`die die-${name}`}
-                title={name}
-              >
-                {typeof d === 'number' ? d : (EVENT_ICON[d] ?? d)}
-              </span>
-            ))}
+          <DiceTray
+            dice={lastRoll.dice}
+            rollKey={`${state.turn.number}-${lastRoll.total}-${JSON.stringify(lastRoll.dice)}`}
+            icons={EVENT_ICON}
+          >
             {state.settings.eventCards === true && eventCard && (
               <span className="event-card" title="Event card">
                 {EVENT_NAME[eventCard.event]}
               </span>
             )}
-          </div>
+          </DiceTray>
         )}
       </main>
 

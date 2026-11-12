@@ -7,6 +7,7 @@ import { describe } from '../game/describe.ts';
 import { library } from '../game/library.ts';
 import { getReplay, mapName, type Replay } from '../online/account.ts';
 import { ThemePicker, useTheme } from '../theme/themes.tsx';
+import { DiceTray } from '../ui/Dice.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 
 /** Keep a full state every this many moves, and replay forward from the nearest one. */
@@ -166,13 +167,11 @@ function ReplayView({ replay, onBack }: { replay: Replay; onBack: () => void }) 
           rolled={lastRoll?.total ?? null}
         />
         {lastRoll && (
-          <div className="dice" aria-label={`Last roll ${lastRoll.total}`}>
-            {Object.entries(lastRoll.dice).map(([name, d]) => (
-              <span key={name} className={`die die-${name}`}>
-                {typeof d === 'number' ? d : String(d)}
-              </span>
-            ))}
-          </div>
+          <DiceTray
+            dice={lastRoll.dice}
+            rollKey={`${state.turn.number}-${lastRoll.total}-${JSON.stringify(lastRoll.dice)}`}
+            icons={{ ship: '⛵', science: '🟢', trade: '🟡', politics: '🔵' }}
+          />
         )}
       </main>
 
