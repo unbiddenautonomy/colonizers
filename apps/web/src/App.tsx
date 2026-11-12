@@ -13,6 +13,7 @@ import {
 import { LocalGame } from './screens/Game.tsx';
 import { NewGame } from './screens/NewGame.tsx';
 import { OnlineRoom } from './screens/OnlineRoom.tsx';
+import { ReplayPage } from './screens/Replay.tsx';
 import { Rulebook } from './ui/Rulebook.tsx';
 
 function roomFromPath(path: string): string | null {
@@ -138,6 +139,7 @@ export function App() {
           onHome={() => go('/')}
           onCrew={(id) => go(`/crew/${id}`)}
           onRoom={(code) => go(`/r/${code}`)}
+          onReplay={(id) => go(`/replay/${id}`)}
         />
         {popups}
       </>
@@ -147,7 +149,22 @@ export function App() {
   if (crew)
     return (
       <>
-        <CrewPage key={crew} id={crew} onHome={() => go('/')} onProfile={() => go('/me')} />
+        <CrewPage
+          key={crew}
+          id={crew}
+          onHome={() => go('/')}
+          onProfile={() => go('/me')}
+          onReplay={(id) => go(`/replay/${id}`)}
+        />
+        {popups}
+      </>
+    );
+
+  const replay = path.match(/^\/replay\/([a-z0-9-]{1,60})\/?$/)?.[1];
+  if (replay)
+    return (
+      <>
+        <ReplayPage key={replay} id={replay} onBack={() => go('/me')} />
         {popups}
       </>
     );
