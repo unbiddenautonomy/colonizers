@@ -39,7 +39,14 @@ export interface MemberInfo {
   seat: number | null;
   role: 'player' | 'spectator';
   online: boolean;
+  /** Set for computer players. */
+  bot?: { level: BotLevel; style: BotStyle };
 }
+
+export type BotLevel = 'easy' | 'medium' | 'hard';
+export type BotStyle = 'balanced' | 'builder' | 'city' | 'army' | 'trader';
+const BOT_LEVELS: readonly string[] = ['easy', 'medium', 'hard'];
+const BOT_STYLES: readonly string[] = ['balanced', 'builder', 'city', 'army', 'trader'];
 
 export interface RoomInfo {
   code: string;
@@ -76,6 +83,7 @@ export type ClientMessage =
   | { type: 'settings'; settings: RoomSettings }
   | { type: 'start' }
   | { type: 'remove'; member: string }
+  | { type: 'addBot'; level: BotLevel; style: BotStyle }
   | { type: 'leave' }
   | { type: 'act'; action: Action }
   | { type: 'chat'; text: string }
@@ -167,6 +175,13 @@ export function parseClientMessage(raw: string | ArrayBuffer): ClientMessage | n
       return { type: msg.type };
     case 'remove':
       return typeof msg.member === 'string' ? { type: 'remove', member: msg.member } : null;
+    case 'addBot':
+      return typeof msg.level === 'string' &&
+        BOT_LEVELS.includes(msg.level) &&
+        typeof msg.style === 'string' &&
+        BOT_STYLES.includes(msg.style)
+        ? { type: 'addBot', level: msg.level as BotLevel, style: msg.style as BotStyle }
+        : null;
     case 'act': {
       const a = msg.action as Record<string, unknown> | null;
       if (typeof a !== 'object' || a === null || typeof a.type !== 'string') return null;

@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
 import {
   RuleError,
   type Action,
@@ -18,7 +19,12 @@ const SAVE_KEY = 'colonizers.localGame';
 export interface SavedGame {
   config: GameConfig;
   actions: Action[];
+  /** Seats played by the computer. */
+  bots?: Record<number, BotConfig>;
 }
+
+/** Pause between bot moves, so people can follow them. */
+const BOT_DELAY_MS = 650;
 
 export function loadSavedGame(): SavedGame | null {
   try {
@@ -69,23 +75,28 @@ function start(saved: SavedGame): Internal {
   return { state, actions, log };
 }
 
-/** Runs a game on this device (hotseat). Every move is saved so a refresh resumes it. */
+/** Runs a game on this device (hotseat, and bots). Every move is saved so a refresh resumes it. */
 export function useLocalGame(saved: SavedGame) {
   const [game, setGame] = useState<Internal>(() => start(saved));
   const [error, setError] = useState<string | null>(null);
+  const gameRef = useRef(game);
+  const bots = useMemo(() => saved.bots ?? {}, [saved.bots]);
 
-  const act = useCallback(
+  const apply = useCallback(
     (action: Action): boolean => {
+      const current = gameRef.current;
       try {
-        const r = library.apply(game.state, action);
+        const r = library.apply(current.state, action);
         const next: Internal = {
           state: r.state,
-          actions: [...game.actions, action],
-          log: [...game.log, ...r.events.map((event) => ({ seq: r.state.seq, event }))].slice(-300),
+          actions: [...current.actions, action],
+          log: [...current.log, ...r.events.map((event) => ({ seq: r.state.seq, event }))].slice(
+            -300,
+          ),
         };
+        gameRef.current = next;
         setGame(next);
-        setError(null);
-        save({ config: saved.config, actions: next.actions });
+        save({ config: saved.config, actions: next.actions, bots });
         return true;
       } catch (e) {
         if (e instanceof RuleError) {
@@ -95,21 +106,68 @@ export function useLocalGame(saved: SavedGame) {
         throw e;
       }
     },
-    [game, saved.config],
+    [saved.config, bots],
   );
 
-  /** Who should be holding the device right now. */
-  const actor = useMemo(() => actorOf(game.state), [game.state]);
+  const act = useCallback(
+    (action: Action): boolean => {
+      if (bots[action.player]) return false;
+      const ok = apply(action);
+      if (ok) setError(null);
+      return ok;
+    },
+    [apply, bots],
+  );
 
-  return { state: game.state, log: game.log, act, error, clearError: () => setError(null), actor };
+  // Bots take their moves one at a time, with a short pause.
+  const memory = useRef(new Map<number, BotMemory>());
+  useEffect(() => {
+    const seats = Object.keys(bots).map(Number);
+    if (!seats.length || game.state.winner !== null) return;
+    const timer = setTimeout(() => {
+      const state = gameRef.current.state;
+      const waiting = library.waitingOn(state).filter((s) => bots[s]);
+      for (const seat of waiting) {
+        if (!memory.current.has(seat)) memory.current.set(seat, newMemory());
+        const a = chooseAction(library, state, seat, bots[seat]!, memory.current.get(seat), {
+          budgetMs: 1500,
+        });
+        if (a && apply(a)) return;
+      }
+      // A bot waiting on an answer to its offer looks again shortly.
+      if (waiting.length) setGame((g) => ({ ...g }));
+    }, BOT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [game, bots, apply]);
+
+  /** Who should be holding the device right now. */
+  const actor = useMemo(() => {
+    const a = actorOf(game.state, bots);
+    const humans = game.state.players.map((p) => p.seat).filter((s) => !bots[s]);
+    // With one person at the table, the device is always theirs.
+    if (humans.length === 1) return humans[0]!;
+    return a ?? humans[0] ?? null;
+  }, [game.state, bots]);
+
+  return {
+    state: game.state,
+    log: game.log,
+    act,
+    error,
+    clearError: () => setError(null),
+    actor,
+    bots,
+  };
 }
 
-export function actorOf(state: GameState): number | null {
+export function actorOf(state: GameState, bots: Record<number, unknown> = {}): number | null {
   if (state.winner !== null) return null;
   if (state.phase.owed) {
     const owed = state.phase.owed as Record<number, number>;
-    const seats = Object.keys(owed).map(Number);
+    const seats = Object.keys(owed)
+      .map(Number)
+      .filter((s) => !bots[s]);
     return seats.length ? Math.min(...seats) : null;
   }
-  return state.turn.player;
+  return bots[state.turn.player] ? null : state.turn.player;
 }
