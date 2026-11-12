@@ -1330,3 +1330,32 @@ button.danger {
   align-items: center;
   gap: 8px;
 }
+
+/* Rules card: expansions as cards, options in open groups. */
+.expansions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+.expansion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 10px 12px;
+}
+.expansion small {
+  opacity: 0.8;
+  font-weight: normal;
+}
+.option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.changed {
+  margin-top: 10px;
+  gap: 8px;
+}

@@ -26,6 +26,7 @@
   ],
   // Secrets (set with `wrangler secret put`, all optional):
   // GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET for Google sign-in,
-  // RESEND_API_KEY and EMAIL_FROM for sign-up and password emails.
+  // RESEND_API_KEY and EMAIL_FROM for sign-up and password emails,
+  // ADMIN_EMAILS (comma-separated) for accounts that see admin details.
   "observability": { "enabled": true },
 }
