@@ -83,6 +83,7 @@ export class ModuleLibrary {
         type: h.type,
         ...(h.token !== undefined && { token: h.token }),
         ...(h.hidden && { hidden: true }),
+        ...(h.props && { props: structuredClone(h.props) }),
       };
     }
 

@@ -53,7 +53,8 @@ function play(s: GameState, players: number, seed: number, max = 8000): GameStat
 }
 
 describe('Special maps', () => {
-  for (const spec of SPECIAL_MAPS) {
+  // Traders & Barbarians scenarios have their own module and tests.
+  for (const spec of SPECIAL_MAPS.filter((m) => !m.group)) {
     const players = Math.min(4, spec.players.max);
     it(`bots finish a ${players}-player game on ${spec.name}`, () => {
       const s = play(game(spec.id, players), players, 7);

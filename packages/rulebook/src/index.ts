@@ -3,6 +3,7 @@ import { seafarersRules } from './seafarers.ts';
 import { citiesKnightsRules } from './citiesKnights.ts';
 import { specialMapsRules } from './specialMaps.ts';
 import { variantsRules } from './variants.ts';
+import { tradersBarbariansRules } from './tradersBarbarians.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -13,6 +14,7 @@ export const RULEBOOKS: RulebookModule[] = [
   seafarersRules,
   citiesKnightsRules,
   specialMapsRules,
+  tradersBarbariansRules,
   variantsRules,
 ];
 
@@ -77,6 +79,8 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/wait for your turn to build|not your turn to build/i, 'special-build'],
   [/pirate/i, 'pirate'],
   [/ship|sail/i, 'ships'],
+  [/fish|old boot/i, 'fishermen'],
+  [/bridge|river|with gold|\d+ gold/i, 'rivers'],
   [/gold/i, 'gold'],
   [/home island/i, 'islands'],
   [/too close/i, 'distance-rule'],

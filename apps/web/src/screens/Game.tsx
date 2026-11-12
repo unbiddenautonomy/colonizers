@@ -51,8 +51,9 @@ import {
   ProgressHand,
   type CkMode,
 } from './CitiesKnights.tsx';
+import { TbActions, TbPlayerStats } from './TradersBarbarians.tsx';
 
-type Mode = null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip' | CkMode;
+type Mode = null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip' | 'bridge' | CkMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
@@ -106,6 +107,7 @@ function targetsFor(
   if (building && mode === 'settlement') want.add('buildSettlement');
   if (building && mode === 'city') want.add('buildCity');
   if (building && mode === 'ship') want.add('buildShip');
+  if (building && mode === 'bridge') want.add('buildBridge');
   const knightCorner = (id: unknown) => {
     const k = typeof id === 'string' ? state.pieces[id] : undefined;
     return k?.at.kind === 'corner' ? k.at.id : null;
@@ -297,6 +299,7 @@ export function Game({
   const cardKinds = handCards(state.modules);
   const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
+  const tb = state.modules.includes('traders-barbarians') || state.settings.harbormaster === true;
   const [chosenEdgeKind, setEdgeKind] = useState<EdgeKind>('road');
   const [selectedShip, setSelectedShip] = useState<string | null>(null);
   const canControl = (s: number) => (!online && !bots[s]) || s === seat;
@@ -491,6 +494,7 @@ export function Game({
                     <span title="Knights played">⚔️ {p.played.knight ?? 0}</span>
                   </>
                 )}
+                {tb && <TbPlayerStats ctx={ctx} seat={p.seat} viewer={seat ?? actor} />}
                 <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
                 {data.longestRoad === p.seat && (
                   <span className="award">
@@ -718,6 +722,17 @@ export function Game({
                     </button>
                   )}
                 </>
+              )}
+              {state.modules.includes('traders-barbarians') && myTurnMain && (
+                <TbActions
+                  ctx={ctx}
+                  actor={actor}
+                  legal={legal}
+                  act={act}
+                  names={promptNames}
+                  bridgeMode={mode === 'bridge'}
+                  toggleBridge={() => setMode(mode === 'bridge' ? null : 'bridge')}
+                />
               )}
               {!ck && (
                 <button

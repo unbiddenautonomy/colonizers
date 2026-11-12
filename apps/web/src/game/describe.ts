@@ -68,7 +68,7 @@ export function describe(e: GameEvent, names: string[]): string | null {
         ? `${n(e.thief)} stole ${cards({ [e.card as string]: 1 })} from ${n(e.victim)}.`
         : `${n(e.thief)} stole a card from ${n(e.victim)}.`;
     case 'boughtDevCard':
-      return `${n(e.player)} bought a development card.`;
+      return `${n(e.player)} ${e.free ? 'took' : 'bought'} a development card.`;
     case 'playedDevCard':
       return `${n(e.player)} played ${nameOf(e.card as string).name}.`;
     case 'yearOfPlenty':
@@ -92,7 +92,12 @@ export function describe(e: GameEvent, names: string[]): string | null {
     case 'tradeCancelled':
       return 'Trade offer withdrawn.';
     case 'award': {
-      const label = e.award === 'longestRoad' ? 'Longest Road' : 'Largest Army';
+      const label =
+        e.award === 'longestRoad'
+          ? 'Longest Road'
+          : e.award === 'harbormaster'
+            ? 'Harbormaster'
+            : 'Largest Army';
       // Seafarers calls it Longest Trade Route; the log keeps one name.
       return e.to === null ? `Nobody holds ${label} now.` : `${n(e.to)} takes ${label}!`;
     }
@@ -189,6 +194,29 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `Quiet start: the 7 does nothing yet.`;
     case 'diceShuffled':
       return `The dice deck was shuffled.`;
+    // ---- Traders & Barbarians ----
+    case 'fishCaught':
+      return e.fish
+        ? `${n(e.player)} caught ${e.fish as number} fish (${e.tokens as number} token${e.tokens === 1 ? '' : 's'}).`
+        : `${n(e.player)} caught ${e.tokens as number} fish token${e.tokens === 1 ? '' : 's'}.`;
+    case 'bootFound':
+      return `🥾 ${n(e.player)} fished up the old boot: one point less until they pass it on.`;
+    case 'bootPassed':
+      return `🥾 ${n(e.player)} handed the old boot to ${n(e.to)}.`;
+    case 'fishSpent': {
+      const what: Record<string, string> = {
+        robber: 'to take the robber off the board',
+        steal: `to steal from ${n(e.target)}`,
+        bank: `for ${cards({ [e.resource as string]: 1 })}`,
+        road: 'for a free road',
+        devCard: 'for a development card',
+      };
+      return `🐟 ${n(e.player)} spent ${e.fish as number} fish ${what[e.use as string] ?? ''}.`;
+    }
+    case 'goldEarned':
+      return `🪙 ${n(e.player)} earned ${e.gold as number} gold${e.reason === 'bridge' ? ' for a bridge' : ' by the river'}.`;
+    case 'goldSpent':
+      return `🪙 ${n(e.player)} paid ${e.gold as number} gold for ${cards({ [e.resource as string]: 1 })}.`;
     case 'eruption': {
       const hit = e.hit as string | null;
       const base = `🌋 The volcano erupted (die ${e.face as number})`;

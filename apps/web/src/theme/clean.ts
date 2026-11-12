@@ -65,6 +65,8 @@ export const cleanTheme: Theme = {
     gold: '#d4a017',
     volcano: '#7a3b2e',
     lake: '#7cc0e8',
+    fishingLake: '#6fb3dc',
+    swamp: '#7d8a5a',
   },
   terrainIcon: {
     forest: '🌲',
@@ -76,6 +78,8 @@ export const cleanTheme: Theme = {
     gold: '✨',
     volcano: '🌋',
     lake: '💧',
+    fishingLake: '🎣',
+    swamp: '🪷',
     hidden: '🌫️',
   },
   sea: '#4f9bd1',

@@ -194,7 +194,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
     const xs: number[] = [];
     const ys: number[] = [];
     // Frame the land (plus room for harbors), not the whole sea ring.
-    const land = hexes.filter((h) => h.type !== 'sea');
+    const land = hexes.filter((h) => h.type !== 'sea' && h.type !== 'shoal');
     for (const h of land.length ? land : hexes) {
       const c = hexToPixel(h.q, h.r, S);
       xs.push(c.x);
@@ -236,7 +236,9 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
       {hexes.map((h) => {
         const fog = !!h.hidden || h.type === 'hidden';
         const type = fog ? 'hidden' : h.type;
-        const isSea = type === 'sea';
+        const shoal = type === 'shoal';
+        const isSea = type === 'sea' || shoal;
+        const lakeNumbers = type === 'fishingLake' ? ((h.props?.tokens as number[]) ?? []) : [];
         const c = hexToPixel(h.q, h.r, S);
         const key = isSea ? 'sea' : type;
         const fill = patterned.has(key)
@@ -253,8 +255,56 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               strokeWidth={isSea ? 0.5 : 3}
               strokeOpacity={isSea ? 0.5 : 1}
             >
-              <title>{fog ? 'Fog: not explored yet' : h.type}</title>
+              <title>
+                {fog
+                  ? 'Fog: not explored yet'
+                  : shoal
+                    ? `Fishing ground: fish on ${h.token}`
+                    : lakeNumbers.length
+                      ? `Fishing lake: fish on ${lakeNumbers.join(', ')}`
+                      : h.type}
+              </title>
             </polygon>
+            {shoal && (
+              <g aria-hidden="true">
+                <circle
+                  cx={c.x}
+                  cy={c.y}
+                  r={S * 0.62}
+                  fill="none"
+                  stroke={theme.seaEdge}
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                />
+                <text x={c.x} y={c.y - S * 0.4} textAnchor="middle" fontSize={S * 0.26}>
+                  🐟
+                </text>
+              </g>
+            )}
+            {lakeNumbers.length > 0 && (
+              <g className={lakeNumbers.includes(rolled ?? -1) ? 'token hot' : 'token'}>
+                <rect
+                  x={c.x - S * 0.5}
+                  y={c.y - S * 0.17}
+                  width={S}
+                  height={S * 0.34}
+                  rx={S * 0.17}
+                  fill={theme.token}
+                  stroke={theme.outline}
+                  strokeWidth={1.5}
+                />
+                <text
+                  x={c.x}
+                  y={c.y + S * 0.08}
+                  textAnchor="middle"
+                  fontSize={S * 0.2}
+                  fontWeight={700}
+                  fill={theme.tokenText}
+                >
+                  {lakeNumbers.join(' · ')}
+                </text>
+              </g>
+            )}
             {!isSea && theme.terrainIcons && theme.terrainIcon[type] && (
               <text
                 x={c.x}
@@ -352,9 +402,57 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
 
       {pieces
         .filter((p) => p.at.kind === 'edge')
+        // Rivers lie under everything else.
+        .sort((x, y) => Number(y.type === 'river') - Number(x.type === 'river'))
         .map((p) => {
           const [a, b] = edgeEnds((p.at as { id: EdgeId }).id, g);
           const k = 0.16;
+          if (p.type === 'river')
+            return (
+              <g key={p.id} strokeLinecap="round">
+                <line
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke={theme.seaEdge}
+                  strokeWidth={S * 0.22}
+                />
+                <line
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke={theme.terrain.lake ?? theme.sea}
+                  strokeWidth={S * 0.1}
+                />
+                <title>River: only a bridge can cross</title>
+              </g>
+            );
+          if (p.type === 'bridge')
+            return (
+              <g key={p.id} filter={fx}>
+                <line
+                  x1={a.x + (b.x - a.x) * 0.08}
+                  y1={a.y + (b.y - a.y) * 0.08}
+                  x2={b.x - (b.x - a.x) * 0.08}
+                  y2={b.y - (b.y - a.y) * 0.08}
+                  stroke={theme.harborWood}
+                  strokeWidth={S * 0.22}
+                  strokeLinecap="butt"
+                />
+                <line
+                  x1={a.x + (b.x - a.x) * k}
+                  y1={a.y + (b.y - a.y) * k}
+                  x2={b.x - (b.x - a.x) * k}
+                  y2={b.y - (b.y - a.y) * k}
+                  stroke={color(p.owner)}
+                  strokeWidth={S * 0.1}
+                  strokeLinecap="round"
+                />
+                <title>Bridge</title>
+              </g>
+            );
           if (p.type === 'ship')
             return <Ship key={p.id} a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />;
           return (
