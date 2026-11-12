@@ -15,6 +15,10 @@ import {
   KNIGHTS_PER_PLAYER,
   knightsOf,
   prisonersOf,
+  wagonOf,
+  COMMODITY_TO,
+  WAGON_LEVELS,
+  type Commodity,
   type FishUse,
 } from '@colonizers/module-traders-barbarians';
 import { harbormasterOf, type EventId } from '@colonizers/module-variants';
@@ -76,7 +80,41 @@ export function TbPlayerStats({
       </>
     );
   }
+  if (scenario === 'traders') {
+    const w = wagonOf(ctx, seat);
+    return (
+      <>
+        <span title="Gold">🪙 {goldOf(ctx, seat)}</span>
+        <span title={`Wagon level ${w.level} of ${WAGON_LEVELS.length}`}>🛒 {w.level}</span>
+        <span title="Deliveries: a point each">📦 {w.delivered}</span>
+        {w.cargo && (
+          <span title={`Carrying ${w.cargo} to the ${COMMODITY_TO[w.cargo]}`}>
+            {COMMODITY_ICON[w.cargo]}→{TRADE_ICON[COMMODITY_TO[w.cargo]]}
+          </span>
+        )}
+        {hm && <span className="award">Harbormaster</span>}
+      </>
+    );
+  }
   return hm ? <span className="award">Harbormaster</span> : null;
+}
+
+export const COMMODITY_ICON: Record<Commodity, string> = {
+  glass: '🔮',
+  marble: '🪨',
+  sand: '⏳',
+  tools: '🔨',
+};
+export const TRADE_ICON: Record<string, string> = {
+  castle: '🏰',
+  quarry: '⛏️',
+  glassworks: '🏭',
+};
+
+function costText(cost: Record<string, number>): string {
+  return Object.entries(cost)
+    .map(([r, n]) => `${n}${RESOURCE_ICON[r] ?? r}`)
+    .join(' ');
 }
 
 const USE_LABEL: Record<FishUse, string> = {
@@ -177,6 +215,60 @@ export function TbActions({
       </>
     );
   }
+  if (scenario === 'traders') {
+    const w = wagonOf(ctx, actor);
+    const next = WAGON_LEVELS[w.level];
+    const buys = of('buyWithGold');
+    return (
+      <>
+        <button
+          type="button"
+          className={knightMode ? 'on' : ''}
+          aria-pressed={knightMode}
+          disabled={!of('moveWagon').length && !of('driveBarbarian').length}
+          onClick={toggleKnight}
+        >
+          🛒 Move wagon <small>{w.mp} moves</small>
+        </button>
+        <button
+          type="button"
+          disabled={!of('boostWagon').length}
+          onClick={() => act({ type: 'boostWagon', player: actor })}
+          title="Once a turn: 2 more moves for 1 grain"
+        >
+          +2 moves <small>1{RESOURCE_ICON.grain}</small>
+        </button>
+        {next && (
+          <button
+            type="button"
+            disabled={!of('upgradeWagon').length}
+            onClick={() => act({ type: 'upgradeWagon', player: actor })}
+            title={`Level ${w.level + 1}: ${next.mp} moves, ${next.gold} gold a delivery`}
+          >
+            ⬆ Wagon <small>{costText(next.cost)}</small>
+          </button>
+        )}
+        <button type="button" disabled={!buys.length} onClick={() => setOpen('gold')}>
+          🪙 Buy with gold
+        </button>
+        {open === 'gold' && (
+          <Modal title="Buy with gold" onClose={close}>
+            <p>
+              {GOLD_PER_RESOURCE} gold buys one resource, up to {GOLD_BUYS_PER_TURN} times a turn.
+              You have {goldOf(ctx, actor)} gold.
+            </p>
+            <div className="row wrap">
+              {buys.map((a) => (
+                <button key={a.resource as string} type="button" onClick={() => run(a)}>
+                  {RESOURCE_ICON[a.resource as string] ?? (a.resource as string)}
+                </button>
+              ))}
+            </div>
+          </Modal>
+        )}
+      </>
+    );
+  }
   if (scenario === 'rivers' || scenario === 'barbarians') {
     const buys = of('buyWithGold');
     return (
@@ -256,6 +348,10 @@ const EVENT_ASK: Partial<Record<EventId, string>> = {
 export function tbPrompt(state: GameState, who: string, actor: number | null): string | null {
   const owed = (state.phase.owed as Record<number, number> | undefined)?.[actor ?? -1];
   switch (state.phase.id) {
+    case 'tbBarbarian':
+      return state.phase.from
+        ? `${who}: the barbarian is driven off. Tap the path to move it to.`
+        : `${who}: tap a barbarian, then the inland path to move it to. On someone's road, you take a card from them.`;
     case 'tbKnight':
       return `${who}: tap a glowing path by the castle for your new knight.`;
     case 'camelVote':
@@ -272,6 +368,9 @@ export function tbPrompt(state: GameState, who: string, actor: number | null): s
       return null;
   }
 }
+
+export const WAGON_PROMPT =
+  'tap a glowing corner to move your wagon one path (2 moves, 1 on a road, 1 gold toll on someone else’s road, 2 more past a barbarian), or a barbarian beside it to try to drive it off.';
 
 export const TB_MOVE_PROMPT = `tap one of your knights, then where it goes: up to ${KNIGHT_STEPS} steps, or ${KNIGHT_STEPS_GRAIN} for 1 grain. Tap the button again to cancel.`;
 
