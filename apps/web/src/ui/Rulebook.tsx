@@ -71,7 +71,7 @@ export function Rulebook({
   const [open, setOpen] = useState<string | null>(initialPage ?? null);
   const settings: Record<string, unknown> = state
     ? { ...library.registry(state.modules).settings, ...state.settings }
-    : { vpTarget: 10, discardLimit: 7, longestRoadMin: 5, largestArmyMin: 3 };
+    : { vpTarget: 10, discardLimit: 7, longestRoadMin: 5, largestArmyMin: 3, islandBonus: 2 };
   const books = state ? rulebookFor(state.modules) : RULEBOOKS;
   const pages = (tab === 'all' ? RULEBOOKS : books).flatMap((b) => b.pages);
   const shown = searchPages(pages, query);
