@@ -74,6 +74,9 @@ export const RESOURCE_ICON: Record<string, string> = {
   wool: '🐑',
   grain: '🌾',
   ore: '⛰️',
+  paper: '📜',
+  cloth: '🧵',
+  coin: '🪙',
 };
 
 export const RESOURCE_COLOR: Record<string, string> = {
@@ -82,4 +85,14 @@ export const RESOURCE_COLOR: Record<string, string> = {
   wool: '#9fd17a',
   grain: '#e9c46a',
   ore: '#8d99a6',
+  paper: '#efe6c6',
+  cloth: '#c9b3e3',
+  coin: '#f0cf5e',
+};
+
+/** Improvement track colours (science, trade, politics). */
+export const TRACK_COLOR: Record<string, string> = {
+  science: '#3f8f5a',
+  trade: '#e0b23a',
+  politics: '#3a6fb5',
 };

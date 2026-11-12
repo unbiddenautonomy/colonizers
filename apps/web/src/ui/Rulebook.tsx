@@ -71,7 +71,14 @@ export function Rulebook({
   const [open, setOpen] = useState<string | null>(initialPage ?? null);
   const settings: Record<string, unknown> = state
     ? { ...library.registry(state.modules).settings, ...state.settings }
-    : { vpTarget: 10, discardLimit: 7, longestRoadMin: 5, largestArmyMin: 3, islandBonus: 2 };
+    : {
+        vpTarget: 10,
+        discardLimit: 7,
+        longestRoadMin: 5,
+        largestArmyMin: 3,
+        islandBonus: 2,
+        barbarianTrack: 7,
+      };
   const books = state ? rulebookFor(state.modules) : RULEBOOKS;
   const pages = (tab === 'all' ? RULEBOOKS : books).flatMap((b) => b.pages);
   const shown = searchPages(pages, query);
@@ -84,16 +91,19 @@ export function Rulebook({
       string,
       { name: string; note: string }
     >;
-    return Object.keys(reg.costs).map((item) => {
-      const cost = viewer === null ? reg.costs[item]! : ctx.cost(item, viewer);
-      return {
-        item,
-        name: items[item]?.name ?? item,
-        note: items[item]?.note ?? '',
-        cost,
-        affordable: viewer !== null && ctx.has(viewer, cost),
-      };
-    });
+    const ck = state.modules.includes('cities-knights');
+    return Object.keys(reg.costs)
+      .filter((item) => !(ck && item === 'devCard'))
+      .map((item) => {
+        const cost = viewer === null ? reg.costs[item]! : ctx.cost(item, viewer);
+        return {
+          item,
+          name: items[item]?.name ?? item,
+          note: items[item]?.note ?? '',
+          cost,
+          affordable: viewer !== null && ctx.has(viewer, cost),
+        };
+      });
   })();
 
   const page = (p: RulePage) => (

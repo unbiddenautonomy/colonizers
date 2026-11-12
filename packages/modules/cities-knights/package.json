@@ -1,0 +1,24 @@
+{
+  "name": "@colonizers/module-cities-knights",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cities & Knights rules as an engine module: commodities, city improvements, knights, barbarians and progress cards.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}
