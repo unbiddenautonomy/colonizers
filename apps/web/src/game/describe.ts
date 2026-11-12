@@ -166,6 +166,24 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `${n(e.player)} gave ${n(e.to)} ${cards(e.cards as Record<string, number>)}.`;
     case 'aqueduct':
       return `${n(e.player)}'s aqueduct paid ${cards(e.cards as Record<string, number>)}.`;
+    case 'specialBuildStarted':
+      return `Everyone else may now build in turn.`;
+    case 'specialBuildDone':
+      return `${n(e.player)} is done building.`;
+    case 'gifted':
+      return `${n(e.from)} gave ${n(e.to)} ${cards(e.cards as Record<string, number>)}.`;
+    case 'robberResting':
+      return `Quiet start: the 7 does nothing yet.`;
+    case 'diceShuffled':
+      return `The dice deck was shuffled.`;
+    case 'eruption': {
+      const hit = e.hit as string | null;
+      const base = `🌋 The volcano erupted (die ${e.face as number})`;
+      if (!hit || e.owner === null) return `${base}, but nobody was hurt.`;
+      return hit === 'city'
+        ? `${base}: ${n(e.owner)}'s city dropped to a settlement.`
+        : `${base}: ${n(e.owner)}'s settlement was destroyed.`;
+    }
     default:
       return null;
   }

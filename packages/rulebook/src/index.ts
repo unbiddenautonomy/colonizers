@@ -1,12 +1,20 @@
 import { baseRules } from './base.ts';
 import { seafarersRules } from './seafarers.ts';
 import { citiesKnightsRules } from './citiesKnights.ts';
+import { specialMapsRules } from './specialMaps.ts';
+import { variantsRules } from './variants.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 /** Every module's rulebook. Expansions add theirs here. */
-export const RULEBOOKS: RulebookModule[] = [baseRules, seafarersRules, citiesKnightsRules];
+export const RULEBOOKS: RulebookModule[] = [
+  baseRules,
+  seafarersRules,
+  citiesKnightsRules,
+  specialMapsRules,
+  variantsRules,
+];
 
 export function rulebookFor(modules: readonly string[]): RulebookModule[] {
   return RULEBOOKS.filter((r) => modules.includes(r.module));
@@ -64,6 +72,9 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/city wall/i, 'walls'],
   [/robber is not in play/i, 'ck-vs-base'],
   [/activated this turn|push away|chase|move along|next to the robber/i, 'knight-actions'],
+  [/friendly robber/i, 'house-rules'],
+  [/gift/i, 'house-rules'],
+  [/wait for your turn to build|not your turn to build/i, 'special-build'],
   [/pirate/i, 'pirate'],
   [/ship|sail/i, 'ships'],
   [/gold/i, 'gold'],

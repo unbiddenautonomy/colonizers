@@ -542,7 +542,7 @@ Each phase ends with something we can play or use. Seafarers and Cities & Knight
 | **6. Cities & Knights** ✅ | Commodities, improvements, metropolises, knights, barbarians, progress cards, walls, merchant. Seafarers + C&K combined. | C&K and the combined game playable online. |
 | **7. Accounts and crews** ✅ | Google and email sign-up, profiles, guest upgrade, crews. | Games show up in each person's history. |
 | **8. Bots** ✅ | Easy and Medium on the server, Hard in the browser, play styles, bot trading, bots for Seafarers and C&K. | A full game with 3 bots; Hard beats Medium most of the time. |
-| **9. Bigger games and options** | 5–6 players, 7–8 player board and paired turns, Colonist-style options, house rules, special maps (Gold Rush, Volcano, Deep Forest, Lakes and shapes). | An 8-player game and every special map work. |
+| **9. Bigger games and options** ✅ | 5–6 players, 7–8 player board and paired turns, Colonist-style options, house rules, special maps (Gold Rush, Volcano, Deep Forest, Lakes and shapes). Done: Special Building Phase, paired turns, friendly robber, balanced dice, quiet start, gifts, discard limit, both starting settlements pay, 8 special maps. Not yet: World/Archipelago maps, 2-player neutral player, robber back to the desert, trading between any players, time bank, hidden bank counts. | An 8-player game and every special map work. |
 | **10. Stats and achievements** | Stats, achievements, leaderboards, replays. | Achievements unlock at game end and back-fill. |
 | **11. Themes** | Theme system plus Heritage and Night Market. | Switching theme mid-game swaps every asset. |
 | **12. PWA polish and async** | Installable app, notifications, async games, sounds, accessibility, performance on older phones. | Installed on iPhone and Android with working notifications. |
@@ -563,11 +563,10 @@ colonizers/
     engine/         # Core rules engine (no expansion-specific code)
     modules/
       base/
-      five-six/
-      seven-eight/
+      variants/     # turn styles (special building, paired) and house rules
       seafarers/
       cities-knights/
-      special-maps/ # gold rush, volcano, ...
+      special-maps/ # volcano and lake hexes for the special maps
       ...           # later expansions
     maps/           # Map files, generators, fairness scoring
     bots/           # Bot logic, shared by server and browser

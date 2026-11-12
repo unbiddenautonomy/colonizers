@@ -17,6 +17,8 @@
     "@colonizers/module-base": "workspace:*",
     "@colonizers/module-cities-knights": "workspace:*",
     "@colonizers/module-seafarers": "workspace:*",
+    "@colonizers/module-special-maps": "workspace:*",
+    "@colonizers/module-variants": "workspace:*",
     "@colonizers/rulebook": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

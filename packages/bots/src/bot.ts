@@ -106,7 +106,7 @@ export function chooseAction(
   if (options.length === 1) return options[0]!;
 
   // Long turns end: no bot shuffles cards forever.
-  const end = options.find((a) => a.type === 'endTurn');
+  const end = options.find((a) => a.type === 'endTurn' || a.type === 'endSpecialBuild');
   if (end && memory.actionsThisTurn > MAX_ACTIONS_PER_TURN) return end;
 
   if (options.length > MAX_OPTIONS) options = sample(options, MAX_OPTIONS, rand, end);
@@ -131,6 +131,13 @@ export function chooseAction(
         return made;
       }
     }
+  }
+
+  // Building out of turn (a partner in paired turns) is optional: only if it helps.
+  if (!end && state.phase.id === 'main' && seat !== state.turn.player) {
+    const here = evaluate(state, new Ctx(state, registry), seat, config.style);
+    const best = scored.reduce((x, y) => (y.score > x.score ? y : x));
+    return best.score > here + 0.3 ? best.action : null;
   }
 
   if (config.level === 'easy') return easyPick(scored, rand);

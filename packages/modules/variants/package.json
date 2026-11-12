@@ -1,0 +1,26 @@
+{
+  "name": "@colonizers/module-variants",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Game options and house rules: Special Building Phase, paired turns, friendly robber, balanced dice, a quiet start and gifts.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/bots": "workspace:*",
+    "@colonizers/maps": "workspace:*",
+    "@colonizers/module-cities-knights": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}
