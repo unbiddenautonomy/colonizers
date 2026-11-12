@@ -58,10 +58,20 @@ import {
   TbActions,
   TbPlayerStats,
   tbPrompt,
+  TB_MOVE_PROMPT,
 } from './TradersBarbarians.tsx';
 
 type Mode =
-  null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip' | 'bridge' | 'repair' | CkMode;
+  | null
+  | 'road'
+  | 'settlement'
+  | 'city'
+  | 'ship'
+  | 'moveShip'
+  | 'bridge'
+  | 'repair'
+  | 'tbMove'
+  | CkMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
@@ -114,6 +124,7 @@ function targetsFor(
   const pair = edgeChoices(state);
   if (pair) want.add(edgeKind === 'ship' ? pair[1] : pair[0]);
   if (ph === 'setup' && (state.phase.step as string) !== 'road') want.add('placeSetupSettlement');
+  if (ph === 'tbKnight') want.add('placeTbKnight');
   if (ph === 'moveRobber') {
     want.add('moveRobber');
     want.add('movePirate');
@@ -169,6 +180,20 @@ function targetsFor(
   }
   if (ph === 'main' && mode === 'knight') want.add('buildKnight');
   if (ph === 'main' && mode === 'wall') want.add('buildWall');
+  if (ph === 'main' && mode === 'tbMove') {
+    // First pick a knight, then the path it moves to.
+    const knights =
+      (state.data['traders-barbarians']?.knights as { id: string; edge: EdgeId }[] | undefined) ??
+      [];
+    for (const a of legal) {
+      if (a.type !== 'moveTbKnight') continue;
+      if (selectedShip === null) {
+        const k = knights.find((x) => x.id === a.knight);
+        if (k) t.edges.set(k.edge, { type: 'selectKnight', player: a.player, knight: a.knight });
+      } else if (a.knight === selectedShip) t.edges.set(a.to as EdgeId, a);
+    }
+    return t;
+  }
   if (ph === 'main' && mode === 'moveShip') {
     // First pick a ship, then where it sails to.
     for (const a of legal) {
@@ -217,6 +242,7 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
     case 'roadBuilding':
       return `${who}: place a free ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} (${state.phase.remaining as number} left).`;
     case 'main':
+      if (mode === 'tbMove') return `${who}: ${TB_MOVE_PROMPT}`;
       if (mode === 'moveShip')
         return `${who}: tap the ship to move, then where it should sail. Tap the button again to cancel.`;
       if (mode === 'knightAct')
@@ -781,6 +807,11 @@ export function Game({
                   names={promptNames}
                   bridgeMode={mode === 'bridge'}
                   toggleBridge={() => setMode(mode === 'bridge' ? null : 'bridge')}
+                  knightMode={mode === 'tbMove'}
+                  toggleKnight={() => {
+                    setSelectedShip(null);
+                    setMode(mode === 'tbMove' ? null : 'tbMove');
+                  }}
                 />
               )}
               {!ck && (
