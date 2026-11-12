@@ -6,6 +6,8 @@ import {
   MODES,
   PRESETS,
   SEA_SCENARIOS,
+  SPECIAL_MAPS,
+  generateSpecialBoard,
   type FairnessReport,
   type Mode,
 } from '@colonizers/maps';
@@ -25,6 +27,13 @@ import {
 } from '@colonizers/bots';
 import { createRoom, parseRoomCode } from '../online/api.ts';
 import { saveName, savedName } from '../online/identity.ts';
+import { OptionsPanel, SpecialMapButtons } from '../ui/OptionsPanel.tsx';
+import {
+  DEFAULT_OPTIONS,
+  moduleList,
+  optionSettings,
+  type GameOptions,
+} from '../../../server/src/protocol.ts';
 
 const DEFAULT_NAMES = ['Alex', 'Blair', 'Casey', 'Devon', 'Emery', 'Finley', 'Gray', 'Harper'];
 
@@ -35,7 +44,8 @@ function randomSeed(): string {
 type MapChoice =
   | { kind: 'preset'; id: string }
   | { kind: 'random'; mode: Mode }
-  | { kind: 'scenario'; id: string };
+  | { kind: 'scenario'; id: string }
+  | { kind: 'special'; id: string };
 
 export function NewGame({
   onStart,
@@ -58,6 +68,7 @@ export function NewGame({
   const [seed, setSeed] = useState(randomSeed);
   const [vpTarget, setVpTarget] = useState(10);
   const [ck, setCk] = useState(false);
+  const [options, setOptions] = useState<GameOptions>(DEFAULT_OPTIONS);
   const [seatKind, setSeatKind] = useState<('human' | Level)[]>(() =>
     DEFAULT_NAMES.map(() => 'human'),
   );
@@ -72,16 +83,24 @@ export function NewGame({
     });
     return out;
   };
-  const extra = ck ? ['cities-knights'] : [];
   const extraVp = ck ? 3 : 0;
 
   const presets = PRESETS.filter((p) => count >= p.players.min && count <= p.players.max);
   const scenarios = SEA_SCENARIOS.filter((x) => count >= x.players.min && count <= x.players.max);
   const effective: MapChoice =
     (choice.kind === 'preset' && !presets.some((p) => p.id === choice.id)) ||
-    (choice.kind === 'scenario' && !scenarios.some((x) => x.id === choice.id))
+    (choice.kind === 'scenario' && !scenarios.some((x) => x.id === choice.id)) ||
+    (choice.kind === 'special' &&
+      !SPECIAL_MAPS.some(
+        (x) => x.id === choice.id && count >= x.players.min && count <= x.players.max,
+      ))
       ? { kind: 'random', mode: 'classic' }
       : choice;
+  const specialId = effective.kind === 'special' ? effective.id : null;
+  const special = useMemo(
+    () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
+    [specialId, seed, count],
+  );
 
   const sea = useMemo(
     () =>
@@ -92,7 +111,7 @@ export function NewGame({
   );
 
   const board = useMemo((): { map: MapSpec; report: FairnessReport } => {
-    if (effective.kind === 'scenario') {
+    if (effective.kind === 'scenario' || effective.kind === 'special') {
       // Fairness grading is for land boards; Seafarers boards are checked by the generator.
       const b = generateBoard({ seed, players: count, mode: 'classic' });
       return { map: b.map, report: b.report };
@@ -106,33 +125,32 @@ export function NewGame({
   }, [effective.kind, effective.kind === 'random' ? effective.mode : effective.id, seed, count]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const start = () => {
-    if (sea) {
+    const players = names.slice(0, count).map((n, i) => n.trim() || `Player ${i + 1}`);
+    const opts = optionSettings(options, count);
+    const make = (extraModules: string[], map: MapSpec, own: Record<string, unknown>) =>
       onStart({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
-          players: names.slice(0, count).map((n, i) => n.trim() || `Player ${i + 1}`),
-          modules: ['base', 'seafarers', ...extra],
-          map: sea.map,
-          settings: { ...sea.settings, vpTarget: Number(sea.settings.vpTarget) + extraVp },
+          players,
+          modules: moduleList(extraModules, ck),
+          map,
+          settings: { ...opts, ...own },
           fixedSeats: true,
         },
         actions: [],
         bots: botsFor(),
       });
-      return;
-    }
-    onStart({
-      config: {
-        seed: `${seed}-${Date.now().toString(36)}`,
-        players: names.slice(0, count).map((n, i) => n.trim() || `Player ${i + 1}`),
-        modules: ['base', ...extra],
-        map: board.map,
-        settings: { vpTarget: vpTarget + extraVp },
-        fixedSeats: true,
-      },
-      actions: [],
-      bots: botsFor(),
-    });
+    if (sea)
+      return make(['seafarers'], sea.map, {
+        ...sea.settings,
+        vpTarget: Number(sea.settings.vpTarget) + extraVp,
+      });
+    if (special)
+      return make(special.modules, special.map, {
+        ...special.settings,
+        vpTarget: vpTarget + extraVp,
+      });
+    make([], board.map, { vpTarget: vpTarget + extraVp });
   };
 
   const r = board.report;
@@ -175,7 +193,7 @@ export function NewGame({
         </div>
         {count > 4 && (
           <p className="muted">
-            5–8 players use the bigger boards. The Special Building Phase arrives in a later update.
+            5–8 players use the bigger boards. Pick how turns work under Options and house rules.
           </p>
         )}
         <div className="names">
@@ -283,12 +301,19 @@ export function NewGame({
             </div>
           </>
         )}
+        <SpecialMapButtons
+          players={count}
+          selected={specialId}
+          onPick={(id) => setChoice({ kind: 'special', id })}
+        />
         <p className="muted">
           {effective.kind === 'random'
             ? MODES[effective.mode].description
             : effective.kind === 'scenario'
               ? SEA_SCENARIOS.find((x) => x.id === effective.id)?.description
-              : PRESETS.find((p) => p.id === effective.id)?.description}
+              : effective.kind === 'special'
+                ? SPECIAL_MAPS.find((x) => x.id === effective.id)?.description
+                : PRESETS.find((p) => p.id === effective.id)?.description}
         </p>
         {effective.kind !== 'preset' && (
           <div className="row">
@@ -306,7 +331,7 @@ export function NewGame({
             </button>
           </div>
         )}
-        {sea ? (
+        {special ? null : sea ? (
           <p className="muted">
             {sea.info.islands.length} islands, {sea.info.gold.length} gold fields
             {sea.map.hexes.some((h) => h.hidden) ? ', fog' : ''}. First to{' '}
@@ -353,6 +378,7 @@ export function NewGame({
             {ck && <small className="muted"> +3 for Cities &amp; Knights = {vpTarget + 3}</small>}
           </label>
         )}
+        <OptionsPanel options={options} players={count} citiesKnights={ck} onChange={setOptions} />
       </section>
 
       <button type="button" className="primary big" onClick={start}>

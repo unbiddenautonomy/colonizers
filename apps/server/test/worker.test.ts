@@ -3,6 +3,7 @@ import { env, exports } from 'cloudflare:workers';
 import { runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { stateFromView, type Action } from '@colonizers/engine';
 import type { GameSnapshot, RoomInfo, ServerMessage } from '../src/protocol.ts';
+import { DEFAULT_OPTIONS } from '../src/protocol.ts';
 import { library } from '../src/rules.ts';
 
 const BASE = 'https://colonizers.test';
@@ -202,6 +203,7 @@ describe('Lobby', () => {
       citiesKnights: false,
       turnTimer: 90,
       maxPlayers: 3,
+      options: DEFAULT_OPTIONS,
     });
 
     // Leaving shows the player as offline straight away.
@@ -462,7 +464,7 @@ describe('Online game', () => {
     expect(b.room!.settings.citiesKnights).toBe(true);
     await startGame([a, b]);
     const view = a.game!.view;
-    expect(view.modules).toEqual(['base', 'seafarers', 'cities-knights']);
+    expect(view.modules).toEqual(['base', 'seafarers', 'variants', 'cities-knights']);
     expect(view.decks.science).toBe(18);
     expect(view.bank.paper).toBeGreaterThan(0);
     [a, b].forEach((c) => c.close());

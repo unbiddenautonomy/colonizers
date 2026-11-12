@@ -115,6 +115,11 @@ export interface GameModule {
    * previous definition, so it can call through and add behaviour.
    */
   wrapActions?: Record<string, (previous: ActionDef) => ActionDef>;
+  /**
+   * Like wrapActions, but skipped when no module in the game defines the
+   * action, so an options module can cover expansions it doesn't require.
+   */
+  wrapActionsIfPresent?: Record<string, (previous: ActionDef) => ActionDef>;
   hooks?: Partial<Hooks>;
   reducers?: Partial<Reducers>;
   /** Replaces the dice. The last module that provides dice wins. */
@@ -205,6 +210,10 @@ export function buildRegistry(modules: GameModule[]): Registry {
       const prev = reg.actions[type];
       if (!prev) throw new Error(`Module "${m.id}" wraps unknown action "${type}"`);
       reg.actions[type] = wrap(prev);
+    }
+    for (const [type, wrap] of Object.entries(m.wrapActionsIfPresent ?? {})) {
+      const prev = reg.actions[type];
+      if (prev) reg.actions[type] = wrap(prev);
     }
     if (m.dice) reg.dice = m.dice;
   }

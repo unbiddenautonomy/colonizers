@@ -1,0 +1,25 @@
+{
+  "name": "@colonizers/module-special-maps",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hexes for the special maps: volcanoes that pay like gold and erupt, and inland lakes.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/bots": "workspace:*",
+    "@colonizers/maps": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}
