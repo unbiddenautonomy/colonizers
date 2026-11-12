@@ -7,12 +7,14 @@ A private hex-and-resources trading game for friend groups. The plan is in [docs
 ```
 apps/
   web/          React + Vite web app: home, online lobby and game, hotseat play, SVG board, rulebook
-  server/       Cloudflare Worker: serves the web app, the room API, and one Durable Object per room (lobby, chat, timer, authoritative game)
+  server/       Cloudflare Worker: serves the web app, the room API, accounts, and one Durable Object per room (lobby, chat, timer, bots, authoritative game)
 packages/
   engine/       Rules engine core shared by browser and server (no game-specific rules)
   modules/
     base/       The base game as the first module
     seafarers/  Seafarers: ships, pirate, gold fields, fog, island bonus
+    cities-knights/  Cities & Knights: commodities, improvements, knights, barbarians, progress cards
+  bots/         Computer players (Easy, Medium, Hard; five play styles), used by rooms and local games
   maps/         Map files, preset boards, board generator, fairness report, Seafarers scenarios
   rulebook/     Plain-language rule pages, card glossary, cost card data
 docs/

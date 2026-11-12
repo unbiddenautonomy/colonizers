@@ -14,6 +14,15 @@ import { cleanTheme } from '../theme/clean.ts';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { RESOURCE_ICON } from '../theme/clean.ts';
 import type { SavedGame } from '../game/useLocalGame.ts';
+import {
+  LEVEL_INFO,
+  LEVELS,
+  STYLE_INFO,
+  STYLES,
+  type BotConfig,
+  type Level,
+  type Style,
+} from '@colonizers/bots';
 import { createRoom, parseRoomCode } from '../online/api.ts';
 import { saveName, savedName } from '../online/identity.ts';
 
@@ -49,6 +58,20 @@ export function NewGame({
   const [seed, setSeed] = useState(randomSeed);
   const [vpTarget, setVpTarget] = useState(10);
   const [ck, setCk] = useState(false);
+  const [seatKind, setSeatKind] = useState<('human' | Level)[]>(() =>
+    DEFAULT_NAMES.map(() => 'human'),
+  );
+  const [botStyle, setBotStyle] = useState<Style | 'mixed'>('mixed');
+  const anyBots = seatKind.slice(0, count).some((k) => k !== 'human');
+  const botsFor = (): Record<number, BotConfig> => {
+    const out: Record<number, BotConfig> = {};
+    seatKind.slice(0, count).forEach((k, i) => {
+      if (k === 'human') return;
+      const style = botStyle === 'mixed' ? STYLES[(i * 3 + count) % STYLES.length]! : botStyle;
+      out[i] = { level: k, style };
+    });
+    return out;
+  };
   const extra = ck ? ['cities-knights'] : [];
   const extraVp = ck ? 3 : 0;
 
@@ -94,6 +117,7 @@ export function NewGame({
           fixedSeats: true,
         },
         actions: [],
+        bots: botsFor(),
       });
       return;
     }
@@ -107,6 +131,7 @@ export function NewGame({
         fixedSeats: true,
       },
       actions: [],
+      bots: botsFor(),
     });
   };
 
@@ -167,8 +192,48 @@ export function NewGame({
                 onChange={(e) => setNames(names.map((x, j) => (j === i ? e.target.value : x)))}
                 aria-label={`Player ${i + 1} name`}
               />
+              <select
+                value={seatKind[i]}
+                aria-label={`Who plays ${n || `player ${i + 1}`}`}
+                onChange={(e) =>
+                  setSeatKind(
+                    seatKind.map((x, j) => (j === i ? (e.target.value as 'human' | Level) : x)),
+                  )
+                }
+              >
+                <option value="human">Person</option>
+                {LEVELS.map((l) => (
+                  <option key={l} value={l} title={LEVEL_INFO[l].text}>
+                    {LEVEL_INFO[l].name} bot
+                  </option>
+                ))}
+              </select>
             </label>
           ))}
+        </div>
+        <div className="row">
+          <button
+            type="button"
+            onClick={() => setSeatKind(seatKind.map((_, i) => (i === 0 ? 'human' : 'medium')))}
+          >
+            🤖 Play against bots
+          </button>
+          {anyBots && (
+            <label>
+              Bot style{' '}
+              <select
+                value={botStyle}
+                onChange={(e) => setBotStyle(e.target.value as Style | 'mixed')}
+              >
+                <option value="mixed">Mixed</option>
+                {STYLES.map((st) => (
+                  <option key={st} value={st} title={STYLE_INFO[st].text}>
+                    {STYLE_INFO[st].name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       </section>
 

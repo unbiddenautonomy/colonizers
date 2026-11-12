@@ -3,6 +3,7 @@ import { MODES, PRESETS, SEA_SCENARIOS } from '@colonizers/maps';
 import {
   TURN_TIMERS,
   VP_TARGETS,
+  type ClientMessage,
   type MapChoice,
   type RoomInfo,
   type RoomSettings,
@@ -23,6 +24,7 @@ import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
 import { Game } from './Game.tsx';
 import { currentUser } from '../online/account.ts';
+import { LEVEL_INFO, LEVELS, STYLE_INFO, STYLES, type Level, type Style } from '@colonizers/bots';
 
 type Room = ReturnType<typeof useOnlineRoom>;
 
@@ -295,6 +297,11 @@ function Lobby({
               ) : (
                 <strong>{m.name}</strong>
               )}
+              {m.bot && (
+                <span className="pill" title={STYLE_INFO[m.bot.style].text}>
+                  🤖 {LEVEL_INFO[m.bot.level].name} · {STYLE_INFO[m.bot.style].name}
+                </span>
+              )}
               {m.id === room.hostId && <span title="Host">👑</span>}
               <span
                 className={`presence${m.online ? ' on' : ''}`}
@@ -318,6 +325,7 @@ function Lobby({
             </li>
           ))}
         </ul>
+        {isHost && players.length < s.maxPlayers && <AddBot send={r.send} />}
         {watchers.length > 0 && (
           <p className="muted">Watching: {watchers.map((m) => m.name).join(', ')}</p>
         )}
@@ -479,7 +487,9 @@ function Lobby({
           disabled={players.length < 2}
           onClick={() => r.send({ type: 'start' })}
         >
-          {players.length < 2 ? 'Waiting for players…' : `Start game with ${players.length}`}
+          {players.length < 2
+            ? 'Waiting for players, or add a bot…'
+            : `Start game with ${players.length}`}
         </button>
       ) : (
         <p className="waiting" role="status">
@@ -489,5 +499,39 @@ function Lobby({
 
       {rules && <Rulebook state={null} viewer={null} onClose={() => setRules(false)} />}
     </main>
+  );
+}
+
+function AddBot({ send }: { send: (msg: ClientMessage) => boolean }) {
+  const [level, setLevel] = useState<Level>('medium');
+  const [style, setStyle] = useState<Style>('balanced');
+  return (
+    <div className="row add-bot">
+      <select
+        value={level}
+        onChange={(e) => setLevel(e.target.value as Level)}
+        aria-label="Bot level"
+      >
+        {LEVELS.map((l) => (
+          <option key={l} value={l} title={LEVEL_INFO[l].text}>
+            {LEVEL_INFO[l].name}
+          </option>
+        ))}
+      </select>
+      <select
+        value={style}
+        onChange={(e) => setStyle(e.target.value as Style)}
+        aria-label="Bot style"
+      >
+        {STYLES.map((st) => (
+          <option key={st} value={st} title={STYLE_INFO[st].text}>
+            {STYLE_INFO[st].name}
+          </option>
+        ))}
+      </select>
+      <button type="button" onClick={() => send({ type: 'addBot', level, style })}>
+        🤖 Add a bot
+      </button>
+    </div>
   );
 }

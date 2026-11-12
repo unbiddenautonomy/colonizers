@@ -481,4 +481,47 @@ describe('Online game', () => {
     expect(await watcher.waitFor((x) => x.type === 'error', m)).toMatchObject({ code: 'denied' });
     [a, b, watcher].forEach((c) => c.close());
   });
+
+  it('plays with bots: they join from the lobby and take their own moves', async () => {
+    const code = await createRoom();
+    const host = await join(code, 'Solo');
+    const guest = await join(code, 'Guest');
+    let m = guest.mark;
+    guest.send({ type: 'addBot', level: 'medium', style: 'builder' });
+    await guest.waitFor((x) => x.type === 'error' && x.code === 'denied', m, 'denied');
+    guest.send({ type: 'leave' });
+    await host.waitFor((x) => x.type === 'room' && x.room.members.length === 1, 0, 'guest left');
+    guest.close();
+
+    for (const level of ['easy', 'medium', 'hard'])
+      host.send({ type: 'addBot', level, style: 'balanced' });
+    await host.waitFor(
+      (x) => x.type === 'room' && x.room.members.filter((mm) => mm.bot).length === 3,
+      0,
+      'three bots',
+    );
+    const bots = host.room!.members.filter((mm) => mm.bot);
+    expect(bots.every((b) => b.online && b.role === 'player')).toBe(true);
+    expect(bots.map((b) => b.bot!.level).sort()).toEqual(['easy', 'hard', 'medium']);
+
+    await startGame([host]);
+    // Play the host's own setup moves; the bots place theirs by themselves.
+    const deadline = Date.now() + 40_000;
+    while (host.game!.view.phase.id === 'setup') {
+      if (Date.now() > deadline) throw new Error('Bots did not finish setup');
+      const mine = legalFor(host);
+      if (mine.length) {
+        m = host.mark;
+        host.send({ type: 'act', action: mine[0] });
+        await host.waitFor((x) => x.type === 'game' || x.type === 'error', m, 'host move');
+      } else {
+        m = host.mark;
+        await host.waitFor((x) => x.type === 'game', m, 'a bot move');
+      }
+    }
+    const view = host.game!.view;
+    const corners = Object.values(view.pieces).filter((p) => p.at.kind === 'corner');
+    expect(corners.length).toBe(8);
+    host.close();
+  }, 60_000);
 });
