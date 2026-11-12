@@ -65,7 +65,24 @@ While a trade offer is open, the partner waits until it is settled.`,
 - **Gifts**: on your turn you can give cards to another player for nothing.
 - **Both starting settlements pay**: you get resources for both of your starting settlements, not just the second.
 - **Quiet start**: for the first few rounds a 7 does nothing: no discards and no robber.
-- **Discard limit**: when a 7 is rolled, players holding more than this many cards discard half.`,
+- **Discard limit**: when a 7 is rolled, players holding more than this many cards discard half.
+- **Harbormaster**: a 2-point bonus for building on harbors. See the Harbormaster page.`,
+    },
+    {
+      id: 'harbormaster',
+      module: 'variants',
+      section: 'rules',
+      title: 'Harbormaster',
+      summary: '2 points for the player with the most buildings on harbors.',
+      tags: ['harbormaster', 'harbor', 'bonus', 'points'],
+      body: `A house rule from Traders & Barbarians that the host can switch on.
+
+- Each settlement on a harbor counts **1**, each city on a harbor counts **2**.
+- The first player to reach **3** takes the Harbormaster bonus, worth **2 points**.
+- Someone with more takes it straight away. A tie leaves it where it is.
+- If the holder drops below 3, the bonus goes back until someone qualifies again.
+
+The bonus makes games a little shorter, so you may want to raise the points to win by one.`,
     },
   ],
 };

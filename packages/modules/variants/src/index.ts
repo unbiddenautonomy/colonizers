@@ -22,6 +22,8 @@ import { publicVp, robberHexes } from '@colonizers/module-base';
  * - `balancedDice`: the dice come from a shuffled deck of all 36 outcomes.
  * - `robberFreeRounds`: for the first N rounds a 7 does nothing.
  * - `gifting`: on your turn you may give cards to another player.
+ * - `harbormaster`: the first player with 3 points of buildings on harbors
+ *   (settlement 1, city 2) takes a 2-point bonus; anyone with more takes it.
  *
  * List this module before Cities & Knights so its event dice win.
  */
@@ -36,10 +38,12 @@ interface VariantsData {
   reshuffleAt: number;
   /** For everyone's screens: how many are left. */
   left: number;
+  /** Who holds the Harbormaster bonus. */
+  harbormaster: number | null;
 }
 
 function vData(ctx: Ctx): VariantsData {
-  ctx.state.data[MODULE_ID] ??= { deck: [], reshuffleAt: 0, left: 0 };
+  ctx.state.data[MODULE_ID] ??= { deck: [], reshuffleAt: 0, left: 0, harbormaster: null };
   return ctx.state.data[MODULE_ID] as unknown as VariantsData;
 }
 
@@ -207,6 +211,7 @@ export const variantsModule: GameModule = {
     balancedDice: false,
     robberFreeRounds: 0,
     gifting: false,
+    harbormaster: false,
   },
   actions: { endSpecialBuild, giveCards },
   dice(ctx) {
@@ -215,6 +220,7 @@ export const variantsModule: GameModule = {
   },
   wrapActionsIfPresent: {
     buildShip: wrapBuild('build'),
+    buildBridge: wrapBuild('build'),
   },
   wrapActions: {
     ...Object.fromEntries(BUILD_ACTIONS.map((t) => [t, wrapBuild('build')])),
@@ -271,12 +277,58 @@ export const variantsModule: GameModule = {
     init(ctx) {
       vData(ctx);
     },
+    afterAction(ctx) {
+      if (ctx.setting<boolean>('harbormaster')) updateHarbormaster(ctx);
+    },
+  },
+  reducers: {
+    vp(ctx, seat, value) {
+      return vData(ctx).harbormaster === seat ? value + HARBORMASTER_VP : value;
+    },
   },
   redact(data) {
     const d = data as unknown as VariantsData;
     return { ...d, deck: [] } as unknown as Record<string, unknown>;
   },
 };
+
+// ---- Harbormaster ----
+
+export const HARBORMASTER_MIN = 3;
+export const HARBORMASTER_VP = 2;
+
+/** Points of buildings each player has on harbor corners: 1 per settlement, 2 per city. */
+export function harborPoints(ctx: Ctx): number[] {
+  const corners = new Set<string>();
+  for (const h of ctx.state.harbors)
+    for (const c of ctx.geometry.edgeCorners.get(h.edge) ?? []) corners.add(c);
+  const out = ctx.state.players.map(() => 0);
+  for (const c of corners) {
+    const b = ctx.buildingAt(c as never);
+    if (b && b.owner !== null) out[b.owner]! += b.type === 'city' ? 2 : 1;
+  }
+  return out;
+}
+
+export function harbormasterOf(ctx: Ctx): number | null {
+  return vData(ctx).harbormaster ?? null;
+}
+
+function updateHarbormaster(ctx: Ctx): void {
+  const d = vData(ctx);
+  const points = harborPoints(ctx);
+  const holder = d.harbormaster ?? null;
+  const max = Math.max(...points);
+  let next = holder;
+  if (holder !== null && points[holder]! < HARBORMASTER_MIN) next = null;
+  const leaders = points.flatMap((p, s) => (p === max ? [s] : []));
+  if (max >= HARBORMASTER_MIN && leaders.length === 1 && (next === null || max > points[next]!))
+    next = leaders[0]!;
+  if (next !== holder) {
+    d.harbormaster = next;
+    ctx.emit({ type: 'award', award: 'harbormaster', from: holder, to: next, points: max });
+  }
+}
 
 /** A land hex touching a player (other than the mover) who has 2 or fewer points showing. */
 function protectedHex(ctx: Ctx, hex: HexId, mover: number): boolean {
