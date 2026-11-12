@@ -13,3 +13,11 @@ createRoot(root).render(
     <App />
   </StrictMode>,
 );
+
+// The service worker makes the app installable and work offline. Only in
+// real builds, so it never caches files during development.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+  });
+}

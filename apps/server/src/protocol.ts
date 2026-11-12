@@ -110,7 +110,8 @@ export interface RoomSettings {
   options: GameOptions;
 }
 
-export const TURN_TIMERS = [0, 60, 90, 120, 180, 300] as const;
+/** Seconds per turn. The long ones are for async games played over days. */
+export const TURN_TIMERS = [0, 60, 90, 120, 180, 300, 3600, 21600, 43200, 86400, 259200] as const;
 export const VP_TARGETS = [8, 9, 10, 11, 12, 13, 14, 15] as const;
 
 export const DEFAULT_SETTINGS: RoomSettings = {

@@ -380,6 +380,7 @@ export class GameRoom extends DurableObject<Env> {
     this.updateTimer();
     this.sendWelcomeToAll();
     this.scheduleBots();
+    this.notifyTurn();
   }
 
   private act(ws: WebSocket, member: Member, raw: Action): void {
@@ -416,6 +417,7 @@ export class GameRoom extends DurableObject<Env> {
     if (game.log.length > LOG_KEPT) game.log.splice(0, game.log.length - LOG_KEPT);
     this.broadcastGame(entries);
     this.scheduleBots();
+    this.notifyTurn();
     if (r.state.winner !== null) {
       const gameId = this.getMeta('gameId');
       if (gameId) {
@@ -595,6 +597,43 @@ export class GameRoom extends DurableObject<Env> {
 
   private systemChat(text: string): void {
     this.chat(null, 'Room', text);
+  }
+
+  // ---- "Your turn" notifications ----
+
+  /** Seat and turn pairs already told, so each person hears once per turn. */
+  private notified = new Set<string>();
+
+  /** Sends a push to signed-in players whose move it is and who aren't here. */
+  private notifyTurn(): void {
+    const game = this.status === 'playing' ? this.load() : null;
+    if (!game || game.state.winner !== null) return;
+    const online = new Set<string>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const m = this.memberOf(ws);
+      if (m) online.add(m.id);
+    }
+    const key = timerKey(game.state);
+    const code = this.getMeta('code') ?? '';
+    for (const seat of timedSeats(game.state)) {
+      const m = [...this.members.values()].find((x) => x.seat === seat);
+      if (!m || m.bot || !m.userId || online.has(m.id)) continue;
+      const once = `${seat}:${key}`;
+      if (this.notified.has(once)) continue;
+      this.notified.add(once);
+      if (this.notified.size > 200) this.notified = new Set([once]);
+      const discard = game.state.phase.owed !== undefined;
+      this.background(
+        accounts(this.env).notify(m.userId, {
+          title: discard ? 'Colonizers: discard cards' : 'Colonizers: your turn',
+          body: discard
+            ? `A 7 was rolled in room ${code}. Choose cards to discard.`
+            : `It's your move in room ${code}.`,
+          url: `/r/${code}`,
+          tag: `room-${code}`,
+        }),
+      );
+    }
   }
 
   // ---- Turn timer ----

@@ -11,6 +11,8 @@ import { baseData, publicVp } from '@colonizers/module-base';
 import { nameOf, pageForError } from '@colonizers/rulebook';
 import { Board, noTargets, type Targets } from '../board/Board.tsx';
 import { describe } from '../game/describe.ts';
+import { play, setSound, soundFor, useSound } from '../game/sounds.ts';
+import { notifyHere } from '../online/push.ts';
 import { library } from '../game/library.ts';
 import {
   actorOf,
@@ -357,6 +359,28 @@ export function Game({
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [g.log.length]);
 
+  // Sounds for new log lines, and a nudge when it becomes your turn.
+  const heard = useRef(g.log.length);
+  useEffect(() => {
+    const fresh = g.log.slice(Math.min(heard.current, g.log.length));
+    heard.current = g.log.length;
+    if (!fresh.length || fresh.length > 30) return;
+    const sounds = new Set(fresh.map((l) => soundFor(l.event, seat)).filter((x) => x !== null));
+    for (const sound of sounds) play(sound);
+    if (online && fresh.some((l) => l.event.type === 'turnStarted' && l.event.player === seat))
+      notifyHere('Colonizers: your turn', `It's your move in room ${online.code}.`);
+  }, [g.log, seat, online]);
+
+  // The tab title shows when it's your move, for people in another tab.
+  const myMove = seat !== null && state.winner === null && library.waitingOn(state).includes(seat);
+  useEffect(() => {
+    if (!online) return;
+    document.title = myMove ? '● Your turn · Colonizers' : 'Colonizers';
+    return () => {
+      document.title = 'Colonizers';
+    };
+  }, [myMove, online]);
+
   const errorPage = g.error ? pageForError(g.error) : null;
 
   return (
@@ -388,6 +412,7 @@ export function Game({
               Private hands
             </label>
           )}
+          <SoundToggle />
           <ThemePicker compact />
           <button
             type="button"
@@ -500,7 +525,11 @@ export function Game({
         {lastRoll && (
           <div className="dice" aria-label={`Last roll ${lastRoll.total}`}>
             {Object.entries(lastRoll.dice).map(([name, d]) => (
-              <span key={name} className={`die die-${name}`} title={name}>
+              <span
+                key={`${name}-${state.turn.number}-${lastRoll.total}`}
+                className={`die die-${name}`}
+                title={name}
+              >
                 {typeof d === 'number' ? d : (EVENT_ICON[d] ?? d)}
               </span>
             ))}
@@ -1277,5 +1306,21 @@ function PickDialog({
         Play card
       </button>
     </Modal>
+  );
+}
+
+function SoundToggle() {
+  const on = useSound();
+  return (
+    <button
+      type="button"
+      className="icon"
+      onClick={() => setSound(!on)}
+      aria-pressed={on}
+      aria-label={on ? 'Sound on' : 'Sound off'}
+      title={on ? 'Sound on' : 'Sound off'}
+    >
+      {on ? '🔊' : '🔇'}
+    </button>
   );
 }
