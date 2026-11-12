@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Action } from '@colonizers/engine';
 import type { ClientMessage, ServerMessage } from '../../../server/src/protocol.ts';
 import { roomSocketUrl, roomSummary } from './api.ts';
-import { tokenFor } from './identity.ts';
+import { rememberRoom, tokenFor } from './identity.ts';
 import { initialOnlineState, reduce, type OnlineState } from './roomState.ts';
 
 /**
@@ -36,6 +36,7 @@ export function useOnlineRoom(code: string, name: string) {
       socketRef.current = ws;
       ws.onopen = () => {
         attempt = 0;
+        rememberRoom(code);
         ws.send(JSON.stringify({ type: 'hello', token: tokenFor(code), name: nameRef.current }));
       };
       ws.onmessage = (e: MessageEvent<string>) => {
