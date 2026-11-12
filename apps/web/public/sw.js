@@ -1,6 +1,13 @@
 /* Colonizers service worker: keeps the app working offline and shows "your turn" pushes. */
-const CACHE = 'colonizers-v1';
-const SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/favicon.svg'];
+const CACHE = 'colonizers-v2';
+const SHELL = [
+  '/',
+  '/manifest.webmanifest',
+  '/icon.svg',
+  '/icon-192.png',
+  '/favicon.svg',
+  '/logo.svg',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
