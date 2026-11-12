@@ -16,6 +16,21 @@ function cards(c: Record<string, number> | undefined): string {
   return parts.join(', ') || 'nothing';
 }
 
+const EVENT_TEXT: Record<string, string> = {
+  prospers: 'good times, nothing happens',
+  robberAttacks: 'the robber strikes',
+  epidemic: 'epidemic, cities pay only 1 card',
+  earthquake: 'earthquake, everyone damages a road',
+  goodNeighbors: 'good neighbours, everyone gives a card to the left',
+  tournament: 'tournament, most knights take a card',
+  tradeAdvantage: 'trade advantage, the longest road takes a card',
+  calmSeas: 'calm seas, most harbors take a card',
+  robberFlees: 'the robber flees to the desert',
+  neighborlyAssistance: 'helping hand, the leaders give a card',
+  conflict: 'conflict, most knights steal a card',
+  plentifulYear: 'plentiful year, everyone takes a card',
+};
+
 /** One line of log text for an event, or null to leave it out. */
 export function describe(e: GameEvent, names: string[]): string | null {
   const n = (seat: unknown) =>
@@ -217,6 +232,24 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🪙 ${n(e.player)} earned ${e.gold as number} gold${e.reason === 'bridge' ? ' for a bridge' : ' by the river'}.`;
     case 'goldSpent':
       return `🪙 ${n(e.player)} paid ${e.gold as number} gold for ${cards({ [e.resource as string]: 1 })}.`;
+    case 'eventCard':
+      return `🃏 Event card: ${EVENT_TEXT[e.event as string] ?? e.event} (${e.total as number}).`;
+    case 'eventDeckShuffled':
+      return 'The event deck was shuffled.';
+    case 'eventNoEffect':
+      return 'Nobody is affected this time.';
+    case 'eventGain':
+      return `${n(e.player)} took ${cards(e.cards as Record<string, number>)}.`;
+    case 'roadDamaged':
+      return `${n(e.player)}'s road was damaged.`;
+    case 'roadRepaired':
+      return `${n(e.player)} repaired a road.`;
+    case 'camelVoteStarted':
+      return '🐪 Time to vote on the next camel.';
+    case 'camelBid':
+      return `${n(e.player)} put ${e.votes as number} vote${e.votes === 1 ? '' : 's'} on a path.`;
+    case 'camelPlaced':
+      return '🐪 A camel joins the caravan.';
     case 'eruption': {
       const hit = e.hit as string | null;
       const base = `🌋 The volcano erupted (die ${e.face as number})`;

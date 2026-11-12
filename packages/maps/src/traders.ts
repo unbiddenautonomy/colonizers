@@ -17,7 +17,7 @@ import type { SpecialBoard } from './special.ts';
  * gives a new layout.
  */
 export interface TbScenarioInfo {
-  id: 'fishermen' | 'rivers';
+  id: 'fishermen' | 'rivers' | 'caravans';
   name: string;
   description: string;
   players: { min: number; max: number };
@@ -36,6 +36,13 @@ export const TB_SCENARIOS: TbScenarioInfo[] = [
     name: 'Rivers',
     description:
       'Rivers cross the island. Bridges and building by the water pay gold: the richest player gains a point, the poorest lose two.',
+    players: { min: 3, max: 8 },
+  },
+  {
+    id: 'caravans',
+    name: 'Caravans',
+    description:
+      'Camel caravans leave an oasis in the middle. Vote with wool and grain on where they go: roads under camels count double, and buildings between camels score a point.',
     players: { min: 3, max: 8 },
   },
 ];
@@ -154,6 +161,26 @@ function rivers(map: MapSpec, players: number, rng: Rng): void {
   ];
 }
 
+function caravans(map: MapSpec): void {
+  // The desert nearest the middle becomes the oasis; the robber starts there.
+  const deserts = map.hexes
+    .filter((h) => h.type === 'desert')
+    .sort((a, b) => hexDistance({ q: 0, r: 0 }, a) - hexDistance({ q: 0, r: 0 }, b));
+  let oasis = deserts[0];
+  if (!oasis) return;
+  // Swap it into the very middle, where the caravans can reach everyone.
+  const middle = map.hexes.find((h) => h.q === 0 && h.r === 0 && h.type !== 'sea');
+  if (middle && middle !== oasis) {
+    [oasis.type, middle.type] = [middle.type, oasis.type];
+    const token = middle.token;
+    delete middle.token;
+    if (token !== undefined) oasis.token = token;
+    oasis = middle;
+  }
+  oasis.type = 'oasis';
+  map.pieces = [{ type: 'robber', at: { kind: 'hex', id: hexId(oasis.q, oasis.r) } }];
+}
+
 /** Generates a Traders & Barbarians board. The same options always give the same board. */
 export function generateTbBoard(opts: {
   seed: string;
@@ -165,7 +192,8 @@ export function generateTbBoard(opts: {
   const rng = Rng.fromSeed(`tb:${spec.id}:${opts.players}:${opts.seed}`);
   const map = generateBoard({ seed: opts.seed, players: opts.players, mode: 'classic' }).map;
   if (spec.id === 'fishermen') fishermen(map, opts.players, rng);
-  else rivers(map, opts.players, rng);
+  else if (spec.id === 'rivers') rivers(map, opts.players, rng);
+  else caravans(map);
   return {
     map,
     modules: ['base', 'traders-barbarians'],

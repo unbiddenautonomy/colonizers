@@ -453,6 +453,23 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 <title>Bridge</title>
               </g>
             );
+          if (p.type === 'road' && p.props.damaged)
+            return (
+              <line
+                key={p.id}
+                x1={a.x + (b.x - a.x) * k}
+                y1={a.y + (b.y - a.y) * k}
+                x2={b.x - (b.x - a.x) * k}
+                y2={b.y - (b.y - a.y) * k}
+                stroke={color(p.owner)}
+                strokeWidth={S * 0.13}
+                strokeDasharray={`${S * 0.1} ${S * 0.06}`}
+                opacity={0.75}
+                filter={fx}
+              >
+                <title>Damaged road: repair it before building new roads</title>
+              </line>
+            );
           if (p.type === 'ship')
             return <Ship key={p.id} a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />;
           return (
@@ -469,6 +486,22 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             />
           );
         })}
+
+      {((state.data['traders-barbarians']?.camels as EdgeId[] | undefined) ?? []).map((e) => {
+        const [a, b] = edgeEnds(e, g);
+        return (
+          <text
+            key={`camel-${e}`}
+            x={(a.x + b.x) / 2}
+            y={(a.y + b.y) / 2 + S * 0.1}
+            textAnchor="middle"
+            fontSize={S * 0.3}
+            className="camel"
+          >
+            🐪<title>Camel: a road here counts double</title>
+          </text>
+        );
+      })}
 
       {pirateHex?.kind === 'hex' &&
         (() => {

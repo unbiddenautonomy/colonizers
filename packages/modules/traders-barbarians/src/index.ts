@@ -6,6 +6,7 @@ import type {
   EdgeId,
   GameModule,
   HexId,
+  Phase,
   Piece,
 } from '@colonizers/engine';
 import {
@@ -29,11 +30,16 @@ import {
  * - **rivers**: rivers cross the island. Only bridges can cross them, and
  *   building by the water pays gold. Gold buys resources, the richest
  *   player gets a point and the poorest lose two.
+ * - **caravans**: camel caravans leave an oasis in the middle. At the end of
+ *   each round in which anyone built a settlement or city, everyone votes
+ *   with wool and grain on where the next camel goes. A road under a camel
+ *   counts double for Longest Road, and a building between two camels is
+ *   worth a point more.
  *
  * List it before the options module, so out-of-turn building covers bridges.
  */
 export const MODULE_ID = 'traders-barbarians';
-export type TbScenario = 'fishermen' | 'rivers';
+export type TbScenario = 'fishermen' | 'rivers' | 'caravans';
 
 /** 11 one-fish, 10 two-fish and 8 three-fish tokens, plus the old boot (0). */
 export const FISH_TOKENS: readonly number[] = [
@@ -49,6 +55,9 @@ export type FishUse = keyof typeof FISH_COST;
 export const GOLD_PER_RESOURCE = 2;
 export const GOLD_BUYS_PER_TURN = 2;
 export const BRIDGES_PER_PLAYER = 3;
+export const CAMELS = 22;
+/** Most wool and grain one player can put into a single vote. */
+export const MAX_BID = 3;
 
 export interface TbData extends Record<string, unknown> {
   /** Fish tokens still face down, drawn from the end. */
@@ -63,6 +72,12 @@ export interface TbData extends Record<string, unknown> {
   gold: Record<number, number>;
   /** Gold-for-resource buys made this turn. */
   goldBuys: number;
+  /** Edges with a camel. */
+  camels: EdgeId[];
+  /** The caravans leaving the oasis: the corners each has reached, last one is the head. */
+  caravans: { corners: CornerId[]; ended: boolean }[];
+  /** A settlement or city was built since the last vote. */
+  builtThisRound: boolean;
 }
 
 export function tbData(ctx: Ctx): TbData {
@@ -73,13 +88,16 @@ export function tbData(ctx: Ctx): TbData {
     boot: null,
     gold: {},
     goldBuys: 0,
+    camels: [],
+    caravans: [],
+    builtThisRound: false,
   } satisfies TbData;
   return ctx.state.data[MODULE_ID] as TbData;
 }
 
 export function scenarioOf(ctx: Ctx): TbScenario | null {
   const s = ctx.setting<string>('tbScenario');
-  return s === 'fishermen' || s === 'rivers' ? s : null;
+  return s === 'fishermen' || s === 'rivers' || s === 'caravans' ? s : null;
 }
 
 function shuffle(ctx: Ctx, list: number[]): number[] {
@@ -432,6 +450,150 @@ const buyWithGold: ActionDef = {
   },
 };
 
+// ---- Caravans ----
+
+export function camelEdges(ctx: Ctx): Set<EdgeId> {
+  return new Set(tbData(ctx).camels ?? []);
+}
+
+/** Where the next camel may go: one step on from the head of a caravan still travelling. */
+export function camelOptions(ctx: Ctx): EdgeId[] {
+  const d = tbData(ctx);
+  if ((d.camels?.length ?? 0) >= CAMELS) return [];
+  const taken = camelEdges(ctx);
+  const oasis = new Set(
+    Object.values(ctx.state.hexes)
+      .filter((h) => h.type === 'oasis')
+      .flatMap((h) => ctx.geometry.hexCorners.get(h.id) ?? []),
+  );
+  const out = new Set<EdgeId>();
+  for (const c of d.caravans ?? []) {
+    if (c.ended) continue;
+    const head = c.corners[c.corners.length - 1]!;
+    for (const e of ctx.geometry.cornerEdges.get(head) ?? []) {
+      if (taken.has(e) || !ctx.isLandEdge(e)) continue;
+      const [a, b] = ctx.geometry.edgeCorners.get(e)!;
+      const next = a === head ? b : a;
+      // No loops back into its own trail, and no running round the oasis.
+      if (c.corners.includes(next) || (oasis.has(head) && oasis.has(next))) continue;
+      out.add(e);
+    }
+  }
+  return [...out].sort();
+}
+
+function placeCamel(ctx: Ctx, edge: EdgeId): void {
+  const d = tbData(ctx);
+  const [a, b] = ctx.geometry.edgeCorners.get(edge)!;
+  const caravan = d.caravans.find((c) => {
+    const head = c.corners[c.corners.length - 1];
+    return !c.ended && (head === a || head === b);
+  });
+  d.camels.push(edge);
+  if (caravan) {
+    const head = caravan.corners[caravan.corners.length - 1];
+    const next = head === a ? b : a;
+    // Joining another caravan ends this one: caravans merge but never split.
+    if (d.caravans.some((o) => o !== caravan && o.corners.includes(next))) caravan.ended = true;
+    caravan.corners.push(next);
+  }
+  ctx.emit({ type: 'camelPlaced', edge });
+}
+
+export interface CamelVotePhase extends Phase {
+  id: 'camelVote';
+  /** Players still to vote; the first is voting now. */
+  order: number[];
+  /** Who breaks a tie: the player whose turn is starting. */
+  first: number;
+  votes: Record<string, number>;
+  /** Each player's chosen path. */
+  picks: Record<number, EdgeId>;
+  owed: Record<number, number>;
+  returnTo: Phase;
+}
+
+function startCamelVote(ctx: Ctx): void {
+  const d = tbData(ctx);
+  if (!d.builtThisRound) return;
+  d.builtThisRound = false;
+  if (!camelOptions(ctx).length) return;
+  const n = ctx.playerCount;
+  const first = ctx.active;
+  const order = Array.from({ length: n }, (_, i) => (first + i) % n);
+  ctx.setPhase({
+    id: 'camelVote',
+    order,
+    first,
+    votes: {},
+    picks: {},
+    owed: { [first]: 1 },
+    returnTo: ctx.state.phase,
+  } satisfies CamelVotePhase);
+  ctx.emit({ type: 'camelVoteStarted' });
+}
+
+const bidOk = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 0;
+
+const camelBid: ActionDef = {
+  phases: ['camelVote'],
+  check(ctx, a) {
+    const ph = ctx.state.phase as CamelVotePhase;
+    if (ph.order[0] !== a.player) return 'Wait for your turn to vote';
+    if (!camelOptions(ctx).includes(a.edge as EdgeId)) return 'Pick a path where a camel can go';
+    if (!bidOk(a.wool) || !bidOk(a.grain)) return 'Bid whole cards';
+    const wool = a.wool as number;
+    const grain = a.grain as number;
+    if (wool + grain > MAX_BID) return `Bid at most ${MAX_BID} cards`;
+    return ctx.has(a.player, { wool, grain }) ? null : 'You do not have those cards';
+  },
+  apply(ctx, a) {
+    const ph = ctx.state.phase as CamelVotePhase;
+    const wool = a.wool as number;
+    const grain = a.grain as number;
+    const edge = a.edge as EdgeId;
+    if (wool + grain > 0) ctx.pay(a.player, { wool, grain });
+    const votes = { ...ph.votes, [edge]: (ph.votes[edge] ?? 0) + wool + grain };
+    const picks = { ...ph.picks, [a.player]: edge };
+    ctx.emit({ type: 'camelBid', player: a.player, edge, votes: wool + grain });
+    const order = ph.order.slice(1);
+    if (order.length) {
+      ctx.setPhase({ ...ph, order, votes, picks, owed: { [order[0]!]: 1 } });
+      return;
+    }
+    const max = Math.max(0, ...Object.values(votes));
+    const top = Object.keys(votes)
+      .filter((e) => votes[e] === max)
+      .sort() as EdgeId[];
+    const choice = top.includes(picks[ph.first]!) || !top.length ? picks[ph.first]! : top[0]!;
+    placeCamel(ctx, choice);
+    ctx.setPhase(ph.returnTo);
+  },
+  enumerate(ctx, player) {
+    const ph = ctx.state.phase as CamelVotePhase;
+    if (ph.order?.[0] !== player) return [];
+    const out: Action[] = [];
+    for (const edge of camelOptions(ctx))
+      for (let wool = 0; wool <= MAX_BID; wool++)
+        for (let grain = 0; wool + grain <= MAX_BID; grain++)
+          out.push({ type: 'camelBid', player, edge, wool, grain });
+    return out;
+  },
+};
+
+/** Buildings with camels on two or more of their paths. */
+function camelBonus(ctx: Ctx, seat: number): number {
+  const camels = camelEdges(ctx);
+  if (!camels.size) return 0;
+  return ctx
+    .piecesOf(seat)
+    .filter((p) => ctx.registry.pieceTypes[p.type]?.building && p.at.kind === 'corner')
+    .filter(
+      (p) =>
+        (ctx.geometry.cornerEdges.get(cornerOf(p)) ?? []).filter((e) => camels.has(e)).length >= 2,
+    ).length;
+}
+
 // ---- Module ----
 
 export const tradersBarbariansModule: GameModule = {
@@ -441,6 +603,7 @@ export const tradersBarbariansModule: GameModule = {
   conflicts: ['seafarers', 'cities-knights'],
   settings: { tbScenario: 'fishermen' },
   hexTypes: {
+    oasis: { terrain: 'land' },
     shoal: { terrain: 'sea', robber: false },
     fishingLake: { terrain: 'land' },
     swamp: { terrain: 'land' },
@@ -450,7 +613,7 @@ export const tradersBarbariansModule: GameModule = {
     bridge: { on: 'edge', perPlayer: () => BRIDGES_PER_PLAYER, route: 'land' },
   },
   costs: { bridge: { brick: 2, lumber: 1 } },
-  actions: { spendFish, passBoot, buildBridge, buyWithGold },
+  actions: { spendFish, passBoot, buildBridge, buyWithGold, camelBid },
   wrapActions: {
     roll: (prev): ActionDef => ({
       ...prev,
@@ -480,11 +643,30 @@ export const tradersBarbariansModule: GameModule = {
         d.gold[p.seat] = 0;
       }
       if (scenarioOf(ctx) === 'fishermen') d.pile = shuffle(ctx, [...FISH_TOKENS]);
+      if (scenarioOf(ctx) === 'caravans') {
+        // Three caravans leave from every other corner of the oasis.
+        const oasis = Object.values(ctx.state.hexes).find((h) => h.type === 'oasis');
+        const corners = oasis ? (ctx.geometry.hexCorners.get(oasis.id) ?? []) : [];
+        d.caravans = [0, 2, 4]
+          .map((i) => corners[i])
+          .filter((c): c is CornerId => !!c)
+          .map((c) => ({ corners: [c], ended: false }));
+      }
     },
     turnStarted(ctx) {
       tbData(ctx).goldBuys = 0;
+      // A new round: vote on a camel if anyone built a settlement or city.
+      if (scenarioOf(ctx) === 'caravans' && ctx.state.turn.player === 0) startCamelVote(ctx);
     },
     piecePlaced(ctx, piece, previous) {
+      if (
+        scenarioOf(ctx) === 'caravans' &&
+        piece.owner !== null &&
+        previous === null &&
+        (piece.type === 'settlement' || piece.type === 'city') &&
+        ctx.state.phase.id !== 'setup'
+      )
+        tbData(ctx).builtThisRound = true;
       if (scenarioOf(ctx) !== 'rivers' || piece.owner === null || previous !== null) return;
       if (piece.type === 'bridge') return earnGold(ctx, piece.owner, 3, 'bridge');
       if (piece.type === 'road') {
@@ -505,7 +687,15 @@ export const tradersBarbariansModule: GameModule = {
       const g = goldStanding(ctx);
       if (g.richest === seat) v += 1;
       if (g.poorest.includes(seat)) v -= 2;
+      if (scenarioOf(ctx) === 'caravans') v += camelBonus(ctx, seat);
       return v;
+    },
+    vpTarget(ctx, value) {
+      return scenarioOf(ctx) === 'caravans' ? value + 2 : value;
+    },
+    routeWeight(ctx, piece, value) {
+      if (piece.type !== 'road' || scenarioOf(ctx) !== 'caravans') return value;
+      return camelEdges(ctx).has((piece.at as { id: EdgeId }).id) ? value * 2 : value;
     },
   },
   redact(data, viewer) {

@@ -14,6 +14,8 @@ import { variantsModule, harbormasterOf } from '@colonizers/module-variants';
 import { generateTbBoard, TB_SCENARIOS } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
 import {
+  camelEdges,
+  camelOptions,
   fishPayment,
   fishTotal,
   goldOf,
@@ -203,7 +205,9 @@ describe('Traders & Barbarians random games', () => {
       expect(finished).toBeGreaterThanOrEqual(2);
       if (scenario.id === 'fishermen')
         for (const t of ['fish:bank', 'fish:robber', 'fish:road']) expect(seen).toContain(t);
-      else for (const t of ['buildBridge', 'buyWithGold']) expect(seen).toContain(t);
+      else if (scenario.id === 'rivers')
+        for (const t of ['buildBridge', 'buyWithGold']) expect(seen).toContain(t);
+      else expect(seen).toContain('camelBid');
     }, 120_000);
 
     it(`${scenario.name}: bots finish a game`, () => {
@@ -393,5 +397,75 @@ describe('Harbormaster', () => {
     s = act(s, { type: 'endTurn', player: seat });
     expect(harbormasterOf(ctxOf(s))).toBe(seat);
     expect(ctxOf(s).vp(seat)).toBe(before + 2);
+  });
+});
+
+describe('Caravans', () => {
+  it('starts three caravans at the oasis in the middle', () => {
+    const s = game('caravans');
+    const oasis = Object.values(s.hexes).find((h) => h.type === 'oasis')!;
+    expect([oasis.q, oasis.r]).toEqual([0, 0]);
+    const c = ctxOf(s);
+    expect(tbData(c).caravans).toHaveLength(3);
+    expect(camelOptions(c).length).toBeGreaterThanOrEqual(3);
+    expect(c.vpTarget()).toBe(12);
+  });
+
+  it('votes on a camel after a round with a new settlement; the most votes win', () => {
+    let s = finishSetup(game('caravans'));
+    // Jump to the last player's turn with a settlement built this round.
+    s = edit(s, (c) => {
+      c.state.turn.player = 3;
+      c.setPhase({ id: 'main' });
+      tbData(c).builtThisRound = true;
+      for (const p of c.state.players) p.hand = { wool: 2, grain: 2 };
+    });
+    s = act(s, { type: 'endTurn', player: 3 });
+    expect(s.phase.id).toBe('camelVote');
+    expect(lib.waitingOn(s)).toEqual([0]);
+    const [a, b] = camelOptions(ctxOf(s)) as [EdgeId, EdgeId];
+    s = act(s, { type: 'camelBid', player: 0, edge: a, wool: 0, grain: 0 });
+    s = act(s, { type: 'camelBid', player: 1, edge: b, wool: 1, grain: 1 });
+    s = act(s, { type: 'camelBid', player: 2, edge: a, wool: 1, grain: 0 });
+    s = act(s, { type: 'camelBid', player: 3, edge: b, wool: 0, grain: 0 });
+    expect(s.phase.id).toBe('roll');
+    expect([...camelEdges(ctxOf(s))]).toEqual([b]);
+    expect(s.players[1]!.hand).toEqual({ wool: 1, grain: 1 });
+  });
+
+  it('a tie goes the way the first voter chose', () => {
+    let s = finishSetup(game('caravans'));
+    s = edit(s, (c) => {
+      c.state.turn.player = 3;
+      c.setPhase({ id: 'main' });
+      tbData(c).builtThisRound = true;
+    });
+    s = act(s, { type: 'endTurn', player: 3 });
+    const [a, b] = camelOptions(ctxOf(s)) as [EdgeId, EdgeId];
+    s = act(s, { type: 'camelBid', player: 0, edge: b, wool: 0, grain: 0 });
+    for (const p of [1, 2, 3])
+      s = act(s, { type: 'camelBid', player: p, edge: a, wool: 0, grain: 0 });
+    expect([...camelEdges(ctxOf(s))]).toEqual([b]);
+  });
+
+  it('roads under camels count double, and a building between two camels scores a point', () => {
+    let s = finishSetup(game('caravans'));
+    const c0 = ctxOf(s);
+    const head = tbData(c0).caravans[0]!.corners[0]!;
+    const [e1, e2] = (c0.geometry.cornerEdges.get(head) ?? []).filter((e) => c0.isLandEdge(e));
+    s = edit(s, (c) => {
+      for (const p of Object.values(c.state.pieces)) if (p.owner !== null) c.remove(p);
+      c.place('settlement', 0, { kind: 'corner', id: head });
+      c.place('road', 0, { kind: 'edge', id: e1! });
+      c.place('road', 0, { kind: 'edge', id: e2! });
+    });
+    const before = ctxOf(s);
+    expect(before.longestRoute(0)).toBe(2);
+    const vp = before.vp(0);
+    s = edit(s, (c) => {
+      tbData(c).camels = [e1!, e2!];
+    });
+    expect(ctxOf(s).longestRoute(0)).toBe(4);
+    expect(ctxOf(s).vp(0)).toBe(vp + 1);
   });
 });
