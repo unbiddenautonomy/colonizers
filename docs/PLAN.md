@@ -436,8 +436,8 @@ Bots fill empty seats, give practice games, and let one person play alone.
 |---|---|---|
 | Website, assets and API | One Cloudflare Worker with static assets | Static files are free and unlimited. One address for site and API keeps login cookies simple. (Changed from Pages + Worker in phase 0.) |
 | Live game rooms | Durable Objects (SQLite storage, available on the free plan) | One object per game holds state, runs the rules engine and keeps the live connections. Idle games cost nothing. |
-| Accounts, stats, achievements, history | Cloudflare D1 | Free storage is far beyond our needs. |
-| Auth | Better Auth on Workers + D1, Google sign-in + email and password, password hashing inside a Durable Object | No paid auth service. |
+| Accounts, crews, history | One SQLite Durable Object named "main" (`Accounts`) | Same free storage as D1 without setting up a database or giving the deploy token D1 rights. Fine for a friend group; can move to D1 later. (Changed from D1 in phase 7.) |
+| Auth | Our own small auth: Google sign-in (OAuth code flow) + email and password (PBKDF2, hashed inside the Accounts object), HttpOnly session cookie | No paid auth service and no extra library. (Changed from Better Auth in phase 7.) |
 | Emails (verify, reset password) | Resend free tier | Enough for a friend group. |
 | Avatars and theme uploads (later) | Cloudflare R2 | Free storage, no download fees. |
 
@@ -537,8 +537,8 @@ Each phase ends with something we can play or use. Seafarers and Cities & Knight
 | **3. Local play UI + rulebook** | Approved mockup, hotseat play with the Clean theme, in-game rulebook pop-up and cost card. | A full game on one device, with the rulebook open mid-game. |
 | **4. Online multiplayer** ✅ | Game rooms, live sync, hidden info, reconnect, multi-device, lobby, invite links, guest play, turn timer, chat. | 4 friends finish a game on different devices, one refreshing mid-game. |
 | **5. Seafarers** ✅ | Ships, pirate, gold, fog of war, island bonus, scenarios, Seafarers map generator. | Every included scenario playable online; generator checks pass. |
-| **6. Cities & Knights** | Commodities, improvements, metropolises, knights, barbarians, progress cards, walls, merchant. Seafarers + C&K combined. | C&K and the combined game playable online. |
-| **7. Accounts and crews** | Google and email sign-up, profiles, guest upgrade, crews. | Games show up in each person's history. |
+| **6. Cities & Knights** ✅ | Commodities, improvements, metropolises, knights, barbarians, progress cards, walls, merchant. Seafarers + C&K combined. | C&K and the combined game playable online. |
+| **7. Accounts and crews** ✅ | Google and email sign-up, profiles, guest upgrade, crews. | Games show up in each person's history. |
 | **8. Bots** | Easy and Medium on the server, Hard in the browser, play styles, bot trading, bots for Seafarers and C&K. | A full game with 3 bots; Hard beats Medium most of the time. |
 | **9. Bigger games and options** | 5–6 players, 7–8 player board and paired turns, Colonist-style options, house rules, special maps (Gold Rush, Volcano, Deep Forest, Lakes and shapes). | An 8-player game and every special map work. |
 | **10. Stats and achievements** | Stats, achievements, leaderboards, replays. | Achievements unlock at game end and back-fill. |

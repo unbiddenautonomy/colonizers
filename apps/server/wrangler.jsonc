@@ -13,9 +13,19 @@
     "run_worker_first": ["/api/*"],
   },
   "durable_objects": {
-    "bindings": [{ "name": "ROOMS", "class_name": "GameRoom" }],
+    "bindings": [
+      { "name": "ROOMS", "class_name": "GameRoom" },
+      // One object, named "main", holds accounts, crews and game history.
+      { "name": "ACCOUNTS", "class_name": "Accounts" },
+    ],
   },
   // Free plan only allows SQLite-backed Durable Objects.
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["GameRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["Accounts"] },
+  ],
+  // Secrets (set with `wrangler secret put`, all optional):
+  // GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET for Google sign-in,
+  // RESEND_API_KEY and EMAIL_FROM for sign-up and password emails.
   "observability": { "enabled": true },
 }
