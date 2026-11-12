@@ -413,6 +413,8 @@ Bots fill empty seats, give practice games, and let one person play alone.
 
 **Where bots run.** All bots run on the server, inside the game room's Durable Object, which gets 30 seconds of processing time per message even on the free plan (checked in phase 0, see [FREE-TIER.md](FREE-TIER.md)). If a Hard bot's thinking makes players wait too long, it can move to the host player's browser (in a background worker) and send moves through the server like any player; the server still checks every move.
 
+**As built (phase 8).** All three levels run on the server, in the room; Hard thinks for at most 2.5 seconds a move, so it has not needed the browser yet. Bots only see what their seat may see (the same view a player's browser gets). Bots judge moves through the rule modules themselves (production, points and costs from the registry), plus small hints for Cities & Knights, so new modules work without bot changes. In bot-only test games Hard beat Medium 31 of 40, and Medium beat Easy 17 of 20 (`packages/bots/test/arena.test.ts`).
+
 **Testing.** Bots playing thousands of games against each other also test the rules engine and the fairness of maps and seats.
 
 ---
@@ -539,7 +541,7 @@ Each phase ends with something we can play or use. Seafarers and Cities & Knight
 | **5. Seafarers** ✅ | Ships, pirate, gold, fog of war, island bonus, scenarios, Seafarers map generator. | Every included scenario playable online; generator checks pass. |
 | **6. Cities & Knights** ✅ | Commodities, improvements, metropolises, knights, barbarians, progress cards, walls, merchant. Seafarers + C&K combined. | C&K and the combined game playable online. |
 | **7. Accounts and crews** ✅ | Google and email sign-up, profiles, guest upgrade, crews. | Games show up in each person's history. |
-| **8. Bots** | Easy and Medium on the server, Hard in the browser, play styles, bot trading, bots for Seafarers and C&K. | A full game with 3 bots; Hard beats Medium most of the time. |
+| **8. Bots** ✅ | Easy and Medium on the server, Hard in the browser, play styles, bot trading, bots for Seafarers and C&K. | A full game with 3 bots; Hard beats Medium most of the time. |
 | **9. Bigger games and options** | 5–6 players, 7–8 player board and paired turns, Colonist-style options, house rules, special maps (Gold Rush, Volcano, Deep Forest, Lakes and shapes). | An 8-player game and every special map work. |
 | **10. Stats and achievements** | Stats, achievements, leaderboards, replays. | Achievements unlock at game end and back-fill. |
 | **11. Themes** | Theme system plus Heritage and Night Market. | Switching theme mid-game swaps every asset. |

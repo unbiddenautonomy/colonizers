@@ -21,6 +21,7 @@ import {
 } from '../game/useLocalGame.ts';
 import type { ChatMessage, MemberInfo } from '../../../server/src/protocol.ts';
 import type { Connection } from '../online/roomState.ts';
+import type { BotConfig } from '@colonizers/bots';
 import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { cleanTheme } from '../theme/clean.ts';
@@ -227,6 +228,8 @@ export interface GameController {
   act: (a: Action) => boolean;
   error: string | null;
   clearError: () => void;
+  /** Seats played by bots in a game on this device. */
+  bots?: Record<number, BotConfig>;
 }
 
 export interface OnlineExtras {
@@ -262,7 +265,12 @@ export function Game({
   const { state } = g;
   const actor = seat;
   const names = state.players.map((p) => p.name);
-  const promptNames = online ? names.map((n, i) => (i === seat ? 'You' : n)) : names;
+  const bots = g.bots ?? {};
+  const humans = state.players.filter((p) => !bots[p.seat]).length;
+  // With bots at the table the screen belongs to one person, like an online seat.
+  const seated = !!online || Object.keys(bots).length > 0;
+  const promptNames =
+    online || humans === 1 ? names.map((n, i) => (i === seat ? 'You' : n)) : names;
   const owedMe =
     state.phase.id === 'discard' && actor !== null
       ? ((state.phase.owed as Record<number, number>)[actor] ?? 0)
@@ -274,11 +282,11 @@ export function Game({
   const owedPhase = !!state.phase.owed;
   const ck = state.modules.includes('cities-knights');
   const cardKinds = handCards(state.modules);
-  const promptSeat = online && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
+  const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
   const [chosenEdgeKind, setEdgeKind] = useState<EdgeKind>('road');
   const [selectedShip, setSelectedShip] = useState<string | null>(null);
-  const canControl = (s: number) => !online || s === seat;
+  const canControl = (s: number) => (!online && !bots[s]) || s === seat;
   const [chosenMode, setMode] = useState<Mode>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
@@ -412,7 +420,14 @@ export function Game({
                     aria-label={member?.online ? 'Online' : 'Offline'}
                   />
                 )}
-                {p.seat === seat && online && <small className="muted">you</small>}
+                {p.seat === seat && (online || humans === 1) && (
+                  <small className="muted">you</small>
+                )}
+                {(member?.bot ?? bots[p.seat]) && (
+                  <span title={`${(member?.bot ?? bots[p.seat])!.level} bot`} aria-label="Bot">
+                    🤖
+                  </span>
+                )}
                 <span className="vp" title="Victory points">
                   {publicVp(ctx, p.seat)}
                   <small> VP</small>
@@ -492,7 +507,7 @@ export function Game({
         {actor !== null && (
           <div className="hand">
             <div className="hand-head">
-              <strong>{online ? 'Your hand' : `${names[actor]}'s hand`}</strong>
+              <strong>{online || humans === 1 ? 'Your hand' : `${names[actor]}'s hand`}</strong>
               {hiddenHand && (
                 <button type="button" onClick={() => setRevealedFor(actor)}>
                   Show my cards
@@ -809,7 +824,7 @@ export function Game({
       {goldOwed > 0 && actor !== null && (
         <GoldDialog
           key={`${actor}-${state.seq}`}
-          name={online ? 'You' : names[actor]!}
+          name={online || humans === 1 ? 'You' : names[actor]!}
           owed={Math.min(
             goldOwed,
             RESOURCES.reduce((sum, r) => sum + (state.bank[r] ?? 0), 0),
