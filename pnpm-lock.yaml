@@ -44,6 +44,9 @@ importers:
       '@colonizers/module-base':
         specifier: workspace:*
         version: link:../../packages/modules/base
+      '@colonizers/module-cities-knights':
+        specifier: workspace:*
+        version: link:../../packages/modules/cities-knights
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../../packages/modules/seafarers
@@ -75,6 +78,9 @@ importers:
       '@colonizers/module-base':
         specifier: workspace:*
         version: link:../../packages/modules/base
+      '@colonizers/module-cities-knights':
+        specifier: workspace:*
+        version: link:../../packages/modules/cities-knights
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../../packages/modules/seafarers
@@ -144,6 +150,28 @@ importers:
         specifier: workspace:*
         version: link:../../engine
     devDependencies:
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ~4.1.12
+        version: 4.1.12(@types/node@22.20.5)(vite@8.3.6(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/modules/cities-knights:
+    dependencies:
+      '@colonizers/engine':
+        specifier: workspace:*
+        version: link:../../engine
+      '@colonizers/module-base':
+        specifier: workspace:*
+        version: link:../base
+    devDependencies:
+      '@colonizers/maps':
+        specifier: workspace:*
+        version: link:../../maps
+      '@colonizers/module-seafarers':
+        specifier: workspace:*
+        version: link:../seafarers
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
