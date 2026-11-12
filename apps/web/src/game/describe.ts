@@ -147,10 +147,18 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `${n(e.player)}'s knight chased the robber away.`;
     case 'numbersSwapped':
       return `${n(e.player)} swapped two numbers.`;
-    case 'harborSwap':
+    case 'harborGave':
       return e.gave
-        ? `${n(e.player)} gave ${n(e.with)} ${cards(e.gave as Record<string, number>)} for ${cards(e.got as Record<string, number>)}.`
-        : `${n(e.player)} swapped a card with ${n(e.with)}.`;
+        ? `${n(e.player)} gave ${n(e.with)} ${cards(e.gave as Record<string, number>)} for a commodity.`
+        : `${n(e.player)} gave ${n(e.with)} a card for a commodity.`;
+    case 'harborSwap':
+      return e.got
+        ? `${n(e.with)} gave ${n(e.player)} ${cards(e.got as Record<string, number>)} back.`
+        : `${n(e.with)} gave ${n(e.player)} a commodity back.`;
+    case 'progressReturned':
+      return e.card
+        ? `${n(e.player)} put ${nameOf(e.card as string).name} back under its deck.`
+        : `${n(e.player)} put a progress card back under its deck.`;
     case 'tookCards':
       return e.cards
         ? `${n(e.player)} took ${cards(e.cards as Record<string, number>)} from ${n(e.from)}.`

@@ -182,6 +182,34 @@ describe('City improvements and metropolises', () => {
     expect(count(0)).toBe(0);
     expect(count(1)).toBe(1);
   });
+
+  it('lets a player go over 4 progress cards, then put one back under its deck', () => {
+    let s = playing();
+    const VP = ['printer', 'constitution'];
+    s = edit(s, (c) => {
+      const p = c.player(1);
+      for (let i = 0; i < 5; i++) {
+        const deck = (['science', 'trade', 'politics'] as const)[i % 3]!;
+        const at = c.state.decks[deck]!.findIndex((x: string) => !VP.includes(x));
+        const [card] = c.state.decks[deck]!.splice(at, 1);
+        (p.held[deck] ??= []).push({ card: card!, acquiredTurn: 0 });
+      }
+    });
+    s = act(s, { type: 'roll', player: s.turn.player });
+    expect(s.phase.id).toBe('progressDiscard');
+    expect(lib.waitingOn(s)).toEqual([1]);
+    const back = lib.legalActions(s, 1)[0]!;
+    expect(back.type).toBe('returnProgress');
+    const deck = back.deck as string;
+    s = act(s, back);
+    expect(s.phase.id).not.toBe('progressDiscard');
+    const held = ['science', 'trade', 'politics'].reduce(
+      (n, t) => n + (s.players[1]!.held[t]?.length ?? 0),
+      0,
+    );
+    expect(held).toBe(4);
+    expect(s.decks[deck]!.at(-1)).toBe(back.card);
+  });
 });
 
 describe('Knights', () => {
@@ -333,6 +361,39 @@ describe('Progress cards', () => {
     expect(s.players[0]!.held.science ?? []).toHaveLength(0);
   });
 
+  it('Commercial Harbor: each opponent picks the commodity they give back', () => {
+    let s = playing();
+    s = edit(s, (c) => {
+      c.setPhase({ id: 'main' });
+      for (const p of c.state.players) for (const k of Object.keys(p.hand)) p.hand[k] = 0;
+      c.player(0).hand.brick = 2;
+      c.player(1).hand.cloth = 1;
+      c.player(1).hand.coin = 1;
+      c.player(2).hand.paper = 1;
+      (c.player(0).held.trade ??= []).push({ card: 'commercialHarbor', acquiredTurn: 0 });
+    });
+    s = act(s, { type: 'playProgress', player: 0, card: 'commercialHarbor' });
+    expect(s.phase.id).toBe('commercialHarbor');
+    expect(lib.legalActions(s, 0).every((a) => a.with !== 3 || a.type !== 'harborSwap')).toBe(true);
+    s = act(s, { type: 'harborSwap', player: 0, with: 1, give: 'brick' });
+    expect(lib.waitingOn(s)).toEqual([1]);
+    expect(
+      lib
+        .legalActions(s, 1)
+        .map((a) => a.commodity)
+        .sort(),
+    ).toEqual(['cloth', 'coin']);
+    s = act(s, { type: 'harborGive', player: 1, commodity: 'coin' });
+    expect(s.players[0]!.hand.coin).toBe(1);
+    expect(s.players[1]!.hand.brick).toBe(1);
+    expect(s.players[1]!.hand.cloth).toBe(1);
+    expect(lib.waitingOn(s)).toEqual([0]);
+    s = act(s, { type: 'harborSwap', player: 0, with: 2, give: 'brick' });
+    s = act(s, { type: 'harborGive', player: 2, commodity: 'paper' });
+    expect(s.phase.id).toBe('main');
+    expect(s.players[0]!.hand.paper).toBe(1);
+  });
+
   it('Alchemist sets the production dice', () => {
     let s = playing();
     s = edit(s, (c) => {
@@ -352,7 +413,7 @@ describe('Cities & Knights full games', () => {
       let finished = 0;
       const seen = new Set<string>();
       for (let g = 0; g < 4; g++) {
-        const r = simulate(ckGame(players, `ck-${players}-${g}`), g + 11, 9000, g === 0);
+        const r = simulate(ckGame(players, `ck-${players}-${g}`), g + 11, 20000, g === 0);
         r.seen.forEach((x) => seen.add(x));
         if (r.state.winner !== null) finished++;
       }
