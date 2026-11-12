@@ -13,6 +13,7 @@ import type { Env } from './env.ts';
 import {
   cleanSettings,
   DEFAULT_SETTINGS,
+  mapKey,
   parseClientMessage,
   type ChatMessage,
   type ClientMessage,
@@ -365,7 +366,13 @@ export class GameRoom extends DurableObject<Env> {
         id: gameId,
         room: this.getMeta('code') ?? '',
         modules: config.modules,
-        players: order.map((m, seat) => ({ seat, name: m.name, userId: m.userId })),
+        map: mapKey(this.settings.map),
+        players: order.map((m, seat) => ({
+          seat,
+          name: m.name,
+          userId: m.userId,
+          bot: m.bot?.level ?? null,
+        })),
       }),
     );
     this.game = null;
@@ -414,7 +421,19 @@ export class GameRoom extends DurableObject<Env> {
       if (gameId) {
         const ctx = new Ctx(r.state, library.registry(r.state.modules));
         const vp = r.state.players.map((_, seat) => ctx.vp(seat));
-        this.background(accounts(this.env).finishGame(gameId, r.state.winner, vp));
+        const actions = this.sql
+          .exec<{ json: string }>('SELECT json FROM actions ORDER BY seq')
+          .toArray()
+          .map((row) => JSON.parse(row.json) as Action);
+        this.background(
+          accounts(this.env)
+            .finishGame(gameId, r.state.winner, vp, { config: game.config, actions })
+            .then((unlocked) => {
+              if (!unlocked.length) return;
+              for (const ws of this.ctx.getWebSockets())
+                if (this.memberOf(ws)) this.send(ws, { type: 'achievements', unlocked });
+            }),
+        );
       }
       this.setMeta('status', 'finished');
       this.broadcastRoom();

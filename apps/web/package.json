@@ -20,6 +20,7 @@
     "@colonizers/module-special-maps": "workspace:*",
     "@colonizers/module-variants": "workspace:*",
     "@colonizers/rulebook": "workspace:*",
+    "@colonizers/stats": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

@@ -1,13 +1,16 @@
 import { useSyncExternalStore } from 'react';
+import { PRESETS, SEA_SCENARIOS, SPECIAL_MAPS } from '@colonizers/maps';
 import type {
   CrewDetail,
   CrewSummary,
   HistoryGame,
+  MyStats,
   PublicUser,
+  Replay,
 } from '../../../server/src/accountTypes.ts';
 import { saveName, savedName, visitedRooms } from './identity.ts';
 
-export type { CrewDetail, CrewSummary, HistoryGame, PublicUser };
+export type { CrewDetail, CrewSummary, HistoryGame, MyStats, PublicUser, Replay };
 
 export const AVATARS = ['🦊', '🐻', '🦉', '🐢', '🐙', '🦁', '🐺', '🦄', '🐝', '🐳', '🦜', '🐸'];
 
@@ -142,6 +145,14 @@ export async function history(): Promise<HistoryGame[]> {
   return (await call<{ games: HistoryGame[] }>('/api/me/history')).games;
 }
 
+export async function myStats(): Promise<MyStats> {
+  return (await call<{ stats: MyStats }>('/api/me/stats')).stats;
+}
+
+export async function getReplay(gameId: string): Promise<Replay> {
+  return (await call<{ replay: Replay }>(`/api/games/${encodeURIComponent(gameId)}/replay`)).replay;
+}
+
 // ---- Crews ----
 
 export async function myCrews(): Promise<CrewSummary[]> {
@@ -187,6 +198,22 @@ const MODULE_NAMES: Record<string, string> = {
 };
 
 export function describeModules(modules: string[]): string {
-  const extra = modules.filter((m) => m !== 'base').map((m) => MODULE_NAMES[m] ?? m);
+  const extra = modules.filter((m) => MODULE_NAMES[m]).map((m) => MODULE_NAMES[m]!);
   return extra.length ? extra.join(' + ') : 'Base game';
+}
+
+const RANDOM_NAMES: Record<string, string> = {
+  classic: 'Random board',
+  balanced: 'Balanced board',
+  wild: 'Wild board',
+};
+
+/** A friendly name for a saved map key such as "special:volcano". */
+export function mapName(key: string | null): string {
+  if (!key || key === 'unknown') return 'Older game';
+  const [kind, id = ''] = key.split(':');
+  if (kind === 'random') return RANDOM_NAMES[id] ?? 'Random board';
+  const list: { id: string; name: string }[] =
+    kind === 'preset' ? PRESETS : kind === 'scenario' ? SEA_SCENARIOS : SPECIAL_MAPS;
+  return list.find((m) => m.id === id)?.name ?? id;
 }

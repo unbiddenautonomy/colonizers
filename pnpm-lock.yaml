@@ -59,6 +59,9 @@ importers:
       '@colonizers/module-variants':
         specifier: workspace:*
         version: link:../../packages/modules/variants
+      '@colonizers/stats':
+        specifier: workspace:*
+        version: link:../../packages/stats
     devDependencies:
       '@cloudflare/vitest-plugin':
         specifier: ^1.6.0
@@ -105,6 +108,9 @@ importers:
       '@colonizers/rulebook':
         specifier: workspace:*
         version: link:../../packages/rulebook
+      '@colonizers/stats':
+        specifier: workspace:*
+        version: link:../../packages/stats
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -296,6 +302,34 @@ importers:
 
   packages/rulebook:
     devDependencies:
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ~4.1.12
+        version: 4.1.12(@types/node@22.20.5)(vite@8.3.6(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/stats:
+    dependencies:
+      '@colonizers/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@colonizers/maps':
+        specifier: workspace:*
+        version: link:../maps
+    devDependencies:
+      '@colonizers/bots':
+        specifier: workspace:*
+        version: link:../bots
+      '@colonizers/module-base':
+        specifier: workspace:*
+        version: link:../modules/base
+      '@colonizers/module-cities-knights':
+        specifier: workspace:*
+        version: link:../modules/cities-knights
+      '@colonizers/module-seafarers':
+        specifier: workspace:*
+        version: link:../modules/seafarers
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
