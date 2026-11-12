@@ -32,6 +32,8 @@ export const nightMarketTheme: Theme = {
     gold: '#b8860b',
     volcano: '#4a1a14',
     lake: '#1d4f7a',
+    fishingLake: '#1d5f8a',
+    swamp: '#34402a',
   },
   sea: '#0b1630',
   seaEdge: '#1a2a52',

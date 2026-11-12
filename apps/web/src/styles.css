@@ -353,6 +353,11 @@ select {
   font-weight: 600;
 }
 
+.award.warn {
+  background: #f3b7ad;
+  color: #4a120a;
+}
+
 .board-wrap {
   grid-area: board;
   position: relative;

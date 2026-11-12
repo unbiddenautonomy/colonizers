@@ -25,6 +25,8 @@ export interface GameOptions {
   discardLimit: number;
   /** The first settlement pays starting resources too. */
   firstSettlementPays: boolean;
+  /** 2 points for the player with the most buildings on harbors (at least 3 points' worth). */
+  harbormaster: boolean;
 }
 
 export const TURN_MODES: readonly TurnModeChoice[] = ['auto', 'normal', 'specialBuild', 'paired'];
@@ -39,6 +41,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   gifting: false,
   discardLimit: 7,
   firstSettlementPays: false,
+  harbormaster: false,
 };
 
 export function cleanOptions(raw: unknown): GameOptions {
@@ -53,6 +56,7 @@ export function cleanOptions(raw: unknown): GameOptions {
     gifting: o.gifting === true,
     discardLimit: int(o.discardLimit, DISCARD_LIMITS, 7),
     firstSettlementPays: o.firstSettlementPays === true,
+    harbormaster: o.harbormaster === true,
   };
 }
 
@@ -74,12 +78,20 @@ export function optionSettings(o: GameOptions, players: number): Record<string, 
     gifting: o.gifting,
     discardLimit: o.discardLimit,
     startingResourcesBothRounds: o.firstSettlementPays,
+    harbormaster: o.harbormaster,
   };
 }
 
 /** Modules in the order they must load: options before Cities & Knights so its dice win. */
 export function moduleList(extra: readonly string[], citiesKnights: boolean): string[] {
-  const order = ['base', 'seafarers', 'special-maps', 'variants', 'cities-knights'];
+  const order = [
+    'base',
+    'seafarers',
+    'special-maps',
+    'traders-barbarians',
+    'variants',
+    'cities-knights',
+  ];
   const want = new Set([
     'base',
     'variants',

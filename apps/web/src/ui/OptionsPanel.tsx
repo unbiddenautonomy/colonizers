@@ -89,6 +89,14 @@ export function OptionsPanel({
         />{' '}
         Both starting settlements pay resources
       </label>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={options.harbormaster}
+          onChange={(e) => set({ harbormaster: e.target.checked })}
+        />{' '}
+        ⚓ Harbormaster: 2 points for the most buildings on harbors (3 points' worth or more)
+      </label>
       <div className="row wrap">
         <label>
           Quiet start{' '}
@@ -133,22 +141,32 @@ export function SpecialMapButtons({
 }) {
   const maps = SPECIAL_MAPS.filter((m) => players >= m.players.min && players <= m.players.max);
   if (!maps.length) return null;
+  const groups = [
+    { title: 'Special maps', maps: maps.filter((m) => !m.group) },
+    { title: 'Traders & Barbarians', maps: maps.filter((m) => m.group === 'traders') },
+  ];
   return (
     <>
-      <h3 className="subhead">Special maps</h3>
-      <div className="row wrap">
-        {maps.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            className={selected === m.id ? 'on' : ''}
-            title={m.description}
-            onClick={() => onPick(m.id)}
-          >
-            {SPECIAL_ICON[m.id] ?? '🗺️'} {m.name}
-          </button>
+      {groups
+        .filter((g) => g.maps.length)
+        .map((g) => (
+          <div key={g.title}>
+            <h3 className="subhead">{g.title}</h3>
+            <div className="row wrap">
+              {g.maps.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={selected === m.id ? 'on' : ''}
+                  title={m.description}
+                  onClick={() => onPick(m.id)}
+                >
+                  {SPECIAL_ICON[m.id] ?? '🗺️'} {m.name}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
-      </div>
     </>
   );
 }
@@ -162,6 +180,8 @@ export const SPECIAL_ICON: Record<string, string> = {
   twirl: '🌀',
   ring: '⭕',
   mini: '🔹',
+  fishermen: '🐟',
+  rivers: '🌊',
 };
 
 /** The options that differ from the standard rules, in words, for players who aren't the host. */
@@ -173,6 +193,7 @@ export function describeOptions(o: GameOptions, players: number): string[] {
   if (o.balancedDice) out.push('Balanced dice');
   if (o.gifting) out.push('Gifts allowed');
   if (o.firstSettlementPays) out.push('Both starting settlements pay');
+  if (o.harbormaster) out.push('Harbormaster');
   if (o.robberFreeRounds) out.push(`7s do nothing for ${o.robberFreeRounds} round(s)`);
   if (o.discardLimit !== 7) out.push(`Discard above ${o.discardLimit} cards`);
   return out;

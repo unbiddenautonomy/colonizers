@@ -16,6 +16,8 @@ const PAINT = {
   gold: '#c99a2e',
   volcano: '#5e2f24',
   lake: '#6b9cb8',
+  fishingLake: '#5d93b3',
+  swamp: '#6f7a4c',
   hidden: '#6f6a5e',
 };
 

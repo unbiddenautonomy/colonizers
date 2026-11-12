@@ -68,7 +68,7 @@ export function NewGame({
   const [choice, setChoice] = useState<MapChoice>({ kind: 'random', mode: 'classic' });
   const [seed, setSeed] = useState(randomSeed);
   const [vpTarget, setVpTarget] = useState(10);
-  const [ck, setCk] = useState(false);
+  const [ckWanted, setCk] = useState(false);
   const [options, setOptions] = useState<GameOptions>(DEFAULT_OPTIONS);
   const [seatKind, setSeatKind] = useState<('human' | Level)[]>(() =>
     DEFAULT_NAMES.map(() => 'human'),
@@ -84,7 +84,6 @@ export function NewGame({
     });
     return out;
   };
-  const extraVp = ck ? 3 : 0;
 
   const presets = PRESETS.filter((p) => count >= p.players.min && count <= p.players.max);
   const scenarios = SEA_SCENARIOS.filter((x) => count >= x.players.min && count <= x.players.max);
@@ -98,6 +97,9 @@ export function NewGame({
       ? { kind: 'random', mode: 'classic' }
       : choice;
   const specialId = effective.kind === 'special' ? effective.id : null;
+  const noCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.noCitiesKnights === true;
+  const ck = ckWanted && !noCk;
+  const extraVp = ck ? 3 : 0;
   const special = useMemo(
     () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
     [specialId, seed, count],
@@ -366,9 +368,17 @@ export function NewGame({
       <section className="card">
         <h2>Rules</h2>
         <label className="toggle">
-          <input type="checkbox" checked={ck} onChange={(e) => setCk(e.target.checked)} /> ⚔️ Cities
-          &amp; Knights: knights, barbarians, commodities and city improvements
+          <input
+            type="checkbox"
+            checked={ck}
+            disabled={noCk}
+            onChange={(e) => setCk(e.target.checked)}
+          />{' '}
+          ⚔️ Cities &amp; Knights: knights, barbarians, commodities and city improvements
         </label>
+        {noCk && (
+          <p className="muted small">Traders &amp; Barbarians scenarios use the base game only.</p>
+        )}
         {!sea && (
           <label>
             Points to win{' '}
