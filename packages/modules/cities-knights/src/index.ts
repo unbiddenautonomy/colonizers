@@ -12,7 +12,16 @@ import {
   isCommodity,
 } from './constants.ts';
 import { progressActions } from './progress.ts';
-import { ckData, ckDice, hasAbility, merchant, rollBelow, startRoll, wallsOf } from './rules.ts';
+import {
+  ckData,
+  ckDice,
+  hasAbility,
+  merchant,
+  progressOverLimit,
+  rollBelow,
+  startRoll,
+  wallsOf,
+} from './rules.ts';
 
 const commodityCard = { category: 'commodity', countsForHandLimit: true, bank: commodityBank };
 const knight = (): { on: 'corner'; perPlayer: () => number; blocksRoutes: true } => ({
@@ -112,6 +121,13 @@ export const citiesKnightsModule: GameModule = {
   hooks: {
     init(ctx) {
       ckData(ctx);
+    },
+    afterAction(ctx) {
+      // More than 4 progress cards: stop and put the extras back first.
+      if (ctx.state.winner !== null || ctx.state.phase.id === 'progressDiscard') return;
+      const owed = progressOverLimit(ctx);
+      if (!Object.keys(owed).length) return;
+      ctx.setPhase({ id: 'progressDiscard', owed, returnTo: ctx.state.phase });
     },
   },
   reducers: {

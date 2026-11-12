@@ -68,7 +68,7 @@ const CARDS: CardGlossaryEntry[] = [
     'commercialHarbor',
     'trade',
     'Commercial Harbor',
-    'Offer each other player one of your resources. Each who holds a commodity must swap one for it.',
+    'Give each other player one of your resources. Each who holds a commodity picks one to give you back.',
   ),
   card(
     'masterMerchant',
@@ -337,7 +337,7 @@ Either way, every knight becomes inactive and the ship sails back to the start. 
 - Play as many as you like on your turn after rolling, even the turn you draw them. The **Alchemist** is played instead of rolling.
 - Played cards go back under their deck, so the decks never run dry for long.
 - Point cards (**Printer**, **Constitution**) are shown and scored as soon as you draw them.
-- You can hold up to **4** progress cards. With 4 in hand you don't draw more until you play one.`,
+- You can hold up to **4** progress cards (point cards don't count). If you draw a 5th, you still take it, then put one of your choice back under its deck.`,
     },
     {
       id: 'walls',
