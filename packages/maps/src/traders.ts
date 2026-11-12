@@ -17,7 +17,7 @@ import type { SpecialBoard } from './special.ts';
  * gives a new layout.
  */
 export interface TbScenarioInfo {
-  id: 'fishermen' | 'rivers' | 'caravans' | 'barbarians';
+  id: 'fishermen' | 'rivers' | 'caravans' | 'barbarians' | 'traders';
   name: string;
   description: string;
   players: { min: number; max: number };
@@ -50,6 +50,13 @@ export const TB_SCENARIOS: TbScenarioInfo[] = [
     name: 'Barbarian Attack',
     description:
       'Barbarians land on the coast whenever someone builds, and three take a hex. Knight cards send knights out from the castle to fight them for prisoners and gold.',
+    players: { min: 3, max: 8 },
+  },
+  {
+    id: 'traders',
+    name: 'Traders & Barbarians',
+    description:
+      'Drive your wagon between the castle, the quarry and the glassworks, delivering goods for gold and points. Barbarians on the paths slow everyone down.',
     players: { min: 3, max: 8 },
   },
 ];
@@ -224,6 +231,55 @@ function barbarians(map: MapSpec, rng: Rng): void {
   }
 }
 
+function traders(map: MapSpec, rng: Rng): void {
+  map.pieces = [];
+  const land = new Set(map.hexes.filter((h) => h.type !== 'sea').map((h) => hexId(h.q, h.r)));
+  const g = buildGeometry(map.hexes.map((h) => hexId(h.q, h.r)));
+  const coastal = map.hexes.filter((h) => {
+    if (h.type === 'sea') return false;
+    const around = g.hexNeighbours.get(hexId(h.q, h.r)) ?? [];
+    return around.length < 6 || around.some((n) => !land.has(n));
+  });
+  // Three trade hexes spread around the coast, on hexes without a 6 or 8.
+  const angle = (h: { q: number; r: number }) =>
+    Math.atan2(1.5 * h.r, Math.sqrt(3) * (h.q + h.r / 2));
+  coastal.sort((a, b) => angle(a) - angle(b));
+  const offset = rng.int(0, coastal.length - 1);
+  const picked: typeof coastal = [];
+  for (let k = 0; k < 3; k++) {
+    const start = offset + Math.round((k * coastal.length) / 3);
+    for (let i = 0; i < coastal.length; i++) {
+      const h = coastal[(start + i) % coastal.length]!;
+      if (picked.includes(h) || h.token === 6 || h.token === 8) continue;
+      if (picked.some((p) => hexDistance(p, h) < 2)) continue;
+      picked.push(h);
+      break;
+    }
+  }
+  // The 2 and 12 go (they sit on two of the trade hexes); the third hex's
+  // land and number move to the desert.
+  const others = picked.filter((h) => h.type !== 'desert');
+  for (const [i, t] of [2, 12].entries()) {
+    const target = others[others.length - 1 - i];
+    const holder = map.hexes.find((h) => h.token === t);
+    if (!target || !holder || holder === target) continue;
+    holder.token = target.token as number;
+    target.token = t;
+  }
+  const desert = map.hexes.find((h) => h.type === 'desert' && !picked.includes(h));
+  const keep = others.find((h) => h.token !== 2 && h.token !== 12);
+  if (desert && keep) {
+    desert.type = keep.type;
+    if (keep.token !== undefined) desert.token = keep.token;
+  }
+  (['castle', 'quarry', 'glassworks'] as const).forEach((type, i) => {
+    const h = picked[i];
+    if (!h) return;
+    h.type = type;
+    delete h.token;
+  });
+}
+
 /** Generates a Traders & Barbarians board. The same options always give the same board. */
 export function generateTbBoard(opts: {
   seed: string;
@@ -237,6 +293,7 @@ export function generateTbBoard(opts: {
   if (spec.id === 'fishermen') fishermen(map, opts.players, rng);
   else if (spec.id === 'rivers') rivers(map, opts.players, rng);
   else if (spec.id === 'barbarians') barbarians(map, rng);
+  else if (spec.id === 'traders') traders(map, rng);
   else caravans(map);
   return {
     map,
