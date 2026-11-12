@@ -51,6 +51,36 @@ Either merge any pull request into `main`, or open the **Actions** tab → **CI*
 
 When the run finishes, the **Deploy to Cloudflare** job shows the live address. Open it on two devices and press **Roll dice**: both should see the roll. Add `?room=anything` to the address to try a separate room.
 
+## 6. Optional: sign-in with Google and account emails
+
+The site works without these. Without Google keys, the Google button is hidden. Without an email key, sign-up still works, but confirmation and password-reset emails are not sent.
+
+**Google sign-in**
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) and create a project (any name).
+2. Go to **APIs & Services → OAuth consent screen**, choose **External**, fill in the app name and your email, and save. Add your friends as test users, or publish the app.
+3. Go to **APIs & Services → Credentials → Create credentials → OAuth client ID**. Choose **Web application**.
+4. Under **Authorized redirect URIs**, add `https://YOUR-SITE/api/auth/google/callback` (your live address from step 5).
+5. Copy the client ID and client secret.
+
+**Emails**
+
+1. Make a free account at [resend.com](https://resend.com) and create an API key.
+2. To send from your own address, add and verify your domain there. Otherwise emails come from Resend's test address, which only delivers to your own Resend email.
+
+**Add them to the Worker**
+
+In the Cloudflare dashboard, open **Workers & Pages → colonizers → Settings → Variables and Secrets** and add these as secrets:
+
+| Name                   | Value                                          |
+| ---------------------- | ---------------------------------------------- |
+| `GOOGLE_CLIENT_ID`     | Client ID from Google                          |
+| `GOOGLE_CLIENT_SECRET` | Client secret from Google                      |
+| `RESEND_API_KEY`       | API key from Resend                            |
+| `EMAIL_FROM`           | For example `Colonizers <play@yourdomain.com>` |
+
+They take effect straight away; no redeploy is needed.
+
 ## Running it on your own computer
 
 You need Node 22 and pnpm (`corepack enable` installs pnpm).

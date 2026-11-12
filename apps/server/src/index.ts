@@ -1,9 +1,11 @@
 import { ENGINE_VERSION } from '@colonizers/engine';
 import type { Env } from './env.ts';
 
+import { accountRoutes, currentUser, USER_HEADER } from './auth.ts';
 import { ROOM_CODE } from './protocol.ts';
 
 export { GameRoom } from './room.ts';
+export { Accounts } from './accounts.ts';
 
 const CODE_LETTERS = 'abcdefghjkmnpqrstuvwxyz23456789';
 
@@ -35,6 +37,9 @@ export default {
       return json({ error: 'Could not find a free room code' }, { status: 503 });
     }
 
+    const account = await accountRoutes(request, env, url);
+    if (account) return account;
+
     const roomMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)(\/ws)?$/);
     if (roomMatch) {
       const code = decodeURIComponent(roomMatch[1] ?? '').toLowerCase();
@@ -49,7 +54,12 @@ export default {
       if (request.headers.get('Upgrade') !== 'websocket') {
         return json({ error: 'Expected a WebSocket upgrade' }, { status: 426 });
       }
-      return stub.fetch(request);
+      // Tell the room who is signed in. Only the Worker sets this header.
+      const headers = new Headers(request.headers);
+      headers.delete(USER_HEADER);
+      const user = await currentUser(request, env);
+      if (user) headers.set(USER_HEADER, user.id);
+      return stub.fetch(new Request(request, { headers }));
     }
 
     return json({ error: 'Not found' }, { status: 404 });
