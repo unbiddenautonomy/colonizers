@@ -60,6 +60,7 @@ import {
   TbPlayerStats,
   tbPrompt,
   TB_MOVE_PROMPT,
+  WAGON_PROMPT,
 } from './TradersBarbarians.tsx';
 
 type Mode =
@@ -72,6 +73,7 @@ type Mode =
   | 'bridge'
   | 'repair'
   | 'tbMove'
+  | 'wagon'
   | CkMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
@@ -126,6 +128,21 @@ function targetsFor(
   if (pair) want.add(edgeKind === 'ship' ? pair[1] : pair[0]);
   if (ph === 'setup' && (state.phase.step as string) !== 'road') want.add('placeSetupSettlement');
   if (ph === 'tbKnight') want.add('placeTbKnight');
+  if (ph === 'tbBarbarian') {
+    // Pick a barbarian (unless one was just driven off), then where it goes.
+    const pick = (state.phase.from as EdgeId | null) ?? selectedShip;
+    for (const a of legal) {
+      if (a.type !== 'moveEdgeBarbarian') continue;
+      if (pick === null)
+        t.edges.set(a.from as EdgeId, { type: 'selectKnight', player: a.player, knight: a.from });
+      else if (a.from === pick) t.edges.set(a.edge as EdgeId, a);
+    }
+    return t;
+  }
+  if (ph === 'main' && mode === 'wagon') {
+    want.add('moveWagon');
+    want.add('driveBarbarian');
+  }
   if (ph === 'moveRobber') {
     want.add('moveRobber');
     want.add('movePirate');
@@ -244,6 +261,7 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
       return `${who}: place a free ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} (${state.phase.remaining as number} left).`;
     case 'main':
       if (mode === 'tbMove') return `${who}: ${TB_MOVE_PROMPT}`;
+      if (mode === 'wagon') return `${who}: ${WAGON_PROMPT}`;
       if (mode === 'moveShip')
         return `${who}: tap the ship to move, then where it should sail. Tap the button again to cancel.`;
       if (mode === 'knightAct')
@@ -407,7 +425,8 @@ export function Game({
       return;
     }
     if (g.act(a)) {
-      setMode(null);
+      // A wagon moves one path at a time, so its mode stays on.
+      if (a.type !== 'moveWagon') setMode(null);
       setSelectedShip(null);
     }
   };
@@ -804,10 +823,11 @@ export function Game({
                   names={promptNames}
                   bridgeMode={mode === 'bridge'}
                   toggleBridge={() => setMode(mode === 'bridge' ? null : 'bridge')}
-                  knightMode={mode === 'tbMove'}
+                  knightMode={mode === 'tbMove' || mode === 'wagon'}
                   toggleKnight={() => {
+                    const m = state.settings.tbScenario === 'traders' ? 'wagon' : 'tbMove';
                     setSelectedShip(null);
-                    setMode(mode === 'tbMove' ? null : 'tbMove');
+                    setMode(mode === m ? null : m);
                   }}
                 />
               )}

@@ -16,5 +16,7 @@ declare namespace Cloudflare {
     VAPID_PUBLIC_KEY?: string;
     VAPID_PRIVATE_KEY?: string;
     VAPID_SUBJECT?: string;
+    /** Comma-separated emails of accounts that see admin details (e.g. the map's fairness numbers). */
+    ADMIN_EMAILS?: string;
   }
 }

@@ -20,6 +20,8 @@ const PAINT = {
   swamp: '#6f7a4c',
   oasis: '#dcc27c',
   castle: '#a89a88',
+  quarry: '#b5a48d',
+  glassworks: '#94b2b2',
   hidden: '#6f6a5e',
 };
 
