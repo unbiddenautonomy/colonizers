@@ -24,7 +24,7 @@ import {
 import type { ChatMessage, MemberInfo } from '../../../server/src/protocol.ts';
 import type { Connection } from '../online/roomState.ts';
 import type { BotConfig } from '@colonizers/bots';
-import { partnerOf } from '@colonizers/module-variants';
+import { partnerOf, type EventId } from '@colonizers/module-variants';
 import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { ThemePicker, useTheme } from '../theme/themes.tsx';
@@ -51,9 +51,17 @@ import {
   ProgressHand,
   type CkMode,
 } from './CitiesKnights.tsx';
-import { TbActions, TbPlayerStats } from './TradersBarbarians.tsx';
+import {
+  CamelBidPanel,
+  EVENT_NAME,
+  EventPickDialog,
+  TbActions,
+  TbPlayerStats,
+  tbPrompt,
+} from './TradersBarbarians.tsx';
 
-type Mode = null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip' | 'bridge' | CkMode;
+type Mode =
+  null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip' | 'bridge' | 'repair' | CkMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
@@ -90,8 +98,17 @@ function targetsFor(
   mode: Mode,
   edgeKind: EdgeKind,
   selectedShip: string | null,
+  bid: { wool: number; grain: number } = { wool: 0, grain: 0 },
 ): Targets {
   const t: Targets = { corners: new Map(), edges: new Map(), hexes: new Map() };
+  if (state.phase.id === 'eventPick' || state.phase.id === 'camelVote') {
+    for (const a of legal) {
+      if (typeof a.edge !== 'string') continue;
+      if (a.type === 'camelBid' && (a.wool !== bid.wool || a.grain !== bid.grain)) continue;
+      t.edges.set(a.edge as EdgeId, a);
+    }
+    return t;
+  }
   const want = new Set<string>();
   const ph = state.phase.id;
   const pair = edgeChoices(state);
@@ -108,6 +125,7 @@ function targetsFor(
   if (building && mode === 'city') want.add('buildCity');
   if (building && mode === 'ship') want.add('buildShip');
   if (building && mode === 'bridge') want.add('buildBridge');
+  if (state.phase.id === 'main' && mode === 'repair') want.add('repairRoad');
   const knightCorner = (id: unknown) => {
     const k = typeof id === 'string' ? state.pieces[id] : undefined;
     return k?.at.kind === 'corner' ? k.at.id : null;
@@ -224,7 +242,7 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
     case 'gameOver':
       return `${names[state.winner ?? 0]} wins!`;
     default:
-      return ckPrompt(state, who ?? '', actor) ?? '';
+      return tbPrompt(state, who ?? '', actor) ?? ckPrompt(state, who ?? '', actor) ?? '';
   }
 }
 
@@ -305,6 +323,14 @@ export function Game({
   const canControl = (s: number) => (!online && !bots[s]) || s === seat;
   const [chosenMode, setMode] = useState<Mode>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
+  // The bid belongs to one vote; a fresh vote starts with no cards bid.
+  const voteKey = `${state.turn.number}-${state.phase.id}`;
+  const [bidFor, setBidFor] = useState({ key: '', wool: 0, grain: 0 });
+  const camelBid = useMemo(
+    () => (bidFor.key === voteKey ? bidFor : { wool: 0, grain: 0 }),
+    [bidFor, voteKey],
+  );
+  const setCamelBid = (b: { wool: number; grain: number }) => setBidFor({ key: voteKey, ...b });
   const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
   const [privateHands, setPrivateHands] = useState(false);
   const [revealedFor, setRevealedFor] = useState<number | null>(null);
@@ -335,9 +361,14 @@ export function Game({
     !!pair && legal.some((a) => a.type === pair[0]) && legal.some((a) => a.type === pair[1]);
   const shipPick = mode === 'moveShip' ? selectedShip : null;
   const targets = useMemo(
-    () => (actor === null ? noTargets : targetsFor(state, legal, mode, edgeKind, shipPick)),
-    [state, legal, mode, actor, edgeKind, shipPick],
+    () =>
+      actor === null ? noTargets : targetsFor(state, legal, mode, edgeKind, shipPick, camelBid),
+    [state, legal, mode, actor, edgeKind, shipPick, camelBid],
   );
+  const eventCard = (state.data.variants?.lastEvent ?? null) as {
+    event: EventId;
+    total: number;
+  } | null;
   const lastRoll =
     (state.data.base?.lastRoll as { dice: Record<string, number>; total: number } | undefined) ??
     null;
@@ -537,6 +568,11 @@ export function Game({
                 {typeof d === 'number' ? d : (EVENT_ICON[d] ?? d)}
               </span>
             ))}
+            {state.settings.eventCards === true && eventCard && (
+              <span className="event-card" title="Event card">
+                {EVENT_NAME[eventCard.event]}
+              </span>
+            )}
           </div>
         )}
       </main>
@@ -645,6 +681,9 @@ export function Game({
               Done
             </button>
           )}
+          {has('camelBid') && actor !== null && (
+            <CamelBidPanel hand={state.players[actor]!.hand} bid={camelBid} setBid={setCamelBid} />
+          )}
           {has('roll') && (
             <button
               type="button"
@@ -722,6 +761,16 @@ export function Game({
                     </button>
                   )}
                 </>
+              )}
+              {myTurnMain && has('repairRoad') && (
+                <button
+                  type="button"
+                  className={mode === 'repair' ? 'on' : ''}
+                  aria-pressed={mode === 'repair'}
+                  onClick={() => setMode(mode === 'repair' ? null : 'repair')}
+                >
+                  🔧 Repair road <CostLine cost={ctx.cost('road', actor)} />
+                </button>
               )}
               {state.modules.includes('traders-barbarians') && myTurnMain && (
                 <TbActions
@@ -930,6 +979,10 @@ export function Game({
           bank={state.bank}
           onPick={(cards) => act({ type: 'pickGold', player: actor, cards })}
         />
+      )}
+
+      {actor !== null && (
+        <EventPickDialog state={state} legal={legal} act={act} names={promptNames} />
       )}
 
       {ck && actor !== null && (

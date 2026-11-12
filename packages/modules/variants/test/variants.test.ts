@@ -5,7 +5,8 @@ import { seafarersModule } from '@colonizers/module-seafarers';
 import { citiesKnightsModule } from '@colonizers/module-cities-knights';
 import { generateBoard } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
-import { partnerOf, variantsModule } from '../src/index.ts';
+import { stateFromView } from '@colonizers/engine';
+import { damagedRoads, EVENT_DECK, eventData, partnerOf, variantsModule } from '../src/index.ts';
 
 const lib = new ModuleLibrary([baseModule, seafarersModule, variantsModule, citiesKnightsModule]);
 
@@ -223,5 +224,125 @@ describe('Options', () => {
         cards: { wool: 1 },
       }),
     ).toThrow();
+  });
+});
+
+describe('Event cards', () => {
+  it('the deck has 36 cards spread like two dice', () => {
+    expect(EVENT_DECK).toHaveLength(36);
+    const count = (t: number) => EVENT_DECK.filter((c) => c.total === t).length;
+    for (let t = 2; t <= 12; t++) expect(count(t)).toBe(6 - Math.abs(7 - t));
+  });
+
+  it('random games finish, every event comes up, and moves match what players can see', () => {
+    const seen = new Set<string>();
+    let finished = 0;
+    for (let g = 0; g < 3; g++) {
+      let s = game(4, { eventCards: true }, `ev-${g}`);
+      const rand = rng(g + 5);
+      for (let i = 0; i < 9000 && s.winner === null; i++) {
+        const waiting = lib.waitingOn(s);
+        if (!waiting.length) throw new Error(`Nobody can act in ${JSON.stringify(s.phase)}`);
+        const seat = waiting[Math.floor(rand() * waiting.length)]!;
+        const options = lib.legalActions(s, seat);
+        if (i % 9 === 0) {
+          const key = (a: Action) => JSON.stringify(a, Object.keys(a).sort());
+          const mine = lib
+            .legalActions(stateFromView(lib.view(s, seat)), seat)
+            .filter((a) => a.type !== 'confirmTrade')
+            .map(key)
+            .sort();
+          const real = options
+            .filter((a) => a.type !== 'confirmTrade')
+            .map(key)
+            .sort();
+          expect(mine).toEqual(real);
+        }
+        const weights = options.map((a) =>
+          a.type === 'buildSettlement' || a.type === 'buildCity'
+            ? 50
+            : a.type === 'buildRoad' || a.type === 'repairRoad'
+              ? 8
+              : a.type === 'offerTrade'
+                ? 0.2
+                : 1,
+        );
+        let r = rand() * weights.reduce((x, y) => x + y, 0);
+        let pick = options[options.length - 1]!;
+        for (let k = 0; k < options.length; k++) {
+          r -= weights[k]!;
+          if (r <= 0) {
+            pick = options[k]!;
+            break;
+          }
+        }
+        s = act(s, pick);
+        const ev = eventData(new Ctx(s, lib.registry(s.modules))).lastEvent;
+        if (ev) seen.add(ev.event);
+      }
+      if (s.winner !== null) finished++;
+    }
+    expect(finished).toBeGreaterThanOrEqual(2);
+    expect(seen.size).toBe(12);
+  }, 120_000);
+
+  it('epidemic: cities pay only one card', () => {
+    let s = finishSetup(game(4, { eventCards: true }));
+    const seat = s.turn.player;
+    let token = 0;
+    s = edit(s, (ctx) => {
+      const city = ctx.piecesOf(seat, 'settlement')[0]!;
+      ctx.upgrade(city, 'city');
+      const hex = ctx.geometry.cornerHexes
+        .get((city.at as unknown as { id: never }).id)!
+        .map((h) => ctx.state.hexes[h]!)
+        .find((h) => h.token && h.token !== 7)!;
+      token = hex.token!;
+      for (const p of Object.values(ctx.state.pieces)) if (p.type === 'robber') ctx.remove(p);
+    });
+    const rollWith = (event: 'epidemic' | 'prospers') => {
+      const t = edit(s, (ctx) => {
+        eventData(ctx).eventDeck = [...EVENT_DECK.slice(0, 10), { total: token, event }];
+      });
+      const r = act(t, { type: 'roll', player: seat });
+      return Object.values(r.players[seat]!.hand).reduce((x, y) => x + y, 0);
+    };
+    expect(rollWith('epidemic')).toBe(rollWith('prospers') - 1);
+  });
+
+  it('earthquake: everyone damages a road, no new roads until it is repaired', () => {
+    let s = finishSetup(game(4, { eventCards: true }));
+    const seat = s.turn.player;
+    s = edit(s, (ctx) => {
+      eventData(ctx).eventDeck = [...EVENT_DECK.slice(0, 10), { total: 6, event: 'earthquake' }];
+    });
+    s = act(s, { type: 'roll', player: seat });
+    expect(s.phase.id).toBe('eventPick');
+    for (const p of [0, 1, 2, 3]) s = act(s, lib.legalActions(s, p)[0]!);
+    const ctx = new Ctx(s, lib.registry(s.modules));
+    expect(damagedRoads(ctx)).toHaveLength(4);
+    s = edit(s, (c) => {
+      c.player(seat).hand = { brick: 3, lumber: 3 };
+    });
+    const road = lib.legalActions(s, seat).find((a) => a.type === 'buildRoad');
+    expect(road).toBeUndefined();
+    const fix = lib.legalActions(s, seat).find((a) => a.type === 'repairRoad')!;
+    s = act(s, fix);
+    expect(lib.legalActions(s, seat).some((a) => a.type === 'buildRoad')).toBe(true);
+  });
+
+  it('plentiful year: everyone takes a resource of their choice', () => {
+    let s = finishSetup(game(4, { eventCards: true }));
+    const seat = s.turn.player;
+    s = edit(s, (ctx) => {
+      eventData(ctx).eventDeck = [...EVENT_DECK.slice(0, 10), { total: 2, event: 'plentifulYear' }];
+      for (const p of ctx.state.players) p.hand = {};
+    });
+    s = act(s, { type: 'roll', player: seat });
+    expect(lib.waitingOn(s).sort()).toEqual([0, 1, 2, 3]);
+    const before = s.players.map((p) => p.hand.ore ?? 0);
+    for (const p of [0, 1, 2, 3]) s = act(s, { type: 'eventPick', player: p, resource: 'ore' });
+    expect(s.phase.id).toBe('main');
+    s.players.forEach((p, i) => expect(p.hand.ore).toBe(before[i]! + 1));
   });
 });

@@ -103,6 +103,8 @@ const SAFE_ORDER = [
   'pickGold',
   'pillageCity',
   'pickDefenderCard',
+  'eventPick',
+  'camelBid',
   'returnProgress',
   'harborGive',
   'aqueductPick',
@@ -141,7 +143,9 @@ const SAFE_ORDER = [
 export function timeoutAction(state: GameState, seat: number, rand: () => number): Action | null {
   const legal = library.legalActions(state, seat);
   for (const type of SAFE_ORDER) {
-    const options = legal.filter((a) => a.type === type);
+    let options = legal.filter((a) => a.type === type);
+    // A camel vote from the timer never spends cards.
+    if (type === 'camelBid') options = options.filter((a) => a.wool === 0 && a.grain === 0);
     if (options.length) return options[Math.floor(rand() * options.length)] ?? null;
   }
   return null;

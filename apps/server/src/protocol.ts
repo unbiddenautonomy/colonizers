@@ -27,6 +27,8 @@ export interface GameOptions {
   firstSettlementPays: boolean;
   /** 2 points for the player with the most buildings on harbors (at least 3 points' worth). */
   harbormaster: boolean;
+  /** A deck of event cards replaces the dice (not with Cities & Knights). */
+  eventCards: boolean;
 }
 
 export const TURN_MODES: readonly TurnModeChoice[] = ['auto', 'normal', 'specialBuild', 'paired'];
@@ -42,6 +44,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   discardLimit: 7,
   firstSettlementPays: false,
   harbormaster: false,
+  eventCards: false,
 };
 
 export function cleanOptions(raw: unknown): GameOptions {
@@ -57,6 +60,7 @@ export function cleanOptions(raw: unknown): GameOptions {
     discardLimit: int(o.discardLimit, DISCARD_LIMITS, 7),
     firstSettlementPays: o.firstSettlementPays === true,
     harbormaster: o.harbormaster === true,
+    eventCards: o.eventCards === true,
   };
 }
 
@@ -79,6 +83,7 @@ export function optionSettings(o: GameOptions, players: number): Record<string, 
     discardLimit: o.discardLimit,
     startingResourcesBothRounds: o.firstSettlementPays,
     harbormaster: o.harbormaster,
+    eventCards: o.eventCards,
   };
 }
 
