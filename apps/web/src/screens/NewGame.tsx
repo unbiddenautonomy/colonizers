@@ -46,6 +46,9 @@ export function NewGame({
   const [choice, setChoice] = useState<MapChoice>({ kind: 'random', mode: 'classic' });
   const [seed, setSeed] = useState(randomSeed);
   const [vpTarget, setVpTarget] = useState(10);
+  const [ck, setCk] = useState(false);
+  const extra = ck ? ['cities-knights'] : [];
+  const extraVp = ck ? 3 : 0;
 
   const presets = PRESETS.filter((p) => count >= p.players.min && count <= p.players.max);
   const scenarios = SEA_SCENARIOS.filter((x) => count >= x.players.min && count <= x.players.max);
@@ -83,9 +86,9 @@ export function NewGame({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
           players: names.slice(0, count).map((n, i) => n.trim() || `Player ${i + 1}`),
-          modules: ['base', 'seafarers'],
+          modules: ['base', 'seafarers', ...extra],
           map: sea.map,
-          settings: { ...sea.settings },
+          settings: { ...sea.settings, vpTarget: Number(sea.settings.vpTarget) + extraVp },
           fixedSeats: true,
         },
         actions: [],
@@ -96,9 +99,9 @@ export function NewGame({
       config: {
         seed: `${seed}-${Date.now().toString(36)}`,
         players: names.slice(0, count).map((n, i) => n.trim() || `Player ${i + 1}`),
-        modules: ['base'],
+        modules: ['base', ...extra],
         map: board.map,
-        settings: { vpTarget },
+        settings: { vpTarget: vpTarget + extraVp },
         fixedSeats: true,
       },
       actions: [],
@@ -239,7 +242,7 @@ export function NewGame({
           <p className="muted">
             {sea.info.islands.length} islands, {sea.info.gold.length} gold fields
             {sea.map.hexes.some((h) => h.hidden) ? ', fog' : ''}. First to{' '}
-            {String(sea.settings.vpTarget)} points wins.
+            {Number(sea.settings.vpTarget) + extraVp} points wins.
           </p>
         ) : (
           <div className="fairness">
@@ -265,9 +268,13 @@ export function NewGame({
         )}
       </section>
 
-      {!sea && (
-        <section className="card">
-          <h2>Rules</h2>
+      <section className="card">
+        <h2>Rules</h2>
+        <label className="toggle">
+          <input type="checkbox" checked={ck} onChange={(e) => setCk(e.target.checked)} /> ⚔️ Cities
+          &amp; Knights: knights, barbarians, commodities and city improvements
+        </label>
+        {!sea && (
           <label>
             Points to win{' '}
             <select value={vpTarget} onChange={(e) => setVpTarget(Number(e.target.value))}>
@@ -275,9 +282,10 @@ export function NewGame({
                 <option key={v}>{v}</option>
               ))}
             </select>
+            {ck && <small className="muted"> +3 for Cities &amp; Knights = {vpTarget + 3}</small>}
           </label>
-        </section>
-      )}
+        )}
+      </section>
 
       <button type="button" className="primary big" onClick={start}>
         Start game

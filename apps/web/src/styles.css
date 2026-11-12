@@ -929,3 +929,63 @@ form.inline {
   font-size: 0.95rem;
   color: var(--muted);
 }
+
+/* ---- Cities & Knights ---- */
+.barbarians {
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.barb-track {
+  display: flex;
+  gap: 3px;
+}
+.barb-step {
+  flex: 1;
+  height: 22px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sea) 30%, transparent);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+}
+.barb-step.here {
+  background: color-mix(in srgb, var(--danger) 25%, transparent);
+}
+.barb-step.land {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.barb-score {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+}
+.track-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.track-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.improve {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.actions .improve-btn {
+  border-width: 2px;
+  font-size: 0.85rem;
+}
+.die-red {
+  background: #c0392b;
+  color: #fff;
+}
+.die-yellow {
+  background: #f1c40f;
+  color: #1d2321;
+}

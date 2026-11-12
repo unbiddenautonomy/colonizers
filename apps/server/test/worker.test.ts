@@ -199,6 +199,7 @@ describe('Lobby', () => {
     expect(b.room!.settings).toEqual({
       map: { kind: 'random', mode: 'balanced' },
       vpTarget: 12,
+      citiesKnights: false,
       turnTimer: 90,
       maxPlayers: 3,
     });
@@ -441,6 +442,29 @@ describe('Online game', () => {
     expect(fog.length).toBeGreaterThan(0);
     expect(fog.every((h) => h.type === 'hidden' && h.token === undefined)).toBe(true);
     expect(Object.values(view.pieces).some((p) => p.type === 'pirate')).toBe(true);
+    [a, b].forEach((c) => c.close());
+  });
+
+  it('starts Cities & Knights on top of a Seafarers scenario', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    a.send({
+      type: 'settings',
+      settings: {
+        map: { kind: 'scenario', id: 'new-shores' },
+        vpTarget: 10,
+        citiesKnights: true,
+        turnTimer: 0,
+        maxPlayers: 4,
+      },
+    });
+    const b = await join(code, 'B');
+    expect(b.room!.settings.citiesKnights).toBe(true);
+    await startGame([a, b]);
+    const view = a.game!.view;
+    expect(view.modules).toEqual(['base', 'seafarers', 'cities-knights']);
+    expect(view.decks.science).toBe(18);
+    expect(view.bank.paper).toBeGreaterThan(0);
     [a, b].forEach((c) => c.close());
   });
 

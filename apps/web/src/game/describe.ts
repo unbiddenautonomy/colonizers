@@ -1,6 +1,12 @@
 import type { GameEvent } from '@colonizers/engine';
 import { nameOf } from '@colonizers/rulebook';
 
+const TRACK: Record<string, string> = {
+  science: 'science (green)',
+  trade: 'trade (yellow)',
+  politics: 'politics (blue)',
+};
+
 function cards(c: Record<string, number> | undefined): string {
   if (!c) return '';
   const parts = Object.entries(c)
@@ -31,7 +37,7 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return lines.length ? lines.join('; ') + '.' + short : `Nobody collected anything.${short}`;
     }
     case 'built':
-      return `${n(e.player)} built a ${e.piece as string}${e.free ? ' (free)' : ''}.`;
+      return `${n(e.player)} built a ${e.piece === 'wall' ? 'city wall' : (e.piece as string)}${e.free ? ' (free)' : ''}.`;
     case 'shipMoved':
       return `${n(e.player)} moved a ship.`;
     case 'pirateMoved':
@@ -91,6 +97,75 @@ export function describe(e: GameEvent, names: string[]): string | null {
     }
     case 'gameOver':
       return `🏆 ${n(e.winner)} wins!`;
+    // ---- Cities & Knights ----
+    case 'eventDie':
+      return e.face === 'ship'
+        ? 'Event die: the barbarian ship sails closer.'
+        : `Event die: ${TRACK[e.face as string] ?? e.face} gate with red ${e.red as number}.`;
+    case 'barbariansAdvance':
+      return null;
+    case 'barbarianAttack':
+      return e.defended
+        ? `⚔️ The barbarians attack (${e.cities as number}) and the knights (${e.knights as number}) hold them off!`
+        : `🔥 The barbarians attack (${e.cities as number}) and beat the knights (${e.knights as number})!`;
+    case 'robberWakes':
+      return 'The robber is now in play.';
+    case 'defender':
+      return `${n(e.player)} is the Defender: +1 point!`;
+    case 'pillaged':
+      return `${n(e.player)} lost a city to the barbarians.`;
+    case 'metropolis':
+      return `${n(e.player)} built the ${TRACK[e.track as string] ?? ''} metropolis${e.from !== null && e.from !== undefined ? `, taking it from ${n(e.from)}` : ''}!`;
+    case 'improved':
+      return `${n(e.player)} raised ${TRACK[e.track as string] ?? e.track} to level ${e.level as number}.`;
+    case 'progressDrawn':
+      return e.card
+        ? `${n(e.player)} drew ${nameOf(e.card as string).name}.`
+        : `${n(e.player)} drew a ${TRACK[e.deck as string] ?? ''} progress card.`;
+    case 'progressVp':
+      return `${n(e.player)} drew ${nameOf(e.card as string).name}: +1 point!`;
+    case 'playedProgress':
+      return `${n(e.player)} played ${nameOf(e.card as string).name}.`;
+    case 'progressGain':
+      return Object.keys((e.cards as Record<string, number>) ?? {}).length
+        ? `${n(e.player)} took ${cards(e.cards as Record<string, number>)}.`
+        : null;
+    case 'knightActivated':
+      return `${n(e.player)} activated a knight.`;
+    case 'knightPromoted':
+      return `${n(e.player)} promoted a knight to ${['basic', 'strong', 'mighty'][(e.level as number) - 1]}.`;
+    case 'knightMoved':
+      return `${n(e.player)} moved a knight.`;
+    case 'knightDisplaced':
+      return `${n(e.player)} pushed away ${n(e.victim)}'s knight.`;
+    case 'knightLost':
+      return `${n(e.player)}'s knight had nowhere to go and left the board.`;
+    case 'knightDeserted':
+      return `${n(e.player)}'s knight deserted to ${n(e.to)}.`;
+    case 'robberChased':
+      return `${n(e.player)}'s knight chased the robber away.`;
+    case 'numbersSwapped':
+      return `${n(e.player)} swapped two numbers.`;
+    case 'harborSwap':
+      return e.gave
+        ? `${n(e.player)} gave ${n(e.with)} ${cards(e.gave as Record<string, number>)} for ${cards(e.got as Record<string, number>)}.`
+        : `${n(e.player)} swapped a card with ${n(e.with)}.`;
+    case 'tookCards':
+      return e.cards
+        ? `${n(e.player)} took ${cards(e.cards as Record<string, number>)} from ${n(e.from)}.`
+        : `${n(e.player)} took ${e.count as number} card(s) from ${n(e.from)}.`;
+    case 'spied':
+      return e.card
+        ? `${n(e.player)} took ${nameOf(e.card as string).name} from ${n(e.from)}.`
+        : `${n(e.player)} took a progress card from ${n(e.from)}.`;
+    case 'merchantPlaced':
+      return `${n(e.player)} placed the merchant.`;
+    case 'roadRemoved':
+      return `${n(e.player)} removed ${n(e.owner)}'s road.`;
+    case 'gift':
+      return `${n(e.player)} gave ${n(e.to)} ${cards(e.cards as Record<string, number>)}.`;
+    case 'aqueduct':
+      return `${n(e.player)}'s aqueduct paid ${cards(e.cards as Record<string, number>)}.`;
     default:
       return null;
   }
