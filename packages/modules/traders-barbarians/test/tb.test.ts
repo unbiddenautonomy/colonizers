@@ -19,7 +19,12 @@ import {
   coastalHexes,
   camelEdges,
   camelOptions,
+  COMMODITY_TO,
+  edgeBarbarians,
   knightMoves,
+  tradeHexAt,
+  wagonOf,
+  wagonStep,
   knightStartEdges,
   prisonersOf,
   fishPayment,
@@ -85,6 +90,9 @@ const WEIGHTS: Record<string, number> = {
   buyWithGold: 6,
   passBoot: 3,
   moveTbKnight: 0.3,
+  moveWagon: 12,
+  upgradeWagon: 20,
+  driveBarbarian: 3,
   playDevCard: 4,
   bankTrade: 2,
   offerTrade: 0.2,
@@ -215,7 +223,11 @@ describe('Traders & Barbarians random games', () => {
       else if (scenario.id === 'rivers')
         for (const t of ['buildBridge', 'buyWithGold']) expect(seen).toContain(t);
       else if (scenario.id === 'caravans') expect(seen).toContain('camelBid');
-      else for (const t of ['placeTbKnight', 'moveTbKnight']) expect(seen).toContain(t);
+      else if (scenario.id === 'barbarians')
+        for (const t of ['placeTbKnight', 'moveTbKnight']) expect(seen).toContain(t);
+      else
+        for (const t of ['moveWagon', 'upgradeWagon', 'moveEdgeBarbarian'])
+          expect(seen).toContain(t);
     }, 120_000);
 
     it(`${scenario.name}: bots finish a game`, () => {
@@ -640,5 +652,160 @@ describe('Barbarian Attack', () => {
       tbData(c).prisoners[2] = 3;
     });
     expect(ctxOf(s).vp(2)).toBe(vp + 1);
+  });
+});
+
+describe('Traders & Barbarians (main scenario)', () => {
+  it('three trade hexes on the coast, barbarians on paths, gold and a 25-card deck', () => {
+    for (const players of [3, 4, 6]) {
+      const s = game('traders', players, `tr-${players}`);
+      const c = ctxOf(s);
+      for (const t of ['castle', 'quarry', 'glassworks']) {
+        const h = Object.values(s.hexes).filter((x) => x.type === t);
+        expect(h).toHaveLength(1);
+        const around = c.geometry.hexNeighbours.get(h[0]!.id)!;
+        expect(around.length < 6 || around.some((n) => !c.isLand(n))).toBe(true);
+      }
+      // The 2 and 12 go (bigger boards have a second pair, which stays).
+      expect(Object.values(s.hexes).filter((h) => h.token === 2 || h.token === 12).length).toBe(
+        players >= 5 ? 2 : 0,
+      );
+      expect(c.piecesOfType('robber')).toHaveLength(0);
+      expect(edgeBarbarians(c)).toHaveLength(3);
+      expect(s.decks.dev).toHaveLength(25);
+      expect(goldOf(c, 0)).toBe(5);
+      expect(c.vpTarget()).toBe(13);
+    }
+  });
+
+  it('the wagon starts at the second city and moves 4 a turn; roads are cheaper, tolls go to the owner', () => {
+    let s = finishSetup(game('traders'));
+    const c0 = ctxOf(s);
+    const seat = s.turn.player;
+    const w = wagonOf(c0, seat);
+    expect(c0.buildingAt(w.corner!)?.type).toBe('city');
+    s = act(s, { type: 'roll', player: seat });
+    if (s.phase.id !== 'main') s = edit(s, (c) => c.setPhase({ id: 'main' }));
+    expect(wagonOf(ctxOf(s), seat).mp).toBe(4);
+    // Put someone else's road under the next step, and check the toll.
+    const other = (seat + 1) % 4;
+    const from = wagonOf(ctxOf(s), seat).corner!;
+    const edge = ctxOf(s)
+      .geometry.cornerEdges.get(from)!
+      .find(
+        (e) =>
+          !edgeBarbarians(ctxOf(s)).includes(e) &&
+          ctxOf(s).isLandEdge(e) &&
+          !ctxOf(s).piecesAt({ kind: 'edge', id: e }).length,
+      )!;
+    const to = ctxOf(s)
+      .geometry.edgeCorners.get(edge)!
+      .find((x) => x !== from)!;
+    expect(wagonStep(ctxOf(s), seat, edge).mp).toBe(2);
+    s = edit(s, (c) => {
+      c.place('road', other, { kind: 'edge', id: edge });
+    });
+    expect(wagonStep(ctxOf(s), seat, edge)).toEqual({ mp: 1, toll: 1, owner: other });
+    const g = [goldOf(ctxOf(s), seat), goldOf(ctxOf(s), other)];
+    s = act(s, { type: 'moveWagon', player: seat, corner: to });
+    const c = ctxOf(s);
+    if (!tradeHexAt(c, to)) expect(wagonOf(c, seat).mp).toBe(3);
+    expect([goldOf(c, seat), goldOf(c, other)]).toEqual([g[0]! - 1, g[1]! + 1]);
+  });
+
+  it('picks up at a trade hex, and delivers at the right one for a point and gold', () => {
+    let s = finishSetup(game('traders'));
+    const seat = s.turn.player;
+    const c0 = ctxOf(s);
+    const castle = Object.values(s.hexes).find((h) => h.type === 'castle')!;
+    const [a, b] = c0.geometry.hexCorners.get(castle.id)!;
+    s = edit(s, (c) => {
+      c.setPhase({ id: 'main' });
+      const w = wagonOf(c, seat);
+      w.corner = c.geometry.cornerNeighbours.get(a!)!.find((n) => !tradeHexAt(c, n))!;
+      w.cargo = 'marble';
+      w.mp = 4;
+      w.level = 3;
+      tbData(c).edgeBarbarians = [];
+    });
+    expect(COMMODITY_TO.marble).toBe('castle');
+    const vp = ctxOf(s).vp(seat);
+    const gold = goldOf(ctxOf(s), seat);
+    s = act(s, { type: 'moveWagon', player: seat, corner: a });
+    const c = ctxOf(s);
+    expect(wagonOf(c, seat).delivered).toBe(1);
+    expect(goldOf(c, seat)).toBe(gold + 3);
+    expect(c.vp(seat)).toBe(vp + 1);
+    expect(wagonOf(c, seat).mp).toBe(0);
+    expect(wagonOf(c, seat).cargo).not.toBe(null);
+    expect(COMMODITY_TO[wagonOf(c, seat).cargo!]).not.toBe('castle');
+    expect(b).toBeTruthy();
+  });
+
+  it('barbarians block roads, a 7 moves one and robs a road owner, and wagons can drive them off', () => {
+    let s = finishSetup(game('traders'));
+    const seat = s.turn.player;
+    const c0 = ctxOf(s);
+    const bar = edgeBarbarians(c0)[0]!;
+    const [x] = c0.geometry.edgeCorners.get(bar)!;
+    s = edit(s, (c) => {
+      c.setPhase({ id: 'main' });
+      const w = wagonOf(c, seat);
+      w.corner = x!;
+      w.level = 5;
+      w.mp = 8;
+    });
+    const r = lib.apply(s, { type: 'driveBarbarian', player: seat, edge: bar });
+    const ch = r.events.find((e) => e.type === 'barbarianChallenged')!;
+    expect(ch.won).toBe((ch.die as number) >= 3);
+    if (ch.won) {
+      expect(r.state.phase.id).toBe('tbBarbarian');
+      const to = lib.legalActions(r.state, seat).find((a) => a.type === 'moveEdgeBarbarian')!;
+      expect(to.from).toBe(bar);
+      const after = act(r.state, to);
+      expect(edgeBarbarians(ctxOf(after))).toContain(to.edge);
+      expect(after.phase.id).toBe('main');
+    }
+    expect(() => act(r.state, { type: 'driveBarbarian', player: seat, edge: bar })).toThrow();
+    // Knight card: move a barbarian onto someone's road and take a card.
+    const other = (seat + 1) % 4;
+    const road = Object.values(s.pieces).find((p) => p.type === 'road' && p.owner === other)!;
+    let k = edit(s, (c) => {
+      (c.player(seat).held.dev ??= []).push({ card: 'knight', acquiredTurn: 0 });
+      c.player(other).hand = { ore: 2 };
+      c.player(seat).hand = {};
+    });
+    k = act(k, { type: 'playDevCard', player: seat, card: 'knight' });
+    expect(k.phase.id).toBe('tbBarbarian');
+    const target = (road.at as { id: EdgeId }).id;
+    const ok = lib
+      .legalActions(k, seat)
+      .find((a) => a.type === 'moveEdgeBarbarian' && a.edge === target);
+    if (ok) {
+      k = act(k, ok);
+      expect(k.players[seat]!.hand.ore).toBe(1);
+      expect(
+        lib.legalActions(k, seat).some((a) => a.type === 'buildRoad' && a.edge === target),
+      ).toBe(false);
+    }
+  });
+
+  it('upgrading the wagon adds moves now; the last level is a point', () => {
+    let s = finishSetup(game('traders'));
+    const seat = s.turn.player;
+    s = edit(s, (c) => {
+      c.setPhase({ id: 'main' });
+      const w = wagonOf(c, seat);
+      w.level = 4;
+      w.mp = 2;
+      c.player(seat).hand = { lumber: 2, wool: 2, ore: 2, grain: 1 };
+    });
+    const vp = ctxOf(s).vp(seat);
+    s = act(s, { type: 'upgradeWagon', player: seat });
+    expect(wagonOf(ctxOf(s), seat)).toMatchObject({ level: 5, mp: 3 });
+    expect(ctxOf(s).vp(seat)).toBe(vp + 1);
+    s = act(s, { type: 'boostWagon', player: seat });
+    expect(wagonOf(ctxOf(s), seat).mp).toBe(5);
+    expect(() => act(s, { type: 'boostWagon', player: seat })).toThrow();
   });
 });

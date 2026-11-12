@@ -36,6 +36,8 @@ export const nightMarketTheme: Theme = {
     swamp: '#34402a',
     oasis: '#6b5a2e',
     castle: '#4b4652',
+    quarry: '#56504a',
+    glassworks: '#3c5658',
   },
   sea: '#0b1630',
   seaEdge: '#1a2a52',

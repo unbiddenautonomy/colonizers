@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { SPECIAL_MAPS } from '@colonizers/maps';
 import {
   DISCARD_LIMITS,
@@ -26,100 +27,48 @@ export function OptionsPanel({
   options,
   players,
   citiesKnights,
+  robber = true,
   onChange,
 }: {
   options: GameOptions;
   players: number;
   citiesKnights: boolean;
+  /** False on maps with no robber: robber options are hidden. */
+  robber?: boolean;
   onChange: (o: GameOptions) => void;
 }) {
   const set = (patch: Partial<GameOptions>) => onChange({ ...options, ...patch });
   const mode = resolvedTurnMode(options, players);
+  const toggle = (key: keyof GameOptions, label: ReactNode) => (
+    <label className="toggle">
+      <input
+        type="checkbox"
+        checked={options[key] === true}
+        onChange={(e) => set({ [key]: e.target.checked })}
+      />{' '}
+      {label}
+    </label>
+  );
   return (
-    <details className="options">
-      <summary>Options and house rules</summary>
-      <label>
-        Turns{' '}
-        <select
-          value={options.turnMode}
-          onChange={(e) => set({ turnMode: e.target.value as TurnModeChoice })}
-        >
-          {TURN_MODES.map((m) => (
-            <option key={m} value={m} disabled={m === 'paired' && players < 4}>
-              {TURN_MODE_NAME[m]}
-            </option>
-          ))}
-        </select>{' '}
-        <small className="muted">
-          {options.turnMode === 'auto' ? `${TURN_MODE_NAME[mode]}: ` : ''}
-          {TURN_MODE_TEXT[mode]}
-        </small>
-      </label>
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={options.friendlyRobber}
-          onChange={(e) => set({ friendlyRobber: e.target.checked })}
-        />{' '}
-        Friendly robber: it can't go next to a player with 2 or fewer points
-      </label>
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={options.balancedDice && !citiesKnights}
-          disabled={citiesKnights}
-          onChange={(e) => set({ balancedDice: e.target.checked })}
-        />{' '}
-        Balanced dice: every result comes up as often as the odds say
-        {citiesKnights && <small className="muted"> (not with Cities &amp; Knights)</small>}
-      </label>
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={options.gifting}
-          onChange={(e) => set({ gifting: e.target.checked })}
-        />{' '}
-        Gifts: give cards to another player on your turn
-      </label>
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={options.firstSettlementPays}
-          onChange={(e) => set({ firstSettlementPays: e.target.checked })}
-        />{' '}
-        Both starting settlements pay resources
-      </label>
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={options.harbormaster}
-          onChange={(e) => set({ harbormaster: e.target.checked })}
-        />{' '}
-        ⚓ Harbormaster: 2 points for the most buildings on harbors (3 points' worth or more)
-      </label>
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={options.eventCards}
-          disabled={citiesKnights}
-          onChange={(e) => set({ eventCards: e.target.checked })}
-        />{' '}
-        🃏 Event cards instead of dice: numbers spread like the dice, with events
-        {citiesKnights && <small className="muted"> (not with Cities &amp; Knights)</small>}
-      </label>
-      <div className="row wrap">
+    <div className="options">
+      <div className="option-group">
+        <h3 className="subhead">Turns and limits</h3>
         <label>
-          Quiet start{' '}
+          Turns{' '}
           <select
-            value={options.robberFreeRounds}
-            onChange={(e) => set({ robberFreeRounds: Number(e.target.value) })}
+            value={options.turnMode}
+            onChange={(e) => set({ turnMode: e.target.value as TurnModeChoice })}
           >
-            {ROBBER_FREE_ROUNDS.map((n) => (
-              <option key={n} value={n}>
-                {n === 0 ? 'Off' : `7s do nothing for ${n} round${n === 1 ? '' : 's'}`}
+            {TURN_MODES.map((m) => (
+              <option key={m} value={m} disabled={m === 'paired' && players < 4}>
+                {TURN_MODE_NAME[m]}
               </option>
             ))}
-          </select>
+          </select>{' '}
+          <small className="muted">
+            {options.turnMode === 'auto' ? `${TURN_MODE_NAME[mode]}: ` : ''}
+            {TURN_MODE_TEXT[mode]}
+          </small>
         </label>
         <label>
           Discard above{' '}
@@ -132,10 +81,59 @@ export function OptionsPanel({
                 {n} cards
               </option>
             ))}
-          </select>
+          </select>{' '}
+          <small className="muted">when a 7 is rolled</small>
         </label>
       </div>
-    </details>
+      <div className="option-group">
+        <h3 className="subhead">{robber ? 'Robber and dice' : 'Dice'}</h3>
+        {robber &&
+          toggle(
+            'friendlyRobber',
+            "Friendly robber: it can't go next to a player with 2 or fewer points",
+          )}
+        {robber && (
+          <label>
+            Quiet start{' '}
+            <select
+              value={options.robberFreeRounds}
+              onChange={(e) => set({ robberFreeRounds: Number(e.target.value) })}
+            >
+              {ROBBER_FREE_ROUNDS.map((n) => (
+                <option key={n} value={n}>
+                  {n === 0 ? 'Off' : `7s do nothing for ${n} round${n === 1 ? '' : 's'}`}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {citiesKnights ? (
+          <p className="muted small">
+            Cities &amp; Knights rolls its own three dice, so balanced dice and event cards are off.
+          </p>
+        ) : (
+          <>
+            {toggle(
+              'balancedDice',
+              'Balanced dice: every result comes up as often as the odds say',
+            )}
+            {toggle(
+              'eventCards',
+              '🃏 Event cards instead of dice: numbers spread like the dice, with events',
+            )}
+          </>
+        )}
+      </div>
+      <div className="option-group">
+        <h3 className="subhead">Cards and trading</h3>
+        {toggle('gifting', 'Gifts: give cards to another player on your turn')}
+        {toggle('firstSettlementPays', 'Both starting settlements pay resources')}
+        {toggle(
+          'harbormaster',
+          "⚓ Harbormaster: 2 points for the most buildings on harbors (3 points' worth or more)",
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -192,6 +190,24 @@ export const SPECIAL_ICON: Record<string, string> = {
   mini: '🔹',
   fishermen: '🐟',
   rivers: '🌊',
+  caravans: '🐪',
+  barbarians: '🪓',
+  traders: '🛒',
+};
+
+/** Icons for the Seafarers scenarios. */
+export const SEA_ICON: Record<string, string> = {
+  'new-shores': '⛵',
+  'four-islands': '🏝️',
+  'fog-islands': '🌫️',
+  archipelago: '🗾',
+};
+
+/** Icons for the fixed maps. */
+export const PRESET_ICON: Record<string, string> = {
+  starter: '🧭',
+  'classic-5-6': '🗺️',
+  'big-7-8': '🌍',
 };
 
 /** The options that differ from the standard rules, in words, for players who aren't the host. */

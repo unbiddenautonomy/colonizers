@@ -44,7 +44,7 @@ import {
  * List it before the options module, so out-of-turn building covers bridges.
  */
 export const MODULE_ID = 'traders-barbarians';
-export type TbScenario = 'fishermen' | 'rivers' | 'caravans' | 'barbarians';
+export type TbScenario = 'fishermen' | 'rivers' | 'caravans' | 'barbarians' | 'traders';
 
 /** 11 one-fish, 10 two-fish and 8 three-fish tokens, plus the old boot (0). */
 export const FISH_TOKENS: readonly number[] = [
@@ -108,6 +108,14 @@ export interface TbData extends Record<string, unknown> {
   prisoners: Record<number, number>;
   /** A building went up during this action, so barbarians land after it. */
   landing: boolean;
+  /** Each player's wagon (main scenario). */
+  wagons?: Record<number, TbWagon>;
+  /** Commodity stacks by trade hex, face down. */
+  stacks?: Record<string, Commodity[]>;
+  /** Barbarians on paths (main scenario). */
+  edgeBarbarians?: EdgeId[];
+  /** Barbarians a wagon tried to drive off this turn. */
+  tried?: EdgeId[];
 }
 
 export function tbData(ctx: Ctx): TbData {
@@ -139,10 +147,16 @@ export function tbData(ctx: Ctx): TbData {
 
 export function scenarioOf(ctx: Ctx): TbScenario | null {
   const s = ctx.setting<string>('tbScenario');
-  return s === 'fishermen' || s === 'rivers' || s === 'caravans' || s === 'barbarians' ? s : null;
+  return s === 'fishermen' ||
+    s === 'rivers' ||
+    s === 'caravans' ||
+    s === 'barbarians' ||
+    s === 'traders'
+    ? s
+    : null;
 }
 
-function shuffle(ctx: Ctx, list: number[]): number[] {
+function shuffle<T>(ctx: Ctx, list: T[]): T[] {
   for (let i = list.length - 1; i > 0; i--) {
     const j = ctx.rng.int(0, i);
     [list[i], list[j]] = [list[j]!, list[i]!];
@@ -414,7 +428,7 @@ function riverCorners(ctx: Ctx): Set<CornerId> {
 /** Scenarios that pay gold. */
 export function hasGold(ctx: Ctx): boolean {
   const s = scenarioOf(ctx);
-  return s === 'rivers' || s === 'barbarians';
+  return s === 'rivers' || s === 'barbarians' || s === 'traders';
 }
 
 export function goldOf(ctx: Ctx, seat: number): number {
@@ -877,7 +891,12 @@ const notOnConquered =
     ...prev,
     check(ctx, a) {
       const err = prev.check(ctx, a);
-      if (err || scenarioOf(ctx) !== 'barbarians') return err;
+      if (err) return err;
+      if (scenarioOf(ctx) === 'traders' && where === 'edge')
+        return edgeBarbarians(ctx).includes(a.edge as EdgeId)
+          ? 'A barbarian blocks that path'
+          : null;
+      if (scenarioOf(ctx) !== 'barbarians') return err;
       const hexes =
         where === 'edge'
           ? ctx.geometry.edgeHexes.get(a.edge as EdgeId)
@@ -897,6 +916,389 @@ function conqueredVp(ctx: Ctx, seat: number): number {
   return lost;
 }
 
+// ---- Traders & Barbarians (the main scenario) ----
+
+export type Commodity = 'glass' | 'marble' | 'sand' | 'tools';
+export type TradeHex = 'castle' | 'quarry' | 'glassworks';
+export const TRADE_HEXES: readonly TradeHex[] = ['castle', 'quarry', 'glassworks'];
+/** Where each commodity is delivered. */
+export const COMMODITY_TO: Record<Commodity, TradeHex> = {
+  glass: 'castle',
+  marble: 'castle',
+  tools: 'quarry',
+  sand: 'glassworks',
+};
+/** The face-down stack beside each trade hex: 12 tokens, none bound for the hex itself. */
+export const COMMODITY_STACKS: Record<TradeHex, Commodity[]> = {
+  quarry: [...Array<Commodity>(6).fill('marble'), ...Array<Commodity>(6).fill('sand')],
+  glassworks: [...Array<Commodity>(6).fill('glass'), ...Array<Commodity>(6).fill('tools')],
+  castle: [...Array<Commodity>(6).fill('tools'), ...Array<Commodity>(6).fill('sand')],
+};
+/** Wagon levels 1 to 5: moves per turn, gold per delivery, the die it takes to drive off a barbarian, and the upgrade cost. */
+export const WAGON_LEVELS: readonly {
+  mp: number;
+  gold: number;
+  drive: number | null;
+  cost: Record<string, number>;
+}[] = [
+  { mp: 4, gold: 1, drive: null, cost: {} },
+  { mp: 5, gold: 2, drive: 6, cost: { lumber: 1, wool: 1, ore: 1 } },
+  { mp: 6, gold: 3, drive: 5, cost: { lumber: 1, wool: 1, ore: 1, grain: 1 } },
+  { mp: 7, gold: 4, drive: 4, cost: { lumber: 1, wool: 2, ore: 2 } },
+  { mp: 8, gold: 5, drive: 3, cost: { lumber: 2, wool: 2, ore: 2 } },
+];
+export const EDGE_BARBARIANS = 3;
+export const STARTING_GOLD = 5;
+/** The scenario's own 25 development cards. */
+export const TRADERS_DEV_DECK: Record<string, number> = {
+  knight: 16,
+  roadBuilding: 3,
+  swiftJourney: 3,
+  victoryPoint: 3,
+};
+
+export interface TbWagon {
+  corner: CornerId | null;
+  /** 1 to 5. */
+  level: number;
+  /** The commodity on board, or none before the first trade hex. */
+  cargo: Commodity | null;
+  delivered: number;
+  /** Moves left this turn. */
+  mp: number;
+  /** Paid grain for 2 more moves this turn. */
+  boosted: boolean;
+}
+
+export function wagonOf(ctx: Ctx, seat: number): TbWagon {
+  const d = tbData(ctx);
+  d.wagons ??= {};
+  return (d.wagons[seat] ??= {
+    corner: null,
+    level: 1,
+    cargo: null,
+    delivered: 0,
+    mp: 0,
+    boosted: false,
+  });
+}
+
+export function edgeBarbarians(ctx: Ctx): EdgeId[] {
+  return (tbData(ctx).edgeBarbarians ??= []);
+}
+
+/** The trade hex a corner touches, if any. */
+export function tradeHexAt(ctx: Ctx, corner: CornerId): TradeHex | null {
+  for (const h of ctx.geometry.cornerHexes.get(corner) ?? []) {
+    const t = ctx.state.hexes[h]?.type;
+    if (t && (TRADE_HEXES as readonly string[]).includes(t)) return t as TradeHex;
+  }
+  return null;
+}
+
+/** What one step along a path costs: moves, and gold to the road's owner. */
+export function wagonStep(
+  ctx: Ctx,
+  seat: number,
+  edge: EdgeId,
+): { mp: number; toll: number; owner: number | null } {
+  const road = ctx
+    .piecesAt({ kind: 'edge', id: edge })
+    .find((p) => p.owner !== null && ctx.registry.pieceTypes[p.type]?.route === 'land');
+  let mp = road ? 1 : 2;
+  if (edgeBarbarians(ctx).includes(edge)) mp += 2;
+  const theirs = !!road && road.owner !== seat;
+  return { mp, toll: theirs ? 1 : 0, owner: theirs ? road.owner : null };
+}
+
+function drawCommodity(ctx: Ctx, from: TradeHex): Commodity | null {
+  const d = tbData(ctx);
+  return ((d.stacks ??= {})[from] ?? []).shift() ?? null;
+}
+
+/** The wagon reached a corner: pick up at a trade hex, or deliver there. */
+function wagonArrives(ctx: Ctx, seat: number): void {
+  const w = wagonOf(ctx, seat);
+  const at = w.corner ? tradeHexAt(ctx, w.corner) : null;
+  if (!at) return;
+  if (w.cargo === null) {
+    w.cargo = drawCommodity(ctx, at);
+    if (w.cargo) {
+      ctx.emit({ type: 'commodityLoaded', player: seat, at, commodity: w.cargo });
+      w.mp = 0;
+    }
+    return;
+  }
+  if (COMMODITY_TO[w.cargo] !== at) return;
+  const gold = WAGON_LEVELS[w.level - 1]!.gold;
+  w.delivered += 1;
+  ctx.emit({ type: 'commodityDelivered', player: seat, at, commodity: w.cargo, gold });
+  earnGold(ctx, seat, gold, 'delivery');
+  w.cargo = drawCommodity(ctx, at);
+  if (w.cargo) ctx.emit({ type: 'commodityLoaded', player: seat, at, commodity: w.cargo });
+  w.mp = 0;
+}
+
+const tradersOnly = (ctx: Ctx, a: Action): string | null => {
+  if (scenarioOf(ctx) !== 'traders') return 'There are no wagons in this game';
+  return a.player === ctx.active ? null : 'Not your turn';
+};
+
+const moveWagon: ActionDef = {
+  phases: ['main'],
+  check(ctx, a) {
+    const err = tradersOnly(ctx, a);
+    if (err) return err;
+    const w = wagonOf(ctx, a.player);
+    if (!w.corner) return 'Your wagon is not on the board';
+    const edge = (ctx.geometry.cornerEdges.get(w.corner) ?? []).find((e) =>
+      ctx.geometry.edgeCorners.get(e)?.includes(a.corner as CornerId),
+    );
+    if (!edge || !ctx.isLandEdge(edge)) return 'Wagons move one path at a time, over land';
+    const step = wagonStep(ctx, a.player, edge);
+    if (step.mp > w.mp) return `That path takes ${step.mp} moves; you have ${w.mp}`;
+    if (step.toll > goldOf(ctx, a.player)) return 'You need 1 gold for the toll';
+    return null;
+  },
+  apply(ctx, a) {
+    const w = wagonOf(ctx, a.player);
+    const from = w.corner as CornerId;
+    const edge = (ctx.geometry.cornerEdges.get(from) ?? []).find((e) =>
+      ctx.geometry.edgeCorners.get(e)?.includes(a.corner as CornerId),
+    ) as EdgeId;
+    const step = wagonStep(ctx, a.player, edge);
+    w.mp -= step.mp;
+    w.corner = a.corner as CornerId;
+    if (step.toll && step.owner !== null) {
+      const d = tbData(ctx);
+      d.gold[a.player] = goldOf(ctx, a.player) - step.toll;
+      d.gold[step.owner] = goldOf(ctx, step.owner) + step.toll;
+    }
+    ctx.emit({
+      type: 'wagonMoved',
+      player: a.player,
+      from,
+      to: a.corner,
+      ...(step.owner !== null && { tollTo: step.owner }),
+    });
+    wagonArrives(ctx, a.player);
+  },
+  enumerate(ctx, player) {
+    if (scenarioOf(ctx) !== 'traders' || player !== ctx.active) return [];
+    const w = wagonOf(ctx, player);
+    if (!w.corner || w.mp <= 0) return [];
+    return (ctx.geometry.cornerNeighbours.get(w.corner) ?? []).map((corner) => ({
+      type: 'moveWagon',
+      player,
+      corner,
+    }));
+  },
+};
+
+const boostWagon: ActionDef = {
+  phases: ['main'],
+  check(ctx, a) {
+    const err = tradersOnly(ctx, a);
+    if (err) return err;
+    if (wagonOf(ctx, a.player).boosted) return 'Only once a turn';
+    return ctx.has(a.player, { grain: 1 }) ? null : 'You need 1 grain';
+  },
+  apply(ctx, a) {
+    const w = wagonOf(ctx, a.player);
+    ctx.pay(a.player, { grain: 1 });
+    w.mp += 2;
+    w.boosted = true;
+    ctx.emit({ type: 'wagonBoost', player: a.player });
+  },
+  enumerate: (ctx, player) =>
+    scenarioOf(ctx) === 'traders' && player === ctx.active ? [{ type: 'boostWagon', player }] : [],
+};
+
+const upgradeWagon: ActionDef = {
+  phases: ['main'],
+  check(ctx, a) {
+    const err = tradersOnly(ctx, a);
+    if (err) return err;
+    const w = wagonOf(ctx, a.player);
+    if (w.level >= WAGON_LEVELS.length) return 'Your wagon is fully upgraded';
+    return ctx.has(a.player, WAGON_LEVELS[w.level]!.cost) ? null : 'You can not afford the upgrade';
+  },
+  apply(ctx, a) {
+    const w = wagonOf(ctx, a.player);
+    const next = WAGON_LEVELS[w.level]!;
+    ctx.pay(a.player, next.cost);
+    // The extra moves count from this turn.
+    w.mp += next.mp - WAGON_LEVELS[w.level - 1]!.mp;
+    w.level += 1;
+    ctx.emit({ type: 'wagonUpgraded', player: a.player, level: w.level });
+  },
+  enumerate: (ctx, player) =>
+    scenarioOf(ctx) === 'traders' && player === ctx.active
+      ? [{ type: 'upgradeWagon', player }]
+      : [],
+};
+
+const driveBarbarian: ActionDef = {
+  phases: ['main'],
+  check(ctx, a) {
+    const err = tradersOnly(ctx, a);
+    if (err) return err;
+    const w = wagonOf(ctx, a.player);
+    const edge = a.edge as EdgeId;
+    if (!edgeBarbarians(ctx).includes(edge)) return 'There is no barbarian there';
+    if (!w.corner || !ctx.geometry.edgeCorners.get(edge)?.includes(w.corner))
+      return 'Your wagon must stand next to the barbarian';
+    if (w.level < 2) return 'Upgrade your wagon first';
+    return (tbData(ctx).tried ?? []).includes(edge)
+      ? 'You already tried that barbarian this turn'
+      : null;
+  },
+  apply(ctx, a) {
+    const d = tbData(ctx);
+    const edge = a.edge as EdgeId;
+    (d.tried ??= []).push(edge);
+    const need = WAGON_LEVELS[wagonOf(ctx, a.player).level - 1]!.drive as number;
+    const die = ctx.rng.int(1, 6);
+    const won = die >= need;
+    ctx.emit({ type: 'barbarianChallenged', player: a.player, edge, die, need, won });
+    if (won)
+      ctx.setPhase({
+        id: 'tbBarbarian',
+        returnTo: 'main',
+        from: edge,
+        steal: false,
+      } satisfies TbBarbarianPhase);
+  },
+  enumerate(ctx, player) {
+    if (scenarioOf(ctx) !== 'traders' || player !== ctx.active) return [];
+    const at = wagonOf(ctx, player).corner;
+    if (!at) return [];
+    return edgeBarbarians(ctx)
+      .filter((e) => ctx.geometry.edgeCorners.get(e)?.includes(at))
+      .map((edge) => ({ type: 'driveBarbarian', player, edge }));
+  },
+};
+
+interface TbBarbarianPhase extends Phase {
+  id: 'tbBarbarian';
+  returnTo: string;
+  /** The barbarian that must move (one just driven off), or any. */
+  from: EdgeId | null;
+  /** On a 7 or a Knight card, landing on a road takes a card from its owner. */
+  steal: boolean;
+}
+
+/** Paths a barbarian may move to. */
+export function barbarianTargets(ctx: Ctx): EdgeId[] {
+  const taken = new Set(edgeBarbarians(ctx));
+  return ctx.geometry.edges.filter(
+    (e) =>
+      !taken.has(e) &&
+      (ctx.geometry.edgeHexes.get(e) ?? []).filter((h) => ctx.isLand(h)).length === 2,
+  );
+}
+
+const moveEdgeBarbarian: ActionDef = {
+  phases: ['tbBarbarian'],
+  check(ctx, a) {
+    if (a.player !== ctx.active) return 'Not your turn';
+    const ph = ctx.state.phase as TbBarbarianPhase;
+    const from = a.from as EdgeId;
+    if (!edgeBarbarians(ctx).includes(from)) return 'Pick a barbarian';
+    if (ph.from && from !== ph.from) return 'Move the barbarian you drove off';
+    return barbarianTargets(ctx).includes(a.edge as EdgeId)
+      ? null
+      : 'Barbarians move to a free inland path';
+  },
+  apply(ctx, a) {
+    const ph = ctx.state.phase as TbBarbarianPhase;
+    const d = tbData(ctx);
+    d.edgeBarbarians = edgeBarbarians(ctx).map((e) => (e === a.from ? (a.edge as EdgeId) : e));
+    ctx.emit({ type: 'edgeBarbarianMoved', player: a.player, from: a.from, to: a.edge });
+    if (ph.steal) {
+      const road = ctx
+        .piecesAt({ kind: 'edge', id: a.edge as EdgeId })
+        .find((p) => p.type === 'road' && p.owner !== null && p.owner !== a.player);
+      if (road && ctx.handSize(road.owner as number, false) > 0)
+        stealFrom(ctx, a.player, road.owner as number);
+    }
+    ctx.setPhase({ id: ph.returnTo });
+  },
+  enumerate(ctx, player) {
+    if (player !== ctx.active) return [];
+    const ph = ctx.state.phase as TbBarbarianPhase;
+    const froms = ph.from ? [ph.from] : edgeBarbarians(ctx);
+    const to = barbarianTargets(ctx);
+    return froms.flatMap((from) =>
+      to.map((edge) => ({ type: 'moveEdgeBarbarian', player, from, edge })),
+    );
+  },
+};
+
+/** Places the starting barbarians on inland paths, apart from each other. */
+function placeStartBarbarians(ctx: Ctx): void {
+  const d = tbData(ctx);
+  const free = barbarianTargets(ctx).filter(
+    (e) =>
+      !(ctx.geometry.edgeHexes.get(e) ?? []).some((h) =>
+        (TRADE_HEXES as readonly string[]).includes(ctx.state.hexes[h]?.type ?? ''),
+      ),
+  );
+  const order = shuffle(
+    ctx,
+    free.map((_, i) => i),
+  ).map((i) => free[i]!);
+  const picked: EdgeId[] = [];
+  const near = (a: EdgeId, b: EdgeId) => {
+    const ca = new Set(ctx.geometry.edgeCorners.get(a));
+    return (ctx.geometry.edgeCorners.get(b) ?? []).some((c) =>
+      (ctx.geometry.cornerNeighbours.get(c) ?? []).some((n) => ca.has(n) || ca.has(c)),
+    );
+  };
+  for (const e of order) {
+    if (picked.length >= EDGE_BARBARIANS) break;
+    if (picked.some((p) => near(p, e))) continue;
+    picked.push(e);
+  }
+  d.edgeBarbarians = picked;
+}
+
+function playableDev(ctx: Ctx, seat: number, card: string): number {
+  return (ctx.player(seat).held.dev ?? []).findIndex(
+    (h) => h.card === card && h.acquiredTurn < ctx.state.turn.number,
+  );
+}
+
+/** Swift Journey: the wagon gets its moves again this turn. */
+function checkSwiftJourney(ctx: Ctx, a: Action): string | null {
+  if (scenarioOf(ctx) !== 'traders') return 'That card can not be played';
+  if (a.player !== ctx.active) return 'Not your turn';
+  if (ctx.state.phase.id !== 'main') return 'Roll first';
+  const pd = ctx.player(a.player).data as { devPlayedTurn?: number };
+  if (pd.devPlayedTurn === ctx.state.turn.number)
+    return 'You already played a development card this turn';
+  return playableDev(ctx, a.player, 'swiftJourney') >= 0
+    ? null
+    : 'You have no playable card of that kind';
+}
+
+function applySwiftJourney(ctx: Ctx, a: Action): void {
+  const p = ctx.player(a.player);
+  (p.held.dev ?? []).splice(playableDev(ctx, a.player, 'swiftJourney'), 1);
+  p.played.swiftJourney = (p.played.swiftJourney ?? 0) + 1;
+  (p.data as { devPlayedTurn?: number }).devPlayedTurn = ctx.state.turn.number;
+  const w = wagonOf(ctx, a.player);
+  w.mp += WAGON_LEVELS[w.level - 1]!.mp;
+  ctx.emit({ type: 'playedDevCard', player: a.player, card: 'swiftJourney' });
+}
+
+/** Points from the wagon: one per delivery, and one for a fully upgraded wagon. */
+function wagonVp(ctx: Ctx, seat: number): number {
+  const w = tbData(ctx).wagons?.[seat];
+  if (!w) return 0;
+  return w.delivered + (w.level >= WAGON_LEVELS.length ? 1 : 0);
+}
+
 // ---- Module ----
 
 export const tradersBarbariansModule: GameModule = {
@@ -908,6 +1310,8 @@ export const tradersBarbariansModule: GameModule = {
   hexTypes: {
     oasis: { terrain: 'land' },
     castle: { terrain: 'land', robber: false },
+    quarry: { terrain: 'land', robber: false },
+    glassworks: { terrain: 'land', robber: false },
     shoal: { terrain: 'sea', robber: false },
     fishingLake: { terrain: 'land' },
     swamp: { terrain: 'land' },
@@ -917,7 +1321,20 @@ export const tradersBarbariansModule: GameModule = {
     bridge: { on: 'edge', perPlayer: () => BRIDGES_PER_PLAYER, route: 'land' },
   },
   costs: { bridge: { brick: 2, lumber: 1 } },
-  actions: { spendFish, passBoot, buildBridge, buyWithGold, camelBid, placeTbKnight, moveTbKnight },
+  actions: {
+    spendFish,
+    passBoot,
+    buildBridge,
+    buyWithGold,
+    camelBid,
+    placeTbKnight,
+    moveTbKnight,
+    moveWagon,
+    boostWagon,
+    upgradeWagon,
+    driveBarbarian,
+    moveEdgeBarbarian,
+  },
   wrapActions: {
     roll: (prev): ActionDef => ({
       ...prev,
@@ -936,16 +1353,19 @@ export const tradersBarbariansModule: GameModule = {
         // The second starting settlement by the water lands a first catch.
         if (scenarioOf(ctx) === 'fishermen' && second && touchesFishing(ctx, a.corner as CornerId))
           catchFish(ctx, a.player, 1);
-        // Against the barbarians, the second one starts as a city.
-        if (scenarioOf(ctx) === 'barbarians' && second) {
+        // Against the barbarians, and for traders, the second one starts as a city.
+        if ((scenarioOf(ctx) === 'barbarians' || scenarioOf(ctx) === 'traders') && second) {
           const b = ctx.buildingAt(a.corner as CornerId);
           if (b?.type === 'settlement') ctx.upgrade(b, 'city');
+          // The trader's wagon sets out from that city.
+          if (scenarioOf(ctx) === 'traders') wagonOf(ctx, a.player).corner = a.corner as CornerId;
         }
       },
     }),
     playDevCard: (prev): ActionDef => ({
       ...prev,
       check(ctx, a) {
+        if (a.card === 'swiftJourney') return checkSwiftJourney(ctx, a);
         const err = prev.check(ctx, a);
         if (err || a.card !== 'knight' || scenarioOf(ctx) !== 'barbarians') return err;
         if (knightsOf(ctx, a.player).length >= KNIGHTS_PER_PLAYER)
@@ -953,11 +1373,18 @@ export const tradersBarbariansModule: GameModule = {
         return knightStartEdges(ctx).length ? null : 'There is no free path by the castle';
       },
       apply(ctx, a) {
+        if (a.card === 'swiftJourney') return applySwiftJourney(ctx, a);
         const returnTo = ctx.state.phase.id;
         prev.apply(ctx, a);
         // A Knight card sends a knight out from the castle instead of moving the robber.
         if (a.card === 'knight' && scenarioOf(ctx) === 'barbarians')
           ctx.setPhase({ id: 'tbKnight', returnTo } satisfies TbKnightPhase);
+      },
+      enumerate(ctx, player) {
+        const out = prev.enumerate?.(ctx, player) ?? [];
+        if (scenarioOf(ctx) === 'traders' && player === ctx.active)
+          out.push({ type: 'playDevCard', player, card: 'swiftJourney' });
+        return out;
       },
     }),
     endTurn: (prev): ActionDef => ({
@@ -989,6 +1416,23 @@ export const tradersBarbariansModule: GameModule = {
           .filter((c): c is CornerId => !!c)
           .map((c) => ({ corners: [c], ended: false }));
       }
+      if (scenarioOf(ctx) === 'traders') {
+        // No robber and no Longest Road; barbarians wait on the paths instead.
+        for (const r of ctx.piecesOfType('robber')) ctx.remove(r);
+        ctx.state.settings.longestRoadMin = 99;
+        for (const p of ctx.state.players) {
+          d.gold[p.seat] = STARTING_GOLD;
+          wagonOf(ctx, p.seat);
+        }
+        d.stacks = Object.fromEntries(
+          TRADE_HEXES.map((t) => [t, shuffle(ctx, [...COMMODITY_STACKS[t]])]),
+        );
+        const deck = Object.entries(TRADERS_DEV_DECK).flatMap(([card, n]) =>
+          Array<string>(n).fill(card),
+        );
+        ctx.state.decks.dev = shuffle(ctx, deck);
+        placeStartBarbarians(ctx);
+      }
       if (scenarioOf(ctx) === 'barbarians') {
         // No robber and no Largest Army: Knight cards bring knights instead.
         for (const r of ctx.piecesOfType('robber')) ctx.remove(r);
@@ -1001,6 +1445,14 @@ export const tradersBarbariansModule: GameModule = {
       }
     },
     afterAction(ctx) {
+      // On a 7 or a Knight card, a barbarian on the paths moves instead of the robber.
+      if (scenarioOf(ctx) === 'traders' && ctx.state.phase.id === 'moveRobber')
+        ctx.setPhase({
+          id: 'tbBarbarian',
+          returnTo: (ctx.state.phase.returnTo as string | undefined) ?? 'main',
+          from: null,
+          steal: true,
+        } satisfies TbBarbarianPhase);
       if (scenarioOf(ctx) !== 'barbarians') return;
       const d = tbData(ctx);
       if (d.landing) {
@@ -1014,6 +1466,12 @@ export const tradersBarbariansModule: GameModule = {
     turnStarted(ctx) {
       tbData(ctx).goldBuys = 0;
       tbData(ctx).moved = [];
+      if (scenarioOf(ctx) === 'traders') {
+        tbData(ctx).tried = [];
+        const w = wagonOf(ctx, ctx.state.turn.player);
+        w.mp = WAGON_LEVELS[w.level - 1]!.mp;
+        w.boosted = false;
+      }
       // A new round: vote on a camel if anyone built a settlement or city.
       if (scenarioOf(ctx) === 'caravans' && ctx.state.turn.player === 0) startCamelVote(ctx);
     },
@@ -1057,6 +1515,7 @@ export const tradersBarbariansModule: GameModule = {
       if (scenarioOf(ctx) === 'caravans') v += camelBonus(ctx, seat);
       if (scenarioOf(ctx) === 'barbarians')
         v += Math.floor(prisonersOf(ctx, seat) / 2) - conqueredVp(ctx, seat);
+      if (scenarioOf(ctx) === 'traders') v += wagonVp(ctx, seat);
       return v;
     },
     tradeRatio(ctx, seat, card, value) {
@@ -1075,6 +1534,7 @@ export const tradersBarbariansModule: GameModule = {
       return scenarioOf(ctx) === 'barbarians' && isConquered(ctx, hex.id) ? {} : value;
     },
     vpTarget(ctx, value) {
+      if (scenarioOf(ctx) === 'traders') return value + 3;
       return scenarioOf(ctx) === 'caravans' ? value + 2 : value;
     },
     routeWeight(ctx, piece, value) {
@@ -1091,6 +1551,16 @@ export const tradersBarbariansModule: GameModule = {
       ]),
     );
     // The pile keeps its size; its faces are hidden (1s, so look-ahead never finds the boot).
-    return { ...d, pile: d.pile.map(() => 1), spent: [], fish };
+    // Commodity stacks are face down: everyone sees only how many are left.
+    const stacks = d.stacks
+      ? Object.fromEntries(Object.entries(d.stacks).map(([k, v]) => [k, v.map(() => 'sand')]))
+      : undefined;
+    return {
+      ...d,
+      pile: d.pile.map(() => 1),
+      spent: [],
+      fish,
+      ...(stacks && { stacks }),
+    };
   },
 };

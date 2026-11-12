@@ -24,7 +24,14 @@ import { Chat } from '../ui/Chat.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
 import { Game } from './Game.tsx';
-import { describeOptions, OptionsPanel, SpecialMapButtons } from '../ui/OptionsPanel.tsx';
+import {
+  describeOptions,
+  OptionsPanel,
+  PRESET_ICON,
+  SEA_ICON,
+  SpecialMapButtons,
+} from '../ui/OptionsPanel.tsx';
+import { DEFAULT_VP_BASE, defaultOptionsFor, hasRobber, vpBonus } from '../game/defaults.ts';
 import { currentUser } from '../online/account.ts';
 import { LEVEL_INFO, LEVELS, STYLE_INFO, STYLES, type Level, type Style } from '@colonizers/bots';
 
@@ -195,6 +202,9 @@ function Lobby({
   const s = room.settings;
   const set = (patch: Partial<RoomSettings>) =>
     r.send({ type: 'settings', settings: { ...s, ...patch } });
+  // A new map or expansion starts from that game type's standard points and options.
+  const setGame = (patch: Partial<RoomSettings>) =>
+    set({ ...patch, vpTarget: DEFAULT_VP_BASE, options: defaultOptionsFor() });
 
   const share = async (link: string, what: string) => {
     const res = await copy(link, 'Join my Colonizers game');
@@ -221,6 +231,7 @@ function Lobby({
       : null;
   const noCk = specialPick?.noCitiesKnights === true;
   const ck = s.citiesKnights && !noCk;
+  const bonus = vpBonus(ck, specialPick?.id ?? null);
   const optionList = describeOptions(s.options, players.length);
   const map = s.map;
   const seaPick =
@@ -358,7 +369,7 @@ function Lobby({
                     type="button"
                     className={s.map.kind === 'random' && s.map.mode === mode ? 'on' : ''}
                     title={MODES[mode].description}
-                    onClick={() => set({ map: { kind: 'random', mode } })}
+                    onClick={() => setGame({ map: { kind: 'random', mode } })}
                   >
                     🎲 {MODES[mode].name}
                   </button>
@@ -369,9 +380,9 @@ function Lobby({
                     type="button"
                     className={s.map.kind === 'preset' && s.map.id === p.id ? 'on' : ''}
                     title={p.description}
-                    onClick={() => set({ map: { kind: 'preset', id: p.id } })}
+                    onClick={() => setGame({ map: { kind: 'preset', id: p.id } })}
                   >
-                    🗺️ {p.name}
+                    {PRESET_ICON[p.id] ?? '🗺️'} {p.name}
                   </button>
                 ))}
               </div>
@@ -386,9 +397,9 @@ function Lobby({
                       type="button"
                       className={s.map.kind === 'scenario' && s.map.id === x.id ? 'on' : ''}
                       title={x.description}
-                      onClick={() => set({ map: { kind: 'scenario', id: x.id } })}
+                      onClick={() => setGame({ map: { kind: 'scenario', id: x.id } })}
                     >
-                      ⛵ {x.name}
+                      {SEA_ICON[x.id] ?? '⛵'} {x.name}
                     </button>
                   ))}
                 </div>
@@ -398,7 +409,7 @@ function Lobby({
             <SpecialMapButtons
               players={Math.max(players.length, 2)}
               selected={specialPick?.id ?? null}
-              onPick={(id) => set({ map: { kind: 'special', id } })}
+              onPick={(id) => setGame({ map: { kind: 'special', id } })}
             />
             {specialPick && <p className="muted">{specialPick.description}</p>}
             <label className="toggle">
@@ -406,7 +417,7 @@ function Lobby({
                 type="checkbox"
                 checked={ck}
                 disabled={noCk}
-                onChange={(e) => set({ citiesKnights: e.target.checked })}
+                onChange={(e) => setGame({ citiesKnights: e.target.checked })}
               />{' '}
               ⚔️ Cities &amp; Knights (knights, barbarians, city improvements; +3 points to win)
             </label>
@@ -418,14 +429,21 @@ function Lobby({
             <div className="row wrap">
               <label>
                 Points to win{' '}
-                <select
-                  value={s.vpTarget}
-                  onChange={(e) => set({ vpTarget: Number(e.target.value) })}
-                >
-                  {VP_TARGETS.map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
+                {seaPick ? (
+                  <strong>set by the scenario</strong>
+                ) : (
+                  <select
+                    value={s.vpTarget + bonus}
+                    onChange={(e) => set({ vpTarget: Number(e.target.value) - bonus })}
+                  >
+                    {VP_TARGETS.map((v) => (
+                      <option key={v} value={v + bonus}>
+                        {v + bonus}
+                        {v === DEFAULT_VP_BASE ? ' (standard)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </label>
               <label>
                 Turn timer{' '}
@@ -469,8 +487,8 @@ function Lobby({
                 .join(' + ') || 'none'}
             </li>
             <li>
-              Points to win: {seaPick ? 'set by the scenario' : s.vpTarget}
-              {ck ? ' + 3' : ''}
+              Points to win:{' '}
+              {seaPick ? `set by the scenario${ck ? ' + 3' : ''}` : s.vpTarget + bonus}
             </li>
             <li>Turn timer: {s.turnTimer ? `${s.turnTimer / 60} min` : 'off'}</li>
             {optionList.map((o) => (
@@ -483,6 +501,7 @@ function Lobby({
             options={s.options}
             players={Math.max(players.length, s.maxPlayers)}
             citiesKnights={ck}
+            robber={hasRobber(specialPick?.id ?? null)}
             onChange={(options) => set({ options })}
           />
         )}
