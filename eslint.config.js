@@ -4,7 +4,15 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/.wrangler/**', '**/coverage/**', '**/worker-configuration.d.ts'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/.wrangler/**',
+      '**/coverage/**',
+      '**/worker-configuration.d.ts',
+      'apps/web/public/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

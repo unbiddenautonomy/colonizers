@@ -81,6 +81,22 @@ In the Cloudflare dashboard, open **Workers & Pages → colonizers → Settings 
 
 They take effect straight away; no redeploy is needed.
 
+## 7. Optional: "your turn" notifications
+
+Players can get a notification on their phone or computer when it's their
+move, even with the app closed. This needs a key pair that only you have.
+
+1. On your computer, in the project folder, run
+   `pnpm --filter @colonizers/server vapid`. It prints two lines.
+2. In Cloudflare, open the Worker's **Settings → Variables and Secrets** and
+   add them as secrets: `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`.
+3. Optionally add `VAPID_SUBJECT`: a `mailto:` address or web page where push
+   services can reach you if something goes wrong.
+
+Players then tap **Notify me on my turn** in their profile or in a game room.
+On iPhone this works once the app is added to the home screen (Share → Add to
+Home Screen), on iOS 16.4 or later.
+
 ## Running it on your own computer
 
 You need Node 22 and pnpm (`corepack enable` installs pnpm).

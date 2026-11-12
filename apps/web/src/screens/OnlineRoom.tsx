@@ -19,6 +19,7 @@ import {
 import { mySeat } from '../online/roomState.ts';
 import { useOnlineRoom } from '../online/useOnlineRoom.ts';
 import { useTheme } from '../theme/themes.tsx';
+import { NotifyButton } from '../ui/NotifyButton.tsx';
 import { Chat } from '../ui/Chat.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
@@ -264,6 +265,7 @@ function Lobby({
             {r.error}
           </p>
         )}
+        <NotifyButton />
       </header>
 
       <section className="card">
@@ -425,7 +427,7 @@ function Lobby({
                 >
                   {TURN_TIMERS.map((t) => (
                     <option key={t} value={t}>
-                      {t === 0 ? 'Off' : `${t / 60} min`}
+                      {timerLabel(t)}
                     </option>
                   ))}
                 </select>
@@ -560,4 +562,11 @@ function AddBot({ send }: { send: (msg: ClientMessage) => boolean }) {
       </button>
     </div>
   );
+}
+
+function timerLabel(seconds: number): string {
+  if (seconds === 0) return 'Off';
+  if (seconds < 3600) return `${seconds / 60} min`;
+  if (seconds < 86400) return `${seconds / 3600} hours (async)`.replace('1 hours', '1 hour');
+  return `${seconds / 86400} day${seconds === 86400 ? '' : 's'} (async)`;
 }
