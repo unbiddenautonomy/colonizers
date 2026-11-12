@@ -7,6 +7,7 @@ import {
   type GameState,
   Ctx,
 } from '@colonizers/engine';
+import { botName, chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
 import { accounts, USER_HEADER } from './auth.ts';
 import type { Env } from './env.ts';
 import {
@@ -30,6 +31,11 @@ const LOG_SENT_ON_JOIN = 250;
 const CHAT_SENT_ON_JOIN = 60;
 const CHAT_GAP_MS = 600;
 const NUDGE_GAP_MS = 20_000;
+/** Pause between bot moves, so people can follow them. */
+const BOT_DELAY_MS = 700;
+/** How long Hard bots may think about one move. */
+const BOT_BUDGET_MS = 2500;
+const MAX_BOTS = 7;
 
 interface Member {
   id: string;
@@ -40,6 +46,8 @@ interface Member {
   joined: number;
   /** The account behind this seat, when the player is signed in. */
   userId: string | null;
+  /** Set for computer players. */
+  bot: BotConfig | null;
 }
 
 interface Attachment {
@@ -74,6 +82,8 @@ export class GameRoom extends DurableObject<Env> {
   private game: LiveGame | null = null;
   private readonly lastChat = new Map<string, number>();
   private readonly lastNudge = new Map<string, number>();
+  private readonly botMemory = new Map<string, BotMemory>();
+  private botTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -103,15 +113,19 @@ export class GameRoom extends DurableObject<Env> {
         PRIMARY KEY (game_id, seat)
       );
     `);
-    try {
-      this.sql.exec('ALTER TABLE members ADD COLUMN user_id TEXT');
-    } catch {
-      // Already there.
+    for (const column of ['user_id TEXT', 'bot TEXT']) {
+      try {
+        this.sql.exec(`ALTER TABLE members ADD COLUMN ${column}`);
+      } catch {
+        // Already there.
+      }
     }
-    for (const m of this.sql.exec<Member & Record<string, SqlStorageValue>>(
-      'SELECT id, token, name, role, seat, joined, user_id AS userId FROM members ORDER BY joined',
+    for (const m of this.sql.exec<
+      Omit<Member, 'bot'> & { bot: string | null } & Record<string, SqlStorageValue>
+    >(
+      'SELECT id, token, name, role, seat, joined, user_id AS userId, bot FROM members ORDER BY joined',
     )) {
-      this.members.set(m.id, { ...m });
+      this.members.set(m.id, { ...m, bot: m.bot ? (JSON.parse(m.bot) as BotConfig) : null });
     }
   }
 
@@ -185,6 +199,7 @@ export class GameRoom extends DurableObject<Env> {
 
   override async alarm(): Promise<void> {
     if (this.status !== 'playing') return;
+    this.scheduleBots();
     const game = this.load();
     if (!game) return;
     const expired = timerKey(game.state);
@@ -224,6 +239,7 @@ export class GameRoom extends DurableObject<Env> {
         seat: null,
         joined: Date.now(),
         userId,
+        bot: null,
       };
       this.members.set(member.id, member);
       this.sql.exec(
@@ -243,6 +259,8 @@ export class GameRoom extends DurableObject<Env> {
     ws.serializeAttachment({ memberId: member.id, userId } satisfies Attachment);
     this.sendWelcome(ws);
     this.broadcastRoom();
+    // After a restart the room wakes on a message; let the bots carry on.
+    this.scheduleBots();
   }
 
   private handle(ws: WebSocket, member: Member, msg: ClientMessage): void {
@@ -272,6 +290,15 @@ export class GameRoom extends DurableObject<Env> {
         const target = this.members.get(msg.member);
         if (!target || target.id === member.id) return;
         return this.removeMember(target, 'The host removed you from this room');
+      }
+      case 'addBot': {
+        if (!isHost) return deny('Only the host can add bots');
+        if (this.status !== 'lobby') return deny('Bots can only join in the lobby');
+        if (this.players().length >= this.settings.maxPlayers) return deny('The table is full');
+        if ([...this.members.values()].filter((m) => m.bot).length >= MAX_BOTS)
+          return deny('That is enough bots');
+        this.addBot({ level: msg.level, style: msg.style });
+        return this.broadcastRoom();
       }
       case 'leave':
         if (this.status !== 'lobby' && member.seat !== null)
@@ -345,6 +372,7 @@ export class GameRoom extends DurableObject<Env> {
     this.load();
     this.updateTimer();
     this.sendWelcomeToAll();
+    this.scheduleBots();
   }
 
   private act(ws: WebSocket, member: Member, raw: Action): void {
@@ -380,6 +408,7 @@ export class GameRoom extends DurableObject<Env> {
     game.log.push(...entries);
     if (game.log.length > LOG_KEPT) game.log.splice(0, game.log.length - LOG_KEPT);
     this.broadcastGame(entries);
+    this.scheduleBots();
     if (r.state.winner !== null) {
       const gameId = this.getMeta('gameId');
       if (gameId) {
@@ -408,6 +437,77 @@ export class GameRoom extends DurableObject<Env> {
     }
     void this.ctx.storage.deleteAlarm();
     this.sendWelcomeToAll();
+  }
+
+  private addBot(config: BotConfig): void {
+    const taken = [...this.members.values()].map((m) => m.name);
+    const bot: Member = {
+      id: crypto.randomUUID().slice(0, 8),
+      token: `bot-${crypto.randomUUID().replace(/-/g, '')}`,
+      name: botName(taken),
+      role: 'player',
+      seat: null,
+      joined: Date.now(),
+      userId: null,
+      bot: config,
+    };
+    this.members.set(bot.id, bot);
+    this.sql.exec(
+      'INSERT INTO members (id, token, name, role, seat, joined, user_id, bot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      bot.id,
+      bot.token,
+      bot.name,
+      bot.role,
+      null,
+      bot.joined,
+      null,
+      JSON.stringify(config),
+    );
+  }
+
+  // ---- Bots ----
+
+  /** Lets bots take their next move after a short pause. Safe to call often. */
+  private scheduleBots(delay = BOT_DELAY_MS): void {
+    if (this.botTimer || this.status !== 'playing') return;
+    if (![...this.members.values()].some((m) => m.bot && m.seat !== null)) return;
+    this.botTimer = setTimeout(() => {
+      this.botTimer = null;
+      this.runBot();
+    }, delay);
+  }
+
+  private runBot(): void {
+    const game = this.status === 'playing' ? this.load() : null;
+    if (!game || game.state.winner !== null) return;
+    const bySeat = new Map<number, Member>();
+    for (const m of this.members.values()) if (m.bot && m.seat !== null) bySeat.set(m.seat, m);
+    const waiting = library.waitingOn(game.state).filter((s) => bySeat.has(s));
+    for (const seat of waiting) {
+      const m = bySeat.get(seat)!;
+      if (!this.botMemory.has(m.id)) this.botMemory.set(m.id, newMemory());
+      let action;
+      try {
+        action = chooseAction(library, game.state, seat, m.bot!, this.botMemory.get(m.id), {
+          budgetMs: BOT_BUDGET_MS,
+        });
+      } catch (e) {
+        console.error('Bot failed to choose', e);
+        action = null;
+      }
+      if (!action) continue;
+      try {
+        this.applyAction(action);
+      } catch (e) {
+        console.error('Bot move refused', action.type, e);
+        continue;
+      }
+      this.updateTimer();
+      this.scheduleBots();
+      return;
+    }
+    // A bot waiting on answers to its trade offer looks again in a while.
+    if (waiting.length) this.scheduleBots(4000);
   }
 
   /** Ties a seat to an account, including the games it already played here. */
@@ -439,7 +539,7 @@ export class GameRoom extends DurableObject<Env> {
     this.members.delete(member.id);
     this.sql.exec('DELETE FROM members WHERE id = ?', member.id);
     if (this.getMeta('host') === member.id) {
-      const next = [...this.members.values()][0];
+      const next = [...this.members.values()].find((m) => !m.bot);
       if (next) this.setMeta('host', next.id);
       else this.deleteMeta('host');
     }
@@ -606,7 +706,8 @@ export class GameRoom extends DurableObject<Env> {
       name: m.name,
       seat: m.seat,
       role: m.role,
-      online: online.has(m.id),
+      online: !!m.bot || online.has(m.id),
+      ...(m.bot ? { bot: m.bot } : {}),
     }));
     return {
       code: this.getMeta('code') ?? '',

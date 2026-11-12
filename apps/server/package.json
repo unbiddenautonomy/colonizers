@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@colonizers/bots": "workspace:*",
     "@colonizers/engine": "workspace:*",
     "@colonizers/maps": "workspace:*",
     "@colonizers/module-base": "workspace:*",
