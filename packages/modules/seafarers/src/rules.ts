@@ -63,6 +63,7 @@ export function shipsAt(ctx: Ctx, seat: number, corner: CornerId, ignore?: strin
 export function shipConnectsAt(ctx: Ctx, seat: number, corner: CornerId, ignore?: string): boolean {
   const b = ctx.buildingAt(corner);
   if (b) return b.owner === seat;
+  if (ctx.blocksRouteAt(corner, seat)) return false;
   return shipsAt(ctx, seat, corner, ignore).length > 0;
 }
 

@@ -78,3 +78,25 @@ export function adoptSeatFromUrl(code: string): void {
   setTokenFor(code, m[1]);
   window.history.replaceState(null, '', window.location.pathname);
 }
+
+const VISITED_KEY = 'colonizers.visitedRooms';
+
+/** Rooms this device joined, so its guest seats can move to an account after sign-in. */
+export function rememberRoom(code: string): void {
+  const list = visitedCodes().filter((c) => c !== code);
+  list.unshift(code);
+  write(VISITED_KEY, JSON.stringify(list.slice(0, 50)));
+}
+
+function visitedCodes(): string[] {
+  try {
+    const v: unknown = JSON.parse(read(VISITED_KEY) ?? '[]');
+    return Array.isArray(v) ? v.filter((c): c is string => typeof c === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function visitedRooms(): { code: string; token: string }[] {
+  return visitedCodes().map((code) => ({ code, token: tokenFor(code) }));
+}

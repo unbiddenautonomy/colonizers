@@ -90,6 +90,7 @@ export function canPlaceSettlement(
 export function connectsAt(ctx: Ctx, seat: number, corner: CornerId, route: string): boolean {
   const b = ctx.buildingAt(corner);
   if (b) return b.owner === seat;
+  if (ctx.blocksRouteAt(corner, seat)) return false;
   return routesAt(ctx, seat, corner, route).length > 0;
 }
 

@@ -30,6 +30,8 @@ export interface PieceTypeDef {
   perPlayer?: (playerCount: number) => number;
   /** Buildings block the distance rule and break opponents' routes. */
   building?: boolean;
+  /** Not a building, but still breaks opponents' routes (e.g. knights). */
+  blocksRoutes?: boolean;
   /** Pieces that make up a trade route ('land' for roads, 'sea' for ships). */
   route?: string;
   /** Victory points this piece is worth to its owner. */

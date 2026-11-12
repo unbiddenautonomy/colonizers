@@ -1,11 +1,12 @@
 import { baseRules } from './base.ts';
 import { seafarersRules } from './seafarers.ts';
+import { citiesKnightsRules } from './citiesKnights.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 /** Every module's rulebook. Expansions add theirs here. */
-export const RULEBOOKS: RulebookModule[] = [baseRules, seafarersRules];
+export const RULEBOOKS: RulebookModule[] = [baseRules, seafarersRules, citiesKnightsRules];
 
 export function rulebookFor(modules: readonly string[]): RulebookModule[] {
   return RULEBOOKS.filter((r) => modules.includes(r.module));
@@ -57,6 +58,12 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
  * move can link straight to the rule.
  */
 export const ERROR_PAGES: [RegExp, string][] = [
+  [/progress card|alchemist|scores by itself/i, 'progress-cards'],
+  [/metropolis/i, 'metropolis'],
+  [/improvement|track is complete|need \d+ (paper|cloth|coin)/i, 'improvements'],
+  [/city wall/i, 'walls'],
+  [/robber is not in play/i, 'ck-vs-base'],
+  [/activated this turn|push away|chase|move along|next to the robber/i, 'knight-actions'],
   [/pirate/i, 'pirate'],
   [/ship|sail/i, 'ships'],
   [/gold/i, 'gold'],
@@ -65,6 +72,7 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/connect/i, 'building'],
   [/afford|not enough/i, 'building'],
   [/development card|playable|before rolling/i, 'dev-cards'],
+  [/knight/i, 'knights'],
   [/robber|steal/i, 'robber'],
   [/discard/i, 'robber'],
   [/trade|offer|harbor|need \d/i, 'trading'],

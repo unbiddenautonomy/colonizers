@@ -929,3 +929,225 @@ form.inline {
   font-size: 0.95rem;
   color: var(--muted);
 }
+
+/* ---- Cities & Knights ---- */
+.barbarians {
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.barb-track {
+  display: flex;
+  gap: 3px;
+}
+.barb-step {
+  flex: 1;
+  height: 22px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sea) 30%, transparent);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+}
+.barb-step.here {
+  background: color-mix(in srgb, var(--danger) 25%, transparent);
+}
+.barb-step.land {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.barb-score {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+}
+.track-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.track-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.improve {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.actions .improve-btn {
+  border-width: 2px;
+  font-size: 0.85rem;
+}
+.die-red {
+  background: #c0392b;
+  color: #fff;
+}
+.die-yellow {
+  background: #f1c40f;
+  color: #1d2321;
+}
+
+/* ---------- Accounts ---------- */
+
+.account-bar {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 40px;
+}
+
+.account-chip .avatar,
+.avatar {
+  font-size: 1.2rem;
+}
+
+.page-top {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.page-top h1 {
+  margin: 0;
+}
+
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  min-height: 44px;
+}
+
+a.button.google {
+  width: 100%;
+}
+
+a.button.google span {
+  font-weight: 800;
+  color: #4285f4;
+}
+
+.or {
+  text-align: center;
+  color: var(--muted);
+  margin: 12px 0;
+  font-size: 0.9rem;
+}
+
+.auth-form input {
+  width: 100%;
+}
+
+.auth-switch {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.small {
+  font-size: 0.88rem;
+}
+
+.avatars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.avatar-pick {
+  font-size: 1.4rem;
+  min-width: 44px;
+  justify-content: center;
+}
+
+.avatar-pick.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.pill {
+  display: inline-block;
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  margin: 0 4px;
+}
+
+.pill.ok {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ok-line {
+  color: var(--accent);
+}
+
+.crew-list,
+.game-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 12px;
+}
+
+.crew-list li {
+  padding: 6px 0;
+}
+
+.game-list li {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.game-list li.won {
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+}
+
+.game-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.winner {
+  font-weight: 700;
+}
+
+.leaderboard {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.leaderboard th,
+.leaderboard td {
+  text-align: left;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.leaderboard tr.me {
+  font-weight: 700;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+button.danger {
+  color: var(--danger);
+}

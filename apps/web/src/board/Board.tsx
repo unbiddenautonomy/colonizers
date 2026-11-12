@@ -9,7 +9,7 @@ import {
   type GameState,
   type HexId,
 } from '@colonizers/engine';
-import { cleanTheme, RESOURCE_ICON, type Theme } from '../theme/clean.ts';
+import { cleanTheme, RESOURCE_ICON, TRACK_COLOR, type Theme } from '../theme/clean.ts';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -61,6 +61,54 @@ function HouseShape({ x, y, color, city }: { x: number; y: number; color: string
     ? `M${x - k * 1.3},${y + k * 0.9} v${-k * 1.2} l${k * 0.65},${-k * 0.7} l${k * 0.65},${k * 0.7} h${k * 1.3} v${k * 1.2} z`
     : `M${x - k * 0.85},${y + k * 0.8} v${-k * 1.0} l${k * 0.85},${-k * 0.8} l${k * 0.85},${k * 0.8} v${k * 1.0} z`;
   return <path d={d} fill={color} stroke="#1d2321" strokeWidth={2.5} strokeLinejoin="round" />;
+}
+
+const KNIGHT_LEVEL: Record<string, number> = { knight1: 1, knight2: 2, knight3: 3 };
+
+/** A shield: filled when active, pale when not, with one bar per strength level. */
+function Knight({
+  x,
+  y,
+  color,
+  level,
+  active,
+}: {
+  x: number;
+  y: number;
+  color: string;
+  level: number;
+  active: boolean;
+}) {
+  const k = S * 0.22;
+  return (
+    <g filter="url(#lift)" opacity={active ? 1 : 0.85}>
+      <path
+        d={`M${x - k},${y - k} h${2 * k} v${k * 0.9} q0,${k * 0.9} ${-k},${k * 1.3} q${-k},${-k * 0.4} ${-k},${-k * 1.3} z`}
+        fill={active ? color : '#fbf6e9'}
+        stroke={color}
+        strokeWidth={active ? 2 : 3.5}
+      />
+      <path
+        d={`M${x - k},${y - k} h${2 * k} v${k * 0.9} q0,${k * 0.9} ${-k},${k * 1.3} q${-k},${-k * 0.4} ${-k},${-k * 1.3} z`}
+        fill="none"
+        stroke="#1d2321"
+        strokeWidth={1.2}
+      />
+      {Array.from({ length: level }, (_, i) => (
+        <line
+          key={i}
+          x1={x - k * 0.55}
+          x2={x + k * 0.55}
+          y1={y - k * 0.5 + i * k * 0.45}
+          y2={y - k * 0.5 + i * k * 0.45}
+          stroke={active ? '#fff' : color}
+          strokeWidth={S * 0.045}
+          strokeLinecap="round"
+        />
+      ))}
+      <title>{`${['Basic', 'Strong', 'Mighty'][level - 1]} knight${active ? ' (active)' : ' (inactive)'}`}</title>
+    </g>
+  );
 }
 
 /** A small boat in the middle of the edge, over a thin wake line. */
@@ -304,12 +352,85 @@ function BoardImpl({ state, targets, onAction, theme = cleanTheme, rolled }: Boa
         })()}
 
       {pieces
+        .filter((p) => p.type === 'merchant' && p.at.kind === 'hex')
+        .map((p) => {
+          const h = state.hexes[(p.at as { id: HexId }).id];
+          if (!h) return null;
+          const c = hexToPixel(h.q, h.r, S);
+          const x = c.x - S * 0.42;
+          const y = c.y + S * 0.12;
+          return (
+            <g key={p.id} className="merchant" filter="url(#lift)">
+              <circle
+                cx={x}
+                cy={y}
+                r={S * 0.15}
+                fill={color(p.owner)}
+                stroke="#1d2321"
+                strokeWidth={2}
+              />
+              <text
+                x={x}
+                y={y + S * 0.06}
+                textAnchor="middle"
+                fontSize={S * 0.17}
+                fontWeight={700}
+                fill="#fff"
+              >
+                M
+              </text>
+              <title>Merchant</title>
+            </g>
+          );
+        })}
+
+      {pieces
         .filter((p) => p.at.kind === 'corner')
         .map((p) => {
           const c = cornerToPixel((p.at as { id: CornerId }).id, S);
+          const level = KNIGHT_LEVEL[p.type];
+          if (level)
+            return (
+              <Knight
+                key={p.id}
+                x={c.x}
+                y={c.y}
+                color={color(p.owner)}
+                level={level}
+                active={p.props.active === true}
+              />
+            );
           return (
             <g key={p.id} filter="url(#lift)">
+              {p.props.wall === true && (
+                <rect
+                  x={c.x - S * 0.32}
+                  y={c.y + S * 0.08}
+                  width={S * 0.64}
+                  height={S * 0.14}
+                  rx={2}
+                  fill="#8a7f72"
+                  stroke="#1d2321"
+                  strokeWidth={2}
+                >
+                  <title>City wall</title>
+                </rect>
+              )}
               <HouseShape x={c.x} y={c.y} color={color(p.owner)} city={p.type === 'city'} />
+              {typeof p.props.metropolis === 'string' && (
+                <g>
+                  <rect
+                    x={c.x - S * 0.07}
+                    y={c.y - S * 0.42}
+                    width={S * 0.14}
+                    height={S * 0.24}
+                    fill={TRACK_COLOR[p.props.metropolis] ?? '#fff'}
+                    stroke="#1d2321"
+                    strokeWidth={2}
+                  />
+                  <title>{`Metropolis (${p.props.metropolis})`}</title>
+                </g>
+              )}
             </g>
           );
         })}
