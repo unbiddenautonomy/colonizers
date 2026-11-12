@@ -318,13 +318,26 @@ export function giveProgress(ctx: Ctx, seat: number, deck: Track, card: string):
   });
 }
 
-/** Draws from a deck if the player has room. Returns false when nothing was drawn. */
+/**
+ * Draws from a deck. A player who ends up with more than 4 progress cards
+ * puts one back afterwards (see progressOverLimit). Returns false when the
+ * deck is empty.
+ */
 export function drawProgress(ctx: Ctx, seat: number, deck: Track): boolean {
-  if (progressCount(ctx, seat) >= PROGRESS_HAND_LIMIT) return false;
   const card = ctx.drawCard(deck);
   if (!card) return false;
   giveProgress(ctx, seat, deck, card);
   return true;
+}
+
+/** Seats holding more progress cards than allowed, with how many they must put back. */
+export function progressOverLimit(ctx: Ctx): Record<number, number> {
+  const out: Record<number, number> = {};
+  for (const p of ctx.state.players) {
+    const extra = progressCount(ctx, p.seat) - PROGRESS_HAND_LIMIT;
+    if (extra > 0) out[p.seat] = extra;
+  }
+  return out;
 }
 
 /** Seats in turn order starting with the active player. */
@@ -386,8 +399,7 @@ export function attack(ctx: Ctx): void {
       d.defender[s] = (d.defender[s] ?? 0) + 1;
       ctx.emit({ type: 'defender', player: s });
     } else if (leaders.length > 1) {
-      for (const s of leaders)
-        if (progressCount(ctx, s) < PROGRESS_HAND_LIMIT) d.pendingDefender.push(s);
+      for (const s of leaders) d.pendingDefender.push(s);
     }
   }
 
