@@ -6,7 +6,7 @@ import { Board } from '../board/Board.tsx';
 import { describe } from '../game/describe.ts';
 import { library } from '../game/library.ts';
 import { getReplay, mapName, type Replay } from '../online/account.ts';
-import { cleanTheme as theme } from '../theme/clean.ts';
+import { ThemePicker, useTheme } from '../theme/themes.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 
 /** Keep a full state every this many moves, and replay forward from the nearest one. */
@@ -82,6 +82,7 @@ function ReplayView({ replay, onBack }: { replay: Replay; onBack: () => void }) 
   const state = useMemo(() => stateAt(replay, timeline, step), [replay, timeline, step]);
   const ctx = useMemo(() => new Ctx(state, library.registry(state.modules)), [state]);
   const names = state.players.map((p) => p.name);
+  const theme = useTheme();
 
   useEffect(() => {
     if (!playing) return;
@@ -118,6 +119,7 @@ function ReplayView({ replay, onBack }: { replay: Replay; onBack: () => void }) 
           {state.winner !== null && ` · ${names[state.winner]} wins`}
         </p>
         <div className="head-actions">
+          <ThemePicker compact />
           <button type="button" className="ghost" onClick={onBack}>
             Back
           </button>

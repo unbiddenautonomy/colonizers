@@ -12,7 +12,7 @@ import {
   type Mode,
 } from '@colonizers/maps';
 import type { MapSpec } from '@colonizers/engine';
-import { cleanTheme } from '../theme/clean.ts';
+import { ThemePicker, useTheme } from '../theme/themes.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { RESOURCE_ICON } from '../theme/clean.ts';
 import type { SavedGame } from '../game/useLocalGame.ts';
@@ -62,6 +62,7 @@ export function NewGame({
   canResume: boolean;
   onRules: () => void;
 }) {
+  const theme = useTheme();
   const [count, setCount] = useState(4);
   const [names, setNames] = useState(DEFAULT_NAMES);
   const [choice, setChoice] = useState<MapChoice>({ kind: 'random', mode: 'classic' });
@@ -169,6 +170,7 @@ export function NewGame({
           <button type="button" className="ghost" onClick={onRules}>
             📖 Rulebook
           </button>
+          <ThemePicker />
         </div>
       </header>
 
@@ -200,8 +202,8 @@ export function NewGame({
           {names.slice(0, count).map((n, i) => (
             <label key={i} className="name-row">
               <PlayerBadge
-                color={cleanTheme.players[i]!.color}
-                shape={cleanTheme.players[i]!.shape}
+                color={theme.players[i]!.color}
+                shape={theme.players[i]!.shape}
                 size={20}
               />
               <input
