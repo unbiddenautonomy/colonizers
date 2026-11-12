@@ -13,6 +13,7 @@ import {
 } from '@colonizers/maps';
 import type { MapSpec } from '@colonizers/engine';
 import { ThemePicker, useTheme } from '../theme/themes.tsx';
+import { DicePicker } from '../ui/Dice.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { RESOURCE_ICON } from '../theme/clean.ts';
 import type { SavedGame } from '../game/useLocalGame.ts';
@@ -197,6 +198,7 @@ export function NewGame({
             📖 Rulebook
           </button>
           <ThemePicker />
+          <DicePicker />
         </div>
       </header>
 
