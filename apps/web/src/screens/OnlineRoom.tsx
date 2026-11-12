@@ -373,6 +373,14 @@ function Lobby({
                 {seaPick && <p className="muted">{seaPick.description}</p>}
               </div>
             )}
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={s.citiesKnights}
+                onChange={(e) => set({ citiesKnights: e.target.checked })}
+              />{' '}
+              ⚔️ Cities &amp; Knights (knights, barbarians, city improvements; +3 points to win)
+            </label>
             <div className="row wrap">
               <label>
                 Points to win{' '}
@@ -416,7 +424,16 @@ function Lobby({
         ) : (
           <ul className="settings-list">
             <li>Map: {mapLabel(s.map)}</li>
-            <li>Points to win: {seaPick ? 'set by the scenario' : s.vpTarget}</li>
+            <li>
+              Expansions:{' '}
+              {[seaPick && 'Seafarers', s.citiesKnights && 'Cities & Knights']
+                .filter(Boolean)
+                .join(' + ') || 'none'}
+            </li>
+            <li>
+              Points to win: {seaPick ? 'set by the scenario' : s.vpTarget}
+              {s.citiesKnights ? ' + 3' : ''}
+            </li>
             <li>Turn timer: {s.turnTimer ? `${s.turnTimer / 60} min` : 'off'}</li>
           </ul>
         )}

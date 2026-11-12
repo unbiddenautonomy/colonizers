@@ -2,6 +2,12 @@ import { RESOURCE_COLOR, RESOURCE_ICON } from '../theme/clean.ts';
 import { nameOf } from '@colonizers/rulebook';
 
 export const RESOURCES = ['brick', 'lumber', 'wool', 'grain', 'ore'] as const;
+export const COMMODITY_CARDS = ['paper', 'cloth', 'coin'] as const;
+
+/** Card types players trade and hold in this game. */
+export function handCards(modules: readonly string[]): readonly string[] {
+  return modules.includes('cities-knights') ? [...RESOURCES, ...COMMODITY_CARDS] : RESOURCES;
+}
 
 export function ResourceCard({
   card,
@@ -54,15 +60,17 @@ export function CardPicker({
   onChange,
   max,
   label,
+  cards = RESOURCES,
 }: {
   value: Record<string, number>;
   onChange: (v: Record<string, number>) => void;
   max?: Record<string, number>;
   label: string;
+  cards?: readonly string[];
 }) {
   return (
     <div className="picker" role="group" aria-label={label}>
-      {RESOURCES.map((r) => {
+      {cards.map((r) => {
         const n = value[r] ?? 0;
         const limit = max ? (max[r] ?? 0) : 99;
         return (

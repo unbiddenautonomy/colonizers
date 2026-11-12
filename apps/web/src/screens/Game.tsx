@@ -24,16 +24,42 @@ import type { Connection } from '../online/roomState.ts';
 import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { cleanTheme } from '../theme/clean.ts';
-import { CardPicker, clean, CostLine, RESOURCES, ResourceCard, total } from '../ui/Cards.tsx';
+import {
+  CardPicker,
+  clean,
+  CostLine,
+  handCards,
+  RESOURCES,
+  ResourceCard,
+  total,
+} from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
+import {
+  BarbarianTrack,
+  CK_BOARD_PHASES,
+  CkBuild,
+  CkChoices,
+  CkPlayerStats,
+  ckPrompt,
+  CommodityCards,
+  ProgressHand,
+  type CkMode,
+} from './CitiesKnights.tsx';
 
-type Mode = null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip';
+type Mode = null | 'road' | 'settlement' | 'city' | 'ship' | 'moveShip' | CkMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'yearOfPlenty' | 'monopoly';
 
 const theme = cleanTheme;
+
+const EVENT_ICON: Record<string, string> = {
+  ship: '⛵',
+  science: '🟢',
+  trade: '🟡',
+  politics: '🔵',
+};
 
 /** Road or ship action types for the current step, when the step places one of them. */
 function edgeChoices(state: GameState): [string, string] | null {
@@ -76,6 +102,49 @@ function targetsFor(
   if (ph === 'main' && mode === 'settlement') want.add('buildSettlement');
   if (ph === 'main' && mode === 'city') want.add('buildCity');
   if (ph === 'main' && mode === 'ship') want.add('buildShip');
+  const knightCorner = (id: unknown) => {
+    const k = typeof id === 'string' ? state.pieces[id] : undefined;
+    return k?.at.kind === 'corner' ? k.at.id : null;
+  };
+  if (CK_BOARD_PHASES.includes(ph)) {
+    for (const a of legal) {
+      if (typeof a.corner === 'string') t.corners.set(a.corner as CornerId, a);
+      else if (typeof a.edge === 'string') t.edges.set(a.edge as EdgeId, a);
+      else if (typeof a.hex === 'string') t.hexes.set(a.hex as HexId, a);
+      else {
+        const c = knightCorner(a.knight);
+        if (c) t.corners.set(c, a);
+      }
+    }
+    return t;
+  }
+  if (ph === 'main' && (mode === 'activate' || mode === 'promote')) {
+    const type = mode === 'activate' ? 'activateKnight' : 'promoteKnight';
+    for (const a of legal) {
+      if (a.type !== type) continue;
+      const c = knightCorner(a.knight);
+      if (c) t.corners.set(c, a);
+    }
+    return t;
+  }
+  if (ph === 'main' && mode === 'knightAct') {
+    // First pick a knight, then where it goes (or the robber to chase).
+    for (const a of legal) {
+      if (!['moveKnight', 'displaceKnight', 'chaseRobber'].includes(a.type)) continue;
+      if (selectedShip === null) {
+        const c = knightCorner(a.knight);
+        if (c) t.corners.set(c, { type: 'selectKnight', player: a.player, knight: a.knight });
+      } else if (a.knight === selectedShip) {
+        if (a.type === 'chaseRobber') {
+          const r = Object.values(state.pieces).find((p) => p.type === 'robber');
+          if (r?.at.kind === 'hex') t.hexes.set(r.at.id, a);
+        } else t.corners.set(a.to as CornerId, a);
+      }
+    }
+    return t;
+  }
+  if (ph === 'main' && mode === 'knight') want.add('buildKnight');
+  if (ph === 'main' && mode === 'wall') want.add('buildWall');
   if (ph === 'main' && mode === 'moveShip') {
     // First pick a ship, then where it sails to.
     for (const a of legal) {
@@ -126,13 +195,21 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
     case 'main':
       if (mode === 'moveShip')
         return `${who}: tap the ship to move, then where it should sail. Tap the button again to cancel.`;
+      if (mode === 'knightAct')
+        return `${who}: tap an active knight, then where it goes. A knight next to the robber can chase it away.`;
+      if (mode === 'activate' || mode === 'promote')
+        return `${who}: tap the knight to ${mode}. Tap the button again to cancel.`;
+      if (mode === 'knight')
+        return `${who}: tap a glowing corner on your roads for a new knight. Tap the button again to cancel.`;
+      if (mode === 'wall')
+        return `${who}: tap one of your cities for a wall. Tap the button again to cancel.`;
       if (mode)
         return `${who}: tap a glowing spot to build a ${mode}. Tap the button again to cancel.`;
       return `${who}: trade, build, or end your turn.`;
     case 'gameOver':
       return `${names[state.winner ?? 0]} wins!`;
     default:
-      return '';
+      return ckPrompt(state, who ?? '', actor) ?? '';
   }
 }
 
@@ -194,7 +271,9 @@ export function Game({
     state.phase.id === 'pickGold' && actor !== null
       ? ((state.phase.owed as Record<number, number>)[actor] ?? 0)
       : 0;
-  const owedPhase = state.phase.id === 'discard' || state.phase.id === 'pickGold';
+  const owedPhase = !!state.phase.owed;
+  const ck = state.modules.includes('cities-knights');
+  const cardKinds = handCards(state.modules);
   const promptSeat = online && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
   const [chosenEdgeKind, setEdgeKind] = useState<EdgeKind>('road');
@@ -230,8 +309,8 @@ export function Game({
   const offer = baseData(ctx).trade;
 
   const act = (a: Action) => {
-    if (a.type === 'selectShip') {
-      setSelectedShip(a.ship as string);
+    if (a.type === 'selectShip' || a.type === 'selectKnight') {
+      setSelectedShip((a.ship ?? a.knight) as string);
       return;
     }
     if (g.act(a)) {
@@ -314,7 +393,7 @@ export function Game({
             online &&
             p.seat !== seat &&
             state.winner === null &&
-            (state.phase.id === 'discard'
+            (state.phase.owed
               ? !!(state.phase.owed as Record<number, number>)[p.seat]
               : state.turn.player === p.seat);
           return (
@@ -341,8 +420,14 @@ export function Game({
               </div>
               <div className="player-stats">
                 <span title="Cards in hand">🂠 {ctx.handSize(p.seat, false)}</span>
-                <span title="Development cards">📜 {p.held.dev?.length ?? 0}</span>
-                <span title="Knights played">⚔️ {p.played.knight ?? 0}</span>
+                {ck ? (
+                  <CkPlayerStats ctx={ctx} seat={p.seat} />
+                ) : (
+                  <>
+                    <span title="Development cards">📜 {p.held.dev?.length ?? 0}</span>
+                    <span title="Knights played">⚔️ {p.played.knight ?? 0}</span>
+                  </>
+                )}
                 <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
                 {data.longestRoad === p.seat && (
                   <span className="award">
@@ -364,6 +449,7 @@ export function Game({
             </div>
           );
         })}
+        {ck && <BarbarianTrack ctx={ctx} />}
       </aside>
 
       <main className="board-wrap">
@@ -375,9 +461,9 @@ export function Game({
         />
         {lastRoll && (
           <div className="dice" aria-label={`Last roll ${lastRoll.total}`}>
-            {Object.values(lastRoll.dice).map((d, i) => (
-              <span key={i} className="die">
-                {d}
+            {Object.entries(lastRoll.dice).map(([name, d]) => (
+              <span key={name} className={`die die-${name}`} title={name}>
+                {typeof d === 'number' ? d : (EVENT_ICON[d] ?? d)}
               </span>
             ))}
           </div>
@@ -424,7 +510,17 @@ export function Game({
                       dim={!state.players[actor]!.hand[r]}
                     />
                   ))}
+                  {ck && <CommodityCards hand={state.players[actor]!.hand} />}
                 </div>
+                {ck && (
+                  <ProgressHand
+                    state={state}
+                    actor={actor}
+                    legal={legal}
+                    act={act}
+                    names={promptNames}
+                  />
+                )}
                 <div className="dev-cards">
                   {(state.players[actor]!.held.dev ?? []).map((c, i) => {
                     const card = c.card;
@@ -473,6 +569,11 @@ export function Game({
               ))}
             </div>
           )}
+          {has('ckDone') && CK_BOARD_PHASES.includes(state.phase.id) && (
+            <button type="button" onClick={() => act({ type: 'ckDone', player: actor! })}>
+              Done
+            </button>
+          )}
           {has('roll') && (
             <button
               type="button"
@@ -501,6 +602,24 @@ export function Game({
                   </button>
                 );
               })}
+              {ck && (
+                <CkBuild
+                  ctx={ctx}
+                  actor={actor}
+                  has={has}
+                  mode={
+                    mode === null ||
+                    ['knight', 'activate', 'promote', 'knightAct', 'wall'].includes(mode)
+                      ? (mode as CkMode | null)
+                      : null
+                  }
+                  setMode={(m) => {
+                    setSelectedShip(null);
+                    setMode(m);
+                  }}
+                  onImprove={(track) => act({ type: 'improveCity', player: actor, track })}
+                />
+              )}
               {seafarers && (
                 <>
                   <button
@@ -526,13 +645,15 @@ export function Game({
                   </button>
                 </>
               )}
-              <button
-                type="button"
-                disabled={!has('buyDevCard')}
-                onClick={() => act({ type: 'buyDevCard', player: actor })}
-              >
-                Dev card <CostLine cost={ctx.cost('devCard', actor)} />
-              </button>
+              {!ck && (
+                <button
+                  type="button"
+                  disabled={!has('buyDevCard')}
+                  onClick={() => act({ type: 'buyDevCard', player: actor })}
+                >
+                  Dev card <CostLine cost={ctx.cost('devCard', actor)} />
+                </button>
+              )}
               <button type="button" disabled={!has('bankTrade')} onClick={() => setDialog('bank')}>
                 Bank trade
               </button>
@@ -680,6 +801,7 @@ export function Game({
           name={names[actor]!}
           hand={state.players[actor]!.hand}
           owed={(state.phase.owed as Record<number, number>)[actor]!}
+          cards={cardKinds}
           onDiscard={(cards) => act({ type: 'discard', player: actor, cards })}
         />
       )}
@@ -695,6 +817,10 @@ export function Game({
           bank={state.bank}
           onPick={(cards) => act({ type: 'pickGold', player: actor, cards })}
         />
+      )}
+
+      {ck && actor !== null && (
+        <CkChoices state={state} actor={actor} legal={legal} act={act} names={promptNames} />
       )}
 
       {state.phase.id === 'steal' && legal.some((a) => a.type === 'steal') && (
@@ -714,6 +840,7 @@ export function Game({
 
       {dialog === 'bank' && actor !== null && (
         <BankDialog
+          cards={cardKinds}
           legal={legal.filter((a) => a.type === 'bankTrade')}
           ratio={(card) => ctx.reduce('tradeRatio', actor, card, 4)}
           onTrade={(a) => act(a)}
@@ -722,6 +849,7 @@ export function Game({
       )}
       {dialog === 'offer' && actor !== null && (
         <OfferDialog
+          cards={cardKinds}
           hand={state.players[actor]!.hand}
           onOffer={(give, get) => {
             if (g.act({ type: 'offerTrade', player: actor, give, get })) setDialog(null);
@@ -858,18 +986,26 @@ function DiscardDialog({
   name,
   hand,
   owed,
+  cards,
   onDiscard,
 }: {
   name: string;
   hand: Record<string, number>;
   owed: number;
+  cards: readonly string[];
   onDiscard: (c: Record<string, number>) => void;
 }) {
   const [pick, setPick] = useState<Record<string, number>>({});
   return (
     <Modal title={`${name}: discard ${owed}`}>
-      <p>A 7 was rolled and you hold too many cards. Choose {owed} to give back.</p>
-      <CardPicker value={pick} onChange={setPick} max={hand} label="Cards to discard" />
+      <p>You hold too many cards (or a Saboteur struck). Choose {owed} to give back.</p>
+      <CardPicker
+        value={pick}
+        onChange={setPick}
+        max={hand}
+        label="Cards to discard"
+        cards={cards}
+      />
       <button
         type="button"
         className="primary"
@@ -883,11 +1019,13 @@ function DiscardDialog({
 }
 
 function BankDialog({
+  cards,
   legal,
   ratio,
   onTrade,
   onClose,
 }: {
+  cards: readonly string[];
   legal: Action[];
   ratio: (card: string) => number;
   onTrade: (a: Action) => void;
@@ -899,7 +1037,7 @@ function BankDialog({
     <Modal title="Trade with the bank" onClose={onClose}>
       <p>Give:</p>
       <div className="row">
-        {RESOURCES.map((r) => (
+        {cards.map((r) => (
           <button
             key={r}
             type="button"
@@ -930,10 +1068,12 @@ function BankDialog({
 }
 
 function OfferDialog({
+  cards,
   hand,
   onOffer,
   onClose,
 }: {
+  cards: readonly string[];
   hand: Record<string, number>;
   onOffer: (give: Record<string, number>, get: Record<string, number>) => void;
   onClose: () => void;
@@ -945,11 +1085,17 @@ function OfferDialog({
       <div className="two-col">
         <div>
           <h3>You give</h3>
-          <CardPicker value={give} onChange={setGive} max={hand} label="Cards you give" />
+          <CardPicker
+            value={give}
+            onChange={setGive}
+            max={hand}
+            label="Cards you give"
+            cards={cards}
+          />
         </div>
         <div>
           <h3>You get</h3>
-          <CardPicker value={get} onChange={setGet} label="Cards you want" />
+          <CardPicker value={get} onChange={setGet} label="Cards you want" cards={cards} />
         </div>
       </div>
       <button

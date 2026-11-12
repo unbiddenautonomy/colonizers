@@ -286,6 +286,15 @@ export class Ctx {
     );
   }
 
+  /** Another player's building or route-blocking piece (like a knight) sits on the corner. */
+  blocksRouteAt(corner: CornerId, seat: number): boolean {
+    return this.piecesAt({ kind: 'corner', id: corner }).some((p) => {
+      if (p.owner === seat || p.owner === null) return false;
+      const def = this.registry.pieceTypes[p.type];
+      return !!def?.building || !!def?.blocksRoutes;
+    });
+  }
+
   /** Pieces left in a player's supply. */
   supplyLeft(seat: number, type: string): number {
     const def = this.registry.pieceTypes[type];
@@ -368,10 +377,7 @@ export class Ctx {
     for (const p of routePieces) {
       edgeRoute.set((p.at as { id: EdgeId }).id, this.registry.pieceTypes[p.type]?.route as string);
     }
-    const blocked = (c: CornerId) => {
-      const b = this.buildingAt(c);
-      return !!b && b.owner !== seat;
-    };
+    const blocked = (c: CornerId) => this.blocksRouteAt(c, seat);
     const ownBuilding = (c: CornerId) => this.buildingAt(c)?.owner === seat;
 
     let best = 0;

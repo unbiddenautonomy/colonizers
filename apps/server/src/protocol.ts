@@ -12,6 +12,8 @@ export type MapChoice =
 export interface RoomSettings {
   map: MapChoice;
   vpTarget: number;
+  /** Play with the Cities & Knights expansion. */
+  citiesKnights: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -23,6 +25,7 @@ export const VP_TARGETS = [8, 9, 10, 11, 12, 13, 14, 15] as const;
 export const DEFAULT_SETTINGS: RoomSettings = {
   map: { kind: 'random', mode: 'classic' },
   vpTarget: 10,
+  citiesKnights: false,
   turnTimer: 0,
   maxPlayers: 4,
 };
@@ -134,6 +137,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
   return {
     map,
     vpTarget: int(s.vpTarget, VP_TARGETS, DEFAULT_SETTINGS.vpTarget),
+    citiesKnights: s.citiesKnights === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
   };
