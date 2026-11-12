@@ -17,6 +17,7 @@ packages/
     special-maps/    Volcano and lake hexes for the special maps
     variants/        Special Building Phase, paired turns and house rules
   bots/         Computer players (Easy, Medium, Hard; five play styles), used by rooms and local games
+  stats/        Game stats, achievements and career totals, worked out by replaying a game
   maps/         Map files, preset boards, board generator, fairness report, Seafarers scenarios
   rulebook/     Plain-language rule pages, card glossary, cost card data
 docs/

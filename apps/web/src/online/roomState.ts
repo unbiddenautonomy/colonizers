@@ -80,6 +80,14 @@ export function reduce(s: OnlineState, msg: ServerMessage, localNow = Date.now()
       };
     case 'chat':
       return { ...s, chat: [...s.chat, msg.message].slice(-CHAT_KEPT) };
+    case 'achievements': {
+      // Shown as log lines at the end of the game.
+      const seq = s.game?.seq ?? 0;
+      const lines: LogEntry[] = msg.unlocked.flatMap((u) =>
+        u.ids.map((id) => ({ seq, event: { type: 'achievementUnlocked', player: u.seat, id } })),
+      );
+      return { ...s, log: [...s.log, ...lines].slice(-LOG_KEPT) };
+    }
     case 'error':
       if (msg.code === 'removed') return { ...s, conn: 'removed', notice: msg.message };
       return { ...s, error: msg.message };

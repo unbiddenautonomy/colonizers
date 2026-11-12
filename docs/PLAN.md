@@ -543,7 +543,7 @@ Each phase ends with something we can play or use. Seafarers and Cities & Knight
 | **7. Accounts and crews** ✅ | Google and email sign-up, profiles, guest upgrade, crews. | Games show up in each person's history. |
 | **8. Bots** ✅ | Easy and Medium on the server, Hard in the browser, play styles, bot trading, bots for Seafarers and C&K. | A full game with 3 bots; Hard beats Medium most of the time. |
 | **9. Bigger games and options** ✅ | 5–6 players, 7–8 player board and paired turns, Colonist-style options, house rules, special maps (Gold Rush, Volcano, Deep Forest, Lakes and shapes). Done: Special Building Phase, paired turns, friendly robber, balanced dice, quiet start, gifts, discard limit, both starting settlements pay, 8 special maps. Not yet: World/Archipelago maps, 2-player neutral player, robber back to the desert, trading between any players, time bank, hidden bank counts. | An 8-player game and every special map work. |
-| **10. Stats and achievements** | Stats, achievements, leaderboards, replays. | Achievements unlock at game end and back-fill. |
+| **10. Stats and achievements** ✅ | Stats, achievements, leaderboards, replays. Done: stats worked out by replaying each game on the server, 14 achievements that back-fill, profile stats, crew leaderboards with average points and achievements, replays of online games. Not yet: a global leaderboard and stats for games played on one device. | Achievements unlock at game end and back-fill. |
 | **11. Themes** | Theme system plus Heritage and Night Market. | Switching theme mid-game swaps every asset. |
 | **12. PWA polish and async** | Installable app, notifications, async games, sounds, accessibility, performance on older phones. | Installed on iPhone and Android with working notifications. |
 | **13. More expansions** | Traders & Barbarians, Explorers & Pirates, then fan expansions one at a time (rules confirmed with Nachi first), map editor. | Each expansion playable online with rulebook pages and bot support. |
@@ -570,6 +570,7 @@ colonizers/
       ...           # later expansions
     maps/           # Map files, generators, fairness scoring
     bots/           # Bot logic, shared by server and browser
+    stats/          # Game stats and achievements from a replayed game
     rulebook/       # Rule pages per module (base game done)
     themes/         # Theme manifests and assets
   docs/

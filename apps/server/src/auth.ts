@@ -188,7 +188,7 @@ export async function accountRoutes(
   url: URL,
 ): Promise<Response | null> {
   const path = url.pathname;
-  if (!/^\/api\/(auth|me|crews)(\/|$)/.test(path)) return null;
+  if (!/^\/api\/(auth|me|crews|games)(\/|$)/.test(path)) return null;
   const method = request.method;
   const acc = accounts(env);
   const token = sessionToken(request);
@@ -203,7 +203,10 @@ export async function accountRoutes(
     if (path === '/api/me') return json({ user: token ? await acc.me(token) : null });
     if (path === '/api/me/history')
       return fromResult(await acc.history(token), (games) => ({ games }));
+    if (path === '/api/me/stats') return fromResult(await acc.stats(token), (stats) => ({ stats }));
     if (path === '/api/crews') return fromResult(await acc.crews(token), (crews) => ({ crews }));
+    const replay = path.match(/^\/api\/games\/([a-z0-9-]{1,60})\/replay$/);
+    if (replay) return fromResult(await acc.replay(token, replay[1]), (r) => ({ replay: r }));
     const invite = path.match(/^\/api\/crews\/invite\/([A-Za-z0-9_-]{1,40})$/);
     if (invite) {
       const c = await acc.crewByInvite(invite[1]);

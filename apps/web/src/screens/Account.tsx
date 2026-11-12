@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { nameOf } from '@colonizers/rulebook';
+import { ACHIEVEMENTS } from '@colonizers/stats';
 import {
   AVATARS,
   createCrew,
@@ -10,6 +12,8 @@ import {
   googleSignInUrl,
   history,
   joinCrew,
+  mapName,
+  myStats,
   leaveCrew,
   logIn,
   logOut,
@@ -24,6 +28,7 @@ import {
   type CrewDetail,
   type CrewSummary,
   type HistoryGame,
+  type MyStats,
 } from '../online/account.ts';
 import { Modal } from '../ui/Modal.tsx';
 
@@ -346,10 +351,12 @@ export function ProfilePage({
   onHome,
   onCrew,
   onRoom,
+  onReplay,
 }: {
   onHome: () => void;
   onCrew: (id: string) => void;
   onRoom: (code: string) => void;
+  onReplay: (gameId: string) => void;
 }) {
   const { user, loaded } = useAccount();
   const [signIn, setSignIn] = useState(false);
@@ -373,8 +380,9 @@ export function ProfilePage({
     <main className="setup-page">
       <TopBar onHome={onHome} title="Your profile" />
       <ProfileCard />
+      <StatsCards />
       <CrewsCard onCrew={onCrew} />
-      <HistoryCard onRoom={onRoom} />
+      <HistoryCard onRoom={onRoom} onReplay={onReplay} />
       <button
         type="button"
         className="ghost"
@@ -592,7 +600,149 @@ function CrewsCard({ onCrew }: { onCrew: (id: string) => void }) {
   );
 }
 
-function HistoryCard({ onRoom }: { onRoom: (code: string) => void }) {
+function pct(wins: number, games: number): string {
+  return games ? `${Math.round((100 * wins) / games)}%` : '–';
+}
+
+/** Career stats and achievements. */
+function StatsCards() {
+  const [stats, setStats] = useState<MyStats | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    myStats().then(setStats, (e: unknown) => setError(message(e)));
+  }, []);
+  if (error)
+    return (
+      <section className="card">
+        <ErrorLine error={error} />
+      </section>
+    );
+  if (!stats) return null;
+  const c = stats.career;
+  const earned = new Map(stats.achievements.map((a) => [a.id, a]));
+  const luck = c.diceLuck;
+  const fav = c.favoriteResource ? nameOf(c.favoriteResource) : null;
+  return (
+    <>
+      <section className="card">
+        <h2>Your stats</h2>
+        {c.games === 0 ? (
+          <p>Finish an online game while signed in to start your stats.</p>
+        ) : (
+          <>
+            <div className="stat-tiles">
+              <div className="stat">
+                <strong>{c.games}</strong>
+                <span>games</span>
+              </div>
+              <div className="stat">
+                <strong>{c.wins}</strong>
+                <span>wins</span>
+              </div>
+              <div className="stat">
+                <strong>{pct(c.wins, c.games)}</strong>
+                <span>win rate</span>
+              </div>
+              <div className="stat">
+                <strong>{c.averageVp ?? '–'}</strong>
+                <span>average points</span>
+              </div>
+            </div>
+            <ul className="stat-lines">
+              {fav && (
+                <li>
+                  Favorite resource: {fav.icon} {fav.name}
+                </li>
+              )}
+              {luck && luck.expected > 0 && (
+                <li>
+                  Dice luck: the dice paid you {luck.produced} cards against {luck.expected} on
+                  average ({luck.produced >= luck.expected ? '+' : ''}
+                  {Math.round((100 * (luck.produced - luck.expected)) / luck.expected)}%).
+                </li>
+              )}
+              {c.records.mostVp !== null && <li>Most points in a game: {c.records.mostVp}</li>}
+              {c.records.fastestWin !== null && <li>Fastest win: {c.records.fastestWin} turns</li>}
+              {c.records.longestRoad !== null && <li>Longest road: {c.records.longestRoad}</li>}
+              {!!c.records.mostKnights && <li>Most knights in a game: {c.records.mostKnights}</li>}
+            </ul>
+            <div className="stat-tables">
+              <table className="leaderboard">
+                <thead>
+                  <tr>
+                    <th>Seat</th>
+                    <th>Games</th>
+                    <th>Win rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {c.bySeat.map((r) => (
+                    <tr key={r.seat}>
+                      <td>{r.seat + 1}</td>
+                      <td>{r.games}</td>
+                      <td>{pct(r.wins, r.games)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <table className="leaderboard">
+                <thead>
+                  <tr>
+                    <th>Map</th>
+                    <th>Games</th>
+                    <th>Win rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {c.byMap.map((r) => (
+                    <tr key={r.map}>
+                      <td>{mapName(r.map)}</td>
+                      <td>{r.games}</td>
+                      <td>{pct(r.wins, r.games)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+      <section className="card">
+        <h2>
+          Achievements{' '}
+          <small className="muted">
+            {earned.size} of {ACHIEVEMENTS.length}
+          </small>
+        </h2>
+        <ul className="achievements">
+          {ACHIEVEMENTS.map((a) => {
+            const got = earned.get(a.id);
+            return (
+              <li key={a.id} className={got ? 'got' : 'locked'}>
+                <span className="achievement-icon" aria-hidden="true">
+                  {a.icon}
+                </span>
+                <span>
+                  <strong>{a.name}</strong>
+                  <small>{a.text}</small>
+                  {got && <small className="muted">Unlocked {when(got.at)}</small>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </>
+  );
+}
+
+function HistoryCard({
+  onRoom,
+  onReplay,
+}: {
+  onRoom: (code: string) => void;
+  onReplay: (gameId: string) => void;
+}) {
   const [games, setGames] = useState<HistoryGame[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -613,7 +763,9 @@ function HistoryCard({ onRoom }: { onRoom: (code: string) => void }) {
       {games?.length === 0 && (
         <p>No games yet. Online games you play while signed in show up here.</p>
       )}
-      {games && games.length > 0 && <GameList games={games} mySeat onRoom={onRoom} />}
+      {games && games.length > 0 && (
+        <GameList games={games} mySeat onRoom={onRoom} onReplay={onReplay} />
+      )}
     </section>
   );
 }
@@ -622,10 +774,12 @@ function GameList({
   games,
   mySeat,
   onRoom,
+  onReplay,
 }: {
   games: HistoryGame[];
   mySeat?: boolean;
   onRoom?: (code: string) => void;
+  onReplay?: (gameId: string) => void;
 }) {
   return (
     <ul className="game-list">
@@ -636,7 +790,10 @@ function GameList({
           <li key={g.id} className={me?.won ? 'won' : ''}>
             <div className="game-line">
               <strong>{when(g.started)}</strong>{' '}
-              <span className="muted">{describeModules(g.modules)}</span>
+              <span className="muted">
+                {g.map ? `${mapName(g.map)}, ` : ''}
+                {describeModules(g.modules)}
+              </span>
               {g.ended === null ? (
                 onRoom ? (
                   <button type="button" className="link" onClick={() => onRoom(g.room)}>
@@ -657,10 +814,19 @@ function GameList({
                   {i > 0 && ', '}
                   <span className={p === winner ? 'winner' : ''}>
                     {p.name}
+                    {p.bot ? ' 🤖' : ''}
                     {p.vp !== null ? ` ${p.vp}` : ''}
                   </span>
                 </span>
               ))}
+              {g.replay && onReplay && (
+                <>
+                  {' · '}
+                  <button type="button" className="link" onClick={() => onReplay(g.id)}>
+                    ▶ Watch replay
+                  </button>
+                </>
+              )}
             </div>
           </li>
         );
@@ -675,10 +841,12 @@ export function CrewPage({
   id,
   onHome,
   onProfile,
+  onReplay,
 }: {
   id: string;
   onHome: () => void;
   onProfile: () => void;
+  onReplay: (gameId: string) => void;
 }) {
   const { user, loaded } = useAccount();
   const [crew, setCrew] = useState<CrewDetail | null>(null);
@@ -692,7 +860,14 @@ export function CrewPage({
 
   if (!loaded) return <main className="setup-page" />;
   if (!user)
-    return <ProfilePage onHome={onHome} onCrew={() => undefined} onRoom={() => undefined} />;
+    return (
+      <ProfilePage
+        onHome={onHome}
+        onCrew={() => undefined}
+        onRoom={() => undefined}
+        onReplay={onReplay}
+      />
+    );
 
   const link = crew ? crewInviteLink(crew.invite) : '';
   return (
@@ -717,6 +892,8 @@ export function CrewPage({
                   <th>Wins</th>
                   <th>Games</th>
                   <th>Win rate</th>
+                  <th title="Average points">Avg</th>
+                  <th title="Achievements">🏅</th>
                 </tr>
               </thead>
               <tbody>
@@ -730,7 +907,9 @@ export function CrewPage({
                       </td>
                       <td>{row.wins}</td>
                       <td>{row.games}</td>
-                      <td>{row.games ? `${Math.round((100 * row.wins) / row.games)}%` : '–'}</td>
+                      <td>{pct(row.wins, row.games)}</td>
+                      <td>{row.averageVp ?? '–'}</td>
+                      <td>{row.achievements}</td>
                     </tr>
                   );
                 })}
@@ -775,7 +954,7 @@ export function CrewPage({
           <section className="card">
             <h2>Recent crew games</h2>
             {crew.games.length ? (
-              <GameList games={crew.games} />
+              <GameList games={crew.games} onReplay={onReplay} />
             ) : (
               <p>No crew games yet. Play an online game together while signed in.</p>
             )}

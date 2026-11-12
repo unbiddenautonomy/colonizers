@@ -1,5 +1,6 @@
 import type { GameEvent } from '@colonizers/engine';
 import { nameOf } from '@colonizers/rulebook';
+import { achievementById } from '@colonizers/stats';
 
 const TRACK: Record<string, string> = {
   science: 'science (green)',
@@ -166,6 +167,10 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `${n(e.player)} gave ${n(e.to)} ${cards(e.cards as Record<string, number>)}.`;
     case 'aqueduct':
       return `${n(e.player)}'s aqueduct paid ${cards(e.cards as Record<string, number>)}.`;
+    case 'achievementUnlocked': {
+      const a = achievementById(e.id as string);
+      return a ? `${a.icon} ${n(e.player)} unlocked an achievement: ${a.name}.` : null;
+    }
     case 'specialBuildStarted':
       return `Everyone else may now build in turn.`;
     case 'specialBuildDone':

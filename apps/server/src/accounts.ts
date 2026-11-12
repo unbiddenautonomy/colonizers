@@ -8,7 +8,27 @@ import type { Env } from './env.ts';
  * which a plain Worker request does not.
  */
 
-import type { CrewDetail, CrewSummary, HistoryGame, PublicUser, Result } from './accountTypes.ts';
+import type { Action, GameConfig } from '@colonizers/engine';
+import {
+  analyzeGame,
+  careerStats,
+  earnedAchievements,
+  STATS_VERSION,
+  type PlayedGame,
+  type SeatStats,
+} from '@colonizers/stats';
+import type {
+  CrewDetail,
+  CrewSummary,
+  EarnedAchievement,
+  HistoryGame,
+  MyStats,
+  PublicUser,
+  Replay,
+  Result,
+  Unlocked,
+} from './accountTypes.ts';
+import { library } from './rules.ts';
 
 export type { CrewDetail, CrewSummary, HistoryGame, PublicUser, Result };
 
@@ -188,7 +208,34 @@ export class Accounts extends DurableObject<Env> {
         PRIMARY KEY (game_id, seat)
       );
       CREATE INDEX IF NOT EXISTS game_players_user ON game_players (user_id);
+      CREATE TABLE IF NOT EXISTS game_logs (
+        game_id TEXT PRIMARY KEY,
+        config TEXT NOT NULL,
+        actions TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS achievements (
+        user_id TEXT NOT NULL,
+        id TEXT NOT NULL,
+        game_id TEXT NOT NULL,
+        at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, id)
+      );
     `);
+    // Columns added after the first release.
+    for (const [table, column] of [
+      ['games', 'map TEXT'],
+      ['games', 'players INTEGER'],
+      ['games', 'turns INTEGER'],
+      ['games', 'stats_version INTEGER NOT NULL DEFAULT 0'],
+      ['game_players', 'stats TEXT'],
+      ['game_players', 'bot TEXT'],
+    ]) {
+      try {
+        this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column}`);
+      } catch {
+        // Already there.
+      }
+    }
   }
 
   // ---- Users and sessions ----
@@ -538,27 +585,41 @@ export class Accounts extends DurableObject<Env> {
     id: string;
     room: string;
     modules: string[];
-    players: { seat: number; name: string; userId: string | null }[];
+    map?: string;
+    players: { seat: number; name: string; userId: string | null; bot?: string | null }[];
   }): Promise<void> {
     this.sql.exec(
-      'INSERT OR REPLACE INTO games (id, room, modules, started, ended) VALUES (?, ?, ?, ?, NULL)',
+      `INSERT OR REPLACE INTO games (id, room, modules, started, ended, map, players, stats_version)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, 0)`,
       game.id,
       game.room,
       JSON.stringify(game.modules),
       Date.now(),
+      game.map ?? null,
+      game.players.length,
     );
     this.sql.exec('DELETE FROM game_players WHERE game_id = ?', game.id);
     for (const p of game.players)
       this.sql.exec(
-        'INSERT INTO game_players (game_id, seat, user_id, name) VALUES (?, ?, ?, ?)',
+        'INSERT INTO game_players (game_id, seat, user_id, name, bot) VALUES (?, ?, ?, ?, ?)',
         game.id,
         p.seat,
         p.userId,
         p.name,
+        p.bot ?? null,
       );
   }
 
-  async finishGame(id: string, winner: number, vp: number[]): Promise<void> {
+  /**
+   * A game ended. With its moves saved, its stats are worked out and the
+   * players' achievements checked. Returns what each seat just unlocked.
+   */
+  async finishGame(
+    id: string,
+    winner: number,
+    vp: number[],
+    log?: { config: GameConfig; actions: Action[] },
+  ): Promise<Unlocked[]> {
     this.sql.exec('UPDATE games SET ended = ? WHERE id = ?', Date.now(), id);
     vp.forEach((v, seat) =>
       this.sql.exec(
@@ -569,6 +630,214 @@ export class Accounts extends DurableObject<Env> {
         seat,
       ),
     );
+    if (log) {
+      this.sql.exec(
+        'INSERT OR REPLACE INTO game_logs (game_id, config, actions) VALUES (?, ?, ?)',
+        id,
+        JSON.stringify(log.config),
+        JSON.stringify(log.actions),
+      );
+      this.analyze(id);
+    }
+    const out: Unlocked[] = [];
+    for (const p of this.sql
+      .exec<{ seat: number; user_id: string }>(
+        'SELECT seat, user_id FROM game_players WHERE game_id = ? AND user_id IS NOT NULL',
+        id,
+      )
+      .toArray()) {
+      const ids = this.checkAchievements(p.user_id);
+      if (ids.length) out.push({ seat: p.seat, ids });
+    }
+    return out;
+  }
+
+  /** Works out a game's stats from its saved moves. False if it can't. */
+  private analyze(id: string): boolean {
+    const row = this.sql
+      .exec<{ config: string; actions: string }>(
+        'SELECT config, actions FROM game_logs WHERE game_id = ?',
+        id,
+      )
+      .toArray()[0];
+    if (!row) return false;
+    let seats: SeatStats[];
+    let turns: number;
+    try {
+      const a = analyzeGame(
+        library,
+        JSON.parse(row.config) as GameConfig,
+        JSON.parse(row.actions) as Action[],
+      );
+      seats = a.seats;
+      turns = a.turns;
+    } catch (e) {
+      console.error('analyze failed', id, e);
+      this.sql.exec('UPDATE games SET stats_version = ? WHERE id = ?', STATS_VERSION, id);
+      return false;
+    }
+    for (const s of seats)
+      this.sql.exec(
+        'UPDATE game_players SET stats = ? WHERE game_id = ? AND seat = ?',
+        JSON.stringify(s),
+        id,
+        s.seat,
+      );
+    this.sql.exec(
+      'UPDATE games SET turns = ?, stats_version = ? WHERE id = ?',
+      turns,
+      STATS_VERSION,
+      id,
+    );
+    return true;
+  }
+
+  /** A player's finished games, oldest first, as the stats package wants them. */
+  private playedGames(userId: string): PlayedGame[] {
+    const rows = this.sql
+      .exec<{
+        game_id: string;
+        seat: number;
+        vp: number | null;
+        won: number;
+        stats: string | null;
+        modules: string;
+        map: string | null;
+        players: number | null;
+        turns: number | null;
+        ended: number;
+      }>(
+        `SELECT gp.game_id, gp.seat, gp.vp, gp.won, gp.stats, g.modules, g.map, g.players, g.turns, g.ended
+         FROM game_players gp JOIN games g ON g.id = gp.game_id
+         WHERE gp.user_id = ? AND g.ended IS NOT NULL ORDER BY g.ended`,
+        userId,
+      )
+      .toArray();
+    return rows.map((r) => {
+      const others = this.sql
+        .exec<{ bot: string | null }>(
+          'SELECT bot FROM game_players WHERE game_id = ? AND seat != ?',
+          r.game_id,
+          r.seat,
+        )
+        .toArray();
+      return {
+        gameId: r.game_id,
+        ended: r.ended,
+        map: r.map ?? 'unknown',
+        modules: JSON.parse(r.modules) as string[],
+        players: r.players ?? others.length + 1,
+        seat: r.seat,
+        won: r.won === 1,
+        vp: r.vp,
+        turns: r.turns,
+        stats: r.stats ? (JSON.parse(r.stats) as SeatStats) : null,
+        botLevels: others.flatMap((o) => (o.bot ? [o.bot] : [])),
+      };
+    });
+  }
+
+  /**
+   * Brings a player's stats up to date: games saved with an older analysis are
+   * worked out again (a few at a time), then achievements are checked, so new
+   * ones back-fill from old games. Returns newly unlocked ids.
+   */
+  private checkAchievements(userId: string, refresh = 0): string[] {
+    if (refresh > 0) {
+      const stale = this.sql
+        .exec<{ id: string }>(
+          `SELECT g.id FROM games g JOIN game_players gp ON gp.game_id = g.id
+           JOIN game_logs l ON l.game_id = g.id
+           WHERE gp.user_id = ? AND g.ended IS NOT NULL AND g.stats_version < ?
+           ORDER BY g.ended DESC LIMIT ?`,
+          userId,
+          STATS_VERSION,
+          refresh,
+        )
+        .toArray();
+      for (const g of stale) this.analyze(g.id);
+    }
+    const have = new Set(
+      this.sql
+        .exec<{ id: string }>('SELECT id FROM achievements WHERE user_id = ?', userId)
+        .toArray()
+        .map((r) => r.id),
+    );
+    const fresh: string[] = [];
+    for (const e of earnedAchievements(this.playedGames(userId))) {
+      if (have.has(e.id)) continue;
+      this.sql.exec(
+        'INSERT OR IGNORE INTO achievements (user_id, id, game_id, at) VALUES (?, ?, ?, ?)',
+        userId,
+        e.id,
+        e.game.gameId,
+        e.game.ended,
+      );
+      fresh.push(e.id);
+    }
+    return fresh;
+  }
+
+  private achievementsOf(userId: string): EarnedAchievement[] {
+    return this.sql
+      .exec<{ id: string; game_id: string; at: number }>(
+        'SELECT id, game_id, at FROM achievements WHERE user_id = ? ORDER BY at',
+        userId,
+      )
+      .toArray()
+      .map((r) => ({ id: r.id, gameId: r.game_id, at: r.at }));
+  }
+
+  async stats(token: string | null): Promise<Result<MyStats>> {
+    const u = await this.sessionUser(token);
+    if (!u) return fail('Sign in first', 401);
+    this.checkAchievements(u.id, 20);
+    return ok({
+      career: careerStats(this.playedGames(u.id)),
+      achievements: this.achievementsOf(u.id),
+    });
+  }
+
+  /**
+   * A finished game's moves, for someone who played in it or shares a crew
+   * with someone who did.
+   */
+  async replay(token: string | null, gameId: unknown): Promise<Result<Replay>> {
+    const u = await this.sessionUser(token);
+    if (!u) return fail('Sign in first', 401);
+    if (typeof gameId !== 'string') return fail('Unknown game', 404);
+    const g = this.sql
+      .exec<{ id: string; room: string; map: string | null; ended: number | null }>(
+        'SELECT id, room, map, ended FROM games WHERE id = ?',
+        gameId,
+      )
+      .toArray()[0];
+    const log = this.sql
+      .exec<{ config: string; actions: string }>(
+        'SELECT config, actions FROM game_logs WHERE game_id = ?',
+        gameId,
+      )
+      .toArray()[0];
+    if (!g || !log || g.ended === null) return fail('No replay for that game', 404);
+    const allowed =
+      this.sql
+        .exec(
+          `SELECT 1 FROM game_players gp WHERE gp.game_id = ? AND (gp.user_id = ? OR gp.user_id IN (
+             SELECT m2.user_id FROM crew_members m1 JOIN crew_members m2 ON m1.crew_id = m2.crew_id
+             WHERE m1.user_id = ?)) LIMIT 1`,
+          gameId,
+          u.id,
+          u.id,
+        )
+        .toArray().length > 0;
+    if (!allowed) return fail('No replay for that game', 404);
+    return ok({
+      id: g.id,
+      room: g.room,
+      map: g.map,
+      config: JSON.parse(log.config) as GameConfig,
+      actions: JSON.parse(log.actions) as Action[],
+    });
   }
 
   /** A guest seat in a game now belongs to an account. */
@@ -586,8 +855,18 @@ export class Accounts extends DurableObject<Env> {
     const out: HistoryGame[] = [];
     for (const id of ids) {
       const g = this.sql
-        .exec<{ id: string; room: string; modules: string; started: number; ended: number | null }>(
-          'SELECT * FROM games WHERE id = ?',
+        .exec<{
+          id: string;
+          room: string;
+          modules: string;
+          started: number;
+          ended: number | null;
+          map: string | null;
+          replay: number;
+        }>(
+          `SELECT id, room, modules, started, ended, map,
+             EXISTS (SELECT 1 FROM game_logs l WHERE l.game_id = games.id) AS replay
+           FROM games WHERE id = ?`,
           id,
         )
         .toArray()[0];
@@ -599,8 +878,9 @@ export class Accounts extends DurableObject<Env> {
           vp: number | null;
           won: number;
           user_id: string | null;
+          bot: string | null;
         }>(
-          'SELECT seat, name, vp, won, user_id FROM game_players WHERE game_id = ? ORDER BY seat',
+          'SELECT seat, name, vp, won, user_id, bot FROM game_players WHERE game_id = ? ORDER BY seat',
           id,
         )
         .toArray()
@@ -610,6 +890,7 @@ export class Accounts extends DurableObject<Env> {
           vp: p.vp,
           won: p.won === 1,
           userId: p.user_id,
+          bot: p.bot,
         }));
       out.push({
         id: g.id,
@@ -617,6 +898,8 @@ export class Accounts extends DurableObject<Env> {
         modules: JSON.parse(g.modules) as string[],
         started: g.started,
         ended: g.ended,
+        map: g.map,
+        replay: g.replay === 1 && g.ended !== null,
         players,
       });
     }
@@ -799,7 +1082,19 @@ export class Accounts extends DurableObject<Env> {
     const games = this.games(gameIds);
     const ids = new Set(members.map((m) => m.id));
     const board = new Map(
-      members.map((m) => [m.id, { id: m.id, name: m.name, games: 0, wins: 0 }]),
+      members.map((m) => [
+        m.id,
+        {
+          id: m.id,
+          name: m.name,
+          games: 0,
+          wins: 0,
+          averageVp: null as number | null,
+          achievements: 0,
+          vpTotal: 0,
+          vpGames: 0,
+        },
+      ]),
     );
     for (const g of games) {
       if (g.ended === null) continue;
@@ -808,11 +1103,21 @@ export class Accounts extends DurableObject<Env> {
         const row = board.get(p.userId)!;
         row.games += 1;
         if (p.won) row.wins += 1;
+        if (p.vp !== null) {
+          row.vpTotal += p.vp;
+          row.vpGames += 1;
+        }
       }
     }
-    const leaderboard = [...board.values()].sort(
-      (a, b) => b.wins - a.wins || a.games - b.games || a.name.localeCompare(b.name),
-    );
+    for (const row of board.values()) {
+      row.averageVp = row.vpGames ? Math.round((row.vpTotal / row.vpGames) * 10) / 10 : null;
+      row.achievements = this.sql
+        .exec<{ n: number }>('SELECT COUNT(*) AS n FROM achievements WHERE user_id = ?', row.id)
+        .one().n;
+    }
+    const leaderboard = [...board.values()]
+      .map(({ vpTotal: _t, vpGames: _g, ...row }) => row)
+      .sort((a, b) => b.wins - a.wins || a.games - b.games || a.name.localeCompare(b.name));
     return ok({
       id: c.id,
       name: c.name,
