@@ -27,13 +27,27 @@ import {
 } from '@colonizers/bots';
 import { createRoom, parseRoomCode } from '../online/api.ts';
 import { saveName, savedName } from '../online/identity.ts';
-import { OptionsPanel, SpecialMapButtons } from '../ui/OptionsPanel.tsx';
 import {
-  DEFAULT_OPTIONS,
+  describeOptions,
+  OptionsPanel,
+  PRESET_ICON,
+  SEA_ICON,
+  SpecialMapButtons,
+} from '../ui/OptionsPanel.tsx';
+import {
   moduleList,
   optionSettings,
+  VP_TARGETS,
   type GameOptions,
 } from '../../../server/src/protocol.ts';
+import { useAccount } from '../online/account.ts';
+import {
+  changedOptions,
+  DEFAULT_VP_BASE,
+  defaultOptionsFor,
+  hasRobber,
+  vpBonus,
+} from '../game/defaults.ts';
 
 const DEFAULT_NAMES = ['Alex', 'Blair', 'Casey', 'Devon', 'Emery', 'Finley', 'Gray', 'Harper'];
 
@@ -67,9 +81,12 @@ export function NewGame({
   const [names, setNames] = useState(DEFAULT_NAMES);
   const [choice, setChoice] = useState<MapChoice>({ kind: 'random', mode: 'classic' });
   const [seed, setSeed] = useState(randomSeed);
-  const [vpTarget, setVpTarget] = useState(10);
   const [ckWanted, setCk] = useState(false);
-  const [options, setOptions] = useState<GameOptions>(DEFAULT_OPTIONS);
+  // Points and options belong to one game type: picking another map or
+  // expansion starts again from that type's defaults.
+  const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
+  const [optPick, setOptPick] = useState({ key: '', options: defaultOptionsFor() });
+  const admin = useAccount().user?.admin === true;
   const [seatKind, setSeatKind] = useState<('human' | Level)[]>(() =>
     DEFAULT_NAMES.map(() => 'human'),
   );
@@ -100,6 +117,13 @@ export function NewGame({
   const noCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.noCitiesKnights === true;
   const ck = ckWanted && !noCk;
   const extraVp = ck ? 3 : 0;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}`;
+  const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
+  const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
+  const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
+  const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
+  const bonus = vpBonus(ck, specialId);
+  const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const special = useMemo(
     () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
     [specialId, seed, count],
@@ -197,7 +221,7 @@ export function NewGame({
         </div>
         {count > 4 && (
           <p className="muted">
-            5–8 players use the bigger boards. Pick how turns work under Options and house rules.
+            5–8 players use the bigger boards. Pick how turns work under Rules.
           </p>
         )}
         <div className="names">
@@ -283,7 +307,7 @@ export function NewGame({
               onClick={() => setChoice({ kind: 'preset', id: p.id })}
               title={p.description}
             >
-              🗺️ {p.name}
+              {PRESET_ICON[p.id] ?? '🗺️'} {p.name}
             </button>
           ))}
         </div>
@@ -299,7 +323,7 @@ export function NewGame({
                   onClick={() => setChoice({ kind: 'scenario', id: x.id })}
                   title={x.description}
                 >
-                  ⛵ {x.name}
+                  {SEA_ICON[x.id] ?? '⛵'} {x.name}
                 </button>
               ))}
             </div>
@@ -341,8 +365,8 @@ export function NewGame({
             {sea.map.hexes.some((h) => h.hidden) ? ', fog' : ''}. First to{' '}
             {Number(sea.settings.vpTarget) + extraVp} points wins.
           </p>
-        ) : (
-          <div className="fairness">
+        ) : !admin ? null : (
+          <div className="fairness" title="Shown to admins only">
             <span className={`grade grade-${r.grade}`} title="Fairness grade">
               {r.grade}
             </span>
@@ -367,30 +391,115 @@ export function NewGame({
 
       <section className="card">
         <h2>Rules</h2>
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={ck}
+        <h3 className="subhead">Expansions</h3>
+        <div className="expansions">
+          <button
+            type="button"
+            className={`expansion ${sea ? 'on' : ''}`}
+            aria-pressed={!!sea}
+            disabled={!scenarios.length}
+            onClick={() =>
+              sea
+                ? setChoice({ kind: 'random', mode: 'classic' })
+                : scenarios[0] && setChoice({ kind: 'scenario', id: scenarios[0].id })
+            }
+          >
+            <strong>⛵ Seafarers</strong>
+            <small>Ships, islands, gold fields and the pirate. Pick a Seafarers map above.</small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${ck ? 'on' : ''}`}
+            aria-pressed={ck}
             disabled={noCk}
-            onChange={(e) => setCk(e.target.checked)}
-          />{' '}
-          ⚔️ Cities &amp; Knights: knights, barbarians, commodities and city improvements
-        </label>
-        {noCk && (
-          <p className="muted small">Traders &amp; Barbarians scenarios use the base game only.</p>
-        )}
-        {!sea && (
+            onClick={() => setCk(!ck)}
+          >
+            <strong>⚔️ Cities &amp; Knights</strong>
+            <small>
+              {noCk
+                ? 'Not with Traders & Barbarians scenarios, which use the base game.'
+                : 'Knights, barbarians, commodities and city improvements. Works with every map.'}
+            </small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${isTraders ? 'on' : ''}`}
+            aria-pressed={isTraders}
+            onClick={() =>
+              isTraders
+                ? setChoice({ kind: 'random', mode: 'classic' })
+                : setChoice({ kind: 'special', id: 'fishermen' })
+            }
+          >
+            <strong>🛒 Traders &amp; Barbarians</strong>
+            <small>Five scenarios, each adding one idea. Pick one under Map above.</small>
+          </button>
+        </div>
+        <h3 className="subhead">Winning</h3>
+        {sea ? (
+          <p>
+            First to <strong>{Number(sea.settings.vpTarget) + extraVp}</strong> points, set by the
+            scenario{ck ? ' (+3 for Cities & Knights)' : ''}.
+          </p>
+        ) : (
           <label>
             Points to win{' '}
-            <select value={vpTarget} onChange={(e) => setVpTarget(Number(e.target.value))}>
-              {[8, 9, 10, 11, 12, 13, 14, 15].map((v) => (
-                <option key={v}>{v}</option>
+            <select
+              value={vpTarget + bonus}
+              onChange={(e) => setVpTarget(Number(e.target.value) - bonus)}
+            >
+              {VP_TARGETS.map((v) => (
+                <option key={v} value={v + bonus}>
+                  {v + bonus}
+                  {v === DEFAULT_VP_BASE ? ' (standard)' : ''}
+                </option>
               ))}
             </select>
-            {ck && <small className="muted"> +3 for Cities &amp; Knights = {vpTarget + 3}</small>}
+            {bonus > 0 && (
+              <small className="muted">
+                {' '}
+                {[
+                  ck && '+3 for Cities & Knights',
+                  bonus - extraVp > 0 && `+${bonus - extraVp} for the scenario`,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}{' '}
+                are included
+              </small>
+            )}
           </label>
         )}
-        <OptionsPanel options={options} players={count} citiesKnights={ck} onChange={setOptions} />
+        <OptionsPanel
+          options={options}
+          players={count}
+          citiesKnights={ck}
+          robber={hasRobber(specialId)}
+          onChange={setOptions}
+        />
+        {(vpTarget !== DEFAULT_VP_BASE || changedOptions(options).length > 0) && (
+          <p className="row wrap changed">
+            <span className="muted">
+              Changed from the standard rules:{' '}
+              {[
+                vpTarget !== DEFAULT_VP_BASE && !sea && `${vpTarget + bonus} points to win`,
+                ...describeOptions(options, count),
+              ]
+                .filter(Boolean)
+                .join(', ') || 'turn style'}
+              .
+            </span>
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                setVpTarget(DEFAULT_VP_BASE);
+                setOptions(defaultOptionsFor());
+              }}
+            >
+              Reset to defaults
+            </button>
+          </p>
+        )}
       </section>
 
       <button type="button" className="primary big" onClick={start}>
