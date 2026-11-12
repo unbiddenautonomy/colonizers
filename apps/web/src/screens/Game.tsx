@@ -446,7 +446,10 @@ export function Game({
   return (
     <div className="game">
       <header className="game-head">
-        <h1 className="game-title">Colonizers</h1>
+        <h1 className="game-title brand">
+          <img className="brand-mark" src="/logo.svg" alt="" width="28" height="28" />
+          Colonizers
+        </h1>
         <p className="prompt" aria-live="polite">
           {promptSeat !== null && (
             <PlayerBadge

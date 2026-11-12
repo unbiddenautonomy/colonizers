@@ -161,7 +161,10 @@ export function NewGame({
     <main className="setup-page">
       <header>
         {account}
-        <h1>Colonizers</h1>
+        <h1 className="brand">
+          <img className="brand-mark" src="/logo.svg" alt="" width="56" height="56" />
+          Colonizers
+        </h1>
         <p className="muted">Play online with friends, or on one device passed around the table.</p>
         <div className="row">
           {canResume && (
