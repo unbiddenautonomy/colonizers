@@ -1,4 +1,5 @@
-import { RESOURCE_COLOR, RESOURCE_ICON } from '../theme/clean.ts';
+import { RESOURCE_ICON } from '../theme/clean.ts';
+import { cardColor, useTheme } from '../theme/themes.tsx';
 import { nameOf } from '@colonizers/rulebook';
 
 export const RESOURCES = ['brick', 'lumber', 'wool', 'grain', 'ore'] as const;
@@ -18,10 +19,11 @@ export function ResourceCard({
   count?: number | undefined;
   dim?: boolean;
 }) {
+  const theme = useTheme();
   return (
     <span
       className={`rcard${dim ? ' dim' : ''}`}
-      style={{ background: RESOURCE_COLOR[card] ?? '#ddd' }}
+      style={{ background: cardColor(theme, card) }}
       title={nameOf(card).name}
     >
       <span className="rcard-icon" aria-hidden="true">
@@ -36,6 +38,7 @@ export function ResourceCard({
 }
 
 export function CostLine({ cost }: { cost: Record<string, number> }) {
+  const theme = useTheme();
   return (
     <span className="cost">
       {Object.entries(cost).flatMap(([c, n]) =>
@@ -43,7 +46,7 @@ export function CostLine({ cost }: { cost: Record<string, number> }) {
           <span
             key={`${c}${i}`}
             className="cost-dot"
-            style={{ background: RESOURCE_COLOR[c] }}
+            style={{ background: cardColor(theme, c) }}
             title={nameOf(c).name}
           >
             {RESOURCE_ICON[c]}

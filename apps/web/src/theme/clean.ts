@@ -1,10 +1,15 @@
+import type { ReactNode } from 'react';
+
 /**
- * The Clean theme: flat, readable colours. Themes are swappable in phase 11,
- * so every colour the board uses comes from here.
+ * A theme: every colour, pattern and piece style the board, cards and page
+ * use. Themes only change looks; the rules never see them. Anything a theme
+ * leaves out comes from the Clean theme (see themes.tsx).
  */
 export interface Theme {
   id: string;
   name: string;
+  /** One line for the theme picker. */
+  description: string;
   terrain: Record<string, string>;
   terrainIcon: Record<string, string>;
   sea: string;
@@ -18,6 +23,28 @@ export interface Theme {
   robber: string;
   pirate: string;
   highlight: string;
+  /** Border between land hexes. */
+  landStroke: string;
+  /** Harbor posts and face. */
+  harborWood: string;
+  harborFace: string;
+  harborText: string;
+  /** Light and shade on pieces, like turned wood. */
+  shadePieces: boolean;
+  /** "lift" is a drop shadow; "glow" is a soft halo in the player's colour. */
+  pieceEffect: 'lift' | 'glow';
+  /** Show the little terrain emoji on each hex. */
+  terrainIcons: boolean;
+  /** SVG <pattern> elements, with ids "pat-<hex type>" (and "pat-sea"). */
+  patterns?: () => ReactNode;
+  /** Hex types (and "sea") that use a pattern instead of a flat fill. */
+  patterned?: string[];
+  /** Card colours by card type. */
+  cards: Record<string, string>;
+  /** CSS custom properties for the page, e.g. "--bg". Empty keeps the light/dark defaults. */
+  ui: Record<string, string>;
+  /** Background behind the board. */
+  boardBackground: string;
 }
 
 export type PlayerShape =
@@ -26,6 +53,7 @@ export type PlayerShape =
 export const cleanTheme: Theme = {
   id: 'clean',
   name: 'Clean',
+  description: 'Flat and bright. Easy to read on a phone.',
   terrain: {
     forest: '#3f8f5a',
     hills: '#c8663d',
@@ -70,6 +98,16 @@ export const cleanTheme: Theme = {
   robber: '#2a2a2a',
   pirate: '#1b1b2f',
   highlight: '#ffffff',
+  landStroke: '#f6f3ea',
+  harborWood: '#7b5b3a',
+  harborFace: '#fbf6e9',
+  harborText: '#1d2321',
+  shadePieces: false,
+  pieceEffect: 'lift',
+  terrainIcons: true,
+  cards: {},
+  ui: {},
+  boardBackground: 'radial-gradient(circle at 50% 45%, #6db3e2 0%, var(--sea) 70%)',
 };
 
 export const RESOURCE_ICON: Record<string, string> = {
