@@ -19,6 +19,7 @@ const PAINT = {
   fishingLake: '#5d93b3',
   swamp: '#6f7a4c',
   oasis: '#dcc27c',
+  castle: '#a89a88',
   hidden: '#6f6a5e',
 };
 

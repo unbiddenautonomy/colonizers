@@ -125,6 +125,7 @@ const SAFE_ORDER = [
   'placeDeserterKnight',
   'smithPromote',
   'harborSwap',
+  'placeTbKnight',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',
