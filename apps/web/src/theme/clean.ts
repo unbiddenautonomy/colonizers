@@ -25,6 +25,12 @@ export interface Theme {
   highlight: string;
   /** Border between land hexes. */
   landStroke: string;
+  /** Its width (default 3). */
+  landStrokeWidth?: number;
+  /** A soft light-and-shade wash over each land hex, like paint on wood. */
+  hexShade?: boolean;
+  /** A thin inner ring on each land hex, in this colour. */
+  hexInset?: string | undefined;
   /** Harbor posts and face. */
   harborWood: string;
   harborFace: string;
@@ -113,6 +119,7 @@ export const cleanTheme: Theme = {
   shadePieces: false,
   pieceEffect: 'lift',
   terrainIcons: true,
+  hexInset: '#ffffff',
   cards: {},
   ui: {},
   boardBackground: 'radial-gradient(circle at 50% 45%, #6db3e2 0%, var(--sea) 70%)',
