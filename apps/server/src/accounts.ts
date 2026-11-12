@@ -28,6 +28,7 @@ import type {
   Result,
   Unlocked,
 } from './accountTypes.ts';
+import { isSubscription, sendPush, type VapidKeys } from './push.ts';
 import { library } from './rules.ts';
 
 export type { CrewDetail, CrewSummary, HistoryGame, PublicUser, Result };
@@ -213,6 +214,14 @@ export class Accounts extends DurableObject<Env> {
         config TEXT NOT NULL,
         actions TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS push_subs (
+        endpoint TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        created INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS push_subs_user ON push_subs (user_id);
       CREATE TABLE IF NOT EXISTS achievements (
         user_id TEXT NOT NULL,
         id TEXT NOT NULL,
@@ -576,6 +585,78 @@ export class Accounts extends DurableObject<Env> {
         )
         .toArray()[0] ?? null
     );
+  }
+
+  // ---- Push notifications ----
+
+  private vapid(): VapidKeys | null {
+    const { VAPID_PUBLIC_KEY: publicKey, VAPID_PRIVATE_KEY: privateKey } = this.env;
+    if (!publicKey || !privateKey) return null;
+    return {
+      publicKey,
+      privateKey,
+      subject: this.env.VAPID_SUBJECT ?? 'https://github.com/unbiddenautonomy/colonizers',
+    };
+  }
+
+  /** Saves this device's push subscription for the signed-in player. */
+  async savePush(token: string | null, sub: unknown): Promise<Result<null>> {
+    const u = await this.sessionUser(token);
+    if (!u) return fail('Sign in first', 401);
+    if (!this.vapid()) return fail('Notifications are not set up on this server', 503);
+    if (!isSubscription(sub)) return fail('That subscription does not look right');
+    const count = this.sql
+      .exec<{ n: number }>('SELECT COUNT(*) AS n FROM push_subs WHERE user_id = ?', u.id)
+      .one().n;
+    if (count >= 10)
+      this.sql.exec(
+        `DELETE FROM push_subs WHERE endpoint IN (
+           SELECT endpoint FROM push_subs WHERE user_id = ? ORDER BY created LIMIT 1)`,
+        u.id,
+      );
+    this.sql.exec(
+      'INSERT OR REPLACE INTO push_subs (endpoint, user_id, p256dh, auth, created) VALUES (?, ?, ?, ?, ?)',
+      sub.endpoint,
+      u.id,
+      sub.keys.p256dh,
+      sub.keys.auth,
+      Date.now(),
+    );
+    return ok(null);
+  }
+
+  async removePush(token: string | null, endpoint: unknown): Promise<Result<null>> {
+    const u = await this.sessionUser(token);
+    if (!u) return fail('Sign in first', 401);
+    if (typeof endpoint === 'string')
+      this.sql.exec('DELETE FROM push_subs WHERE endpoint = ? AND user_id = ?', endpoint, u.id);
+    return ok(null);
+  }
+
+  /** Sends a notification to every device a player turned them on for. Returns how many got it. */
+  async notify(
+    userId: string,
+    message: { title: string; body: string; url: string; tag?: string },
+  ): Promise<number> {
+    const keys = this.vapid();
+    if (!keys) return 0;
+    const subs = this.sql
+      .exec<{ endpoint: string; p256dh: string; auth: string }>(
+        'SELECT endpoint, p256dh, auth FROM push_subs WHERE user_id = ?',
+        userId,
+      )
+      .toArray();
+    let sent = 0;
+    for (const s of subs) {
+      const r = await sendPush(
+        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        message,
+        keys,
+      ).catch(() => 'failed' as const);
+      if (r === 'gone') this.sql.exec('DELETE FROM push_subs WHERE endpoint = ?', s.endpoint);
+      if (r === 'sent') sent++;
+    }
+    return sent;
   }
 
   // ---- Game history ----

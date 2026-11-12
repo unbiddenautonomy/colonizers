@@ -31,6 +31,7 @@ import {
   type MyStats,
 } from '../online/account.ts';
 import { Modal } from '../ui/Modal.tsx';
+import { NotifyButton } from '../ui/NotifyButton.tsx';
 
 function message(e: unknown): string {
   return e instanceof Error ? e.message : 'Something went wrong. Try again.';
@@ -425,6 +426,7 @@ function ProfileCard() {
   return (
     <section className="card">
       <h2>Profile</h2>
+      <NotifyButton />
       <div className="avatars" role="radiogroup" aria-label="Avatar">
         {AVATARS.map((a) => (
           <button

@@ -12,5 +12,9 @@ declare namespace Cloudflare {
     GOOGLE_CLIENT_SECRET?: string;
     RESEND_API_KEY?: string;
     EMAIL_FROM?: string;
+    /** Web Push keys (base64url) and contact, for "your turn" notifications. */
+    VAPID_PUBLIC_KEY?: string;
+    VAPID_PRIVATE_KEY?: string;
+    VAPID_SUBJECT?: string;
   }
 }

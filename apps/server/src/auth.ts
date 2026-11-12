@@ -188,7 +188,7 @@ export async function accountRoutes(
   url: URL,
 ): Promise<Response | null> {
   const path = url.pathname;
-  if (!/^\/api\/(auth|me|crews|games)(\/|$)/.test(path)) return null;
+  if (!/^\/api\/(auth|me|crews|games|push)(\/|$)/.test(path)) return null;
   const method = request.method;
   const acc = accounts(env);
   const token = sessionToken(request);
@@ -196,6 +196,10 @@ export async function accountRoutes(
   if (method === 'GET' && path === '/api/auth/google') return googleStart(url, env);
   if (method === 'GET' && path === '/api/auth/google/callback')
     return googleCallback(request, url, env);
+  if (method === 'GET' && path === '/api/push/key')
+    return json({
+      key: env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY ? env.VAPID_PUBLIC_KEY : null,
+    });
   if (method === 'GET' && path === '/api/auth/config')
     return json({ google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) });
 
@@ -252,6 +256,10 @@ export async function accountRoutes(
         await acc.updateProfile(token, { name: b.name, avatar: b.avatar }),
         (user) => ({ user }),
       );
+    case 'POST /api/me/push':
+      return fromResult(await acc.savePush(token, b.subscription), () => ({ ok: true }));
+    case 'POST /api/me/push/remove':
+      return fromResult(await acc.removePush(token, b.endpoint), () => ({ ok: true }));
     case 'POST /api/me/password':
       return fromResult(await acc.setPassword(token, b.current, b.password), () => ({ ok: true }));
     case 'POST /api/me/claim': {
