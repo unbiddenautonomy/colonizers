@@ -1,9 +1,13 @@
 import type { GameModule } from '@colonizers/engine';
+import { boardActions } from './board.ts';
+import { diceActions, wrapRoll } from './dice.ts';
 import {
   civEffects,
   civCost,
   civSwapRatio,
   civYield,
+  wrapBuildRoad,
+  wrapBuildSettlement,
   wrapBuildWonder,
   wrapImprove,
   wrapSteal,
@@ -26,7 +30,25 @@ import { afterSetup, deal, redactCivs, setupActions } from './setup.ts';
 export * from './civs.ts';
 export * from './core.ts';
 export { dealSize, START_NEUTRAL } from './setup.ts';
-export { CALENDAR, calendarTrack, harvestHexes, swapsOf } from './gifts.ts';
+export {
+  anyPicksOf,
+  CALENDAR,
+  calendarTrack,
+  coastEdges,
+  harvestHexes,
+  routeKinds,
+  settleBlock,
+  swapsOf,
+} from './gifts.ts';
+export {
+  gallicHexes,
+  habsburgDrawn,
+  leapCities,
+  revolutionTargets,
+  titicacaLand,
+  titicacaSea,
+} from './board.ts';
+export { democracySeat, REROLLS, type Dice } from './dice.ts';
 export { polarHexes, RESOURCE_COMMODITY, TRACK_RESOURCE } from './effects.ts';
 
 /** Points to win with Civilisations, as the author suggests. */
@@ -37,17 +59,23 @@ export const civilisationsModule: GameModule = {
   name: 'Civilisations',
   requires: ['base', 'cities-knights', 'greed-wealth-power'],
   settings: { vpTarget: CIV_VP_TARGET },
-  actions: { ...setupActions, ...giftActions },
-  wrapActions: { improveCity: wrapImprove, steal: wrapSteal },
+  actions: { ...setupActions, ...giftActions, ...boardActions, ...diceActions },
+  wrapActions: {
+    improveCity: wrapImprove,
+    steal: wrapSteal,
+    roll: wrapRoll,
+    buildSettlement: wrapBuildSettlement,
+    buildRoad: wrapBuildRoad,
+  },
   wrapActionsIfPresent: { buildWonder: wrapBuildWonder },
   hooks: {
     init(ctx) {
       civData(ctx);
       deal(ctx);
     },
-    afterAction(ctx) {
+    afterAction(ctx, action) {
       afterSetup(ctx);
-      civEffects(ctx);
+      civEffects(ctx, action);
     },
   },
   reducers: {
