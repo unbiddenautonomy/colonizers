@@ -225,6 +225,7 @@ export {
   progressCount,
   progressHeld,
   progressLimit,
+  progressOverLimit,
   reachable,
   rivalMetropolis,
   setMetropolis,

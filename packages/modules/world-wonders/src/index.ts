@@ -1,16 +1,27 @@
-import type {
-  Action,
-  ActionDef,
-  Cards,
-  Ctx,
-  GameModule,
-  HexId,
-  HexState,
-  Piece,
-} from '@colonizers/engine';
+import type { Action, Cards, Ctx, GameModule, HexId, HexState, Piece } from '@colonizers/engine';
 import { RESOURCES } from '@colonizers/module-base';
 import { wonderSites } from './requirements.ts';
-import { WONDER_IDS, WONDERS, wonderVp, type WonderId } from './wonders.ts';
+import { diceActions, wrapRoll } from './dice.ts';
+import { afterEffects, effectActions } from './effects.ts';
+import {
+  action,
+  builtWonders,
+  finishedWonders,
+  hasStage,
+  isResource,
+  isWonder,
+  markUsed,
+  MODULE_ID,
+  onlyActive,
+  produceHex,
+  stageItem,
+  usedThisTurn,
+  wonderBlocked,
+  wonderData,
+  wonderPoints,
+  type WonderData,
+} from './core.ts';
+import { WONDER_IDS, WONDERS, type WonderId } from './wonders.ts';
 
 /**
  * World Wonders, from the Civilisations & World Wonders fan expansion. Needs
@@ -25,97 +36,15 @@ import { WONDER_IDS, WONDERS, wonderVp, type WonderId } from './wonders.ts';
  *   build it further.
  * - With `wonderToWin` on (the default), you need a finished wonder to win.
  *
- * List it after the options module and before Cities & Knights, so the
- * Pyramids' robber shield sees only the robber's own block.
+ * List it after Cities & Knights and Greed, Wealth & Power, so its roll
+ * wrapper comes outermost.
  */
 
 export * from './wonders.ts';
+export * from './core.ts';
+export { bayHexes, desertsBy, picksOf, roamingPieces, ROAMING } from './effects.ts';
+export { numberDice, rerollChoices, type HeldDice } from './dice.ts';
 export { closedLoop, isTerrain, wonderSites } from './requirements.ts';
-
-export const MODULE_ID = 'world-wonders';
-
-/** Pieces that stop a wonder going up while they stand on its hex. */
-export const BLOCKERS = ['robber', 'pirate', 'dragon', 'gwpDragon'];
-
-export interface Built {
-  owner: number;
-  hex: HexId;
-  /** Stages built, 1 to 4. */
-  stages: number;
-}
-
-export interface WonderData extends Record<string, unknown> {
-  wonders: Partial<Record<WonderId, Built>>;
-  /** Turn number of each player's last stage, so only one goes up a turn. */
-  lastStage: Record<number, number>;
-  /** Once-a-turn abilities used, by "seat:ability", with the turn number. */
-  used: Record<string, number>;
-}
-
-export function wonderData(ctx: Ctx): WonderData {
-  const d = ctx.data<WonderData>(MODULE_ID);
-  d.wonders ??= {};
-  d.lastStage ??= {};
-  d.used ??= {};
-  return d;
-}
-
-/** Read-only view for screens and other modules (no data is created). */
-export function builtWonders(ctx: Ctx): Partial<Record<WonderId, Built>> {
-  return (ctx.state.data[MODULE_ID] as WonderData | undefined)?.wonders ?? {};
-}
-
-/** Stages of this wonder the player has built (0 if it isn't theirs). */
-export function stagesOf(ctx: Ctx, seat: number, id: WonderId): number {
-  const w = builtWonders(ctx)[id];
-  return w && w.owner === seat ? w.stages : 0;
-}
-
-/** Does the player have this stage's ability? */
-export function hasStage(ctx: Ctx, seat: number, id: WonderId, stage: number): boolean {
-  return stagesOf(ctx, seat, id) >= stage;
-}
-
-export function wonderPoints(ctx: Ctx, seat: number): number {
-  let n = 0;
-  for (const [id, w] of Object.entries(builtWonders(ctx)))
-    if (w?.owner === seat) n += wonderVp(id as WonderId, w.stages);
-  return n;
-}
-
-export function finishedWonders(ctx: Ctx, seat: number): WonderId[] {
-  return WONDER_IDS.filter((id) => stagesOf(ctx, seat, id) >= 4);
-}
-
-/** Is a robber, pirate or dragon on the hex? */
-export function wonderBlocked(ctx: Ctx, hex: HexId): boolean {
-  return ctx.piecesAt({ kind: 'hex', id: hex }).some((p) => BLOCKERS.includes(p.type));
-}
-
-export const stageItem = (id: WonderId, stage: number) => `wonder:${id}:${stage}`;
-
-type A<T> = Action & T;
-function action<T>(def: ActionDef<A<T>>): ActionDef {
-  return def as unknown as ActionDef;
-}
-
-const onlyActive = (ctx: Ctx, a: Action): string | null =>
-  a.player === ctx.active ? null : 'Not your turn';
-
-const isWonder = (w: unknown): w is WonderId =>
-  typeof w === 'string' && (WONDER_IDS as readonly string[]).includes(w);
-
-const isResource = (c: unknown): c is string =>
-  typeof c === 'string' && (RESOURCES as readonly string[]).includes(c);
-
-function usedThisTurn(ctx: Ctx, seat: number, ability: string): boolean {
-  const d = ctx.state.data[MODULE_ID] as WonderData | undefined;
-  return d?.used?.[`${seat}:${ability}`] === ctx.state.turn.number;
-}
-
-function markUsed(ctx: Ctx, seat: number, ability: string): void {
-  wonderData(ctx).used[`${seat}:${ability}`] = ctx.state.turn.number;
-}
 
 // ---- Building ----
 
@@ -242,33 +171,6 @@ const wonderTrade = action<{ wonder: WonderId; give: string; get: string; count?
   },
 });
 
-/** One hex makes its cards, as if its number was rolled (for `only`, or everyone). */
-export function produceHex(ctx: Ctx, hexId: HexId, only?: number): Record<number, Cards> {
-  const hex = ctx.state.hexes[hexId];
-  const received: Record<number, Cards> = {};
-  if (!hex || hex.hidden) return received;
-  const def = ctx.registry.hexTypes[hex.type];
-  if (!def || def.terrain !== 'land') return received;
-  const robbed = ctx.piecesAt({ kind: 'hex', id: hexId }).some((p) => p.type === 'robber');
-  for (const corner of ctx.geometry.hexCorners.get(hexId) ?? []) {
-    for (const piece of ctx.piecesAt({ kind: 'corner', id: corner })) {
-      if (piece.owner === null || (only !== undefined && piece.owner !== only)) continue;
-      if (ctx.reduce('hexBlocked', hex, piece, robbed)) continue;
-      const pdef = ctx.registry.pieceTypes[piece.type];
-      const base: Cards = {};
-      if (def.produces && pdef?.production) base[def.produces] = pdef.production;
-      for (const [card, n] of Object.entries(ctx.reduce('hexYield', hex, piece, base))) {
-        const give = Math.min(n, ctx.state.bank[card] ?? 0);
-        if (give <= 0) continue;
-        ctx.grant(piece.owner, { [card]: give });
-        const mine = (received[piece.owner] ??= {});
-        mine[card] = (mine[card] ?? 0) + give;
-      }
-    }
-  }
-  return received;
-}
-
 const CHAAC_COST: Cards = { wool: 2 };
 
 /** Hexes Sacrifice to Chaac can make produce. */
@@ -331,12 +233,22 @@ function petraPrayer(ctx: Ctx): void {
   }
 }
 
-/** Pyramids III: the robber doesn't stop your buildings producing. */
+/**
+ * Pyramids III: the robber doesn't stop your buildings producing. Other
+ * modules' blocks still count: they are worked out again with no robber.
+ */
 function isisShield(ctx: Ctx, hex: HexState, piece: Piece, value: boolean): boolean {
   if (!value || piece.owner === null) return value;
   if (!hasStage(ctx, piece.owner, 'pyramids', 3)) return value;
   const robbed = ctx.piecesAt({ kind: 'hex', id: hex.id }).some((p) => p.type === 'robber');
-  return robbed ? false : value;
+  if (!robbed) return value;
+  let v = false;
+  for (const m of ctx.registry.modules) {
+    if (m.id === MODULE_ID) break;
+    const fn = m.reducers?.hexBlocked;
+    if (fn) v = fn(ctx, hex, piece, v);
+  }
+  return v;
 }
 
 const STAGE_COSTS = Object.fromEntries(
@@ -354,13 +266,15 @@ export const worldWondersModule: GameModule = {
     wonderToWin: true,
   },
   costs: STAGE_COSTS,
-  actions: { buildWonder, wonderTrade, wonderHarvest },
+  actions: { buildWonder, wonderTrade, wonderHarvest, ...diceActions, ...effectActions },
+  wrapActions: { roll: wrapRoll },
   hooks: {
     init(ctx) {
       wonderData(ctx);
     },
     afterAction(ctx) {
       petraPrayer(ctx);
+      afterEffects(ctx);
     },
   },
   reducers: {
