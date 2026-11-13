@@ -29,6 +29,8 @@ import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { ThemePicker, useTheme } from '../theme/themes.tsx';
 import { DicePicker, DiceTray } from '../ui/Dice.tsx';
+import { CardFlights } from '../ui/Flights.tsx';
+import { MotionPicker } from '../ui/motion.tsx';
 import {
   CardPicker,
   clean,
@@ -463,8 +465,16 @@ export function Game({
 
   const errorPage = g.error ? pageForError(g.error) : null;
 
+  // "Your turn" when the turn passes to someone holding this screen.
+  const turnCue = (s: number): string | null => {
+    if (online) return s === seat ? 'Your turn' : null;
+    if (bots[s]) return null;
+    return humans > 1 ? `${names[s]}'s turn` : 'Your turn';
+  };
+
   return (
     <div className="game">
+      <CardFlights log={g.log} ctx={ctx} viewer={viewer} theme={theme} turnCue={turnCue} />
       <header className="game-head">
         <h1 className="game-title brand">
           <img className="brand-mark" src="/logo.svg" alt="" width="28" height="28" />
@@ -498,6 +508,7 @@ export function Game({
           <SoundToggle />
           <ThemePicker compact />
           <DicePicker compact />
+          <MotionPicker compact />
           <button
             type="button"
             className="icon help"
@@ -539,6 +550,7 @@ export function Game({
           return (
             <div
               key={p.seat}
+              data-seat={p.seat}
               className={`player${state.turn.player === p.seat ? ' active' : ''}`}
               style={{ borderColor: t.color }}
             >
@@ -560,7 +572,7 @@ export function Game({
                     🤖
                   </span>
                 )}
-                <span className="vp" title="Victory points">
+                <span key={publicVp(ctx, p.seat)} className="vp" title="Victory points">
                   {publicVp(ctx, p.seat)}
                   <small> VP</small>
                 </span>

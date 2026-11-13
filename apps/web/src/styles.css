@@ -1467,3 +1467,86 @@ button.danger {
   margin-top: 10px;
   gap: 8px;
 }
+
+/* Motion: cards flying between hexes, players and the bank (see ui/Flights.tsx). */
+.flights {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  overflow: hidden;
+}
+.flight-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 26px;
+  height: 36px;
+  border-radius: 5px;
+  border: 2px solid rgba(0, 0, 0, 0.55);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
+  will-change: transform, opacity;
+}
+.flight-card.back {
+  background: repeating-linear-gradient(45deg, #7a3e1d 0 4px, #93522c 4px 8px);
+  border-color: #f3e6c4;
+}
+.flight-card.flight-label {
+  width: auto;
+  height: auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fbf6e9;
+  font-size: 18px;
+}
+.turn-cue {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  padding: 12px 26px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text, #fff);
+  font-size: 1.5rem;
+  font-weight: 800;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+}
+.player.active {
+  animation: turn-glow 0.9s ease-out;
+}
+@keyframes turn-glow {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+.player .vp {
+  display: inline-block;
+  animation: vp-bump 0.5s ease-out;
+}
+@keyframes vp-bump {
+  40% {
+    transform: scale(1.35);
+  }
+}
+[data-motion='off'] .player.active,
+[data-motion='off'] .player .vp {
+  animation: none;
+}
+[data-motion='fast'] .player.active,
+[data-motion='fast'] .player .vp {
+  animation-duration: 0.35s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .player.active,
+  .player .vp {
+    animation: none;
+  }
+}

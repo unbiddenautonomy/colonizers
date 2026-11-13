@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import { ThemeStyles } from './theme/themes.tsx';
+import { MotionStyles } from './ui/motion.tsx';
 import './styles.css';
 
 const root = document.getElementById('root');
@@ -10,6 +11,7 @@ if (!root) throw new Error('Missing #root element');
 createRoot(root).render(
   <StrictMode>
     <ThemeStyles />
+    <MotionStyles />
     <App />
   </StrictMode>,
 );

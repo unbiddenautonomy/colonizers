@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import {
   buildGeometry,
   cornerToPixel,
@@ -11,6 +11,7 @@ import {
 } from '@colonizers/engine';
 import { RESOURCE_ICON, TRACK_COLOR, type Theme } from '../theme/clean.ts';
 import { useTheme } from '../theme/themes.tsx';
+import { motionAttrs, useBoardMotion } from './motion.ts';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -189,6 +190,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const patterned = new Set(theme.patterned ?? []);
   const hexes = useMemo(() => Object.values(state.hexes), [state.hexes]);
   const g = useMemo(() => buildGeometry(hexes.map((h) => h.id)), [hexes]);
+  const svgRef = useRef<SVGSVGElement>(null);
+  useBoardMotion(svgRef, g, state);
 
   const viewBox = useMemo(() => {
     const xs: number[] = [];
@@ -222,7 +225,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const pirateHex = pieces.find((p) => p.type === 'pirate')?.at;
 
   return (
-    <svg className="board" viewBox={viewBox} role="img" aria-label="Game board">
+    <svg ref={svgRef} className="board" viewBox={viewBox} role="img" aria-label="Game board">
       <defs>
         <filter id="lift" x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.35" />
@@ -424,55 +427,83 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         // Rivers lie under everything else.
         .sort((x, y) => Number(y.type === 'river') - Number(x.type === 'river'))
         .map((p) => {
-          const [a, b] = edgeEnds((p.at as { id: EdgeId }).id, g);
+          const edge = (p.at as { id: EdgeId }).id;
+          const [a, b] = edgeEnds(edge, g);
           const k = 0.16;
-          if (p.type === 'river')
-            return (
-              <g key={p.id} strokeLinecap="round">
+          const attrs =
+            p.type === 'river'
+              ? {}
+              : motionAttrs(p.id, `edge:${edge}`, (a.x + b.x) / 2, (a.y + b.y) / 2, {
+                  owner: p.owner,
+                  kind: p.type,
+                  ends: g.edgeCorners.get(edge),
+                });
+          const inner = (() => {
+            if (p.type === 'river')
+              return (
+                <g key={p.id} strokeLinecap="round">
+                  <line
+                    x1={a.x}
+                    y1={a.y}
+                    x2={b.x}
+                    y2={b.y}
+                    stroke={theme.seaEdge}
+                    strokeWidth={S * 0.22}
+                  />
+                  <line
+                    x1={a.x}
+                    y1={a.y}
+                    x2={b.x}
+                    y2={b.y}
+                    stroke={theme.terrain.lake ?? theme.sea}
+                    strokeWidth={S * 0.1}
+                  />
+                  <title>River: only a bridge can cross</title>
+                </g>
+              );
+            if (p.type === 'bridge')
+              return (
+                <g key={p.id} filter={fx}>
+                  <line
+                    x1={a.x + (b.x - a.x) * 0.08}
+                    y1={a.y + (b.y - a.y) * 0.08}
+                    x2={b.x - (b.x - a.x) * 0.08}
+                    y2={b.y - (b.y - a.y) * 0.08}
+                    stroke={theme.harborWood}
+                    strokeWidth={S * 0.22}
+                    strokeLinecap="butt"
+                  />
+                  <line
+                    x1={a.x + (b.x - a.x) * k}
+                    y1={a.y + (b.y - a.y) * k}
+                    x2={b.x - (b.x - a.x) * k}
+                    y2={b.y - (b.y - a.y) * k}
+                    stroke={color(p.owner)}
+                    strokeWidth={S * 0.1}
+                    strokeLinecap="round"
+                  />
+                  <title>Bridge</title>
+                </g>
+              );
+            if (p.type === 'road' && p.props.damaged)
+              return (
                 <line
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke={theme.seaEdge}
-                  strokeWidth={S * 0.22}
-                />
-                <line
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke={theme.terrain.lake ?? theme.sea}
-                  strokeWidth={S * 0.1}
-                />
-                <title>River: only a bridge can cross</title>
-              </g>
-            );
-          if (p.type === 'bridge')
-            return (
-              <g key={p.id} filter={fx}>
-                <line
-                  x1={a.x + (b.x - a.x) * 0.08}
-                  y1={a.y + (b.y - a.y) * 0.08}
-                  x2={b.x - (b.x - a.x) * 0.08}
-                  y2={b.y - (b.y - a.y) * 0.08}
-                  stroke={theme.harborWood}
-                  strokeWidth={S * 0.22}
-                  strokeLinecap="butt"
-                />
-                <line
+                  key={p.id}
                   x1={a.x + (b.x - a.x) * k}
                   y1={a.y + (b.y - a.y) * k}
                   x2={b.x - (b.x - a.x) * k}
                   y2={b.y - (b.y - a.y) * k}
                   stroke={color(p.owner)}
-                  strokeWidth={S * 0.1}
-                  strokeLinecap="round"
-                />
-                <title>Bridge</title>
-              </g>
-            );
-          if (p.type === 'road' && p.props.damaged)
+                  strokeWidth={S * 0.13}
+                  strokeDasharray={`${S * 0.1} ${S * 0.06}`}
+                  opacity={0.75}
+                  filter={fx}
+                >
+                  <title>Damaged road: repair it before building new roads</title>
+                </line>
+              );
+            if (p.type === 'ship')
+              return <Ship key={p.id} a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />;
             return (
               <line
                 key={p.id}
@@ -482,27 +513,15 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 y2={b.y - (b.y - a.y) * k}
                 stroke={color(p.owner)}
                 strokeWidth={S * 0.13}
-                strokeDasharray={`${S * 0.1} ${S * 0.06}`}
-                opacity={0.75}
+                strokeLinecap="round"
                 filter={fx}
-              >
-                <title>Damaged road: repair it before building new roads</title>
-              </line>
+              />
             );
-          if (p.type === 'ship')
-            return <Ship key={p.id} a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />;
+          })();
           return (
-            <line
-              key={p.id}
-              x1={a.x + (b.x - a.x) * k}
-              y1={a.y + (b.y - a.y) * k}
-              x2={b.x - (b.x - a.x) * k}
-              y2={b.y - (b.y - a.y) * k}
-              stroke={color(p.owner)}
-              strokeWidth={S * 0.13}
-              strokeLinecap="round"
-              filter={fx}
-            />
+            <g key={p.id} {...attrs}>
+              {inner}
+            </g>
           );
         })}
 
@@ -560,7 +579,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const x = (a.x + b.x) / 2;
         const y = (a.y + b.y) / 2;
         return (
-          <g key={`ebarb-${e}`} className="barbarians" filter="url(#lift)">
+          <g
+            key={`ebarb-${e}`}
+            className="barbarians"
+            filter="url(#lift)"
+            {...motionAttrs(`ebarb-${e}`, `edge:${e}`, x, y)}
+          >
             <circle cx={x} cy={y} r={S * 0.17} fill="#3b2a20" stroke="#f1e3c8" strokeWidth={2} />
             <text
               x={x}
@@ -582,7 +606,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const x = p.x + S * 0.22 + (i % 2) * S * 0.12;
         const y = p.y - S * 0.22 + Math.floor(i / 2) * S * 0.12;
         return (
-          <g key={`wagon-${seat}`} className="wagon" filter="url(#lift)">
+          <g
+            key={`wagon-${seat}`}
+            className="wagon"
+            filter="url(#lift)"
+            {...motionAttrs(`wagon-${seat}`, `corner:${w.corner}`, x, y)}
+          >
             <rect
               x={x - S * 0.15}
               y={y - S * 0.11}
@@ -606,7 +635,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const y = (a.y + b.y) / 2;
         const r = S * 0.16;
         return (
-          <g key={`knight-${k.id}`} className="tb-knight" filter="url(#lift)">
+          <g
+            key={`knight-${k.id}`}
+            className="tb-knight"
+            filter="url(#lift)"
+            {...motionAttrs(`tbk-${k.id}`, `edge:${k.edge}`, x, y)}
+          >
             <path
               d={`M${x - r},${y - r} h${2 * r} v${r * 0.9} q0,${r * 0.8} ${-r},${r * 1.2} q${-r},${-r * 0.4} ${-r},${-r * 1.2} z`}
               fill={color(k.owner)}
@@ -634,7 +668,11 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           if (!h) return null;
           const c = hexToPixel(h.q, h.r, S);
           return (
-            <g className="pirate" filter="url(#lift)">
+            <g
+              className="pirate"
+              filter="url(#lift)"
+              {...motionAttrs('pirate', `hex:${pirateHex.id}`, c.x, c.y)}
+            >
               <path
                 d={`M${c.x - S * 0.32},${c.y + S * 0.05} h${S * 0.64} l${-S * 0.12},${S * 0.2} h${-S * 0.4} z`}
                 fill={theme.pirate}
@@ -664,7 +702,11 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           const x = c.x + S * 0.42;
           const y = c.y + S * 0.1;
           return (
-            <g className="robber" filter="url(#lift)">
+            <g
+              className="robber"
+              filter="url(#lift)"
+              {...motionAttrs('robber', `hex:${robberHex.id}`, x, y)}
+            >
               <ellipse cx={x} cy={y + S * 0.2} rx={S * 0.16} ry={S * 0.07} fill={theme.robber} />
               <path
                 d={`M${x - S * 0.13},${y + S * 0.2} Q${x - S * 0.15},${y - S * 0.1} ${x},${y - S * 0.12} Q${x + S * 0.15},${y - S * 0.1} ${x + S * 0.13},${y + S * 0.2} z`}
@@ -685,7 +727,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           const x = c.x - S * 0.42;
           const y = c.y + S * 0.12;
           return (
-            <g key={p.id} className="merchant" filter="url(#lift)">
+            <g
+              key={p.id}
+              className="merchant"
+              filter="url(#lift)"
+              {...motionAttrs(p.id, `hex:${h.id}`, x, y)}
+            >
               <circle
                 cx={x}
                 cy={y}
@@ -712,58 +759,69 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
       {pieces
         .filter((p) => p.at.kind === 'corner')
         .map((p) => {
-          const c = cornerToPixel((p.at as { id: CornerId }).id, S);
-          const level = KNIGHT_LEVEL[p.type];
-          if (level)
+          const corner = (p.at as { id: CornerId }).id;
+          const c = cornerToPixel(corner, S);
+          const inner = (() => {
+            const level = KNIGHT_LEVEL[p.type];
+            if (level)
+              return (
+                <Knight
+                  key={p.id}
+                  x={c.x}
+                  y={c.y}
+                  color={color(p.owner)}
+                  level={level}
+                  active={p.props.active === true}
+                  theme={theme}
+                  fx={fx}
+                />
+              );
             return (
-              <Knight
-                key={p.id}
-                x={c.x}
-                y={c.y}
-                color={color(p.owner)}
-                level={level}
-                active={p.props.active === true}
-                theme={theme}
-                fx={fx}
-              />
-            );
-          return (
-            <g key={p.id} filter={fx}>
-              {p.props.wall === true && (
-                <rect
-                  x={c.x - S * 0.32}
-                  y={c.y + S * 0.08}
-                  width={S * 0.64}
-                  height={S * 0.14}
-                  rx={2}
-                  fill="#8a7f72"
-                  stroke={theme.outline}
-                  strokeWidth={2}
-                >
-                  <title>City wall</title>
-                </rect>
-              )}
-              <HouseShape
-                x={c.x}
-                y={c.y}
-                color={color(p.owner)}
-                city={p.type === 'city'}
-                theme={theme}
-              />
-              {typeof p.props.metropolis === 'string' && (
-                <g>
+              <g key={p.id} filter={fx}>
+                {p.props.wall === true && (
                   <rect
-                    x={c.x - S * 0.07}
-                    y={c.y - S * 0.42}
-                    width={S * 0.14}
-                    height={S * 0.24}
-                    fill={TRACK_COLOR[p.props.metropolis] ?? '#fff'}
+                    x={c.x - S * 0.32}
+                    y={c.y + S * 0.08}
+                    width={S * 0.64}
+                    height={S * 0.14}
+                    rx={2}
+                    fill="#8a7f72"
                     stroke={theme.outline}
                     strokeWidth={2}
-                  />
-                  <title>{`Metropolis (${p.props.metropolis})`}</title>
-                </g>
-              )}
+                  >
+                    <title>City wall</title>
+                  </rect>
+                )}
+                <HouseShape
+                  x={c.x}
+                  y={c.y}
+                  color={color(p.owner)}
+                  city={p.type === 'city'}
+                  theme={theme}
+                />
+                {typeof p.props.metropolis === 'string' && (
+                  <g>
+                    <rect
+                      x={c.x - S * 0.07}
+                      y={c.y - S * 0.42}
+                      width={S * 0.14}
+                      height={S * 0.24}
+                      fill={TRACK_COLOR[p.props.metropolis] ?? '#fff'}
+                      stroke={theme.outline}
+                      strokeWidth={2}
+                    />
+                    <title>{`Metropolis (${p.props.metropolis})`}</title>
+                  </g>
+                )}
+              </g>
+            );
+          })();
+          return (
+            <g
+              key={p.id}
+              {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { owner: p.owner, kind: p.type })}
+            >
+              {inner}
             </g>
           );
         })}
