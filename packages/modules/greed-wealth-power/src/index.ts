@@ -68,6 +68,8 @@ import {
   wizardUnblocks,
   wrapPlayProgress,
 } from './neutrals.ts';
+import { deedHandLimit, settleDeeds } from './deed.ts';
+import { indulgenceActions, wrapRoll } from './indulgence.ts';
 import { isRiver, layRiver, riverYield } from './river.ts';
 
 /**
@@ -391,11 +393,13 @@ export const greedWealthPowerModule: GameModule = {
     ...cardActions,
     ...dragonActions,
     ...festivalActions,
+    ...indulgenceActions,
   },
   wrapActionsIfPresent: Object.fromEntries(OPTIONAL_BUILDS.map((b) => [b, guardBuild(true)])),
   wrapActions: {
     playProgress: (prev) => wrapCards(wrapPlayProgress(prev)),
     moveRobber: wrapMoveRobber,
+    roll: wrapRoll,
     activateKnight: guardFestival,
     improveCity: guardFestival,
     chaseRobber: wrapChaseRobber,
@@ -453,12 +457,14 @@ export const greedWealthPowerModule: GameModule = {
       crownHeroes(ctx);
       dragonAfter(ctx);
       endFestivals(ctx);
+      settleDeeds(ctx);
     },
     turnStarted: lentTurnStarted,
     turnEnded: lentTurnEnded,
   },
   reducers: {
     knightStrength: dukeStrength,
+    handLimit: deedHandLimit,
     hexBlocked: (ctx, hex, piece, value) =>
       festivalBlocksYield(
         ctx,
