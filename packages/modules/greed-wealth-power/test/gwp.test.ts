@@ -1,138 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import {
-  Ctx,
-  ModuleLibrary,
   stateFromView,
   type Action,
   type CornerId,
-  type GameState,
   type HexId,
   type Piece,
 } from '@colonizers/engine';
-import { baseModule, produce } from '@colonizers/module-base';
-import { seafarersModule } from '@colonizers/module-seafarers';
-import { citiesKnightsModule, ckData, levels } from '@colonizers/module-cities-knights';
-import { generateBoard, generateSeaBoard } from '@colonizers/maps';
-import { beerOf, beerRatio, buildingsOf, greedWealthPowerModule, gwpData } from '../src/index.ts';
-
-const lib = new ModuleLibrary([
-  baseModule,
-  seafarersModule,
-  citiesKnightsModule,
-  greedWealthPowerModule,
-]);
-
-function game(seed = 'gwp', settings: Record<string, unknown> = {}): GameState {
-  const board = generateBoard({ seed, players: 4, mode: 'classic' });
-  return lib.createGame({
-    seed,
-    players: ['A', 'B', 'C', 'D'],
-    modules: ['base', 'cities-knights', 'greed-wealth-power'],
-    map: board.map,
-    settings: { vpTarget: 18, ...settings },
-    fixedSeats: true,
-  }).state;
-}
-
-function seaGame(seed = 'gwp-sea'): GameState {
-  const board = generateSeaBoard({ seed, players: 4, scenario: 'new-shores' });
-  return lib.createGame({
-    seed,
-    players: ['A', 'B', 'C', 'D'],
-    modules: ['base', 'seafarers', 'cities-knights', 'greed-wealth-power'],
-    map: board.map,
-    settings: { ...board.settings, vpTarget: 18 },
-    fixedSeats: true,
-  }).state;
-}
-
-const ctxOf = (s: GameState) => new Ctx(s, lib.registry(s.modules));
-
-function edit(state: GameState, fn: (ctx: Ctx) => void): GameState {
-  const next = structuredClone(state);
-  const ctx = ctxOf(next);
-  fn(ctx);
-  ctx.commit();
-  return next;
-}
-
-function act(state: GameState, action: Action): GameState {
-  return lib.apply(state, action).state;
-}
-
-function rng(seed: number): () => number {
-  let x = seed >>> 0 || 1;
-  return () => {
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    return (x >>> 0) / 4294967296;
-  };
-}
-
-function finishSetup(state: GameState): GameState {
-  let s = state;
-  const rand = rng(3);
-  while (s.phase.id === 'setup' || s.phase.id === 'pickGold') {
-    const seat = lib.waitingOn(s)[0] as number;
-    const options = lib.legalActions(s, seat);
-    s = act(s, options[Math.floor(rand() * options.length)] as Action);
-  }
-  return s;
-}
-
-/** A playing game in the main phase on seat 0's turn, with the board cleared of buildings. */
-function main(seed = 'gwp'): GameState {
-  return edit(finishSetup(game(seed)), (ctx) => {
-    ctx.setPhase({ id: 'main' });
-  });
-}
-
-/** A free land corner touching a hex that produces `card`, with no building next door. */
-function cornerBy(ctx: Ctx, card: string, avoid: HexId[] = []): { corner: CornerId; hex: HexId } {
-  for (const hex of Object.values(ctx.state.hexes)) {
-    if (avoid.includes(hex.id)) continue;
-    const ok =
-      card === 'gold' ? hex.type === 'gold' : ctx.registry.hexTypes[hex.type]?.produces === card;
-    if (!ok || hex.token === undefined) continue;
-    for (const corner of ctx.geometry.hexCorners.get(hex.id) ?? []) {
-      if (ctx.piecesAt({ kind: 'corner', id: corner }).length) continue;
-      const near = (ctx.geometry.cornerEdges.get(corner) ?? []).flatMap(
-        (e) => ctx.geometry.edgeCorners.get(e) ?? [],
-      );
-      if (near.some((c) => ctx.buildingAt(c))) continue;
-      return { corner, hex: hex.id };
-    }
-  }
-  throw new Error(`No corner by ${card}`);
-}
-
-function placeCity(
-  state: GameState,
-  seat: number,
-  card: string,
-): {
-  state: GameState;
-  corner: CornerId;
-  hex: HexId;
-} {
-  let found = { corner: '' as CornerId, hex: '' as HexId };
-  const next = edit(state, (ctx) => {
-    found = cornerBy(ctx, card);
-    ctx.place('city', seat, { kind: 'corner', id: found.corner });
-  });
-  return { state: next, ...found };
-}
-
-/** Improves a track, placing the metropolis on the first free city if it asks. */
-function improve(state: GameState, seat: number, track: string): GameState {
-  let s = act(state, { type: 'improveCity', player: seat, track });
-  if (s.phase.id === 'placeMetropolis') s = act(s, lib.legalActions(s, seat)[0] as Action);
-  return s;
-}
-
-const grant = (state: GameState, seat: number, cards: Record<string, number>) =>
-  edit(state, (ctx) => ctx.grant(seat, cards));
+import { produce } from '@colonizers/module-base';
+import { ckData, levels } from '@colonizers/module-cities-knights';
+import { beerOf, beerRatio, buildingsOf, gwpData, NEUTRALS } from '../src/index.ts';
+import {
+  lib,
+  game,
+  seaGame,
+  ctxOf,
+  edit,
+  act,
+  rng,
+  finishSetup,
+  main,
+  cornerBy,
+  placeCity,
+  improve,
+  grant,
+} from './helpers.ts';
 
 describe('Greed, Wealth & Power setup', () => {
   it('adds three tracks, three commodities, a 12-sided die, 18 points and 5 progress cards', () => {
@@ -398,6 +289,7 @@ describe('The 12-sided event die', () => {
 
 describe('Random games', () => {
   it('plays thousands of random moves without breaking, and views stay consistent', () => {
+    const neutrals = new Set<string>();
     for (const seed of [1, 2]) {
       let s = finishSetup(game(`gwp-sim-${seed}`));
       const rand = rng(seed);
@@ -412,14 +304,26 @@ describe('Random games', () => {
         }
         // Lean toward building so the new rules come up.
         const prefer = options.filter((a) =>
-          ['buildGwp', 'improveCity', 'buildCity', 'beerTrade', 'beerKnight'].includes(a.type),
+          [
+            'buildGwp',
+            'improveCity',
+            'buildCity',
+            'beerTrade',
+            'beerKnight',
+            'playProgress',
+            'placeNeutral',
+          ].includes(a.type),
         );
         const pool = prefer.length && rand() < 0.6 ? prefer : options;
         s = act(s, pool[Math.floor(rand() * pool.length)] as Action);
         if (rand() < 0.02) s = grant(s, seat, { crystal: 1, bread: 1, gold: 1, brick: 1, ore: 1 });
+        for (const p of Object.values(s.pieces))
+          if ((NEUTRALS as readonly string[]).includes(p.type)) neutrals.add(p.type);
       }
       const d = gwpData(ctxOf(s));
       expect(d).toBeTruthy();
     }
+    // Some neutral pieces came out along the way.
+    expect(neutrals.size).toBeGreaterThan(0);
   }, 300_000);
 });

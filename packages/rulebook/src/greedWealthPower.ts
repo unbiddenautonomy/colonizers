@@ -1,9 +1,48 @@
-import type { RulebookModule } from './types.ts';
+import type { CardGlossaryEntry, RulebookModule } from './types.ts';
+
+const M = 'greed-wealth-power';
+
+function card(id: string, deck: string, name: string, text: string): CardGlossaryEntry {
+  return { id, module: M, deck, name, text };
+}
+
+const CARDS: CardGlossaryEntry[] = [
+  card(
+    'duke',
+    'politics',
+    'Duke',
+    'Put the Duke on any land hex. Your knights on its corners are 1 stronger, everyone else’s 1 weaker. Worth 1 point while it is yours.',
+  ),
+  card(
+    'scholar',
+    'science',
+    'Scholar',
+    'Put the Scholar on a hex beside one of your cities. Take 1 more card when that hex produces. Worth 1 point while it is yours.',
+  ),
+  card(
+    'wizard',
+    'magic',
+    'Wizard',
+    'Put the Wizard on a hex beside your settlement or city. The robber does not stop your production there. Worth 1 point while it is yours.',
+  ),
+  card(
+    'inquisitor',
+    'religion',
+    'Inquisitor',
+    'Put the Inquisitor beside another player’s settlement or city (not one with a Citadel). That player loses every level 3 ability. Worth 1 point while it is yours.',
+  ),
+  card(
+    'envoy',
+    'wealth',
+    'Envoy',
+    'Put the Envoy on a hex beside another player’s city. Take 1 card when that hex produces. Worth 1 point while it is yours.',
+  ),
+];
 
 export const greedWealthPowerRules: RulebookModule = {
   module: 'greed-wealth-power',
   name: 'Greed, Wealth & Power',
-  cards: [],
+  cards: CARDS,
   items: {
     citadel: {
       name: 'Citadel',
@@ -38,6 +77,12 @@ export const greedWealthPowerRules: RulebookModule = {
     airship: { name: 'Airship', icon: '⭐' },
     relic: { name: 'Relic', icon: '⭐' },
     belovedPrince: { name: 'Beloved Prince', icon: '⭐' },
+    duke: { name: 'Duke', icon: '🎖️' },
+    scholar: { name: 'Scholar', icon: '📜' },
+    wizard: { name: 'Wizard', icon: '🧙' },
+    inquisitor: { name: 'Inquisitor', icon: '⚖️' },
+    envoy: { name: 'Envoy', icon: '💼' },
+    heroOfCatan: { name: 'Hero of Catan', icon: '🦸' },
   },
   pages: [
     {
@@ -65,7 +110,7 @@ export const greedWealthPowerRules: RulebookModule = {
 - You can own only **one** of the Science, Magic and Religion metropolises. Once you own one, the other two of those tracks stop at level 3.
 - The event die has **12 faces**: 4 ships, 2 ships with a **wild gate**, and a gate for each of the six tracks. On a wild gate the barbarians move first, then everyone in turn draws one card from **any deck** their levels open for the red die.
 
-The new commodities only come from cities next to a special building (see Special buildings), but you can always trade for them and build any track with them. Progress cards for the three new decks and the neutral pieces come in the next update.
+The new commodities only come from cities next to a special building (see Special buildings), but you can always trade for them and build any track with them. The five new **neutral pieces** come with progress cards in the decks (see Neutral pieces); the other new progress cards come in a later update.
 
 The rules are lightningserpent's (GWP 1.0); we credit the authors of the expansions it builds on in the manual.`,
     },
@@ -129,6 +174,39 @@ These trades are for resources only, not commodities.
 - **1 Beer** activates any knight, yours or another player's.
 - Beer buys **commodities** from the bank: 4 Beer for 1, 3 with a 3:1 harbor, 2 with Trade level 3.
 - Beer festivals come in a later update.`,
+    },
+    {
+      id: 'gwp-neutrals',
+      module: 'greed-wealth-power',
+      section: 'rules',
+      title: 'Neutral pieces',
+      summary: 'Duke, Scholar, Wizard, Inquisitor and Envoy: 1 point each while you control them.',
+      tags: [
+        'neutral',
+        'duke',
+        'scholar',
+        'wizard',
+        'inquisitor',
+        'envoy',
+        'hero',
+        'hero of catan',
+        'merchant',
+      ],
+      body: `Like the merchant, each track now has a neutral piece, put on the board by a progress card of the same name. Whoever played its card last controls it and scores **1 point** for it. Playing the card while the piece is out takes it over and moves it.
+
+| Piece | Deck | Goes on | While it is yours |
+|---|---|---|---|
+| 🎖️ Duke | Politics | any land hex | your knights on its corners are 1 stronger; everyone else's are 1 weaker |
+| 📜 Scholar | Science | a hex beside your city | 1 more card when that hex produces |
+| 🧙 Wizard | Magic | a hex beside your settlement or city | the robber does not stop your production there |
+| ⚖️ Inquisitor | Religion | a hex beside another player's settlement or city | that player has no level 3 abilities |
+| 💼 Envoy | Wealth | a hex beside another player's city | 1 card when that hex produces |
+
+- The **Scholar**, **Wizard** and **Inquisitor** chase each other away: put one on a hex with another and the other leaves the board.
+- The **Inquisitor** can't go beside a city with a Citadel. You choose the player when you play the card.
+- The **Scholar** and **Envoy** card is the hex's commodity when you can take it (Crystal, Bread and Gold need your Citadel, Diocese or Monument), otherwise its resource. The robber stops it, unless the Wizard protects you there.
+- **Duke**: a knight next to a rival's Duke can drop to strength 0. It can still act, but adds nothing against the barbarians and any knight can push it away.
+- **Hero of Catan** 🦸: the first time one of your knights reaches strength **4** (a mighty knight beside your Duke), you take a Hero of Catan card worth **1 point**. You keep it even when the Duke moves on. There are five, one per player.`,
     },
   ],
 };

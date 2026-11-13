@@ -20,7 +20,7 @@ import {
   farmlandDry,
   GoldRiver,
 } from './CanalArt.tsx';
-import { buildingMarkers, GWP_ICON } from '../screens/GreedWealthPower.tsx';
+import { buildingMarkers, GWP_ICON, neutralMarkers } from '../screens/GreedWealthPower.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -1032,6 +1032,36 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             />
             <text x={x} y={y + r * 0.42} textAnchor="middle" fontSize={r * 1.2}>
               {GWP_ICON[m.building]}
+            </text>
+            <title>{m.label}</title>
+          </g>
+        );
+      })}
+
+      {neutralMarkers(state).map((m) => {
+        const h = state.hexes[m.hex];
+        if (!h) return null;
+        const c = hexToPixel(h.q, h.r, S);
+        const x = c.x + S * m.dx;
+        const y = c.y + S * m.dy;
+        const r = S * 0.15;
+        return (
+          <g
+            key={m.id}
+            className="gwp-neutral"
+            filter="url(#lift)"
+            {...motionAttrs(m.id, `hex:${m.hex}`, x, y)}
+          >
+            <circle
+              cx={x}
+              cy={y}
+              r={r}
+              fill={color(m.owner)}
+              stroke={theme.outline}
+              strokeWidth={2}
+            />
+            <text x={x} y={y + r * 0.42} textAnchor="middle" fontSize={r * 1.25}>
+              {m.icon}
             </text>
             <title>{m.label}</title>
           </g>

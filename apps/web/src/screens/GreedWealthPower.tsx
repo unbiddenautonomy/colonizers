@@ -6,7 +6,12 @@ import {
   BUILDINGS,
   buildingsOf,
   GWP_COMMODITIES,
+  heroes,
+  NEUTRAL_NAMES,
+  neutralPiece,
+  NEUTRALS,
   type Building,
+  type Neutral,
 } from '@colonizers/module-greed-wealth-power';
 import { nameOf } from '@colonizers/rulebook';
 import type { Targets } from '../board/Board.tsx';
@@ -42,10 +47,20 @@ export function gwpOn(state: GameState): boolean {
   return state.modules.includes('greed-wealth-power');
 }
 
-/** Beer and buildings, for one player's row. */
+export const NEUTRAL_ICON: Record<Neutral, string> = {
+  duke: '🎖️',
+  scholar: '📜',
+  wizard: '🧙',
+  inquisitor: '⚖️',
+  envoy: '💼',
+};
+
+/** Beer, buildings, neutral pieces and a Hero of Catan card, for one player's row. */
 export function GwpPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const mine = buildingsOf(ctx, seat);
   const built = BUILDINGS.filter((b) => mine[b]);
+  const held = NEUTRALS.filter((n) => neutralPiece(ctx, n)?.owner === seat);
+  const hero = heroes(ctx).includes(seat);
   return (
     <>
       <span title="Beer">🍺 {beerOf(ctx, seat)}</span>
@@ -54,8 +69,62 @@ export function GwpPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
           {built.map((b) => GWP_ICON[b]).join('')}
         </span>
       )}
+      {held.length > 0 && (
+        <span title={`${held.map((n) => NEUTRAL_NAMES[n]).join(', ')}: 1 point each`}>
+          {held.map((n) => NEUTRAL_ICON[n]).join('')}
+        </span>
+      )}
+      {hero && <span title="Hero of Catan: 1 point">🦸</span>}
     </>
   );
+}
+
+/** Where each neutral piece sits on its hex, as a share of the hex size. */
+const NEUTRAL_SPOT: Record<Neutral, [number, number]> = {
+  duke: [-0.28, -0.5],
+  scholar: [0, -0.56],
+  wizard: [0.28, -0.5],
+  inquisitor: [-0.2, 0.54],
+  envoy: [0.2, 0.54],
+};
+
+/** The neutral pieces on the board, for drawing. */
+export function neutralMarkers(state: GameState): {
+  id: string;
+  hex: HexId;
+  owner: number | null;
+  icon: string;
+  label: string;
+  dx: number;
+  dy: number;
+}[] {
+  const out = [];
+  for (const p of Object.values(state.pieces)) {
+    if (p.at.kind !== 'hex' || !(NEUTRALS as readonly string[]).includes(p.type)) continue;
+    const n = p.type as Neutral;
+    const [dx, dy] = NEUTRAL_SPOT[n];
+    let label = NEUTRAL_NAMES[n];
+    if (n === 'inquisitor' && typeof p.props.target === 'number')
+      label += ` (watching ${state.players[p.props.target]?.name ?? 'a player'})`;
+    out.push({ id: p.id, hex: p.at.id, owner: p.owner, icon: NEUTRAL_ICON[n], label, dx, dy });
+  }
+  return out;
+}
+
+/** Placing a neutral piece: tap its hex. */
+export const GWP_BOARD_PHASES = ['placeNeutral'];
+
+export function gwpPhasePrompt(state: GameState, who: string): string | null {
+  if (state.phase.id !== 'placeNeutral') return null;
+  const n = state.phase.piece as Neutral;
+  const where: Record<Neutral, string> = {
+    duke: 'any land hex',
+    scholar: 'a hex beside one of your cities',
+    wizard: 'a hex beside your settlement or city',
+    inquisitor: `a hex beside a settlement or city of ${state.players[state.phase.target as number]?.name ?? 'that player'}`,
+    envoy: 'a hex beside another player’s city',
+  };
+  return `${who}: put the ${NEUTRAL_NAMES[n]} on ${where[n]}.`;
 }
 
 /**

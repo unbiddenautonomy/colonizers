@@ -62,3 +62,32 @@ export const BUILDING_COMMODITY: Partial<Record<Building, string>> = {
 export const BEER = 'beer';
 
 export { commodityBank };
+
+/**
+ * The five new neutral pieces (the Merchant is the sixth), each placed by a
+ * progress card of the same name in its track's deck.
+ */
+export const NEUTRALS = ['duke', 'scholar', 'wizard', 'inquisitor', 'envoy'] as const;
+export type Neutral = (typeof NEUTRALS)[number];
+
+export const NEUTRAL_DECK: Record<Neutral, string> = {
+  duke: 'politics',
+  scholar: 'science',
+  wizard: 'magic',
+  inquisitor: 'religion',
+  envoy: 'wealth',
+};
+
+export const NEUTRAL_CARDS: Record<Neutral, number> = {
+  duke: 4,
+  scholar: 4,
+  wizard: 5,
+  inquisitor: 5,
+  envoy: 5,
+};
+
+/** These three chase each other off a hex they share. */
+export const RIVAL_NEUTRALS: readonly Neutral[] = ['scholar', 'wizard', 'inquisitor'];
+
+/** Hero of Catan: one per player, five in the box. */
+export const HERO_CARDS = 5;
