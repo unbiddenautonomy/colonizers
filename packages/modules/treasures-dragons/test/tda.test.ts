@@ -147,6 +147,16 @@ describe('Treasures, Dragons & Adventurers boards', () => {
           expect(Object.values(s.hexes).filter((h) => h.type === 'desert')).toHaveLength(3);
           expect(c.piecesOfType('robber')).toHaveLength(0);
           expect(c.piecesOfType('pirate')).toHaveLength(0);
+        } else if (scenario.id === 'greater-catan') {
+          expect(chests).toHaveLength(0);
+          expect(tdaData(c).supply).toHaveLength(players <= 3 ? 4 : players === 4 ? 5 : 6);
+          const home = new Set(s.settings.setupHexes as string[]);
+          const bare = Object.values(s.hexes).filter(
+            (h) => !home.has(h.id) && h.type !== 'sea' && h.type !== 'desert',
+          );
+          expect(bare.length).toBeGreaterThan(0);
+          for (const h of bare) expect(h.token).toBeUndefined();
+          expect(c.supplyLeft(0, 'city')).toBe(8);
         } else {
           expect(chests.length).toBeGreaterThanOrEqual(10);
           // Chests never touch the home island.
@@ -227,6 +237,74 @@ describe('Treasure chests', () => {
       expect(built.has('buildShip')).toBe(true);
     }, 60_000);
   }
+});
+
+describe('Greater Catan', () => {
+  /** A bare hex, an edge touching it, and the corner at the edge's other end. */
+  function bareSpot(s: GameState) {
+    const c = ctxOf(s);
+    const home = new Set(s.settings.setupHexes as string[]);
+    for (const h of Object.values(s.hexes)) {
+      if (home.has(h.id) || h.token !== undefined || h.type === 'sea' || h.type === 'desert')
+        continue;
+      for (const corner of c.geometry.hexCorners.get(h.id) ?? [])
+        for (const e of c.geometry.cornerEdges.get(corner) ?? []) {
+          if (!c.isSeaEdge(e)) continue;
+          const [a, b] = c.geometry.edgeCorners.get(e)!;
+          const far = a === corner ? b : a;
+          if (c.piecesAt({ kind: 'corner', id: far }).length) continue;
+          return { hex: h.id, edge: e, far };
+        }
+    }
+    throw new Error('no bare hex');
+  }
+
+  it('numbers a new hex from the pile, then from the home island', () => {
+    let s = finishSetup(game('greater-catan', 4, 'gc'));
+    const spot = bareSpot(s);
+    s = edit(s, (c) => {
+      c.state.phase = { id: 'main' };
+      for (const p of c.piecesOfType('pirate')) c.remove(p);
+      c.place('settlement', c.active, { kind: 'corner', id: spot.far });
+      c.grant(c.active, { lumber: 2, wool: 2 });
+    });
+    const seat = s.turn.player;
+    const pile = tdaData(ctxOf(s)).supply.length;
+    s = act(s, { type: 'buildShip', player: seat, edge: spot.edge });
+    expect(s.hexes[spot.hex]!.token).toBeGreaterThan(0);
+    expect(tdaData(ctxOf(s)).supply.length).toBeLessThan(pile);
+    expect(s.phase.id).toBe('main');
+
+    // With the pile empty, the builder moves a number over from home.
+    let t = finishSetup(game('greater-catan', 4, 'gc2'));
+    const spot2 = bareSpot(t);
+    t = edit(t, (c) => {
+      c.state.phase = { id: 'main' };
+      tdaData(c).supply = [];
+      for (const p of c.piecesOfType('pirate')) c.remove(p);
+      c.place('settlement', c.active, { kind: 'corner', id: spot2.far });
+      c.grant(c.active, { lumber: 1, wool: 1 });
+    });
+    const me = t.turn.player;
+    t = act(t, { type: 'buildShip', player: me, edge: spot2.edge });
+    expect(t.phase.id).toBe('moveToken');
+    const options = lib.legalActions(t, me).filter((a) => a.type === 'takeToken');
+    expect(options.length).toBeGreaterThan(0);
+    const from = options[0]!.hex as HexId;
+    const token = t.hexes[from]!.token;
+    const target = t.phase.hex as HexId;
+    t = act(t, options[0]!);
+    expect(t.hexes[target]!.token).toBe(token);
+    expect(t.hexes[from]!.token).toBeUndefined();
+    // A second bare hex on the same ship may ask again.
+    expect(['main', 'moveToken']).toContain(t.phase.id);
+  });
+
+  it('random play keeps numbering new islands', () => {
+    const { events, state } = simulate(finishSetup(game('greater-catan', 3, 'gsim')), 4, 4000);
+    expect(events.has('tokenPlaced')).toBe(true);
+    expect(state.phase.id).not.toBe('setup');
+  });
 });
 
 describe('Desert dragons', () => {

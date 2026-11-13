@@ -145,6 +145,10 @@ export function describe(e: GameEvent, names: string[]): string | null {
       const k = (e.hexes as string[]).length;
       return `🐉 ${k === 1 ? 'A dragon flies' : `${k} dragons fly`} out of the desert.`;
     }
+    case 'tokenPlaced':
+      return e.from === 'pile'
+        ? `🔢 A new hex takes number ${e.token as number} from the pile.`
+        : `🔢 ${n(e.player)} moved number ${e.token as number} from the home island to a new hex.`;
     case 'dragonSlain':
       return `⚔️ ${n(e.player)} drove out a dragon.`;
     // ---- Cities & Knights ----

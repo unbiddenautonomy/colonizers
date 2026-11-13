@@ -11,6 +11,7 @@ export function TdaPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const d = tdaData(ctx);
   if (scenarioOf(ctx) === 'desert-dragons')
     return <span title="Dragons driven out">🐉 {d.slain[seat] ?? 0}</span>;
+  if (scenarioOf(ctx) === 'greater-catan') return null;
   return <span title="Treasures opened">🧰 {d.found[seat] ?? 0}</span>;
 }
 
@@ -43,6 +44,27 @@ export function TdaStatus({ ctx }: { ctx: Ctx }) {
         >
           <span style={{ width: `${(100 * d.awake) / TOTAL_DRAGONS}%` }} />
         </div>
+      </div>
+    );
+  }
+  if (scenarioOf(ctx) === 'greater-catan') {
+    const bare = Object.values(ctx.state.hexes).filter(
+      (h) =>
+        !h.token &&
+        h.type !== 'desert' &&
+        ctx.registry.hexTypes[h.type]?.terrain === 'land' &&
+        (!!ctx.registry.hexTypes[h.type]?.produces || h.type === 'gold'),
+    ).length;
+    return (
+      <div className="tda-status" aria-label="Numbers">
+        <p>
+          🔢 <strong>{d.supply.length}</strong> number{d.supply.length === 1 ? '' : 's'} left in the
+          pile
+          <small className="muted">
+            {' '}
+            · {bare} new hex{bare === 1 ? '' : 'es'} still without a number
+          </small>
+        </p>
       </div>
     );
   }

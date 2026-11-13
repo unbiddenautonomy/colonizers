@@ -300,7 +300,7 @@ export class Ctx {
     const def = this.registry.pieceTypes[type];
     const limit = def?.perPlayer?.(this.playerCount);
     if (limit === undefined) return Infinity;
-    return limit - this.piecesOf(seat, type).length;
+    return this.reduce('supply', seat, type, limit) - this.piecesOf(seat, type).length;
   }
 
   /** Places a new piece. */

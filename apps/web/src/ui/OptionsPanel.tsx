@@ -199,6 +199,7 @@ export const SPECIAL_ICON: Record<string, string> = {
   traders: '🛒',
   'treasure-islands': '🧰',
   'into-the-unknown': '🧭',
+  'greater-catan': '🔢',
   'desert-dragons': '🐉',
 };
 
