@@ -156,6 +156,7 @@ export const RESOURCE_COLOR: Record<string, string> = {
   coin: '#f0cf5e',
   crystal: '#c7b5ef',
   bread: '#e3b07a',
+  beer: '#d99a2b',
 };
 
 /** Improvement track colours (science, trade, politics). */

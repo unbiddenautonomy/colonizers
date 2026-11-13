@@ -22,6 +22,7 @@ import { TRACK_COLOR } from '../theme/clean.ts';
 import { CardPicker, clean, CostLine, handCards, ResourceCard, total } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
 import { gwpOptionLabel } from './GreedWealthPower.tsx';
+import { AnathemaDialog, churchOptionLabel } from './Church.tsx';
 
 export type CkMode = 'knight' | 'activate' | 'promote' | 'knightAct' | 'wall';
 
@@ -71,13 +72,17 @@ export function ckPrompt(state: GameState, who: string, actor: number | null): s
       return owed
         ? `${who}: wild gate! Pick a progress deck your improvements open.`
         : 'Wild gate: waiting for a player to pick a progress deck.';
+    case 'jokerPick':
+      return owed
+        ? `${who}: joker! Pick the gate it opens.`
+        : 'Joker: waiting for the roller to pick a gate.';
     case 'treasureProgress':
       return owed
         ? `${who}: your treasure is a progress card. Pick a deck to draw from.`
         : 'Waiting for a treasure finder to pick a progress card.';
     case 'aqueduct':
       return owed
-        ? `${who}: your aqueduct pays out. Pick any resource${state.modules.includes('greed-wealth-power') ? ' (or a Beer, with Religion level 3)' : ''}.`
+        ? `${who}: your aqueduct pays out. Pick any resource${state.modules.includes('greed-wealth-power') || state.modules.includes('church') ? ' (or a Beer, with Religion level 3)' : ''}.`
         : 'Waiting for players with an aqueduct to pick a resource.';
     case 'placeMetropolis':
       return owed ? `${who}: pick the city for your new metropolis.` : 'Placing a metropolis…';
@@ -140,6 +145,8 @@ export function ckPrompt(state: GameState, who: string, actor: number | null): s
 
 /** One line for an action in a list of choices. */
 export function optionLabel(a: Action, names: string[], state?: GameState): string {
+  const church = churchOptionLabel(a, names, state);
+  if (church !== null) return church;
   const gwp = gwpOptionLabel(a, names, state);
   if (gwp !== null) return gwp;
   const n = (s: unknown) => (typeof s === 'number' ? (names[s] ?? `Player ${s + 1}`) : '');
@@ -340,7 +347,18 @@ export function ProgressHand({
           onClose={() => setPicking(null)}
         />
       )}
-      {picking && picking !== 'alchemist' && (
+      {picking === 'anathema' && (
+        <AnathemaDialog
+          options={options('anathema')}
+          names={names}
+          act={(a) => {
+            act(a);
+            setPicking(null);
+          }}
+          onClose={() => setPicking(null)}
+        />
+      )}
+      {picking && picking !== 'alchemist' && picking !== 'anathema' && (
         <Modal title={nameOf(picking).name} onClose={() => setPicking(null)}>
           <div className="row">
             {options(picking).map((a, i) => (
@@ -438,6 +456,12 @@ export function CkChoices({
         'Defenders tie',
         'Draw one progress card from a deck of your choice.',
       );
+    case 'jokerPick':
+      return list(
+        ['pickJoker'],
+        'Joker',
+        'The event die shows the joker. Pick the gate it opens: everyone whose improvements reach the red die draws from that deck.',
+      );
     case 'wildPick':
       return list(
         ['pickWildCard'],
@@ -454,7 +478,7 @@ export function CkChoices({
       return list(
         ['aqueductPick'],
         'Aqueduct',
-        state.modules.includes('greed-wealth-power')
+        state.modules.includes('greed-wealth-power') || state.modules.includes('church')
           ? 'You got nothing this roll. Take any one resource, or a Beer if you have Religion level 3.'
           : 'You got nothing this roll. Take any one resource.',
       );
