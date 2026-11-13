@@ -1812,4 +1812,127 @@ button.danger {
 
 .tda-meter.canal span {
   background: #2f74b5;
+
+/* Wagon cards (Traders scenario): parchment cards in a leather frame. */
+.wagon-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 6px 2px 12px;
+  scroll-snap-type: x mandatory;
+}
+
+.wagon-card {
+  flex: 0 0 152px;
+  min-width: 0;
+  margin: 0;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px;
+  border-radius: 12px;
+  background: #f7ecd5;
+  border: 4px solid #6b3f22;
+  box-shadow:
+    inset 0 0 0 1px #c9a46b,
+    0 2px 6px rgba(0, 0, 0, 0.25);
+  color: #3b2616;
+  font-size: 0.85rem;
+}
+
+.wagon-card.done {
+  opacity: 0.55;
+}
+
+.wagon-card.later {
+  opacity: 0.8;
+}
+
+.wagon-card.current {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.wagon-card.next {
+  border-style: dashed;
+}
+
+.wc-head {
+  display: flex;
+  align-items: center;
+  min-height: 2.4em;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.wc-num {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #6b3f22;
+  color: #f7ecd5;
+  font-size: 0.9rem;
+}
+
+.wc-name {
+  flex: 1;
+  line-height: 1.15;
+}
+
+.wc-tag {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.wc-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  border-radius: 6px;
+  border: 1px solid #6b3f22;
+}
+
+.wc-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.wc-stats b {
+  font-size: 1rem;
+}
+
+.wc-vp {
+  font-weight: 700;
+  color: #9a5b00;
+}
+
+.wc-cost {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  border-top: 1px dashed #c9a46b;
+  padding-top: 5px;
+}
+
+.wagon-card .muted {
+  color: #7d6650;
+}
+
+.wagon-upgrade {
+  align-items: center;
+  gap: 10px;
+}
+
+button.ready {
+  border-color: var(--accent);
+  font-weight: 600;
 }

@@ -24,6 +24,7 @@ import {
 import { harbormasterOf, type EventId } from '@colonizers/module-variants';
 import { RESOURCE_ICON } from '../theme/clean.ts';
 import { Modal } from '../ui/Modal.tsx';
+import { WagonCardRow, WAGON_NAMES } from '../ui/WagonCards.tsx';
 
 /** Fish, the old boot, gold and the gold awards, for one player's row. */
 export function TbPlayerStats({
@@ -85,7 +86,11 @@ export function TbPlayerStats({
     return (
       <>
         <span title="Gold">🪙 {goldOf(ctx, seat)}</span>
-        <span title={`Wagon level ${w.level} of ${WAGON_LEVELS.length}`}>🛒 {w.level}</span>
+        <span
+          title={`${WAGON_NAMES[w.level - 1]}: wagon level ${w.level} of ${WAGON_LEVELS.length}`}
+        >
+          🛒 {w.level}
+        </span>
         <span title="Deliveries: a point each">📦 {w.delivered}</span>
         {w.cargo && (
           <span title={`Carrying ${w.cargo} to the ${COMMODITY_TO[w.cargo]}`}>
@@ -147,7 +152,7 @@ export function TbActions({
   knightMode: boolean;
   toggleKnight: () => void;
 }) {
-  const [open, setOpen] = useState<null | 'fish' | 'gold' | 'boot'>(null);
+  const [open, setOpen] = useState<null | 'fish' | 'gold' | 'boot' | 'wagon'>(null);
   const scenario = scenarioOf(ctx);
   const of = (type: string) => legal.filter((a) => a.type === type);
   const close = () => setOpen(null);
@@ -238,15 +243,49 @@ export function TbActions({
         >
           +2 moves <small>1{RESOURCE_ICON.grain}</small>
         </button>
-        {next && (
-          <button
-            type="button"
-            disabled={!of('upgradeWagon').length}
-            onClick={() => act({ type: 'upgradeWagon', player: actor })}
-            title={`Level ${w.level + 1}: ${next.mp} moves, ${next.gold} gold a delivery`}
-          >
-            ⬆ Wagon <small>{costText(next.cost)}</small>
-          </button>
+        <button
+          type="button"
+          className={of('upgradeWagon').length ? 'ready' : ''}
+          onClick={() => setOpen('wagon')}
+          title={
+            next
+              ? `Level ${w.level + 1}: ${next.mp} moves, ${next.gold} gold a delivery`
+              : 'Your wagon cards'
+          }
+        >
+          {next ? (
+            <>
+              ⬆ Wagon <small>{costText(next.cost)}</small>
+            </>
+          ) : (
+            <>🛒 Wagon cards</>
+          )}
+        </button>
+        {open === 'wagon' && (
+          <Modal title="Wagon cards" onClose={close} wide>
+            <WagonCardRow level={w.level} />
+            {next ? (
+              <div className="row wrap wagon-upgrade">
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={!of('upgradeWagon').length}
+                  onClick={() => run({ type: 'upgradeWagon', player: actor })}
+                >
+                  ⬆ Upgrade to {WAGON_NAMES[w.level]}
+                </button>
+                {!of('upgradeWagon').length && (
+                  <small className="muted">
+                    {ctx.state.turn.player === actor
+                      ? 'You need the cards shown on it, after rolling.'
+                      : 'Upgrade on your own turn.'}
+                  </small>
+                )}
+              </div>
+            ) : (
+              <p>Your wagon is fully upgraded, and the caravan is worth a point.</p>
+            )}
+          </Modal>
         )}
         <button type="button" disabled={!buys.length} onClick={() => setOpen('gold')}>
           🪙 Buy with gold
