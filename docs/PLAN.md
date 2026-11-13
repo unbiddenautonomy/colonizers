@@ -163,6 +163,10 @@ After the two main ones, in this order (we can reorder).
 - *Traders & Barbarians* (main scenario): wagons carry goods between castle, quarry and glassworks for VP.
 - Variants: event card deck instead of dice (also a good fairness option on its own), Harbormaster bonus card, 2-player rules.
 
+**Treasures, Dragons & Adventurers** (official). Six Seafarers scenarios, built in two parts:
+- Part 1: *Treasure Islands* and *Into the Unknown* (treasure chests on corners, treasures in empty fog hexes) and *Desert Dragons* (dragons gather in three deserts, then spread to block hexes, roads and towns; Knight cards drive them out). Our own generated boards and wording.
+- Part 2: *Greater Catan* (number tokens move to new islands), *The Great Canal* and *Enchanted Land* (both with Cities & Knights).
+
 **Explorers & Pirates** (official). Missions on an unexplored sea:
 - Ships carry settlers and crews; harbor settlements are needed to build ships.
 - Fog-of-war map revealed by exploring.

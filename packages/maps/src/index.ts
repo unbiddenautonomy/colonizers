@@ -43,6 +43,7 @@ export {
   SEA_SCENARIOS,
   seaScenarioById,
   generateSeaBoard,
+  buildSeaBoard,
   checkSeaBoard,
   type SeaBoard,
   type SeaBoardInfo,
@@ -59,3 +60,9 @@ export {
   type SpecialMap,
 } from './special.ts';
 export { TB_SCENARIOS, tbScenarioById, generateTbBoard, type TbScenarioInfo } from './traders.ts';
+export {
+  TDA_SCENARIOS,
+  tdaScenarioById,
+  generateTdaBoard,
+  type TdaScenarioInfo,
+} from './treasures.ts';

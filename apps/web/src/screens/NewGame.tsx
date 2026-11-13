@@ -125,6 +125,7 @@ export function NewGame({
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
   const bonus = vpBonus(ck, specialId);
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
+  const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const special = useMemo(
     () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
     [specialId, seed, count],
@@ -400,8 +401,8 @@ export function NewGame({
         <div className="expansions">
           <button
             type="button"
-            className={`expansion ${sea ? 'on' : ''}`}
-            aria-pressed={!!sea}
+            className={`expansion ${sea || isTreasures ? 'on' : ''}`}
+            aria-pressed={!!sea || isTreasures}
             disabled={!scenarios.length}
             onClick={() =>
               sea
@@ -422,7 +423,9 @@ export function NewGame({
             <strong>⚔️ Cities &amp; Knights</strong>
             <small>
               {noCk
-                ? 'Not with Traders & Barbarians scenarios, which use the base game.'
+                ? isTreasures
+                  ? 'Not with these Treasures, Dragons & Adventurers scenarios yet.'
+                  : 'Not with Traders & Barbarians scenarios, which use the base game.'
                 : 'Knights, barbarians, commodities and city improvements. Works with every map.'}
             </small>
           </button>
@@ -438,6 +441,23 @@ export function NewGame({
           >
             <strong>🛒 Traders &amp; Barbarians</strong>
             <small>Five scenarios, each adding one idea. Pick one under Map above.</small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${isTreasures ? 'on' : ''}`}
+            aria-pressed={isTreasures}
+            disabled={count < 3 || count > 6}
+            onClick={() =>
+              isTreasures
+                ? setChoice({ kind: 'random', mode: 'classic' })
+                : setChoice({ kind: 'special', id: 'treasure-islands' })
+            }
+          >
+            <strong>🧰 Treasures, Dragons &amp; Adventurers</strong>
+            <small>
+              Treasure chests, fog and dragons on Seafarers maps, for 3 to 6 players. Pick one under
+              Map above.
+            </small>
           </button>
         </div>
         <h3 className="subhead">Winning</h3>

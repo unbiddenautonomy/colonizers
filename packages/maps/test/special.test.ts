@@ -10,9 +10,11 @@ describe('Special maps', () => {
   });
 
   for (const spec of SPECIAL_MAPS) {
-    it(`${spec.name} builds for every player count, 200 seeds each`, () => {
+    // Seafarers boards take longer to build, so expansion scenarios try fewer seeds.
+    const seeds = spec.group === 'treasures' ? 40 : 200;
+    it(`${spec.name} builds for every player count, ${seeds} seeds each`, () => {
       for (let players = spec.players.min; players <= spec.players.max; players++) {
-        for (let i = 0; i < 200; i++) {
+        for (let i = 0; i < seeds; i++) {
           const b = generateSpecialBoard({ seed: `s${i}`, players, map: spec.id });
           expect(b.modules).toEqual(['base', ...spec.modules]);
           const land = b.map.hexes.filter((h) => h.type !== 'sea' && h.type !== 'lake');
@@ -35,6 +37,6 @@ describe('Special maps', () => {
           generateSpecialBoard({ seed: 'x', players, map: spec.id }),
         );
       }
-    });
+    }, 60_000);
   }
 });

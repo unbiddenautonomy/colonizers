@@ -5,6 +5,7 @@ import { citiesKnightsModule } from '@colonizers/module-cities-knights';
 import { variantsModule } from '@colonizers/module-variants';
 import { specialMapsModule } from '@colonizers/module-special-maps';
 import { tradersBarbariansModule } from '@colonizers/module-traders-barbarians';
+import { treasuresDragonsModule } from '@colonizers/module-treasures-dragons';
 import {
   generateBoard,
   generateSeaBoard,
@@ -21,6 +22,7 @@ export const library = new ModuleLibrary([
   seafarersModule,
   specialMapsModule,
   tradersBarbariansModule,
+  treasuresDragonsModule,
   variantsModule,
   citiesKnightsModule,
 ]);

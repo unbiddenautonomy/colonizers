@@ -1,6 +1,7 @@
 import type { GameEvent } from '@colonizers/engine';
 import { nameOf } from '@colonizers/rulebook';
 import { achievementById } from '@colonizers/stats';
+import { TREASURE_TEXT, type TreasureKind } from '@colonizers/module-treasures-dragons';
 
 const TRACK: Record<string, string> = {
   science: 'science (green)',
@@ -133,6 +134,19 @@ export function describe(e: GameEvent, names: string[]): string | null {
     }
     case 'gameOver':
       return `🏆 ${n(e.winner)} wins!`;
+    // ---- Treasures, Dragons & Adventurers ----
+    case 'treasure':
+      return `🧰 ${n(e.player)} ${e.from === 'fog' ? 'found a treasure in the fog' : 'opened a treasure chest'}: ${TREASURE_TEXT[e.kind as TreasureKind] ?? 'a treasure'}.`;
+    case 'dragonsWake':
+      return `🐉 The dragons stir: ${e.awake as number} of ${e.total as number} awake.`;
+    case 'dragonsAttack':
+      return '🐉 All the dragons are awake. They attack!';
+    case 'dragonsSpread': {
+      const k = (e.hexes as string[]).length;
+      return `🐉 ${k === 1 ? 'A dragon flies' : `${k} dragons fly`} out of the desert.`;
+    }
+    case 'dragonSlain':
+      return `⚔️ ${n(e.player)} drove out a dragon.`;
     // ---- Cities & Knights ----
     case 'eventDie':
       return e.face === 'ship'
