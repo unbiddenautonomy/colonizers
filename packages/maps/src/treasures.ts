@@ -15,10 +15,13 @@ import type { SpecialBoard } from './special.ts';
  * home island with three deserts where dragons gather.
  */
 export interface TdaScenarioInfo {
-  id: 'treasure-islands' | 'into-the-unknown' | 'greater-catan' | 'desert-dragons';
+  id:
+    'treasure-islands' | 'into-the-unknown' | 'greater-catan' | 'desert-dragons' | 'enchanted-land';
   name: string;
   description: string;
   players: { min: number; max: number };
+  /** Needs Cities & Knights. */
+  citiesKnights?: boolean;
 }
 
 export const TDA_SCENARIOS: TdaScenarioInfo[] = [
@@ -49,6 +52,14 @@ export const TDA_SCENARIOS: TdaScenarioInfo[] = [
     description:
       'Every new building wakes more dragons in the three deserts. Once they are all awake they spread across the island, blocking hexes, roads and towns. Knight cards drive them out; the island across the water is safe.',
     players: { min: 3, max: 6 },
+  },
+  {
+    id: 'enchanted-land',
+    name: 'Enchanted Land',
+    description:
+      'With Cities & Knights. Dragons guard a strange island with no roads. Ship one knight across, roam the land and fight the dragons: some fall to any knight, some only to the mighty. Six dragons win the game.',
+    players: { min: 3, max: 6 },
+    citiesKnights: true,
   },
 ];
 
@@ -82,6 +93,17 @@ const SEA: Record<TdaScenarioInfo['id'], Omit<SeaScenario, 'id' | 'name' | 'desc
     fog: false,
     homeDeserts: 1,
   },
+  'enchanted-land': {
+    layout: 'twoIslands',
+    players: { min: 3, max: 6 },
+    vpTarget: () => 18,
+    islandBonus: 0,
+    fog: false,
+    homeDeserts: 1,
+    outerDeserts: 4,
+    outerSizes: (n) => [n > 4 ? 18 : 15],
+    gold: 2,
+  },
   'desert-dragons': {
     layout: 'twoIslands',
     players: { min: 3, max: 6 },
@@ -112,6 +134,18 @@ function neighbours(id: HexId): HexId[] {
   ];
 }
 
+/** Enough inland corners on the Enchanted Land for at least 8 dragons. */
+const MIN_INLAND = 13;
+
+function inlandCorners(hexes: { q: number; r: number }[], island: HexId[]): CornerId[] {
+  const isle = new Set(island);
+  const g = buildGeometry(hexes.map((h) => hexId(h.q, h.r)));
+  return g.corners.filter((c) => {
+    const hs = g.cornerHexes.get(c) ?? [];
+    return hs.length === 3 && hs.every((h) => isle.has(h));
+  });
+}
+
 export function generateTdaBoard(opts: {
   seed: string;
   players: number;
@@ -120,10 +154,17 @@ export function generateTdaBoard(opts: {
   const spec = tdaScenarioById(opts.scenario);
   if (!spec)
     throw new Error(`Unknown Treasures, Dragons & Adventurers scenario "${opts.scenario}"`);
-  const sea = buildSeaBoard(
-    { id: `tda-${spec.id}`, name: spec.name, description: spec.description, ...SEA[spec.id] },
-    { seed: opts.seed, players: opts.players, scenario: spec.id },
-  );
+  const build = (seed: string) =>
+    buildSeaBoard(
+      { id: `tda-${spec.id}`, name: spec.name, description: spec.description, ...SEA[spec.id] },
+      { seed, players: opts.players, scenario: spec.id },
+    );
+  let sea = build(opts.seed);
+  // The Enchanted Land needs a round far island, with room inland for dragons and knights.
+  for (let tries = 1; spec.id === 'enchanted-land' && tries < 30; tries++) {
+    if (inlandCorners(sea.map.hexes, sea.info.islands[1] ?? []).length >= MIN_INLAND) break;
+    sea = build(`${opts.seed}~${tries}`);
+  }
   const map = sea.map;
   const rng = Rng.fromSeed(`tda:${spec.id}:${opts.players}:${opts.seed}`);
   const [onBoard, stack] = treasureCounts(spec.id, opts.players);
@@ -173,8 +214,31 @@ export function generateTdaBoard(opts: {
     tokenSupply = rng.shuffle(pool).slice(0, size);
   }
 
-  // Into the Unknown and Desert Dragons have no pirate.
-  if (spec.id === 'into-the-unknown' || spec.id === 'desert-dragons')
+  // Enchanted Land: the far island is marked, and dragons wait on its inland corners.
+  if (spec.id === 'enchanted-land') {
+    const isle = new Set(sea.info.islands[1] ?? []);
+    for (const h of map.hexes)
+      if (isle.has(hexId(h.q, h.r))) h.props = { ...h.props, enchanted: true, noInventor: true };
+    const inland = rng.shuffle(inlandCorners(map.hexes, [...isle]));
+    // Leave about a third of the inland corners free for knights to stand on.
+    const count = Math.min(19, Math.floor(inland.length * 0.65));
+    const tiers = rng.shuffle([
+      ...Array<number>(9).fill(1),
+      ...Array<number>(6).fill(2),
+      ...Array<number>(4).fill(3),
+    ]);
+    map.pieces = [
+      ...(map.pieces ?? []),
+      ...inland.slice(0, count).map((id, i) => ({
+        type: 'dragon',
+        at: { kind: 'corner' as const, id },
+        props: { tier: tiers[i] ?? 1 },
+      })),
+    ];
+  }
+
+  // Into the Unknown, Desert Dragons and the Enchanted Land have no pirate.
+  if (spec.id !== 'treasure-islands' && spec.id !== 'greater-catan')
     map.pieces = (map.pieces ?? []).filter((p) => p.type !== 'pirate');
 
   // The host's points target applies; the module adds the scenario's extra points.

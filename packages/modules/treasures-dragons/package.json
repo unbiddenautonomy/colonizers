@@ -14,6 +14,7 @@
   "dependencies": {
     "@colonizers/engine": "workspace:*",
     "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-cities-knights": "workspace:*",
     "@colonizers/module-seafarers": "workspace:*"
   },
   "devDependencies": {

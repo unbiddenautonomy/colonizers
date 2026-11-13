@@ -149,6 +149,16 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return e.from === 'pile'
         ? `🔢 A new hex takes number ${e.token as number} from the pile.`
         : `🔢 ${n(e.player)} moved number ${e.token as number} from the home island to a new hex.`;
+    case 'knightCrossed':
+      return `⛵ ${n(e.player)} ferried a knight to the enchanted land.`;
+    case 'knightRoamed':
+      return `${n(e.player)} moved a knight across the enchanted land.`;
+    case 'knightPushed':
+      return `${n(e.player)} pushed ${n(e.victim)}'s knight aside.`;
+    case 'dragonFight':
+      return e.won
+        ? `⚔️ ${n(e.player)} beat a dragon!`
+        : `🐉 The dragon was too strong for ${n(e.player)}'s knight.`;
     case 'dragonSlain':
       return `⚔️ ${n(e.player)} drove out a dragon.`;
     // ---- Cities & Knights ----

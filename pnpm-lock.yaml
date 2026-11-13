@@ -317,6 +317,9 @@ importers:
       '@colonizers/module-base':
         specifier: workspace:*
         version: link:../base
+      '@colonizers/module-cities-knights':
+        specifier: workspace:*
+        version: link:../cities-knights
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../seafarers

@@ -116,7 +116,8 @@ export function NewGame({
       : choice;
   const specialId = effective.kind === 'special' ? effective.id : null;
   const noCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.noCitiesKnights === true;
-  const ck = ckWanted && !noCk;
+  const needsCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.needsCitiesKnights === true;
+  const ck = (ckWanted || needsCk) && !noCk;
   const extraVp = ck ? 3 : 0;
   const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
@@ -417,16 +418,18 @@ export function NewGame({
             type="button"
             className={`expansion ${ck ? 'on' : ''}`}
             aria-pressed={ck}
-            disabled={noCk}
+            disabled={noCk || needsCk}
             onClick={() => setCk(!ck)}
           >
             <strong>⚔️ Cities &amp; Knights</strong>
             <small>
-              {noCk
-                ? isTreasures
-                  ? 'Not with these Treasures, Dragons & Adventurers scenarios yet.'
-                  : 'Not with Traders & Barbarians scenarios, which use the base game.'
-                : 'Knights, barbarians, commodities and city improvements. Works with every map.'}
+              {needsCk
+                ? 'This scenario is played with Cities & Knights.'
+                : noCk
+                  ? isTreasures
+                    ? 'Not with these Treasures, Dragons & Adventurers scenarios yet.'
+                    : 'Not with Traders & Barbarians scenarios, which use the base game.'
+                  : 'Knights, barbarians, commodities and city improvements. Works with every map.'}
             </small>
           </button>
           <button

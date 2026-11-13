@@ -4,6 +4,7 @@ import {
   tdaData,
   TOTAL_DRAGONS,
   dragonsAttacking,
+  DRAGONS_TO_WIN,
 } from '@colonizers/module-treasures-dragons';
 
 /** Treasures opened and dragons driven out, for one player's row. */
@@ -11,6 +12,12 @@ export function TdaPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const d = tdaData(ctx);
   if (scenarioOf(ctx) === 'desert-dragons')
     return <span title="Dragons driven out">🐉 {d.slain[seat] ?? 0}</span>;
+  if (scenarioOf(ctx) === 'enchanted-land')
+    return (
+      <span title={`Dragons beaten (${DRAGONS_TO_WIN} win the game)`}>
+        🐉 {d.slain[seat] ?? 0}/{DRAGONS_TO_WIN}
+      </span>
+    );
   if (scenarioOf(ctx) === 'greater-catan') return null;
   return <span title="Treasures opened">🧰 {d.found[seat] ?? 0}</span>;
 }
@@ -44,6 +51,20 @@ export function TdaStatus({ ctx }: { ctx: Ctx }) {
         >
           <span style={{ width: `${(100 * d.awake) / TOTAL_DRAGONS}%` }} />
         </div>
+      </div>
+    );
+  }
+  if (scenarioOf(ctx) === 'enchanted-land') {
+    const left = Object.values(ctx.state.pieces).filter((p) => p.type === 'dragon').length;
+    return (
+      <div className="tda-status" aria-label="Dragons">
+        <p>
+          🐉 <strong>{left}</strong> dragon{left === 1 ? '' : 's'} on the enchanted land
+          <small className="muted">
+            {' '}
+            · beat {DRAGONS_TO_WIN} to win. Dots under a dragon: the knight strength it takes.
+          </small>
+        </p>
       </div>
     );
   }

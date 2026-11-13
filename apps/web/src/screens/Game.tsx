@@ -189,7 +189,17 @@ function targetsFor(
   if (ph === 'main' && mode === 'knightAct') {
     // First pick a knight, then where it goes (or the robber to chase).
     for (const a of legal) {
-      if (!['moveKnight', 'displaceKnight', 'chaseRobber'].includes(a.type)) continue;
+      if (
+        ![
+          'moveKnight',
+          'displaceKnight',
+          'chaseRobber',
+          'crossKnight',
+          'roamKnight',
+          'fightDragon',
+        ].includes(a.type)
+      )
+        continue;
       if (selectedShip === null) {
         const c = knightCorner(a.knight);
         if (c) t.corners.set(c, { type: 'selectKnight', player: a.player, knight: a.knight });
@@ -197,6 +207,10 @@ function targetsFor(
         if (a.type === 'chaseRobber') {
           const r = Object.values(state.pieces).find((p) => p.type === 'robber');
           if (r?.at.kind === 'hex') t.hexes.set(r.at.id, a);
+        } else if (a.type === 'fightDragon') {
+          // Tap the knight's own corner again to fight the dragon there.
+          const c = knightCorner(a.knight);
+          if (c) t.corners.set(c, a);
         } else t.corners.set(a.to as CornerId, a);
       }
     }

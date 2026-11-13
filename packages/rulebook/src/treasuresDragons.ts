@@ -23,7 +23,9 @@ export const treasuresDragonsRules: RulebookModule = {
 - **Greater Catan**: the new islands have no numbers until someone reaches them. A long game: you need 8 more points than your target (18 with the usual 10), and everyone has 4 extra cities.
 - **Desert Dragons**: dragons gather in three deserts and then spread across your island. You need 3 more points than your target (13 with the usual 10).
 
-Two more scenarios from this box, the Great Canal and the Enchanted Land, need Cities & Knights and are on the way.`,
+- **Enchanted Land** (with Cities & Knights): ship one knight to a dragon-haunted island and beat 6 dragons, or reach the target (18 with the usual 10).
+
+One more scenario from this box, the Great Canal, is on the way.`,
     },
     {
       id: 'treasures',
@@ -72,6 +74,35 @@ When you build a road or ship that touches a land hex with no number, it gets on
 If no number keeps all three rules, the first rule is dropped, then the second, then the third.
 
 The home island slowly empties as the game goes on, so spread out early. You need **18 points** with the usual target.
+
+This is our own version of the scenario, on our own generated boards.`,
+    },
+    {
+      id: 'enchanted-land',
+      module: 'treasures-dragons',
+      section: 'rules',
+      title: 'Enchanted Land',
+      summary: 'Ship a knight to the enchanted land and fight its dragons.',
+      tags: ['enchanted', 'dragon', 'knight', 'cross', 'fight', 'roam'],
+      body: `Played with **Cities & Knights**. A strange island (tinted purple) lies across the water. Dragons 🐉 sit on its inland corners. The dots under a dragon show the knight it takes: **one dot**, any knight; **two**, a strong or mighty knight; **three**, only a mighty knight.
+
+**Building there**
+
+- Settlements only on its **coast**, and they can't become cities.
+- **No roads** at all on the enchanted land, and no new knights. Ships are fine.
+
+**Crossing**
+
+Once in the game, you may send **one active knight** across. Its corner must be joined by your roads and ships to a coastal corner of the enchanted land. Tap **Use knight**, the knight, then the glowing coastal corner. (If your own settlement stands there, your knight steps ashore beside it.) The knight never comes back.
+
+**On the enchanted land**
+
+- An **active** knight moves up to **3 corners** along any paths, whoever built them, and is then switched off. It can't stop on the coast.
+- It can push away a **weaker** rival knight; that knight is moved to a free corner elsewhere on the island.
+- To fight, stop on a dragon's corner, **activate** the knight (1 grain), and on a later turn tap the knight again. If it's strong enough you take the dragon: **1 point**. If not, the knight just switches off; promote it or try another dragon.
+- Beat your **6th dragon** on your turn and you win at once.
+
+Knights on the enchanted land don't defend against the barbarians and aren't switched off by an attack. The Inventor can't move its numbers, and Deserter and Intrigue can't touch knights there.
 
 This is our own version of the scenario, on our own generated boards.`,
     },

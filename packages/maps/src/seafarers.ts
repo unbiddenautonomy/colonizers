@@ -32,6 +32,10 @@ export interface SeaScenario {
   homeDeserts?: number;
   /** Deserts among the outer islands. */
   outerDeserts?: number;
+  /** Outer island sizes, instead of the layout's own. */
+  outerSizes?: (players: number) => number[];
+  /** Gold fields, instead of the layout's own count. */
+  gold?: number;
 }
 
 export const SEA_SCENARIOS: SeaScenario[] = [
@@ -506,6 +510,8 @@ export function buildSeaBoard(scenario: SeaScenario, opts: SeaBoardOptions): Sea
 
   for (let attempt = 1; attempt <= 300; attempt++) {
     const plan = planFor(scenario.layout, opts.players, rng);
+    if (scenario.outerSizes) plan.outer = scenario.outerSizes(opts.players);
+    if (scenario.gold !== undefined) plan.gold = scenario.gold;
     const layout = layOut(rng, scenario.layout, plan);
     if (!layout) continue;
     const t = assignTerrain(rng, layout, plan, scenario);

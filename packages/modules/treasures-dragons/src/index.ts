@@ -13,6 +13,15 @@ import {
 } from '@colonizers/engine';
 import { routesAt, stealFrom } from '@colonizers/module-base';
 import { freeSpots, startGoldPick } from '@colonizers/module-seafarers';
+import {
+  canAct,
+  isAway,
+  isKnight,
+  knightAt,
+  knightLevel,
+  knightsOf,
+  reachable,
+} from '@colonizers/module-cities-knights';
 
 /**
  * Treasures, Dragons & Adventurers (part 1), played on Seafarers boards.
@@ -30,13 +39,14 @@ import { freeSpots, startGoldPick } from '@colonizers/module-seafarers';
 export const MODULE_ID = 'treasures-dragons';
 
 export type TdaScenario =
-  'treasure-islands' | 'into-the-unknown' | 'greater-catan' | 'desert-dragons';
+  'treasure-islands' | 'into-the-unknown' | 'greater-catan' | 'desert-dragons' | 'enchanted-land';
 
 /** Points each scenario adds to the chosen target. */
 export const TDA_VP_BONUS: Record<TdaScenario, number> = {
   'treasure-islands': 4,
   'into-the-unknown': 2,
   'greater-catan': 8,
+  'enchanted-land': 5,
   'desert-dragons': 3,
 };
 
@@ -90,6 +100,8 @@ export interface TdaData extends Record<string, unknown> {
   supply: number[];
   /** Bare hexes reached this action, waiting for a number. */
   bare: { seat: number; hex: HexId }[];
+  /** Enchanted Land: players who have sent their one knight across. */
+  crossed: Record<number, boolean>;
 }
 
 export function tdaData(ctx: Ctx): TdaData {
@@ -103,6 +115,7 @@ export function tdaData(ctx: Ctx): TdaData {
   d.slain ??= {};
   d.supply ??= [];
   d.bare ??= [];
+  d.crossed ??= {};
   return d;
 }
 
@@ -480,28 +493,254 @@ function stealFromAnyone(ctx: Ctx): void {
   ctx.setPhase({ id: 'steal', candidates, returnTo });
 }
 
+// ---- Enchanted Land (with Cities & Knights) ----
+
+const enchanted = (ctx: Ctx) => scenarioOf(ctx) === 'enchanted-land';
+export const DRAGONS_TO_WIN = 6;
+export const ROAM_STEPS = 3;
+
+export function isEnchantedHex(ctx: Ctx, h: HexId): boolean {
+  return ctx.state.hexes[h]?.props?.enchanted === true;
+}
+
+export function enchantedCorner(ctx: Ctx, c: CornerId): boolean {
+  return (ctx.geometry.cornerHexes.get(c) ?? []).some((h) => isEnchantedHex(ctx, h));
+}
+
+function coastalCorner(ctx: Ctx, c: CornerId): boolean {
+  const hs = ctx.geometry.cornerHexes.get(c) ?? [];
+  return hs.length < 3 || hs.some((h) => ctx.isSea(h));
+}
+
+export function dragonOn(ctx: Ctx, c: CornerId): Piece | undefined {
+  return ctx.piecesAt({ kind: 'corner', id: c }).find((p) => p.type === 'dragon');
+}
+
+const free = (ctx: Ctx, c: CornerId) => ctx.piecesAt({ kind: 'corner', id: c }).length === 0;
+const cornerOfPiece = (p: Piece) => (p.at as { id: CornerId }).id;
+
+/** Coastal corners of the enchanted land this knight could sail to (once per player). */
+export function crossTargets(ctx: Ctx, k: Piece): CornerId[] {
+  if (!enchanted(ctx) || k.owner === null || !isKnight(k) || isAway(k) || !canAct(ctx, k))
+    return [];
+  if (tdaData(ctx).crossed[k.owner]) return [];
+  const seat = k.owner;
+  const out = new Set<CornerId>();
+  for (const c of reachable(ctx, seat, cornerOfPiece(k))) {
+    if (!enchantedCorner(ctx, c) || !coastalCorner(ctx, c)) continue;
+    if (free(ctx, c)) out.add(c);
+    else if (ctx.buildingAt(c)?.owner === seat)
+      // Your own settlement there: step ashore beside it.
+      for (const n of ctx.geometry.cornerNeighbours.get(c) ?? [])
+        if (enchantedCorner(ctx, n) && coastalCorner(ctx, n) && free(ctx, n)) out.add(n);
+  }
+  return [...out].sort();
+}
+
+/** Corners an away knight can reach: up to 3 steps along any path, never ending on the coast. */
+export function roamTargets(ctx: Ctx, k: Piece): CornerId[] {
+  if (!enchanted(ctx) || k.owner === null || !isAway(k) || !canAct(ctx, k)) return [];
+  const seat = k.owner;
+  const start = cornerOfPiece(k);
+  const dist = new Map<CornerId, number>([[start, 0]]);
+  const queue: CornerId[] = [start];
+  while (queue.length) {
+    const c = queue.shift()!;
+    const d = dist.get(c)!;
+    if (d >= ROAM_STEPS) continue;
+    const rival = knightAt(ctx, c);
+    if (c !== start && rival && rival.owner !== seat) continue;
+    for (const e of ctx.geometry.cornerEdges.get(c) ?? []) {
+      if (!ctx.isLandEdge(e)) continue;
+      for (const n of ctx.geometry.edgeCorners.get(e) ?? []) {
+        if (dist.has(n) || !enchantedCorner(ctx, n)) continue;
+        dist.set(n, d + 1);
+        queue.push(n);
+      }
+    }
+  }
+  const level = knightLevel(k);
+  return [...dist.keys()]
+    .filter((c) => {
+      if (c === start || coastalCorner(ctx, c)) return false;
+      const other = knightAt(ctx, c);
+      return !other || (other.owner !== seat && knightLevel(other) < level);
+    })
+    .sort();
+}
+
+/** Where a knight pushed away on the enchanted land goes: the first free inland corner. */
+function pushSpot(ctx: Ctx, not: CornerId): CornerId | undefined {
+  return ctx.geometry.corners
+    .filter((c) => c !== not && enchantedCorner(ctx, c) && !coastalCorner(ctx, c) && free(ctx, c))
+    .sort()[0];
+}
+
+export function canFight(ctx: Ctx, k: Piece): boolean {
+  return enchanted(ctx) && isAway(k) && canAct(ctx, k) && !!dragonOn(ctx, cornerOfPiece(k));
+}
+
+const ownKnight = (ctx: Ctx, a: Action): Piece | undefined => {
+  const k = typeof a.knight === 'string' ? ctx.state.pieces[a.knight] : undefined;
+  return k && isKnight(k) && k.owner === a.player ? k : undefined;
+};
+
+const crossKnight: ActionDef<Action & { knight: string; to: CornerId }> = {
+  phases: ['main'],
+  check(ctx, a) {
+    if (a.player !== ctx.active) return 'Not your turn';
+    const k = ownKnight(ctx, a);
+    if (!k) return 'Pick one of your knights';
+    if (tdaData(ctx).crossed[a.player])
+      return 'You have already sent a knight to the enchanted land';
+    return crossTargets(ctx, k).includes(a.to)
+      ? null
+      : 'An active knight crosses where your ships reach the enchanted land';
+  },
+  apply(ctx, a) {
+    const k = ownKnight(ctx, a)!;
+    ctx.move(k, { kind: 'corner', id: a.to });
+    k.props.away = true;
+    k.props.active = false;
+    tdaData(ctx).crossed[a.player] = true;
+    ctx.emit({ type: 'knightCrossed', player: a.player, at: a.to });
+  },
+  enumerate(ctx, player) {
+    if (player !== ctx.active || !enchanted(ctx)) return [];
+    return knightsOf(ctx, player).flatMap((k) =>
+      crossTargets(ctx, k).map((to) => ({ type: 'crossKnight', player, knight: k.id, to })),
+    );
+  },
+};
+
+const roamKnight: ActionDef<Action & { knight: string; to: CornerId }> = {
+  phases: ['main'],
+  check(ctx, a) {
+    if (a.player !== ctx.active) return 'Not your turn';
+    const k = ownKnight(ctx, a);
+    if (!k || !isAway(k)) return 'Pick your knight on the enchanted land';
+    return roamTargets(ctx, k).includes(a.to)
+      ? null
+      : 'An active knight moves up to 3 corners inland, or pushes a weaker knight';
+  },
+  apply(ctx, a) {
+    const k = ownKnight(ctx, a)!;
+    const rival = knightAt(ctx, a.to);
+    if (rival && rival.owner !== a.player) {
+      const spot = pushSpot(ctx, a.to);
+      if (spot) ctx.move(rival, { kind: 'corner', id: spot });
+      else ctx.remove(rival);
+      ctx.emit({ type: 'knightPushed', player: a.player, victim: rival.owner, to: spot ?? null });
+    }
+    ctx.move(k, { kind: 'corner', id: a.to });
+    k.props.active = false;
+    ctx.emit({ type: 'knightRoamed', player: a.player, to: a.to });
+  },
+  enumerate(ctx, player) {
+    if (player !== ctx.active || !enchanted(ctx)) return [];
+    return knightsOf(ctx, player).flatMap((k) =>
+      roamTargets(ctx, k).map((to) => ({ type: 'roamKnight', player, knight: k.id, to })),
+    );
+  },
+};
+
+const fightDragon: ActionDef<Action & { knight: string }> = {
+  phases: ['main'],
+  check(ctx, a) {
+    if (a.player !== ctx.active) return 'Not your turn';
+    const k = ownKnight(ctx, a);
+    if (!k) return 'Pick one of your knights';
+    return canFight(ctx, k)
+      ? null
+      : 'An active knight on a dragon fights it, from the turn after it was activated';
+  },
+  apply(ctx, a) {
+    const k = ownKnight(ctx, a)!;
+    const dragon = dragonOn(ctx, cornerOfPiece(k))!;
+    const tier = Number(dragon.props.tier ?? 1);
+    const won = knightLevel(k) >= tier;
+    k.props.active = false;
+    ctx.emit({ type: 'dragonFight', player: a.player, tier, won });
+    if (!won) return;
+    ctx.remove(dragon);
+    const d = tdaData(ctx);
+    d.slain[a.player] = (d.slain[a.player] ?? 0) + 1;
+    if ((d.slain[a.player] ?? 0) >= DRAGONS_TO_WIN && ctx.state.winner === null) {
+      ctx.state.winner = a.player;
+      ctx.setPhase({ id: 'gameOver' });
+      ctx.emit({
+        type: 'gameOver',
+        winner: a.player,
+        vp: ctx.state.players.map((_, i) => ctx.vp(i)),
+        dragons: true,
+      });
+    }
+  },
+  enumerate(ctx, player) {
+    if (player !== ctx.active || !enchanted(ctx)) return [];
+    return knightsOf(ctx, player)
+      .filter((k) => canFight(ctx, k))
+      .map((k) => ({ type: 'fightDragon', player, knight: k.id }));
+  },
+};
+
+/** Cities & Knights moves are for knights at home; knights away roam instead. */
+const homeKnightsOnly = (prev: ActionDef): ActionDef => ({
+  ...prev,
+  check(ctx, a) {
+    if (enchanted(ctx)) {
+      const k = typeof a.knight === 'string' ? ctx.state.pieces[a.knight] : undefined;
+      if (k && isAway(k)) return 'This knight roams the enchanted land';
+      const target = typeof a.to === 'string' ? knightAt(ctx, a.to as CornerId) : undefined;
+      if (target && isAway(target)) return 'That knight is on the enchanted land';
+    }
+    return prev.check(ctx, a);
+  },
+});
+
+/** Building on the enchanted land: coastal settlements only, no cities, no roads, no new knights. */
+const enchantedBuild =
+  (what: 'settlement' | 'city' | 'road' | 'knight') =>
+  (prev: ActionDef): ActionDef => ({
+    ...prev,
+    check(ctx, a) {
+      if (enchanted(ctx)) {
+        if (what === 'road' && typeof a.edge === 'string') {
+          const hs = ctx.geometry.edgeHexes.get(a.edge as EdgeId) ?? [];
+          if (hs.some((h) => isEnchantedHex(ctx, h))) return 'No roads on the enchanted land';
+        }
+        if (typeof a.corner === 'string' && enchantedCorner(ctx, a.corner as CornerId)) {
+          const c = a.corner as CornerId;
+          if (what === 'settlement' && !coastalCorner(ctx, c))
+            return 'On the enchanted land, settlements go on the coast';
+          if (what === 'city') return 'Settlements on the enchanted land stay settlements';
+          if (what === 'knight') return 'New knights are raised at home';
+        }
+      }
+      return prev.check(ctx, a);
+    },
+  });
+
 // ---- Module ----
 
 export const treasuresDragonsModule: GameModule = {
   id: MODULE_ID,
   name: 'Treasures, Dragons & Adventurers',
   requires: ['base', 'seafarers'],
-  conflicts: ['traders-barbarians', 'cities-knights'],
+  conflicts: ['traders-barbarians'],
   settings: { tdaScenario: 'treasure-islands', treasureStack: 0, tokenSupply: [] },
   pieceTypes: {
     treasure: { on: 'corner' },
+    dragon: { on: 'corner' },
   },
-  actions: { slayDragon, takeToken },
+  actions: { slayDragon, takeToken, crossKnight, roamKnight, fightDragon },
+  wrapActionsIfPresent: {
+    moveKnight: homeKnightsOnly,
+    displaceKnight: homeKnightsOnly,
+    chaseRobber: homeKnightsOnly,
+    buildKnight: enchantedBuild('knight'),
+  },
   wrapActions: {
-    roll: (prev): ActionDef => ({
-      ...prev,
-      apply(ctx, a) {
-        prev.apply(ctx, a);
-        if (!dragonsAttacking(ctx)) return;
-        const total = (ctx.state.data.base as { lastRoll?: { total: number } }).lastRoll?.total;
-        if (total && total !== 7) spreadDragons(ctx, total);
-      },
-    }),
     playDevCard: (prev): ActionDef => ({
       ...prev,
       check(ctx, a) {
@@ -524,8 +763,10 @@ export const treasuresDragonsModule: GameModule = {
         return prev.check(ctx, a);
       },
     }),
-    buildRoad: dragonRoad,
-    placeFreeRoad: dragonRoad,
+    buildRoad: (prev) => enchantedBuild('road')(dragonRoad(prev)),
+    placeFreeRoad: (prev) => enchantedBuild('road')(dragonRoad(prev)),
+    buildSettlement: enchantedBuild('settlement'),
+    buildCity: enchantedBuild('city'),
   },
   hooks: {
     init(ctx) {
@@ -557,8 +798,13 @@ export const treasuresDragonsModule: GameModule = {
       )
         wakeDragons(ctx);
     },
-    afterAction(ctx) {
+    afterAction(ctx, action) {
       const d = tdaData(ctx);
+      // Hooked rather than wrapped, so Cities & Knights keeps the top of the roll.
+      if (action.type === 'roll' && dragonsAttacking(ctx)) {
+        const total = (ctx.state.data.base as { lastRoll?: { total: number } }).lastRoll?.total;
+        if (total && total !== 7) spreadDragons(ctx, total);
+      }
       // An empty sea or desert found in the fog holds a treasure from the stack.
       for (const e of ctx.events) {
         if (e.type !== 'revealed' || typeof e.player !== 'number') continue;
@@ -577,6 +823,8 @@ export const treasuresDragonsModule: GameModule = {
       return dragonsOn(ctx) && dragonHex(ctx, hex.id) ? {} : value;
     },
     vp(ctx, seat, value) {
+      // Each dragon beaten on the enchanted land is a point.
+      if (enchanted(ctx)) return value + (tdaData(ctx).slain[seat] ?? 0);
       if (!dragonsOn(ctx)) return value;
       let lost = 0;
       for (const p of ctx.piecesOf(seat)) {

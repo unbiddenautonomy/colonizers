@@ -737,6 +737,73 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           );
         })}
 
+      {hexes
+        .filter((h) => h.props?.enchanted === true)
+        .map((h) => (
+          <polygon
+            key={`ench-${h.id}`}
+            className="enchanted"
+            points={hexPoints(h.q, h.r)}
+            fill="#6b3fa0"
+            opacity={0.16}
+            pointerEvents="none"
+          />
+        ))}
+
+      {pieces
+        .filter((p) => p.type === 'dragon' && p.at.kind === 'corner')
+        .map((p) => {
+          const corner = (p.at as { id: CornerId }).id;
+          const c = cornerToPixel(corner, S);
+          const tier = Number(p.props.tier ?? 1);
+          const r = S * 0.17;
+          return (
+            <g
+              key={p.id}
+              className="dragon-piece"
+              filter="url(#lift)"
+              {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'dragon' })}
+            >
+              <circle
+                cx={c.x}
+                cy={c.y}
+                r={r}
+                fill={tier === 3 ? '#3a0b07' : tier === 2 ? '#7a1a12' : '#a8452a'}
+                stroke="#f6d27a"
+                strokeWidth={2}
+              />
+              <text
+                x={c.x}
+                y={c.y + S * 0.01}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={S * 0.18}
+                pointerEvents="none"
+              >
+                🐉
+              </text>
+              {Array.from({ length: tier }, (_, i) => (
+                <circle
+                  key={i}
+                  cx={c.x + (i - (tier - 1) / 2) * S * 0.08}
+                  cy={c.y + r + S * 0.05}
+                  r={S * 0.03}
+                  fill="#f6d27a"
+                  stroke="#3a0b07"
+                  strokeWidth={1}
+                />
+              ))}
+              <title>
+                {tier === 1
+                  ? 'Dragon: any knight can beat it'
+                  : tier === 2
+                    ? 'Dragon: only a strong or mighty knight can beat it'
+                    : 'Dragon: only a mighty knight can beat it'}
+              </title>
+            </g>
+          );
+        })}
+
       {(tb?.edgeBarbarians ?? []).map((e) => {
         const [a, b] = edgeEnds(e, g);
         const x = (a.x + b.x) / 2;
@@ -920,7 +987,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         })}
 
       {pieces
-        .filter((p) => p.at.kind === 'corner' && p.type !== 'treasure')
+        .filter((p) => p.at.kind === 'corner' && p.type !== 'treasure' && p.type !== 'dragon')
         .map((p) => {
           const corner = (p.at as { id: CornerId }).id;
           const c = cornerToPixel(corner, S);
