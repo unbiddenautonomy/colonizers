@@ -73,6 +73,16 @@ describe('Bots', () => {
     expect(Object.values(wonders).some((w) => w.owner === r.winner && w.stages === 4)).toBe(true);
   }, 120_000);
 
+  it('plays World Wonders with Cities & Knights', () => {
+    const r = play(
+      game('wc1', 4, 'ck', { vpTarget: 13 }, ['world-wonders']),
+      [medium, medium, medium, medium],
+      4,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+  }, 180_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');

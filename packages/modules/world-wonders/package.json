@@ -13,12 +13,12 @@
   },
   "dependencies": {
     "@colonizers/engine": "workspace:*",
-    "@colonizers/module-base": "workspace:*"
+    "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-cities-knights": "workspace:*"
   },
   "devDependencies": {
     "@colonizers/maps": "workspace:*",
     "@colonizers/module-seafarers": "workspace:*",
-    "@colonizers/module-cities-knights": "workspace:*",
     "typescript": "~6.0.3",
     "vitest": "~4.1.12"
   }
