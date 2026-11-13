@@ -119,11 +119,11 @@ export function moduleList(
     'traders-barbarians',
     'explorers-pirates',
     'variants',
-    // Before Cities & Knights, so the Pyramids' robber shield sees only the robber.
-    'world-wonders',
     'cities-knights',
     // After Cities & Knights (and Seafarers), so its production changes come last.
     'greed-wealth-power',
+    // After those, so its roll wrapper comes outermost.
+    'world-wonders',
     // After Cities & Knights, so its scenarios can adjust knight moves.
     'treasures-dragons',
   ];

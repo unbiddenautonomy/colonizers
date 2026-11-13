@@ -1,64 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  Ctx,
-  ModuleLibrary,
-  type Action,
-  type CornerId,
-  type EdgeId,
-  type GameState,
-  type HexId,
-} from '@colonizers/engine';
-import { baseModule, produce } from '@colonizers/module-base';
-import { seafarersModule } from '@colonizers/module-seafarers';
-import { citiesKnightsModule } from '@colonizers/module-cities-knights';
-import { generateBoard } from '@colonizers/maps';
-import {
-  closedLoop,
-  wonderPoints,
-  wonderSites,
-  worldWondersModule,
-  WONDER_IDS,
-  WONDERS,
-} from '../src/index.ts';
-
-const lib = new ModuleLibrary([
-  baseModule,
-  seafarersModule,
-  worldWondersModule,
-  citiesKnightsModule,
-]);
-
-function game(seed = 'ww', settings: Record<string, unknown> = {}, ck = false): GameState {
-  const board = generateBoard({ seed, players: 4, mode: 'classic' });
-  return lib.createGame({
-    seed,
-    players: ['A', 'B', 'C', 'D'],
-    modules: ['base', 'world-wonders', ...(ck ? ['cities-knights'] : [])],
-    map: board.map,
-    settings: { vpTarget: 10, ...settings },
-    fixedSeats: true,
-  }).state;
-}
-
-const ctxOf = (s: GameState) => new Ctx(s, lib.registry(s.modules));
-
-function edit(state: GameState, fn: (ctx: Ctx) => void): GameState {
-  const next = structuredClone(state);
-  const ctx = ctxOf(next);
-  fn(ctx);
-  ctx.commit();
-  return next;
-}
-
-const act = (s: GameState, a: Action) => lib.apply(s, a).state;
-
-/** Main phase on seat 0's turn, with an empty board (no buildings, robber kept). */
-function blank(seed = 'ww', settings: Record<string, unknown> = {}): GameState {
-  return edit(game(seed, settings), (ctx) => {
-    for (const p of Object.values(ctx.state.pieces)) if (p.owner !== null) ctx.remove(p);
-    ctx.setPhase({ id: 'main' });
-  });
-}
+import type { CornerId, Ctx, EdgeId, GameState, HexId } from '@colonizers/engine';
+import { produce } from '@colonizers/module-base';
+import { act, blank, ctxOf, edit, game, lib } from './helpers.ts';
+import { closedLoop, wonderPoints, wonderSites, WONDER_IDS, WONDERS } from '../src/index.ts';
 
 const nextTurn = (s: GameState) =>
   edit(s, (ctx) => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Action, Ctx, GameState, HexId } from '@colonizers/engine';
 import {
   builtWonders,
+  picksOf,
   stageItem,
   WONDER_IDS,
   WONDERS,
@@ -135,6 +136,15 @@ export function WonderPanel({
       >
         🏛️ Wonders{ready ? ' ✨' : ''}
       </button>
+      {legal
+        .filter((a) => a.type === 'wonderSiege' || a.type === 'wonderSweep')
+        .map((a) => (
+          <button key={a.type} type="button" onClick={() => act(a)}>
+            {a.type === 'wonderSiege'
+              ? '🏛️ Mausoleum: move the robber'
+              : '🏹 Artemis: sweep the merchant off'}
+          </button>
+        ))}
       {open && (
         <Modal title="World Wonders" onClose={() => setOpen(false)} wide>
           {(gardens.length > 0 || petraGives.length > 0 || harvest.length > 0) && (
@@ -211,4 +221,79 @@ export function WonderStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
       ))}
     </span>
   );
+}
+
+const DIE = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+const REROLL_TEXT: Record<string, string> = {
+  titus: '🏟️ Throw both again (Colosseum, once a turn)',
+  'machu:a': '⛰️ Throw the first again',
+  'machu:b': '⛰️ Throw the second again',
+  'machu:both': '⛰️ Throw both again',
+};
+
+/** The held roll and any resources a wonder owes you. */
+export function WonderChoices({
+  state,
+  ctx,
+  actor,
+  legal,
+  act,
+}: {
+  state: GameState;
+  ctx: Ctx;
+  actor: number;
+  legal: Action[];
+  act: (a: Action) => void;
+}) {
+  if (state.phase.id === 'wonderRoll' && state.phase.roller === actor) {
+    const held = state.phase.held as { a: number; b: number };
+    const ck = state.modules.includes('cities-knights');
+    const names = ck ? ['red', 'yellow'] : ['first', 'second'];
+    return (
+      <Modal title="Your roll">
+        <p>
+          You rolled {DIE[held.a]} {DIE[held.b]} ({held.a + held.b}). Throw again, or keep it. A
+          second throw is final.
+        </p>
+        <div className="row wrap">
+          <button type="button" onClick={() => act({ type: 'keepRoll', player: actor })}>
+            Keep {held.a + held.b}
+          </button>
+          {legal
+            .filter((a) => a.type === 'wonderReroll')
+            .map((a) => (
+              <button key={a.use as string} type="button" onClick={() => act(a)}>
+                {(REROLL_TEXT[a.use as string] ?? (a.use as string))
+                  .replace('the first', `the ${names[0]}`)
+                  .replace('the second', `the ${names[1]}`)}
+              </button>
+            ))}
+        </div>
+      </Modal>
+    );
+  }
+  const picks = picksOf(ctx, actor);
+  const options = legal.filter((a) => a.type === 'wonderPick');
+  if (!picks || !options.length) return null;
+  return (
+    <Modal title="A gift from your wonder">
+      <p>
+        Take {picks === 1 ? 'a resource' : `${picks} resources`} of your choice
+        {picks > 1 ? ', one at a time' : ''}.
+      </p>
+      <div className="row wrap">
+        {options.map((a) => (
+          <button key={a.card as string} type="button" onClick={() => act(a)}>
+            {icon(a.card as string)} {nameOf(a.card as string).name}
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+export function wonderPrompt(state: GameState, names: string[]): string | null {
+  if (state.phase.id !== 'wonderRoll') return null;
+  return `${names[state.phase.roller as number] ?? 'A player'} may throw the dice again.`;
 }
