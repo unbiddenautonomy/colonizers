@@ -428,6 +428,36 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return e.lucky
         ? `💡 ${n(e.player)}'s inventors threw ${e.red}: a ${e.track} card!`
         : `💡 ${n(e.player)}'s inventors threw ${e.red}: nothing this time.`;
+    case 'civCapital':
+      return `⚔️ Tenochtitlán: ${n(e.player)} takes ${cards(e.cards as Record<string, number>)}.`;
+    case 'civFiveSuns':
+      return `⚔️ Legend of the Five Suns: ${n(e.player)} gets a free city and three progress cards.`;
+    case 'civHussar':
+      return `⚔️ ${n(e.player)}'s hussars destroyed ${n(e.victim)}'s ${e.piece === 'knight1' ? 'knight' : e.piece}.`;
+    case 'civUnion':
+      return `⚔️ ${n(e.player)} joins ${n(e.leader)} in a union for a round.`;
+    case 'civUnionShare':
+      return e.cards
+        ? `⚔️ The union brings ${n(e.player)} ${cards(e.cards as Record<string, number>)}.`
+        : `⚔️ The union brings ${n(e.player)} a ${e.deck} card.`;
+    case 'civRaid':
+      return `⚔️ The barbarians won: a point for their ally ${n(e.player)}.`;
+    case 'civRaze':
+      return `⚔️ ${n(e.player)}'s raiders pillaged ${n(e.victim)}'s city.`;
+    case 'civThor':
+      return `⚔️ Thor's Hammer! ${n(e.player)} calls the barbarians ashore.`;
+    case 'civBombard':
+      return `🗿 The Great Bombard: ${n(e.player)} drove the barbarians back to sea.`;
+    case 'civCaribbean':
+      return `💡 ${n(e.player)}'s settlement by the sea brings ${e.count === 1 ? 'a progress card and a commodity' : 'two progress cards and two commodities'}.`;
+    case 'civVictoria':
+      return (e.tracks as string[]).length
+        ? `💡 ¡Hasta la victoria! ${n(e.from)} hands ${n(e.player)} their ${(e.tracks as string[]).join(' and ')} metropolis.`
+        : `💡 ¡Hasta la victoria! ${n(e.from)} has no metropolis to hand ${n(e.player)}.`;
+    case 'civColonyDrawn':
+      return `🏛️ ${n(e.player)} drew ${(e.options as string[]).map((c) => CIV_BY_ID[c]?.name ?? c).join(', ')}.`;
+    case 'civSwitched':
+      return `🏛️ ${n(e.player)} now leads ${CIV_BY_ID[e.civ as string]?.name ?? e.civ}.`;
     case 'civCalendar':
       return `🏳️ ${n(e.player)} turned ${n(e.target)}'s ${e.track} track back and moved their own on.`;
     case 'trackLowered':

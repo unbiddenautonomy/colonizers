@@ -50,6 +50,7 @@ import {
 } from './core.ts';
 import { addAnyPick, dropDeadProgress, offerHarvest } from './gifts.ts';
 import { americaCity, part3Effects, prussiaBeer } from './part3.ts';
+import { part4Effects, startColony } from './part4.ts';
 import { shipGift } from './setup.ts';
 
 /** Civilisation abilities worked out from what happens in the game. */
@@ -288,6 +289,14 @@ function unlocks(ctx: Ctx): void {
     const seat = p.seat;
     civData(ctx).unlocked[seat] = true;
     ctx.emit({ type: 'civUnlocked', player: seat, civ: c.id });
+    unlockGifts(ctx, seat);
+  }
+}
+
+/** What a civilisation hands out at 10 points. */
+export function unlockGifts(ctx: Ctx, seat: number): void {
+  const c = civOf(ctx, seat);
+  if (c) {
     const gold = (n: number) => {
       const got = Math.min(n, ctx.state.bank.gold ?? 0);
       if (got > 0) ctx.grant(seat, { gold: got });
@@ -307,6 +316,7 @@ function unlocks(ctx: Ctx): void {
     }
     if (c.id === 'australia') addGift(ctx, seat, { kind: 'settlement', where: 'island' });
     if (c.id === 'prussia') prussiaBeer(ctx, seat);
+    if (c.id === 'britain' || c.id === 'spain') startColony(ctx, seat);
   }
 }
 
@@ -322,6 +332,7 @@ export function civEffects(ctx: Ctx, action?: Action): void {
   unlocks(ctx);
   polynesia(ctx);
   part3Effects(ctx);
+  part4Effects(ctx);
   startMuscovy(ctx);
   dropDeadProgress(ctx);
 }

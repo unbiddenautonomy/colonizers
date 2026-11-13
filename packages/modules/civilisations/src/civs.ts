@@ -107,6 +107,7 @@ export const CIVS: Civ[] = [
       'Legend of the Five Suns',
       'With all 5 settlements built, upgrade one to a city for free and take three progress cards.',
     ],
+    true,
   ),
   civ(
     'japan',
@@ -186,9 +187,13 @@ export const CIVS: Civ[] = [
     'warlord',
     [
       'Ivar the Boneless',
-      'You side with the barbarians: your knights add to their strength, and you gain when they win.',
+      "You side with the barbarians: your knights sail with them and they don't count or take your cities. When they win, take a point and pillage a rival's city; when Catan wins, you lose one.",
     ],
-    ["Thor's Hammer", 'Once a game, win with the barbarians.'],
+    [
+      "Thor's Hammer",
+      'Once a game, on your turn, the barbarians land and win, whatever the knights.',
+    ],
+    true,
   ),
   civ(
     'poland',
@@ -196,12 +201,13 @@ export const CIVS: Civ[] = [
     'warlord',
     [
       'Winged Hussars',
-      'Moving the robber lets you destroy a road, ship or basic knight beside it and place your own.',
+      'Moving the robber lets you destroy a rival road, ship or basic knight beside it that turn, and place your own for free.',
     ],
     [
       'Polish-Lithuanian Union',
       "Once a game, share the leader's production and progress cards for a round.",
     ],
+    true,
   ),
   // ---- Republic ----
   civ(
@@ -212,14 +218,22 @@ export const CIVS: Civ[] = [
       'Age of the Conquistadores',
       'Start with the Inquisitor on a hex of your choice and two Religion cards.',
     ],
-    ['Colonization of the Americas', 'Draw a new civilisation from the Americas and play it.'],
+    [
+      'Colonization of the Americas',
+      'Draw a civilisation from the Americas (you may draw again once) and play it from now on.',
+    ],
+    true,
   ),
   civ(
     'britain',
     'Britain',
     'republic',
     ['Royal Navy', 'The barbarians can not take your cities.'],
-    ['Colonies of the British Empire', 'Draw three civilisations and play one of them.'],
+    [
+      'Colonies of the British Empire',
+      'Draw three civilisations and play one of them from now on.',
+    ],
+    true,
   ),
   civ(
     'ethiopia',
@@ -446,8 +460,11 @@ export const CIVS: Civ[] = [
       'Protection of Constantinople',
       'Start with a Citadel and a city wall beside your starting city, and a Politics card.',
     ],
-    ['Great Turkish Bombard', 'Once a game, defeat the barbarians.'],
-    false,
+    [
+      'Great Turkish Bombard',
+      'Once a game, on your turn, defeat the barbarians: their ship sails back.',
+    ],
+    true,
     {
       id: 'artemis',
       needs: '3 settlements or cities by mountains',
@@ -518,12 +535,13 @@ export const CIVS: Civ[] = [
     'innovator',
     [
       'Riches of the Spanish Caribbean',
-      'Each settlement by the sea brings a progress card and a commodity of your choice.',
+      'Each settlement by the sea brings a progress card and a commodity of your choice (two of each for the first).',
     ],
     [
       '¡Hasta la Victoria Siempre!',
       'The first other player to reach the winning points hands you a metropolis.',
     ],
+    true,
   ),
   civ(
     'indonesia',

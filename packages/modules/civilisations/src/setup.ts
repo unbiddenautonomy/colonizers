@@ -41,6 +41,8 @@ const START_DECKS: Record<string, Track[]> = {
   rome: ['religion', 'religion'],
   babylon: ['trade', 'trade'],
   maya: ['magic', 'magic'],
+  spain: ['religion', 'religion'],
+  ottoman: ['politics'],
 };
 
 /** Start neutral pieces, put on any land hex. */
@@ -49,6 +51,7 @@ export const START_NEUTRAL: Record<string, string> = {
   persia: 'duke',
   greece: 'scholar',
   babylon: 'merchant',
+  spain: 'inquisitor',
 };
 
 export function deal(ctx: Ctx): void {
@@ -64,21 +67,29 @@ export function deal(ctx: Ctx): void {
   });
 }
 
+/** The cards a civilisation starts with. True when it has a neutral piece to place too. */
+export function startCards(ctx: Ctx, seat: number): boolean {
+  const c = civOf(ctx, seat);
+  if (!c) return false;
+  const cards = START_CARDS[c.id];
+  if (cards && ctx.bankHas(cards)) ctx.grant(seat, cards);
+  for (const deck of START_DECKS[c.id] ?? []) drawProgress(ctx, seat, deck);
+  if (c.id === 'morocco') addPicks(ctx, seat, 2, 'Moorish Kingdom');
+  return !!START_NEUTRAL[c.id];
+}
+
+/** Places a civilisation's neutral piece, then goes back to `returnTo`. */
+export function placeNeutral(ctx: Ctx, seats: number[], returnTo: Phase): void {
+  ctx.setPhase({ id: 'civNeutral', owed: Object.fromEntries(seats.map((s) => [s, 1])), returnTo });
+}
+
 function reveal(ctx: Ctx, returnTo: Phase): void {
   const d = civData(ctx);
   d.revealed = true;
   d.dealt = {};
   ctx.emit({ type: 'civsRevealed', civs: { ...d.civ } });
   const neutral: Record<number, number> = {};
-  for (const p of ctx.state.players) {
-    const c = civOf(ctx, p.seat);
-    if (!c) continue;
-    const cards = START_CARDS[c.id];
-    if (cards && ctx.bankHas(cards)) ctx.grant(p.seat, cards);
-    for (const deck of START_DECKS[c.id] ?? []) drawProgress(ctx, p.seat, deck);
-    if (c.id === 'morocco') addPicks(ctx, p.seat, 2, 'Moorish Kingdom');
-    if (START_NEUTRAL[c.id]) neutral[p.seat] = 1;
-  }
+  for (const p of ctx.state.players) if (startCards(ctx, p.seat)) neutral[p.seat] = 1;
   if (Object.keys(neutral).length) {
     ctx.setPhase({ id: 'civNeutral', owed: neutral, returnTo });
     return;
@@ -87,7 +98,7 @@ function reveal(ctx: Ctx, returnTo: Phase): void {
 }
 
 /** Back to the game, putting back progress cards over the limit first. */
-function settle(ctx: Ctx, returnTo: Phase): void {
+export function settle(ctx: Ctx, returnTo: Phase): void {
   ctx.setPhase(returnTo);
   const owed = progressOverLimit(ctx);
   if (Object.keys(owed).length) ctx.setPhase({ id: 'progressDiscard', owed, returnTo });
@@ -188,10 +199,13 @@ export function afterSetup(ctx: Ctx): void {
   const d = civView(ctx);
   if (!d.revealed || d.started || ctx.state.phase.id !== 'roll') return;
   civData(ctx).started = true;
-  for (const p of ctx.state.players) {
-    const c = civOf(ctx, p.seat);
-    if (!c) continue;
-    const seat = p.seat;
+  for (const p of ctx.state.players) startGifts(ctx, p.seat);
+}
+
+/** A civilisation's start gifts, once the starting placements are over. */
+export function startGifts(ctx: Ctx, seat: number): void {
+  const c = civOf(ctx, seat);
+  if (c) {
     if (c.cls === 'warlord') addGift(ctx, seat, { kind: 'knight' });
     if (c.id === 'mali') addGift(ctx, seat, { kind: 'route' });
     if (c.id === 'netherlands') {
@@ -227,6 +241,14 @@ export function afterSetup(ctx: Ctx): void {
       wallUp(ctx, seat, 2);
     }
     if (c.id === 'america') addGift(ctx, seat, { kind: 'settlement', where: 'free' });
+    if (c.id === 'aztec') {
+      const city = ctx.piecesOf(seat, 'city')[0];
+      if (city?.at.kind === 'corner') addGift(ctx, seat, { kind: 'capital', corner: city.at.id });
+    }
+    if (c.id === 'ottoman') {
+      addGift(ctx, seat, { kind: 'building', options: ['citadel'] });
+      wallUp(ctx, seat);
+    }
     if (c.id === 'papua')
       civData(ctx).papua = ctx
         .piecesOf(seat)
