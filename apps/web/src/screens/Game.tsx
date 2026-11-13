@@ -541,7 +541,8 @@ export function Game({
     mode === 'sail' ||
     (mode !== null && GWP_MODES.includes(mode)) ||
     mode === 'civHarbor' ||
-    mode === 'civTiticaca'
+    mode === 'civTiticaca' ||
+    mode === 'civHarakiri'
       ? selectedShip
       : null;
   const targets = useMemo(
