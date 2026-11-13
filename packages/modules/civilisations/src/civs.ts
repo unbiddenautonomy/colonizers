@@ -120,6 +120,7 @@ export const CIVS: Civ[] = [
       'Samurai Harakiri',
       "Twice a game, give up a strong knight to destroy a rival's settlement, or a mighty one for a city.",
     ],
+    true,
   ),
   civ(
     'khmer',
@@ -130,6 +131,7 @@ export const CIVS: Civ[] = [
       'Place a Diocese or Citadel beside your starting city and take a Religion or Magic card.',
     ],
     ['Neang Kong-hing', 'Take a progress card each time you first reach an even number of points.'],
+    true,
   ),
   civ(
     'kongo',
@@ -162,9 +164,10 @@ export const CIVS: Civ[] = [
     'warlord',
     [
       'Iklwa Spear',
-      'Moving knights keeps them active, and an active basic knight can take over a roaming piece beside it.',
+      'Moving knights keeps them active, and an active basic knight can take over a neutral piece on a hex beside it.',
     ],
     ['Mbaba Mwana Waresa', anyCard('fields')],
+    true,
   ),
   civ(
     'mongolia',
@@ -222,8 +225,9 @@ export const CIVS: Civ[] = [
     'ethiopia',
     'Ethiopia',
     'republic',
-    ['Origin of Life', 'Place your settlement and city first, and take starting cards from both.'],
+    ['Origin of Life', 'Your first settlement brings starting cards too, as well as your city.'],
     ['Blessings of Atwa', 'Each of your cities adds 1 to your strength against the barbarians.'],
+    true,
   ),
   civ(
     'france',
@@ -292,6 +296,7 @@ export const CIVS: Civ[] = [
       'Each roll that gives you nothing earns a welfare token; 2 buy a resource, 3 a commodity.',
     ],
     ['Unification with Bavaria', 'Take 5 Beer, and your festivals cost less Beer.'],
+    true,
   ),
   civ(
     'russia',
@@ -314,7 +319,7 @@ export const CIVS: Civ[] = [
       'All Roads lead to Rome',
       "Twice, buy a rival's settlement or city beside your roads from them at its building price.",
     ],
-    false,
+    true,
     {
       id: 'colosseum',
       needs: 'a city and a settlement around one hex',
@@ -330,7 +335,7 @@ export const CIVS: Civ[] = [
       'Code of Hammurabi',
       'When another player harms you, destroy one of their roads, ships or inactive basic knights.',
     ],
-    false,
+    true,
     {
       id: 'hangingGardens',
       needs: '3 settlements or cities by forest',
@@ -410,7 +415,7 @@ export const CIVS: Civ[] = [
       'Multi-Ethnic Empire',
       'Each settlement or city you build may take a progress card matching a hex beside it.',
     ],
-    false,
+    true,
     {
       id: 'taj',
       needs: '3 settlements or cities by hills',
@@ -426,7 +431,7 @@ export const CIVS: Civ[] = [
       'Queen Wak Chanil Ajaw',
       'On your rolls, the yellow die also counts for taking progress cards.',
     ],
-    false,
+    true,
     {
       id: 'chichenItza',
       needs: '3 settlements or cities by fields',
@@ -475,6 +480,7 @@ export const CIVS: Civ[] = [
       'Start on an island apart from the main one; nobody may build within 3 roads of you.',
     ],
     ['Glorious Peak of Puncak Jaya', anyCard('mountains')],
+    true,
   ),
   civ(
     'amazon',
@@ -496,6 +502,7 @@ export const CIVS: Civ[] = [
       'Curse of the Medicine Man',
       'When the barbarians win and you were not the weakest, a second player loses a city.',
     ],
+    true,
   ),
   civ(
     'australia',

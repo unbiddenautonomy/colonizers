@@ -19,6 +19,8 @@ export const MODULE_ID = 'civilisations';
 export type SettleWhere =
   /** Anywhere a settlement could be built, by your roads or ships. */
   | 'any'
+  /** Anywhere it may stand, no road needed (America's third starting settlement). */
+  | 'free'
   /** By your roads, with land all round (Mongolia). */
   | 'inland'
   /** By your roads or ships, on the coast (Indonesia). */
@@ -30,8 +32,8 @@ export type SettleWhere =
 export type Gift =
   /** A free road (or ship, with Seafarers), or only one of the two. */
   | { kind: 'route'; only?: 'road' | 'ship' }
-  /** A free active strong knight (Warlord). */
-  | { kind: 'knight' }
+  /** A free active knight: strong for a Warlord, basic for Japan's Defender. */
+  | { kind: 'knight'; level?: 1 | 2 }
   /**
    * A card from a hex beside a building: a new settlement's resource or a new
    * city's commodity (Republic), or a resource from another hex beside a city
@@ -42,8 +44,12 @@ export type Gift =
   | { kind: 'improve' }
   /** A free settlement (Mongolia, France, Australia, Indonesia). */
   | { kind: 'settlement'; where: SettleWhere }
-  /** A progress card from a deck of your choice (Maori). */
-  | { kind: 'progress' }
+  /** A progress card from a deck of your choice, or of these decks (Maori, Khmer, India). */
+  | { kind: 'progress'; decks?: Track[] }
+  /** A free Greed, Wealth & Power building beside one of your cities (Khmer, Rome, Maya). */
+  | { kind: 'building'; options: ('citadel' | 'diocese')[] }
+  /** Destroy a road, ship or inactive basic knight of this player (Babylon). */
+  | { kind: 'revenge'; target: number }
   /** Move a harbor anywhere on the coast, or swap two (Gran Colombia). */
   | { kind: 'harbor' }
   /** A 2:1 harbor for a resource of your choice (China). */
@@ -83,6 +89,14 @@ export interface CivData extends Record<string, unknown> {
   khagan?: number;
   /** Russia: the turn they last had the chance to place the robber. */
   muscovy?: number;
+  /** Khmer: the highest even score reached from 10 up. */
+  evens?: Record<number, number>;
+  /** Prussia: welfare tokens. */
+  welfare?: Record<number, number>;
+  /** America: has built a city since the start. */
+  firstCity?: Record<number, boolean>;
+  /** Papua: the corners of their starting buildings. */
+  papua?: string[];
   /** Austria: the cards drawn for the Habsburg Marriage, until three are kept. */
   habsburg?: { seat: number; drawn: { card: string; deck: Track }[] };
 }
@@ -161,6 +175,14 @@ export function usedOnce(ctx: Ctx, seat: number, key: string): boolean {
 
 export function markOnce(ctx: Ctx, seat: number, key: string): void {
   civData(ctx).used[`${seat}:${key}`] = ctx.state.turn.number;
+}
+
+/** Twice-a-game abilities: how many times used. */
+export const usedCount = (ctx: Ctx, seat: number, key: string): number =>
+  (civView(ctx).used?.[`${seat}:${key}:count`] as number | undefined) ?? 0;
+
+export function markUse(ctx: Ctx, seat: number, key: string): void {
+  civData(ctx).used[`${seat}:${key}:count`] = usedCount(ctx, seat, key) + 1;
 }
 
 /** Raises a track a level for free, claiming the metropolis if it is now won. */

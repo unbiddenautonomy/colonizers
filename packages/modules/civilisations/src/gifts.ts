@@ -36,6 +36,7 @@ import {
   type Gift,
   type SettleWhere,
 } from './core.ts';
+import { papuaBlock } from './part3.ts';
 
 /**
  * Gifts and choices the civilisations hand out, taken when the player likes:
@@ -114,7 +115,9 @@ export function settleBlock(
   corner: CornerId,
   where: SettleWhere,
 ): string | null {
-  const err = canPlaceSettlement(ctx, seat, corner, where !== 'island');
+  const err =
+    canPlaceSettlement(ctx, seat, corner, where !== 'island' && where !== 'free') ??
+    papuaBlock(ctx, seat, corner);
   if (err) return err;
   if (where === 'inland' && !isInlandCorner(ctx, corner))
     return 'Pick a corner with land all round';
@@ -237,26 +240,69 @@ const civSilk = action<{ card: string }>({
 
 const openDecks = (ctx: Ctx) => activeTracks(ctx).filter((t) => !!ctx.state.decks[t]?.length);
 
+type ProgressGift = Extract<Gift, { kind: 'progress' }>;
+
+const progressGifts = (ctx: Ctx, seat: number) =>
+  giftsOf(ctx, seat)
+    .map((g, i) => ({ g, i }))
+    .filter((x): x is { g: ProgressGift; i: number } => x.g.kind === 'progress');
+
+/** Decks the first progress gift may draw from. */
+export function giftDecks(ctx: Ctx, seat: number): Track[] {
+  const first = progressGifts(ctx, seat)[0];
+  if (!first) return [];
+  const open = openDecks(ctx);
+  return first.g.decks ? open.filter((d) => first.g.decks!.includes(d)) : open;
+}
+
 const civProgress = action<{ deck: Track }>({
   check(ctx, a) {
     const err = notOver(ctx);
     if (err) return err;
-    if (giftIndex(ctx, a.player, 'progress') < 0) return 'You have no progress card to take';
-    return openDecks(ctx).includes(a.deck) ? null : 'Pick a deck with cards in it';
+    if (!progressGifts(ctx, a.player).length) return 'You have no progress card to take';
+    return giftDecks(ctx, a.player).includes(a.deck) ? null : 'Pick a deck with cards in it';
   },
   apply(ctx, a) {
-    takeGift(ctx, a.player, giftIndex(ctx, a.player, 'progress'));
+    takeGift(ctx, a.player, progressGifts(ctx, a.player)[0]!.i);
     drawProgress(ctx, a.player, a.deck);
     progressCheck(ctx);
   },
   enumerate(ctx, player) {
-    if (giftIndex(ctx, player, 'progress') < 0 || ctx.state.phase.id === 'progressDiscard')
-      return [];
-    return openDecks(ctx).map((deck) => ({ type: 'civProgress', player, deck }));
+    if (ctx.state.phase.id === 'progressDiscard') return [];
+    const decks = giftDecks(ctx, player);
+    // A gift with no deck left to draw from goes unused.
+    if (!decks.length && progressGifts(ctx, player).length) return [];
+    return decks.map((deck) => ({ type: 'civProgress', player, deck }));
   },
 });
 
+/** Drops a progress gift no deck can pay, so it doesn't block the ones behind it. */
+export function dropDeadProgress(ctx: Ctx): void {
+  for (const p of ctx.state.players) {
+    let first = progressGifts(ctx, p.seat)[0];
+    while (first && !giftDecks(ctx, p.seat).length) {
+      takeGift(ctx, p.seat, first.i);
+      first = progressGifts(ctx, p.seat)[0];
+    }
+  }
+}
+
 // ---- Warlord's knight ----
+
+type KnightGift = Extract<Gift, { kind: 'knight' }>;
+
+const knightType = (g: KnightGift) => (g.level === 1 ? 'knight1' : 'knight2');
+
+/** The knight gift to use: the strongest one with a knight left in the supply. */
+function knightGift(ctx: Ctx, seat: number): { i: number; type: string } | null {
+  const gifts = giftsOf(ctx, seat)
+    .map((g, i) => ({ g, i }))
+    .filter((x): x is { g: KnightGift; i: number } => x.g.kind === 'knight')
+    .sort((x, y) => (y.g.level ?? 2) - (x.g.level ?? 2));
+  for (const { g, i } of gifts)
+    if (ctx.supplyLeft(seat, knightType(g)) > 0) return { i, type: knightType(g) };
+  return null;
+}
 
 const civKnight = action<{ corner: CornerId }>({
   phases: ['main'],
@@ -264,24 +310,22 @@ const civKnight = action<{ corner: CornerId }>({
     const err = onlyActive(ctx, a);
     if (err) return err;
     if (giftIndex(ctx, a.player, 'knight') < 0) return 'You have no free knight';
-    if (ctx.supplyLeft(a.player, 'knight2') <= 0) return 'No strong knights left';
+    if (!knightGift(ctx, a.player)) return 'No knights of that kind left';
     return canPlaceKnight(ctx, a.player, a.corner);
   },
   apply(ctx, a) {
-    takeGift(ctx, a.player, giftIndex(ctx, a.player, 'knight'));
+    const { i, type } = knightGift(ctx, a.player)!;
+    takeGift(ctx, a.player, i);
     ctx.place(
-      'knight2',
+      type,
       a.player,
       { kind: 'corner', id: a.corner },
-      {
-        active: true,
-        activatedTurn: -1,
-      },
+      { active: true, activatedTurn: -1 },
     );
     ctx.emit({ type: 'built', player: a.player, piece: 'knight', at: a.corner, free: true });
   },
   enumerate(ctx, player) {
-    if (player !== ctx.active || giftIndex(ctx, player, 'knight') < 0) return [];
+    if (player !== ctx.active || !knightGift(ctx, player)) return [];
     return ctx.geometry.corners
       .filter((c) => canPlaceKnight(ctx, player, c) === null)
       .map((corner) => ({ type: 'civKnight', player, corner }));
