@@ -111,6 +111,7 @@ export function moduleList(
   citiesKnights: boolean,
   greedWealthPower = false,
   worldWonders = false,
+  civilisations = false,
 ): string[] {
   const order = [
     'base',
@@ -126,6 +127,8 @@ export function moduleList(
     'world-wonders',
     // After Cities & Knights, so its scenarios can adjust knight moves.
     'treasures-dragons',
+    // Last, so it deals civilisations once every other module has set up.
+    'civilisations',
   ];
   const want = new Set([
     'base',
@@ -134,6 +137,7 @@ export function moduleList(
     ...(citiesKnights ? ['cities-knights'] : []),
     ...(citiesKnights && greedWealthPower ? ['greed-wealth-power'] : []),
     ...(worldWonders ? ['world-wonders'] : []),
+    ...(citiesKnights && greedWealthPower && civilisations ? ['civilisations'] : []),
   ]);
   return order.filter((m) => want.has(m));
 }
@@ -159,6 +163,8 @@ export interface RoomSettings {
   greedWealthPower: boolean;
   /** Add World Wonders (any map but the special ones). */
   worldWonders: boolean;
+  /** Add Civilisations on top of Greed, Wealth & Power. */
+  civilisations: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -175,6 +181,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   citiesKnights: false,
   greedWealthPower: false,
   worldWonders: false,
+  civilisations: false,
   turnTimer: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
@@ -307,6 +314,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     citiesKnights: s.citiesKnights === true,
     greedWealthPower: s.greedWealthPower === true,
     worldWonders: s.worldWonders === true,
+    civilisations: s.civilisations === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),

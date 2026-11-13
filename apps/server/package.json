@@ -20,6 +20,7 @@
     "@colonizers/module-cities-knights": "workspace:*",
     "@colonizers/module-explorers-pirates": "workspace:*",
     "@colonizers/module-greed-wealth-power": "workspace:*",
+    "@colonizers/module-civilisations": "workspace:*",
     "@colonizers/module-world-wonders": "workspace:*",
     "@colonizers/module-seafarers": "workspace:*",
     "@colonizers/module-special-maps": "workspace:*",

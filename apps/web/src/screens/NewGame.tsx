@@ -90,6 +90,7 @@ export function NewGame({
   const [ckWanted, setCk] = useState(false);
   const [gwpWanted, setGwp] = useState(false);
   const [wondersWanted, setWonders] = useState(false);
+  const [civsWanted, setCivs] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -132,13 +133,15 @@ export function NewGame({
   const gwp = ck && gwpWanted && !specialId;
   // World Wonders goes on the usual maps and Seafarers, with or without Cities & Knights.
   const wonders = wondersWanted && !specialId;
-  const extraVp = gwp ? 8 : ck ? 3 : 0;
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}`;
+  // Civilisations goes on top of Greed, Wealth & Power, and plays to 20.
+  const civs = gwp && civsWanted;
+  const extraVp = civs ? 10 : gwp ? 8 : ck ? 3 : 0;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
-  const bonus = vpBonus(ck, specialId, gwp);
+  const bonus = vpBonus(ck, specialId, gwp, civs);
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
@@ -178,7 +181,7 @@ export function NewGame({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
           players,
-          modules: moduleList(extraModules, ck, gwp, wonders),
+          modules: moduleList(extraModules, ck, gwp, wonders, civs),
           map,
           settings: { ...opts, ...own },
           fixedSeats: true,
@@ -506,6 +509,20 @@ export function NewGame({
               {specialId
                 ? 'Fan expansion for the usual maps and Seafarers, not the special maps.'
                 : 'Fan expansion: fourteen wonders to build in four stages. You need a finished one to win.'}
+            </small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${civs ? 'on' : ''}`}
+            aria-pressed={civs}
+            disabled={!gwp}
+            onClick={() => setCivs(!civs)}
+          >
+            <strong>🏳️ Civilisations</strong>
+            <small>
+              {gwp
+                ? 'Fan expansion: lead one of the civilisations, with an ability from the start and another from 10 points. 20 points.'
+                : 'Fan expansion that goes on top of Greed, Wealth & Power.'}
             </small>
           </button>
           <button

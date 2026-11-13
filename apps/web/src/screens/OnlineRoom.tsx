@@ -238,7 +238,8 @@ function Lobby({
   const ck = (s.citiesKnights || needsCk) && !noCk;
   const gwp = ck && s.greedWealthPower && !specialPick;
   const wonders = s.worldWonders && !specialPick;
-  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp);
+  const civs = gwp && s.civilisations;
+  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, gwp && s.civilisations);
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
   const seaPick =
@@ -473,6 +474,15 @@ function Lobby({
               🏛️ World Wonders (fan expansion: wonders in four stages; a finished one is needed to
               win)
             </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={civs}
+                disabled={!gwp}
+                onChange={(e) => setGame({ civilisations: e.target.checked })}
+              />{' '}
+              🏳️ Civilisations (fan expansion on top of Greed, Wealth &amp; Power; 20 points)
+            </label>
             {noCk && (
               <p className="muted small">
                 Traders &amp; Barbarians scenarios use the base game only.
@@ -538,6 +548,7 @@ function Lobby({
                 ck && 'Cities & Knights',
                 gwp && 'Greed, Wealth & Power',
                 wonders && 'World Wonders',
+                civs && 'Civilisations',
               ]
                 .filter(Boolean)
                 .join(' + ') || 'none'}

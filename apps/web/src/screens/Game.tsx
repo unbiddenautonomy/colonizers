@@ -98,6 +98,14 @@ import {
   WonderStats,
   wondersOn,
 } from './WorldWonders.tsx';
+import {
+  CivChoices,
+  CivPanel,
+  civPrompt,
+  CivStats,
+  civsOn,
+  type CivMode,
+} from './Civilisations.tsx';
 
 type Mode =
   | null
@@ -112,7 +120,8 @@ type Mode =
   | 'wagon'
   | EpMode
   | GwpMode
-  | CkMode;
+  | CkMode
+  | CivMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
@@ -191,6 +200,9 @@ function targetsFor(
     want.add('driveBarbarian');
   }
   if (ph === 'slayDragon') want.add('slayDragon');
+  if (ph === 'civNeutral') want.add('civNeutral');
+  if (ph === 'main' && mode === 'civRoute') want.add('civRoute');
+  if (ph === 'main' && mode === 'civKnight') want.add('civKnight');
   if (ph === 'moveToken') want.add('takeToken');
   if (ph === 'moveRobber') {
     want.add('moveRobber');
@@ -317,6 +329,10 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
   }
   const duel = duelPrompt(state, who ?? '');
   if (duel) return duel;
+  if (mode === 'civRoute') return `${who}: tap where your free road or ship goes.`;
+  if (mode === 'civKnight') return `${who}: tap a corner on your roads for your strong knight.`;
+  const civ = civPrompt(state, names, actor);
+  if (civ) return civ;
   switch (state.phase.id) {
     case 'setup':
       return (state.phase.step as string) === 'road'
@@ -455,6 +471,7 @@ export function Game({
   const ck = state.modules.includes('cities-knights');
   const gwp = state.modules.includes('greed-wealth-power');
   const wonders = wondersOn(state);
+  const civs = civsOn(state);
   const cardKinds = handCards(state.modules);
   const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
@@ -723,6 +740,7 @@ export function Game({
               </div>
               <div className="player-stats">
                 <span title="Cards in hand">🂠 {ctx.handSize(p.seat, false)}</span>
+                {civs && <CivStats ctx={ctx} seat={p.seat} />}
                 {wonders && <WonderStats ctx={ctx} seat={p.seat} />}
                 {ck ? (
                   <>
@@ -951,6 +969,7 @@ export function Game({
               />
             )}
           {wonders && !myTurnMain && <WonderPanel ctx={ctx} actor={null} legal={[]} act={act} />}
+          {civs && !myTurnMain && <CivPanel ctx={ctx} actor={actor} legal={[]} act={act} />}
           {ep && state.phase.id === 'sail' && actor === state.turn.player && (
             <EpActions
               ctx={ctx}
@@ -1014,6 +1033,18 @@ export function Game({
               )}
               {wonders && myTurnMain && (
                 <WonderPanel ctx={ctx} actor={actor} legal={legal} act={act} />
+              )}
+              {civs && myTurnMain && (
+                <CivPanel
+                  ctx={ctx}
+                  actor={actor}
+                  legal={legal}
+                  act={act}
+                  setMode={(m) => {
+                    setSelectedShip(null);
+                    setMode(m);
+                  }}
+                />
               )}
               {gwp && myTurnMain && (
                 <GwpActions
@@ -1323,6 +1354,9 @@ export function Game({
       )}
       {wonders && actor !== null && (
         <WonderChoices state={state} ctx={ctx} actor={actor} legal={legal} act={act} />
+      )}
+      {civs && actor !== null && (
+        <CivChoices state={state} ctx={ctx} actor={actor} legal={legal} act={act} />
       )}
       {ck && actor !== null && (
         <GwpChoices state={state} legal={legal} act={act} names={promptNames} />
