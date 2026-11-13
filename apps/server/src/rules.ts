@@ -66,6 +66,9 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
     const b = generateSpecialBoard({ seed: `${seed}-map`, players: n, map: special.id });
     return config(b.modules, b.map, { ...b.settings, vpTarget: settings.vpTarget + extraVp });
   }
+  const custom = settings.map.kind === 'custom' ? settings.map.map : undefined;
+  if (custom && n >= custom.players.min && n <= custom.players.max)
+    return config([], custom, { vpTarget: settings.vpTarget + extraVp });
   const preset =
     settings.map.kind === 'preset'
       ? PRESETS.find(
