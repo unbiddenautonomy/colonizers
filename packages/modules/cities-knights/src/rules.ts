@@ -60,6 +60,8 @@ export interface CkData extends Record<string, unknown> {
   lent?: { seat: number; track: Track; turn: number } | null;
   /** The event die face the next roll shows (Greed, Wealth & Power's Unicorn Magic). */
   forcedEvent?: EventFace | null;
+  /** How far the next barbarian ship face moves the ship (World Wonders' Great Wall), else 1. */
+  shipSteps?: number | null;
   /** Seats whose cities the next attack can't take (Greed, Wealth & Power's Refuge). */
   refuge?: number[];
   /**
@@ -208,7 +210,15 @@ export function strength(ctx: Ctx, seat: number): number {
   const lent = ally && ally.seat === seat ? ctx.state.pieces[ally.knight] : undefined;
   if (lent && isKnight(lent) && lent.owner !== seat && defends(ctx, lent))
     total += knightStrength(ctx, lent);
-  return total;
+  return Math.max(0, ctx.reduce('defense', seat, total));
+}
+
+/**
+ * Safe from rivals and the barbarians: can't be downgraded, displaced or
+ * destroyed (World Wonders' Great Wall).
+ */
+export function shielded(ctx: Ctx, p: Piece): boolean {
+  return ctx.reduce('shielded', p, false);
 }
 
 export function knightAt(ctx: Ctx, corner: CornerId): Piece | undefined {
@@ -283,7 +293,8 @@ export function displaceTargets(ctx: Ctx, knight: Piece): CornerId[] {
         if (
           other &&
           other.owner !== seat &&
-          knightStrength(ctx, other) < knightStrength(ctx, knight)
+          knightStrength(ctx, other) < knightStrength(ctx, knight) &&
+          !shielded(ctx, other)
         )
           if (!out.includes(n)) out.push(n);
       }
@@ -493,7 +504,7 @@ export function barbarianStrength(ctx: Ctx): number {
 
 /** Cities the barbarians can take: not a metropolis, and not sheltered. */
 export function cityAtRisk(ctx: Ctx, seat: number): Piece[] {
-  return freeCities(ctx, seat).filter((c) => !isSheltered(ctx, c));
+  return freeCities(ctx, seat).filter((c) => !isSheltered(ctx, c) && !shielded(ctx, c));
 }
 
 export function defenseStrength(ctx: Ctx): number {
@@ -589,13 +600,15 @@ export function startRoll(ctx: Ctx, player: number): void {
   const yellow = chosen ? chosen.yellow : ctx.rng.int(1, 6);
   const event = d.forcedEvent ?? rollEventDie(ctx);
   d.forcedEvent = null;
+  const steps = d.shipSteps ?? 1;
+  d.shipSteps = null;
   const roll: DiceResult = { dice: { yellow, red, event }, total: red + yellow };
   d.forcedRoll = roll;
   ctx.state.data.base = { ...baseData(ctx), lastRoll: roll };
   ctx.emit({ type: 'eventDie', player, face: event, red });
   if (event === 'ship' || event === 'wild') {
-    d.barbarian += 1;
-    ctx.emit({ type: 'barbariansAdvance', at: d.barbarian, of: barbarianTrack(ctx) });
+    d.barbarian += steps;
+    ctx.emit({ type: 'barbariansAdvance', at: d.barbarian, of: barbarianTrack(ctx), steps });
     if (d.barbarian >= barbarianTrack(ctx)) attack(ctx);
     // The ship is worked out first, then everyone picks a deck their levels allow.
     if (event === 'wild') {

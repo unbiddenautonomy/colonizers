@@ -180,7 +180,10 @@ export function describe(e: GameEvent, names: string[]): string | null {
             ? 'Harbormaster'
             : 'Largest Army';
       // Seafarers calls it Longest Trade Route; the log keeps one name.
-      return e.to === null ? `Nobody holds ${label} now.` : `${n(e.to)} takes ${label}!`;
+      if (e.to === null) return `Nobody holds ${label} now.`;
+      return e.wonder === 'colosseum'
+        ? `🏟️ ${n(e.to)} ties for ${label} and the Colosseum's court gives it to them!`
+        : `${n(e.to)} takes ${label}!`;
     }
     case 'gameOver':
       return `🏆 ${n(e.winner)} wins!`;
@@ -335,6 +338,22 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🏹 ${n(e.player)} swept the roaming pieces off the board.`;
     case 'wonderDraw':
       return `🌿 ${n(e.player)} drew a card for moving the robber.`;
+    case 'wonderFreeShip':
+      return `🗼 The Lighthouse lit the way: ${n(e.player)}'s ship was free.`;
+    case 'wonderRefundOffered':
+      return `🕌 ${n(e.player)} may take back one resource they spent.`;
+    case 'wonderRefund':
+      return `🕌 ${n(e.player)} took back ${cards({ [e.card as string]: 1 })}.`;
+    case 'wonderHuntStarted':
+      return `🏹 ${n(e.player)} looks at the next card too.`;
+    case 'wonderHunt':
+      return `🏹 ${n(e.player)} ${e.swapped ? 'took the next card instead' : 'kept the card they drew'}.`;
+    case 'wonderWall':
+      return e.steps === 0
+        ? `🧱 The Great Wall holds the barbarians where they are.`
+        : `🧱 ${n(e.player)} sends the barbarians on two spaces.`;
+    case 'wonderOffering':
+      return `⚡ ${n(e.player)} made an offering at Olympia for a ${e.deck} card.`;
     case 'wonderEcho':
       return `🏜️ Petra: ${n(e.player)} also collected ${cards(e.got as Record<string, number>)} from their ${e.echo}s.`;
     case 'landDeed':
