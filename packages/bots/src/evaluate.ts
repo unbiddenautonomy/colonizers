@@ -26,9 +26,16 @@ function hexOutput(
   const h = ctx.state.hexes[hex];
   if (!h || h.hidden || !h.token) return null;
   const def = ctx.registry.hexTypes[h.type];
-  const card = def?.produces ?? (h.type === 'gold' ? 'any' : null);
+  let card = def?.produces ?? (h.type === 'gold' ? 'any' : null);
+  let rate = pips(h.token) / 36;
+  // Explorers & Pirates: a gold field pays 2 gold once its lair is captured.
+  if (h.type === 'gold' && ctx.state.modules.includes('explorers-pirates')) {
+    const ep = ctx.state.data['explorers-pirates'] as { captured?: string[] } | undefined;
+    if (!ep?.captured?.includes(hex)) return null;
+    card = 'gold';
+    rate *= 1.2;
+  }
   if (!card) return null;
-  const rate = pips(h.token) / 36;
   return { card, rate: blocked.has(hex) ? rate * 0.25 : rate };
 }
 
@@ -103,6 +110,10 @@ function targets(ctx: Ctx, seat: number): { item: string; cost: Record<string, n
   const ep = !!ctx.registry.pieceTypes.harbor;
   add('harbor', ep && ctx.piecesOf(seat, 'settlement').length > 0);
   add('settler', ep);
+  add(
+    'crew',
+    ep && Object.keys((ctx.state.data['explorers-pirates']?.lairs as object) ?? {}).length > 0,
+  );
   return out;
 }
 
@@ -229,11 +240,22 @@ function epHints(state: GameState, ctx: Ctx, seat: number, blocked: Set<string>)
   const fogEdge = (e: EdgeId) => (g.edgeCorners.get(e) ?? []).some(fogCorner);
   const seaEdge = (e: EdgeId) => (g.edgeHexes.get(e) ?? []).some((h) => ctx.isSea(h));
   const free = (c: CornerId) => openCorner(ctx, c) && !fogCorner(c);
+  const lairs = ((
+    state.data['explorers-pirates'] as { lairs?: Record<string, Record<number, number>> }
+  )?.lairs ?? {}) as Record<string, Record<number, number>>;
+  const lairEdge = (e: EdgeId) =>
+    (g.edgeHexes.get(e) ?? []).some((h) => !!lairs[h] && !hiddenHex(state, h));
+  // Docks with a settler or crews waiting for a ship.
+  const docks = new Set<CornerId>();
+  for (const h of ctx.piecesOf(seat, 'harbor'))
+    if (h.at.kind === 'corner' && cargo(h).length) docks.add(h.at.id);
   let score = 0;
+  for (const crews of Object.values(lairs)) score += (crews[seat] ?? 0) * 4;
   for (const p of ctx.piecesOf(seat)) {
     const load = cargo(p);
     if (p.type === 'harbor') {
       score += load.filter((x) => x === 'settler').length * 2.5;
+      score += load.filter((x) => x === 'crew').length * 0.8;
       continue;
     }
     if (p.type !== 'ship' || p.at.kind !== 'edge') continue;
@@ -242,11 +264,25 @@ function epHints(state: GameState, ctx: Ctx, seat: number, blocked: Set<string>)
     // Sail distance to the fog and to free land, up to a few turns away.
     let fog = Infinity;
     let land = 0;
+    let lair = Infinity;
+    let dock = Infinity;
+    let capture = 0;
+    const crews = load.filter((x) => x === 'crew').length;
     const seen = new Set<EdgeId>([p.at.id]);
     let frontier: EdgeId[] = [p.at.id];
     for (let step = 0; step <= 14 && frontier.length; step++) {
       const next: EdgeId[] = [];
       for (const e of frontier) {
+        if (crews && lairEdge(e)) {
+          lair = Math.min(lair, step);
+          // Enough crews aboard to finish a lair off: a capture in reach.
+          for (const h of g.edgeHexes.get(e) ?? []) {
+            const there = Object.values(lairs[h] ?? {}).reduce((a, n) => a + n, 0);
+            if (lairs[h] && crews >= 3 - there) capture = Math.max(capture, 6 - step * 0.3);
+          }
+        }
+        if (!load.length && (g.edgeCorners.get(e) ?? []).some((c) => docks.has(c)))
+          dock = Math.min(dock, step);
         if (fogEdge(e)) {
           fog = Math.min(fog, step);
           if (step > 0) continue;
@@ -264,8 +300,13 @@ function epHints(state: GameState, ctx: Ctx, seat: number, blocked: Set<string>)
       frontier = next;
     }
     if (settler) score += 3 + Math.max(0, land) * 0.25;
-    // Explore: worth most for an empty ship, or a settler with nowhere good to go.
-    if (fog < Infinity) score += Math.max(0, 3 - fog * 0.3) * (settler && land > 6 ? 0.3 : 1);
+    if (crews) score += crews * (1.2 + (lair < Infinity ? Math.max(0, 2.4 - lair * 0.2) : 0));
+    score += capture;
+    // Explore: worth most for an empty ship, or one with somewhere better to go.
+    // An empty ship heads home to pick up what waits on the dock.
+    if (dock < Infinity) score += Math.max(0, 2 - dock * 0.2);
+    const busy = (settler && land > 6) || (crews > 0 && lair < Infinity) || dock < Infinity;
+    if (fog < Infinity) score += Math.max(0, 3 - fog * 0.3) * (busy ? 0.3 : 1);
   }
   score += (state.players[seat]!.hand.gold ?? 0) * 0.3;
   return score;
