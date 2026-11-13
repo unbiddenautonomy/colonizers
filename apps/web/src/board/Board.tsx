@@ -20,6 +20,7 @@ import {
   farmlandDry,
   GoldRiver,
 } from './CanalArt.tsx';
+import { LairMarkers } from './EpArt.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -91,8 +92,13 @@ function HouseShape({
   );
 }
 
-const CARGO_ICON: Record<string, string> = { settler: '🧑‍🌾', crew: '🏴‍☠️' };
-const CARGO_NAME: Record<string, string> = { settler: 'a settler', crew: 'a crew' };
+const CARGO_ICON: Record<string, string> = { settler: '🧑‍🌾', crew: '⚔️', fish: '🐟', spice: '🌶️' };
+const CARGO_NAME: Record<string, string> = {
+  settler: 'a settler',
+  crew: 'a crew',
+  fish: 'a fish',
+  spice: 'a sack of spice',
+};
 
 /** What a ship or harbor settlement carries (Explorers & Pirates). */
 function Cargo({ x, y, props }: { x: number; y: number; props: Record<string, unknown> }) {
@@ -528,6 +534,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           </g>
         );
       })}
+
+      <LairMarkers state={state} S={S} color={color} />
 
       {pieces
         .filter((p) => p.at.kind === 'edge')

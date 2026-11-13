@@ -205,6 +205,10 @@ export const SPECIAL_ICON: Record<string, string> = {
   'enchanted-land': '🔮',
   'great-canal': '⛏️',
   'land-ho': '🔭',
+  'pirate-lairs': '🏴‍☠️',
+  'fishing-grounds': '🐟',
+  'spice-islands': '🌶️',
+  'full-voyage': '🗺️',
 };
 
 /** Icons for the Seafarers scenarios. */
