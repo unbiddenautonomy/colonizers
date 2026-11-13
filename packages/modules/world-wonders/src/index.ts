@@ -58,7 +58,7 @@ export { numberDice, rerollChoices, wallChoices, type HeldDice } from './dice.ts
 export { cableCorners, refundOf, BUYS } from './building.ts';
 export { OFFERING, offeringPrice } from './knights.ts';
 export { huntOf } from './hunt.ts';
-export { closedLoop, isTerrain, wonderSites } from './requirements.ts';
+export { closedLoop, isTerrain, sitesFor, wonderSites } from './requirements.ts';
 
 // ---- Building ----
 

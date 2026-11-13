@@ -83,6 +83,19 @@ describe('Bots', () => {
     expect(r.winner).not.toBeNull();
   }, 180_000);
 
+  it('plays Civilisations on Greed, Wealth & Power', () => {
+    // A shorter game than the real 20 points, to keep the test quick.
+    const r = play(
+      game('cv1', 4, 'gwp', { vpTarget: 16 }, ['civilisations']),
+      [medium, medium, medium, medium],
+      5,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+    const d = r.state.data.civilisations as { civ: Record<number, string> };
+    expect(Object.keys(d.civ)).toHaveLength(4);
+  }, 240_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');
