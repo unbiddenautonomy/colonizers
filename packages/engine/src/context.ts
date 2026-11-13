@@ -289,7 +289,8 @@ export class Ctx {
   /** Another player's building or route-blocking piece (like a knight) sits on the corner. */
   blocksRouteAt(corner: CornerId, seat: number): boolean {
     return this.piecesAt({ kind: 'corner', id: corner }).some((p) => {
-      if (p.owner === seat || p.owner === null) return false;
+      // Unowned pieces don't block, except a neutral builder's (two-player duel rules).
+      if (p.owner === seat || (p.owner === null && p.props.neutral === undefined)) return false;
       const def = this.registry.pieceTypes[p.type];
       return !!def?.building || !!def?.blocksRoutes;
     });

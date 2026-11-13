@@ -213,6 +213,7 @@ export function mapName(key: string | null): string {
   if (!key || key === 'unknown') return 'Older game';
   const [kind, id = ''] = key.split(':');
   if (kind === 'random') return RANDOM_NAMES[id] ?? 'Random board';
+  if (kind === 'custom') return `Custom map (${id})`;
   const list: { id: string; name: string }[] =
     kind === 'preset' ? PRESETS : kind === 'scenario' ? SEA_SCENARIOS : SPECIAL_MAPS;
   return list.find((m) => m.id === id)?.name ?? id;
