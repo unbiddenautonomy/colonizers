@@ -83,6 +83,7 @@ export function NewGame({
   const [choice, setChoice] = useState<MapChoice>({ kind: 'random', mode: 'classic' });
   const [seed, setSeed] = useState(randomSeed);
   const [ckWanted, setCk] = useState(false);
+  const [gwpWanted, setGwp] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -118,13 +119,15 @@ export function NewGame({
   const noCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.noCitiesKnights === true;
   const needsCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.needsCitiesKnights === true;
   const ck = (ckWanted || needsCk) && !noCk;
-  const extraVp = ck ? 3 : 0;
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}`;
+  // Greed, Wealth & Power goes on top of Cities & Knights, on the usual maps and Seafarers.
+  const gwp = ck && gwpWanted && !specialId;
+  const extraVp = gwp ? 8 : ck ? 3 : 0;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
-  const bonus = vpBonus(ck, specialId);
+  const bonus = vpBonus(ck, specialId, gwp);
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
@@ -163,7 +166,7 @@ export function NewGame({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
           players,
-          modules: moduleList(extraModules, ck),
+          modules: moduleList(extraModules, ck, gwp),
           map,
           settings: { ...opts, ...own },
           fixedSeats: true,
@@ -437,6 +440,20 @@ export function NewGame({
           </button>
           <button
             type="button"
+            className={`expansion ${gwp ? 'on' : ''}`}
+            aria-pressed={gwp}
+            disabled={!ck || !!specialId}
+            onClick={() => setGwp(!gwp)}
+          >
+            <strong>👑 Greed, Wealth &amp; Power</strong>
+            <small>
+              {ck && !specialId
+                ? 'Fan expansion for Cities & Knights: Magic, Religion and Wealth tracks, special buildings and Beer. 18 points.'
+                : 'Fan expansion that goes on top of Cities & Knights, on the usual maps or Seafarers.'}
+            </small>
+          </button>
+          <button
+            type="button"
             className={`expansion ${isTraders ? 'on' : ''}`}
             aria-pressed={isTraders}
             onClick={() =>
@@ -487,7 +504,8 @@ export function NewGame({
         {sea ? (
           <p>
             First to <strong>{Number(sea.settings.vpTarget) + extraVp}</strong> points, set by the
-            scenario{ck ? ' (+3 for Cities & Knights)' : ''}.
+            scenario
+            {gwp ? ' (+8 for Greed, Wealth & Power)' : ck ? ' (+3 for Cities & Knights)' : ''}.
           </p>
         ) : (
           <label>

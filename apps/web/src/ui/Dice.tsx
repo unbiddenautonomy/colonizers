@@ -226,21 +226,25 @@ export function DiceTray({
   dice,
   rollKey,
   icons,
+  faces,
   children,
 }: {
   dice: Record<string, unknown>;
   rollKey: string;
   icons: Record<string, string>;
+  /** The event die's faces, when an expansion changes them. */
+  faces?: readonly string[] | undefined;
   children?: ReactNode;
 }) {
   const entries = Object.entries(dice);
+  const eventFaces = faces ?? EVENT_FACES;
   return (
     <div className="dice" aria-label="Last roll">
       {entries.map(([name, d], i) => {
         if (typeof d === 'number' && d >= 1 && d <= 6)
           return <Die key={name} value={d} kind={name} rollKey={rollKey} index={i} />;
-        if (typeof d === 'string' && EVENT_FACES.includes(d)) {
-          const rest = [...EVENT_FACES];
+        if (typeof d === 'string' && eventFaces.includes(d)) {
+          const rest = [...eventFaces];
           rest.splice(rest.indexOf(d), 1);
           return (
             <Die

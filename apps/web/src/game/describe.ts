@@ -7,6 +7,16 @@ const TRACK: Record<string, string> = {
   science: 'science (green)',
   trade: 'trade (yellow)',
   politics: 'politics (blue)',
+  magic: 'magic (purple)',
+  religion: 'religion (red)',
+  wealth: 'wealth (gold)',
+};
+
+const GWP_BUILDING: Record<string, string> = {
+  citadel: '🏰 Citadel',
+  diocese: '⛪ Diocese',
+  monument: '🗿 Monument',
+  silo: '🌾 Silo',
 };
 
 function cards(c: Record<string, number> | undefined): string {
@@ -185,9 +195,23 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `⛏️ An 8: knights by the gold rivers pan for gold.`;
     // ---- Cities & Knights ----
     case 'eventDie':
-      return e.face === 'ship'
-        ? 'Event die: the barbarian ship sails closer.'
-        : `Event die: ${TRACK[e.face as string] ?? e.face} gate with red ${e.red as number}.`;
+      if (e.face === 'ship') return 'Event die: the barbarian ship sails closer.';
+      if (e.face === 'wild')
+        return `Event die: the barbarian ship sails closer, and a wild gate with red ${e.red as number}: everyone may draw from any deck they can.`;
+      return `Event die: ${TRACK[e.face as string] ?? e.face} gate with red ${e.red as number}.`;
+    // ---- Greed, Wealth & Power ----
+    case 'gwpBuilt':
+      return `${n(e.player)} built a ${GWP_BUILDING[e.building as string] ?? e.building}.`;
+    case 'gwpLost':
+      return `${n(e.player)} lost their ${GWP_BUILDING[e.building as string] ?? e.building} with the city.`;
+    case 'beerBrewed':
+      return `🍺 ${(e.players as number[]).map(n).join(', ')} brewed a Beer.`;
+    case 'beerTrade':
+      return `${n(e.player)} traded ${e.beer as number} Beer for ${cards(e.got as Record<string, number>)}.`;
+    case 'beerKnight':
+      return e.owner === e.player
+        ? `🍺 ${n(e.player)} activated a knight with Beer.`
+        : `🍺 ${n(e.player)} activated ${n(e.owner)}'s knight with Beer.`;
     case 'barbariansAdvance':
       return null;
     case 'barbarianAttack':

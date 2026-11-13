@@ -84,6 +84,28 @@ describe('game options', () => {
     expect(config.modules).toEqual(['base', 'variants']);
   });
 
+  it('adds Greed, Wealth & Power on top of Cities & Knights, playing to 18', () => {
+    const settings = cleanSettings({
+      ...DEFAULT_SETTINGS,
+      citiesKnights: true,
+      greedWealthPower: true,
+    });
+    const config = buildConfig(settings, names(4), 'seed');
+    expect(config.modules).toEqual(['base', 'variants', 'cities-knights', 'greed-wealth-power']);
+    expect(config.settings?.vpTarget).toBe(18);
+    const state = library.createGame(config).state;
+    expect(
+      state.settings.progressLimit ?? library.registry(state.modules).settings.progressLimit,
+    ).toBe(5);
+    // Without Cities & Knights it has nothing to go on.
+    const alone = buildConfig(
+      cleanSettings({ ...DEFAULT_SETTINGS, greedWealthPower: true }),
+      names(4),
+      'seed',
+    );
+    expect(alone.modules).not.toContain('greed-wealth-power');
+  });
+
   it('builds Traders & Barbarians scenarios on the base game only', () => {
     for (const id of ['fishermen', 'rivers']) {
       const settings = cleanSettings({

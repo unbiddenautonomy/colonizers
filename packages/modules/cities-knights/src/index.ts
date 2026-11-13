@@ -7,6 +7,7 @@ import {
   KNIGHT_TYPES,
   MODULE_ID,
   TERRAIN_COMMODITY,
+  VP_PROGRESS,
   WALL_HAND_BONUS,
   commodityBank,
   isCommodity,
@@ -15,6 +16,7 @@ import { progressActions } from './progress.ts';
 import {
   ckData,
   ckDice,
+  commoditiesIn,
   hasAbility,
   merchant,
   progressOverLimit,
@@ -111,7 +113,7 @@ export const citiesKnightsModule: GameModule = {
       ...prev,
       enumerate(ctx, player) {
         if (player !== ctx.active) return [];
-        const all = [...RESOURCES, ...COMMODITIES] as string[];
+        const all = [...RESOURCES, ...commoditiesIn(ctx)];
         return all.flatMap((give) =>
           all.filter((g) => g !== give).map((get) => ({ type: 'bankTrade', player, give, get })),
         );
@@ -168,7 +170,7 @@ export const citiesKnightsModule: GameModule = {
       for (const m of Object.values(d.metropolis)) if (m?.seat === seat) v += 2;
       v += d.defender[seat] ?? 0;
       const played = ctx.player(seat).played;
-      v += (played.printer ?? 0) + (played.constitution ?? 0);
+      for (const c of VP_PROGRESS) v += played[c] ?? 0;
       if (merchant(ctx)?.owner === seat) v += 1;
       return v;
     },
@@ -187,13 +189,17 @@ export function knightPieces(ctx: Ctx, seat: number): Piece[] {
 
 export * from './constants.ts';
 export {
+  activeTracks,
   attack,
   barbarianStrength,
   barbarianTrack,
   canAct,
   ckData,
   citiesOf,
+  commoditiesIn,
   drawProgress,
+  eventFaces,
+  gateOpen,
   defenseStrength,
   displaceTargets,
   freeCities,
@@ -201,6 +207,7 @@ export {
   improveBlock,
   improveCost,
   isActive,
+  isActiveTrack,
   isAway,
   isKnight,
   knightAt,
@@ -211,9 +218,14 @@ export {
   moveTargets,
   progressCount,
   progressHeld,
+  progressLimit,
   reachable,
+  rivalMetropolis,
+  setMetropolis,
+  pillage,
   strength,
   wallsOf,
+  wildDecks,
   type CkData,
   type Levels,
 } from './rules.ts';

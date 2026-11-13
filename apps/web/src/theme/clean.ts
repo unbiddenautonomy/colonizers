@@ -139,6 +139,9 @@ export const RESOURCE_ICON: Record<string, string> = {
   cloth: '🧵',
   coin: '🪙',
   gold: '🪙',
+  crystal: '💎',
+  bread: '🍞',
+  beer: '🍺',
 };
 
 export const RESOURCE_COLOR: Record<string, string> = {
@@ -151,6 +154,8 @@ export const RESOURCE_COLOR: Record<string, string> = {
   paper: '#efe6c6',
   cloth: '#c9b3e3',
   coin: '#f0cf5e',
+  crystal: '#c7b5ef',
+  bread: '#e3b07a',
 };
 
 /** Improvement track colours (science, trade, politics). */
@@ -158,4 +163,7 @@ export const TRACK_COLOR: Record<string, string> = {
   science: '#3f8f5a',
   trade: '#e0b23a',
   politics: '#3a6fb5',
+  magic: '#8a4fb5',
+  religion: '#b5413a',
+  wealth: '#b0864a',
 };
