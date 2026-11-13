@@ -38,6 +38,8 @@ export interface SeaScenario {
   gold?: number;
   /** Home island size, instead of the layout's own. */
   homeSize?: (players: number) => number;
+  /** Rounds of starting placement (3 gives everyone a third settlement). */
+  setupRounds?: number;
 }
 
 export const SEA_SCENARIOS: SeaScenario[] = [
@@ -529,7 +531,7 @@ export function buildSeaBoard(scenario: SeaScenario, opts: SeaBoardOptions): Sea
       if (!RESOURCE_TERRAIN.every((r) => kinds.has(r))) continue;
     }
     const spots = countStartingSpots(layout.board, startArea, tokens);
-    if (spots < 2 * opts.players) continue;
+    if (spots < (scenario.setupRounds ?? 2) * opts.players) continue;
 
     const land = new Set(layout.islands.flat());
     const harbors = placeHarbors(rng, layout.board, land, layout.islands, layout.home);
@@ -605,6 +607,7 @@ export function buildSeaBoard(scenario: SeaScenario, opts: SeaBoardOptions): Sea
         islandBonus: scenario.islandBonus,
         discoveryReward: scenario.fog,
         setupHexes: layout.home,
+        ...(scenario.setupRounds !== undefined && { setupRounds: scenario.setupRounds }),
       },
       info: {
         islands: layout.islands,
