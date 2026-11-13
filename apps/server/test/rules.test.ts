@@ -124,3 +124,33 @@ describe('game options', () => {
     }
   });
 });
+
+describe('custom maps', () => {
+  it('play a map from the editor, and refuse a broken one', async () => {
+    const { blankDraft, draftToMapFile, randomNumbers } = await import('@colonizers/maps');
+    const draft = randomNumbers(
+      {
+        ...blankDraft('Our island'),
+        players: { min: 2, max: 4 },
+      },
+      's',
+    );
+    const map = draftToMapFile(draft);
+    const settings = cleanSettings({ ...DEFAULT_SETTINGS, map: { kind: 'custom', map } });
+    expect(settings.map.kind).toBe('custom');
+    const config = buildConfig(settings, names(3), 'custom');
+    expect(config.map.hexes).toHaveLength(37);
+    const state = library.createGame(config).state;
+    expect(state.phase.id).toBe('setup');
+    // Too many players for the map: a random board instead.
+    expect(buildConfig(settings, names(5), 'custom').map.hexes.length).not.toBe(37);
+    // A map with a desert carrying a number is refused.
+    const bad = {
+      ...map,
+      hexes: map.hexes.map((h) => (h.type === 'sea' ? { ...h, token: 5 } : h)),
+    };
+    expect(cleanSettings({ ...DEFAULT_SETTINGS, map: { kind: 'custom', map: bad } }).map.kind).toBe(
+      'random',
+    );
+  });
+});
