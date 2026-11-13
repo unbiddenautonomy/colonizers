@@ -6,7 +6,15 @@ import { citiesKnightsModule } from '@colonizers/module-cities-knights';
 import { generateBoard } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
 import { stateFromView } from '@colonizers/engine';
-import { damagedRoads, EVENT_DECK, eventData, partnerOf, variantsModule } from '../src/index.ts';
+import {
+  damagedRoads,
+  duelData,
+  EVENT_DECK,
+  eventData,
+  partnerOf,
+  tokensOf,
+  variantsModule,
+} from '../src/index.ts';
 
 const lib = new ModuleLibrary([baseModule, seafarersModule, variantsModule, citiesKnightsModule]);
 
@@ -345,4 +353,94 @@ describe('Event cards', () => {
     expect(s.phase.id).toBe('main');
     s.players.forEach((p, i) => expect(p.hand.ore).toBe(before[i]! + 1));
   });
+});
+
+describe('Two-player duel rules', () => {
+  const neutrals = (s: GameState, type: string) =>
+    Object.values(s.pieces).filter((p) => p.type === type && p.props.neutral !== undefined);
+
+  it('start two neutral builders with 2 settlements and a road each', () => {
+    const s = game(2, { twoPlayer: true }, 'duel');
+    expect(neutrals(s, 'settlement')).toHaveLength(4);
+    expect(neutrals(s, 'road')).toHaveLength(4);
+    for (const n of [0, 1])
+      expect(neutrals(s, 'settlement').filter((p) => p.props.neutral === n)).toHaveLength(2);
+    // Not with three players.
+    expect(neutrals(game(3, { twoPlayer: true }, 'duel'), 'settlement')).toHaveLength(0);
+  });
+
+  it('roll twice a turn, never the same total twice', () => {
+    let s = finishSetup(game(2, { twoPlayer: true, robberFreeRounds: 99 }, 'duel'));
+    for (let turn = 0; turn < 12; turn++) {
+      const seat = s.turn.player;
+      s = act(s, { type: 'roll', player: seat });
+      const first = (s.data.base as { lastRoll: { total: number } }).lastRoll.total;
+      expect(s.phase.id).toBe('roll');
+      s = act(s, { type: 'roll', player: seat });
+      const second = (s.data.base as { lastRoll: { total: number } }).lastRoll.total;
+      expect(second).not.toBe(first);
+      expect(s.phase.id).toBe('main');
+      s = act(s, { type: 'endTurn', player: seat });
+    }
+  });
+
+  it('make each road and settlement bring a free neutral one', () => {
+    let s = toMain(finishSetup(game(2, { twoPlayer: true, robberFreeRounds: 99 }, 'duel')));
+    s = toMain(s);
+    const me = s.turn.player;
+    s = edit(s, (c) => c.grant(me, rich));
+    const road = lib.legalActions(s, me).find((a) => a.type === 'buildRoad')!;
+    s = act(s, road);
+    expect(s.phase.id).toBe('neutralBuild');
+    const options = lib.legalActions(s, me);
+    expect(options.every((a) => a.type === 'neutralRoad')).toBe(true);
+    expect(lib.legalActions(s, 1 - me)).toEqual([]);
+    const before = neutrals(s, 'road').length;
+    s = act(s, options[0]!);
+    expect(neutrals(s, 'road')).toHaveLength(before + 1);
+    expect(s.phase.id).toBe('main');
+  });
+
+  it('block player roads at neutral settlements', () => {
+    const s = game(2, { twoPlayer: true }, 'duel');
+    const c = new Ctx(s, lib.registry(s.modules));
+    const at = neutrals(s, 'settlement')[0]!.at;
+    expect(at.kind === 'corner' && c.blocksRouteAt(at.id, 0)).toBe(true);
+  });
+
+  it('spend trade tokens on a forced trade or sending the robber home', () => {
+    let s = toMain(finishSetup(game(2, { twoPlayer: true, robberFreeRounds: 99 }, 'duel')));
+    s = toMain(s);
+    const me = s.turn.player;
+    const other = 1 - me;
+    expect(lib.check(s, { type: 'forceTrade', player: me })).toMatch(/token/);
+    s = edit(s, (c) => {
+      duelData(c).tokens[me] = 3;
+      c.player(other).hand = { ore: 2 };
+      c.player(me).hand = { wool: 2 };
+      // Move the robber off the desert.
+      const robber = c.piecesOfType('robber')[0]!;
+      const hex = Object.values(c.state.hexes).find((h) => h.type === 'fields')!;
+      c.move(robber, { kind: 'hex', id: hex.id });
+    });
+    s = act(s, { type: 'forceTrade', player: me });
+    expect(s.phase.id).toBe('giveBack');
+    expect(s.players[me]!.hand).toMatchObject({ ore: 2, wool: 2 });
+    expect(lib.check(s, { type: 'giveBack', player: me, cards: { wool: 1 } })).toMatch(/2/);
+    s = act(s, { type: 'giveBack', player: me, cards: { wool: 2 } });
+    expect(s.players[other]!.hand).toMatchObject({ wool: 2, ore: 0 });
+    expect(s.phase.id).toBe('main');
+    const left = tokensOf(new Ctx(s, lib.registry(s.modules)), me);
+    expect(left).toBeLessThan(3);
+    s = act(s, { type: 'robberHome', player: me });
+    const robber = Object.values(s.pieces).find((p) => p.type === 'robber')!;
+    expect(robber.at.kind === 'hex' && s.hexes[robber.at.id]!.type).toBe('desert');
+  });
+
+  it('two bots finish a duel', () => {
+    const m: BotConfig = { level: 'medium', style: 'balanced' };
+    const s = play(game(2, { twoPlayer: true }, 'duel-bots'), [m, m], 4);
+    expect(s.winner).not.toBeNull();
+    expect(neutrals(s, 'road').length).toBeGreaterThan(4);
+  }, 120_000);
 });
