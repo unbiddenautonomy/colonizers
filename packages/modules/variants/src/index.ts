@@ -19,7 +19,18 @@ import {
   turnEventCard,
 } from './events.ts';
 
+import {
+  duelActions,
+  duelAfterAction,
+  duelBuild,
+  duelOn,
+  duelReroll,
+  duelRoll,
+  placeNeutrals,
+} from './duel.ts';
+
 export * from './events.ts';
+export * from './duel.ts';
 
 /**
  * Options and house rules, each switched on in the game settings:
@@ -36,6 +47,7 @@ export * from './events.ts';
  * - `eventCards`: a deck of 36 event cards replaces the dice (see events.ts).
  * - `harbormaster`: the first player with 3 points of buildings on harbors
  *   (settlement 1, city 2) takes a 2-point bonus; anyone with more takes it.
+ * - `twoPlayer`: duel rules for two players (see duel.ts).
  *
  * List this module before Cities & Knights so its event dice win.
  */
@@ -225,14 +237,17 @@ export const variantsModule: GameModule = {
     gifting: false,
     harbormaster: false,
     eventCards: false,
+    twoPlayer: false,
   },
-  actions: { endSpecialBuild, giveCards, eventPick, repairRoad },
+  actions: { endSpecialBuild, giveCards, eventPick, repairRoad, ...duelActions },
   dice(ctx) {
     if (ctx.setting<boolean>('eventCards')) {
       const card = turnEventCard(ctx);
       return { dice: { card: card.total }, total: card.total };
     }
-    const [a, b] = ctx.setting<boolean>('balancedDice') ? balancedRoll(ctx) : standardRoll(ctx);
+    const [a, b] = duelReroll(ctx, () =>
+      ctx.setting<boolean>('balancedDice') ? balancedRoll(ctx) : standardRoll(ctx),
+    );
     return { dice: { white1: a, white2: b }, total: a + b };
   },
   wrapActionsIfPresent: {
@@ -241,8 +256,8 @@ export const variantsModule: GameModule = {
   },
   wrapActions: {
     ...Object.fromEntries(BUILD_ACTIONS.map((t) => [t, wrapBuild('build')])),
-    buildRoad: (prev) => wrapBuild('build')(quakeRoad(prev)),
-    buildSettlement: (prev) => wrapBuild('build')(quakeSettlement(prev)),
+    buildRoad: (prev) => duelBuild('road')(wrapBuild('build')(quakeRoad(prev))),
+    buildSettlement: (prev) => duelBuild('settlement')(wrapBuild('build')(quakeSettlement(prev))),
     bankTrade: wrapBuild('bank'),
     endTurn: (prev): ActionDef => {
       const def: WithBelow = {
@@ -274,34 +289,37 @@ export const variantsModule: GameModule = {
           : null;
       },
     }),
-    roll: (prev): ActionDef => ({
-      ...prev,
-      apply(ctx, a) {
-        prev.apply(ctx, a);
-        const quiet = ctx.setting<number>('robberFreeRounds') ?? 0;
-        const last = (ctx.state.data.base as { lastRoll?: { total: number } }).lastRoll;
-        const id = ctx.state.phase.id;
-        if (
-          quiet > ctx.state.turn.round &&
-          last?.total === 7 &&
-          (id === 'discard' || id === 'moveRobber')
-        ) {
-          ctx.setPhase({ id: 'main' });
-          ctx.emit({ type: 'robberResting', rounds: quiet });
-        }
-        if (ctx.setting<boolean>('eventCards')) {
-          eventData(ctx).epidemic = false;
-          startEventPicks(ctx);
-        }
-      },
-    }),
+    roll: (prev): ActionDef =>
+      duelRoll({
+        ...prev,
+        apply(ctx, a) {
+          prev.apply(ctx, a);
+          const quiet = ctx.setting<number>('robberFreeRounds') ?? 0;
+          const last = (ctx.state.data.base as { lastRoll?: { total: number } }).lastRoll;
+          const id = ctx.state.phase.id;
+          if (
+            quiet > ctx.state.turn.round &&
+            last?.total === 7 &&
+            (id === 'discard' || id === 'moveRobber')
+          ) {
+            ctx.setPhase({ id: 'main' });
+            ctx.emit({ type: 'robberResting', rounds: quiet });
+          }
+          if (ctx.setting<boolean>('eventCards')) {
+            eventData(ctx).epidemic = false;
+            startEventPicks(ctx);
+          }
+        },
+      }),
   },
   hooks: {
     init(ctx) {
       vData(ctx);
+      if (duelOn(ctx)) placeNeutrals(ctx);
     },
-    afterAction(ctx) {
+    afterAction(ctx, a) {
       if (ctx.setting<boolean>('harbormaster')) updateHarbormaster(ctx);
+      duelAfterAction(ctx, a);
     },
   },
   reducers: {

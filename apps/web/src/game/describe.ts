@@ -90,6 +90,33 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `${n(e.player)} founded a settlement from a ship.`;
     case 'boughtWithGold':
       return `${n(e.player)} paid ${e.gold as number} gold for ${cards({ [e.resource as string]: 1 })}.`;
+    case 'crewLanded':
+      return `${n(e.player)} landed ${e.crews as number} crew${e.crews === 1 ? '' : 's'} at a pirate lair.`;
+    case 'lairCaptured':
+      return `Pirate lair captured by ${(e.players as number[]).map(n).join(', ')}: ${e.gold as number} gold each, and ${n(e.hero)} is the hero.`;
+    case 'pirateChased':
+      return e.chased
+        ? `${n(e.player)} rolled ${e.roll as number} and drove the pirate ship off!`
+        : `${n(e.player)} rolled ${e.roll as number}: the pirate ship holds its ground.`;
+    case 'shipsFished':
+      return `Fish on ${e.total as number}: ${Object.entries(e.caught as Record<string, number>)
+        .map(([seat, k]) => `${n(Number(seat))} caught ${k}`)
+        .join(', ')}.`;
+    case 'spiceBought':
+      return `${n(e.player)} bought a sack of spice for ${e.gold as number} gold.`;
+    case 'goodsDelivered': {
+      const g = e.goods as Record<string, number>;
+      const what = [
+        g.fish ? `${g.fish} fish` : '',
+        g.spice ? `${g.spice} sack${g.spice === 1 ? '' : 's'} of spice` : '',
+      ]
+        .filter(Boolean)
+        .join(' and ');
+      const steps = e.steps as number;
+      return `${n(e.player)} brought home ${what}${steps ? `: ${steps} mission step${steps === 1 ? '' : 's'}` : ''}.`;
+    }
+    case 'tributePaid':
+      return `${n(e.player)} paid the pirate ${e.gold as number} gold to sail past.`;
     case 'goldForNothing':
       return `${(e.players as number[]).map(n).join(', ')} got nothing from the roll and took 1 gold.`;
     case 'shipMoved':
@@ -304,6 +331,21 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `Everyone else may now build in turn.`;
     case 'specialBuildDone':
       return `${n(e.player)} is done building.`;
+    // ---- Duel rules ----
+    case 'neutralBuilt':
+      return `${n(e.player)} placed a ${e.piece as string} for the ${e.neutral === 0 ? 'white' : 'black'} builder.`;
+    case 'tokensEarned':
+      return `${n(e.player)} earned ${e.tokens as number} trade token${e.tokens === 1 ? '' : 's'}.`;
+    case 'forcedTrade':
+      return e.took
+        ? `${n(e.player)} spent ${e.tokens as number} 🎟️ to take ${cards(e.took as Record<string, number>)} from ${n(e.from)}.`
+        : `${n(e.player)} spent ${e.tokens as number} 🎟️ to take ${e.count as number} cards from ${n(e.from)}.`;
+    case 'gaveBack':
+      return `${n(e.player)} gave ${n(e.to)} ${cards(e.cards as Record<string, number>)} back.`;
+    case 'robberSentHome':
+      return `${n(e.player)} spent ${e.tokens as number} 🎟️ to send the robber home to the desert.`;
+    case 'secondRoll':
+      return 'Second roll of the turn.';
     case 'gifted':
       return `${n(e.from)} gave ${n(e.to)} ${cards(e.cards as Record<string, number>)}.`;
     case 'robberResting':

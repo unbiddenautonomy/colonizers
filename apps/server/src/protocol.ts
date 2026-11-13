@@ -3,9 +3,12 @@
  * too, so keep it free of Worker-only code.
  */
 import type { Action, GameEvent, GameView } from '@colonizers/engine';
+import { cleanCustomMap, type MapFile } from '@colonizers/maps';
 
 export type MapChoice =
   | { kind: 'preset'; id: string }
+  /** A map drawn in the map editor, sent whole by the host. */
+  | { kind: 'custom'; map: MapFile }
   | { kind: 'random'; mode: 'classic' | 'balanced' | 'wild' }
   | { kind: 'scenario'; id: string }
   | { kind: 'special'; id: string };
@@ -29,6 +32,8 @@ export interface GameOptions {
   harbormaster: boolean;
   /** A deck of event cards replaces the dice (not with Cities & Knights). */
   eventCards: boolean;
+  /** Duel rules for two players: neutral builders, two rolls a turn, trade tokens. */
+  twoPlayer: boolean;
 }
 
 export const TURN_MODES: readonly TurnModeChoice[] = ['auto', 'normal', 'specialBuild', 'paired'];
@@ -45,6 +50,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   firstSettlementPays: false,
   harbormaster: false,
   eventCards: false,
+  twoPlayer: false,
 };
 
 export function cleanOptions(raw: unknown): GameOptions {
@@ -61,6 +67,7 @@ export function cleanOptions(raw: unknown): GameOptions {
     firstSettlementPays: o.firstSettlementPays === true,
     harbormaster: o.harbormaster === true,
     eventCards: o.eventCards === true,
+    twoPlayer: o.twoPlayer === true,
   };
 }
 
@@ -84,6 +91,7 @@ export function optionSettings(o: GameOptions, players: number): Record<string, 
     startingResourcesBothRounds: o.firstSettlementPays,
     harbormaster: o.harbormaster,
     eventCards: o.eventCards,
+    twoPlayer: o.twoPlayer && players === 2,
   };
 }
 
@@ -121,6 +129,8 @@ export function mapKey(map: MapChoice): string {
   switch (map.kind) {
     case 'random':
       return `random:${map.mode}`;
+    case 'custom':
+      return `custom:${map.map.id}`;
     default:
       return `${map.kind}:${map.id}`;
   }
@@ -230,7 +240,8 @@ export type ServerMessage =
   | { type: 'achievements'; unlocked: { seat: number; ids: string[] }[] }
   | { type: 'error'; message: string; code?: 'removed' | 'notFound' | 'rule' | 'denied' };
 
-export const MAX_MESSAGE = 8192;
+/** Big enough for a room's settings with a large custom map in them. */
+export const MAX_MESSAGE = 24_576;
 export const MAX_CHAT = 300;
 export const ROOM_CODE = /^[a-z0-9-]{1,40}$/;
 
@@ -269,6 +280,10 @@ export function cleanSettings(raw: unknown): RoomSettings {
     map = { kind: 'scenario', id: m.id };
   else if (m.kind === 'special' && typeof m.id === 'string' && /^[a-z0-9-]{1,40}$/.test(m.id))
     map = { kind: 'special', id: m.id };
+  else if (m.kind === 'custom') {
+    const custom = cleanCustomMap(m.map);
+    if ('map' in custom) map = { kind: 'custom', map: custom.map };
+  }
   return {
     map,
     vpTarget: int(s.vpTarget, VP_TARGETS, DEFAULT_SETTINGS.vpTarget),
