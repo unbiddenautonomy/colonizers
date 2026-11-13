@@ -2,11 +2,15 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { cleanTheme, RESOURCE_COLOR, type Theme } from './clean.ts';
 import { heritageTheme } from './heritage.tsx';
 import { nightMarketTheme } from './nightMarket.tsx';
+import { tilesTheme } from './tiles.tsx';
 
-export const THEMES: Theme[] = [cleanTheme, heritageTheme, nightMarketTheme];
+export const THEMES: Theme[] = [tilesTheme, cleanTheme, heritageTheme, nightMarketTheme];
+
+/** What a new device shows. */
+export const DEFAULT_THEME = tilesTheme;
 
 export function themeById(id: string | null | undefined): Theme {
-  return THEMES.find((t) => t.id === id) ?? cleanTheme;
+  return THEMES.find((t) => t.id === id) ?? DEFAULT_THEME;
 }
 
 // ---- The chosen theme, per device ----
@@ -16,9 +20,9 @@ const listeners = new Set<() => void>();
 
 function read(): string {
   try {
-    return localStorage.getItem(KEY) ?? cleanTheme.id;
+    return localStorage.getItem(KEY) ?? DEFAULT_THEME.id;
   } catch {
-    return cleanTheme.id;
+    return DEFAULT_THEME.id;
   }
 }
 
