@@ -20,6 +20,7 @@ import {
   farmlandDry,
   GoldRiver,
 } from './CanalArt.tsx';
+import { LairMarkers } from './EpArt.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -94,8 +95,13 @@ function HouseShape({
 /** The neutral builders in two-player duel games: white and black. */
 const NEUTRAL_COLORS = ['#f4f1ea', '#2f2f35'];
 
-const CARGO_ICON: Record<string, string> = { settler: '🧑‍🌾', crew: '🏴‍☠️' };
-const CARGO_NAME: Record<string, string> = { settler: 'a settler', crew: 'a crew' };
+const CARGO_ICON: Record<string, string> = { settler: '🧑‍🌾', crew: '⚔️', fish: '🐟', spice: '🌶️' };
+const CARGO_NAME: Record<string, string> = {
+  settler: 'a settler',
+  crew: 'a crew',
+  fish: 'a fish',
+  spice: 'a sack of spice',
+};
 
 /** What a ship or harbor settlement carries (Explorers & Pirates). */
 function Cargo({ x, y, props }: { x: number; y: number; props: Record<string, unknown> }) {
@@ -312,6 +318,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const fog = !!h.hidden || h.type === 'hidden';
         const type = fog ? 'hidden' : h.type;
         const shoal = type === 'shoal';
+        const robbed = robberHex?.kind === 'hex' && robberHex.id === h.id;
         const isSea = type === 'sea' || shoal;
         const lakeNumbers = type === 'fishingLake' ? ((h.props?.tokens as number[]) ?? []) : [];
         const c = hexToPixel(h.q, h.r, S);
@@ -421,6 +428,18 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 </text>
               </g>
             )}
+            {!isSea && !fog && (
+              <polygon
+                points={hexPoints(h.q, h.r)}
+                className="robber-dim"
+                fill="#14110f"
+                opacity={robbed ? 0.42 : 0}
+                pointerEvents="none"
+                aria-hidden={robbed ? undefined : true}
+              >
+                {robbed && <title>The robber is here: this hex produces nothing</title>}
+              </polygon>
+            )}
             {(barbarians[h.id] ?? 0) >= 3 && (
               <polygon
                 points={hexPoints(h.q, h.r)}
@@ -439,8 +458,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             {canal.has(h.id) && <CanalStretch hex={h} link={canal.get(h.id)!} S={S} />}
             {h.token && !fog && (barbarians[h.id] ?? 0) < 3 && (
               <g
-                className={rolled === h.token ? 'token hot' : 'token'}
-                opacity={dry && h.props?.farmland === true ? 0.55 : undefined}
+                className={`${rolled === h.token ? 'token hot' : 'token'}${robbed ? ' robbed' : ''}`}
+                opacity={(dry && h.props?.farmland === true) || robbed ? 0.55 : undefined}
               >
                 <circle
                   cx={c.x}
@@ -523,6 +542,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           </g>
         );
       })}
+
+      <LairMarkers state={state} S={S} color={color} />
 
       {pieces
         .filter((p) => p.at.kind === 'edge')
@@ -1005,12 +1026,15 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs('robber', `hex:${robberHex.id}`, x, y)}
             >
-              <ellipse cx={x} cy={y + S * 0.2} rx={S * 0.16} ry={S * 0.07} fill={theme.robber} />
-              <path
-                d={`M${x - S * 0.13},${y + S * 0.2} Q${x - S * 0.15},${y - S * 0.1} ${x},${y - S * 0.12} Q${x + S * 0.15},${y - S * 0.1} ${x + S * 0.13},${y + S * 0.2} z`}
-                fill={theme.robber}
-              />
-              <circle cx={x} cy={y - S * 0.2} r={S * 0.1} fill={theme.robber} />
+              {/* A pale rim keeps the robber visible on the dimmed hex. */}
+              <g stroke={theme.landStroke} strokeWidth={1.5} strokeOpacity={0.85}>
+                <ellipse cx={x} cy={y + S * 0.2} rx={S * 0.16} ry={S * 0.07} fill={theme.robber} />
+                <path
+                  d={`M${x - S * 0.13},${y + S * 0.2} Q${x - S * 0.15},${y - S * 0.1} ${x},${y - S * 0.12} Q${x + S * 0.15},${y - S * 0.1} ${x + S * 0.13},${y + S * 0.2} z`}
+                  fill={theme.robber}
+                />
+                <circle cx={x} cy={y - S * 0.2} r={S * 0.1} fill={theme.robber} />
+              </g>
               <title>Robber</title>
             </g>
           );
