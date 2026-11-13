@@ -76,6 +76,9 @@ export const nightMarketTheme: Theme = {
     paper: '#6b6247',
     cloth: '#6a4f8a',
     coin: '#a6862a',
+    crystal: '#6b4f9e',
+    bread: '#8f5a2c',
+    gold: '#b8941c',
   },
   ui: {
     '--bg': '#0a0d17',

@@ -93,6 +93,9 @@ export const heritageTheme: Theme = {
     paper: '#efe2bd',
     cloth: '#b79bc9',
     coin: '#d9b44a',
+    crystal: '#a993cf',
+    bread: '#c98f55',
+    gold: '#d6a92e',
   },
   ui: {
     '--bg': '#efe4cc',

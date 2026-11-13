@@ -111,4 +111,4 @@ export {
   type BaseData,
   type TradeOffer,
 } from './rules.ts';
-export { startSeven } from './actions.ts';
+export { bankRatio, startSeven } from './actions.ts';

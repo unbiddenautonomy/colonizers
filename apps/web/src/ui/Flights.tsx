@@ -26,6 +26,9 @@ const COMMODITY_FROM: Record<string, string> = {
   paper: 'forest',
   cloth: 'pasture',
   coin: 'mountains',
+  crystal: 'hills',
+  bread: 'fields',
+  gold: 'gold',
 };
 const MAX_FLIGHTS = 28;
 

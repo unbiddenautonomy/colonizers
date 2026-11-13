@@ -236,7 +236,8 @@ function Lobby({
   const noCk = specialPick?.noCitiesKnights === true;
   const needsCk = specialPick?.needsCitiesKnights === true;
   const ck = (s.citiesKnights || needsCk) && !noCk;
-  const bonus = vpBonus(ck, specialPick?.id ?? null);
+  const gwp = ck && s.greedWealthPower && !specialPick;
+  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp);
   const optionList = describeOptions(s.options, players.length);
   const map = s.map;
   const seaPick =
@@ -452,6 +453,15 @@ function Lobby({
               />{' '}
               ⚔️ Cities &amp; Knights (knights, barbarians, city improvements; +3 points to win)
             </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={gwp}
+                disabled={!ck || !!specialPick}
+                onChange={(e) => setGame({ greedWealthPower: e.target.checked })}
+              />{' '}
+              👑 Greed, Wealth &amp; Power (fan expansion on top of Cities &amp; Knights; 18 points)
+            </label>
             {noCk && (
               <p className="muted small">
                 Traders &amp; Barbarians scenarios use the base game only.
@@ -515,13 +525,16 @@ function Lobby({
                 specialPick?.group === 'treasures' && 'Treasures, Dragons & Adventurers',
                 specialPick?.group === 'explorers' && 'Explorers & Pirates',
                 ck && 'Cities & Knights',
+                gwp && 'Greed, Wealth & Power',
               ]
                 .filter(Boolean)
                 .join(' + ') || 'none'}
             </li>
             <li>
               Points to win:{' '}
-              {seaPick ? `set by the scenario${ck ? ' + 3' : ''}` : s.vpTarget + bonus}
+              {seaPick
+                ? `set by the scenario${gwp ? ' + 8' : ck ? ' + 3' : ''}`
+                : s.vpTarget + bonus}
             </li>
             <li>Turn timer: {s.turnTimer ? `${s.turnTimer / 60} min` : 'off'}</li>
             {optionList.map((o) => (

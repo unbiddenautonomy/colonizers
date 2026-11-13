@@ -19,14 +19,7 @@ import {
   stealCandidates,
   stealFrom,
 } from '@colonizers/module-base';
-import {
-  COMMODITIES,
-  KNIGHT_TYPES,
-  TRACKS,
-  VP_PROGRESS,
-  isCommodity,
-  type Track,
-} from './constants.ts';
+import { KNIGHT_TYPES, VP_PROGRESS, isCommodity, type Track } from './constants.ts';
 import {
   action,
   cornerOf,
@@ -39,8 +32,10 @@ import {
   type OwedPhase,
 } from './actions.ts';
 import {
+  activeTracks,
   canPlaceKnight,
   ckData,
+  commoditiesIn,
   hexesNear,
   isActive,
   isKnight,
@@ -65,7 +60,7 @@ const isTradeCard = (c: string) => isResource(c) || isCommodity(c);
 /** Index in the player's held cards of a playable copy, or null. */
 function findCard(ctx: Ctx, seat: number, card: string): { deck: Track; index: number } | null {
   const p = ctx.player(seat);
-  for (const deck of TRACKS) {
+  for (const deck of activeTracks(ctx)) {
     const index = (p.held[deck] ?? []).findIndex((h) => h.card === card);
     if (index >= 0) return { deck, index };
   }
@@ -273,7 +268,10 @@ function checkPlay(ctx: Ctx, a: Action & Play): string | null {
     case 'spy': {
       const e = pickTarget();
       if (e) return e;
-      const n = TRACKS.reduce((s, t) => s + (ctx.player(target as number).held[t]?.length ?? 0), 0);
+      const n = activeTracks(ctx).reduce(
+        (s, t) => s + (ctx.player(target as number).held[t]?.length ?? 0),
+        0,
+      );
       return n > 0 ? null : 'That player has no progress cards';
     }
     default:
@@ -328,7 +326,7 @@ function applyPlay(ctx: Ctx, a: Action & Play): void {
       return;
     case 'commercialHarbor': {
       const left = opponents(ctx, seat).filter((s) =>
-        COMMODITIES.some((c) => (ctx.player(s).hand[c] ?? 0) > 0),
+        commoditiesIn(ctx).some((c) => (ctx.player(s).hand[c] ?? 0) > 0),
       );
       if (!left.length) {
         ctx.emit({ type: 'progressGain', player: seat, card: a.card, cards: {} });
@@ -452,9 +450,10 @@ const playProgress = action<Play>({
       } else if (card === 'resourceMonopoly') {
         for (const r of RESOURCES) out.push({ type: 'playProgress', player, card, resource: r });
       } else if (card === 'tradeMonopoly') {
-        for (const r of COMMODITIES) out.push({ type: 'playProgress', player, card, resource: r });
+        for (const r of commoditiesIn(ctx))
+          out.push({ type: 'playProgress', player, card, resource: r });
       } else if (card === 'merchantFleet') {
-        for (const r of [...RESOURCES, ...COMMODITIES])
+        for (const r of [...RESOURCES, ...commoditiesIn(ctx)])
           out.push({ type: 'playProgress', player, card, resource: r });
       } else {
         out.push({ type: 'playProgress', player, card });
@@ -598,7 +597,7 @@ interface HarborPhase extends Step {
 
 const harborWaiting = (ctx: Ctx) => ctx.state.phase.pending !== undefined;
 const hasCommodity = (ctx: Ctx, seat: number) =>
-  COMMODITIES.some((c) => (ctx.player(seat).hand[c] ?? 0) > 0);
+  commoditiesIn(ctx).some((c) => (ctx.player(seat).hand[c] ?? 0) > 0);
 
 /** Commercial Harbor, step 1: hand one resource to an opponent. */
 const harborSwap = action<{ with: number; give: string }>({
@@ -652,7 +651,7 @@ const harborGive = action<{ commodity: string }>({
   phases: ['commercialHarbor'],
   check(ctx, a) {
     if (ctx.state.phase.pending !== a.player) return 'Nobody asked you for a commodity';
-    if (!(COMMODITIES as readonly string[]).includes(a.commodity)) return 'Pick a commodity';
+    if (!commoditiesIn(ctx).includes(a.commodity)) return 'Pick a commodity';
     if (!ctx.has(a.player, { [a.commodity]: 1 })) return 'You do not have that commodity';
     return null;
   },
@@ -676,11 +675,13 @@ const harborGive = action<{ commodity: string }>({
   },
   enumerate(ctx, player) {
     if (ctx.state.phase.pending !== player) return [];
-    return COMMODITIES.filter((c) => ctx.has(player, { [c]: 1 })).map((commodity) => ({
-      type: 'harborGive',
-      player,
-      commodity,
-    }));
+    return commoditiesIn(ctx)
+      .filter((c) => ctx.has(player, { [c]: 1 }))
+      .map((commodity) => ({
+        type: 'harborGive',
+        player,
+        commodity,
+      }));
   },
 });
 
@@ -749,7 +750,7 @@ const takeProgress = action<{ card: string }>({
   apply(ctx, a) {
     const ph = phase<Step & { target: number }>(ctx);
     const victim = ctx.player(ph.target);
-    for (const deck of TRACKS) {
+    for (const deck of activeTracks(ctx)) {
       const i = (victim.held[deck] ?? []).findIndex((h) => h.card === a.card);
       if (i < 0) continue;
       victim.held[deck]?.splice(i, 1);

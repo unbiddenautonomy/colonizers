@@ -482,6 +482,11 @@ const placeFreeRoad = action<{ edge: EdgeId }>({
 
 // ---- Trading ----
 
+/** How many of `give` the bank wants for one `get`. */
+export function bankRatio(ctx: Ctx, seat: number, give: string, get: string): number {
+  return ctx.reduce('swapRatio', seat, give, get, ctx.reduce('tradeRatio', seat, give, 4));
+}
+
 const bankTrade = action<{ give: string; get: string }>({
   phases: ['main'],
   check(ctx, a) {
@@ -491,13 +496,13 @@ const bankTrade = action<{ give: string; get: string }>({
     if (!isResource(a.give) && ctx.registry.cardTypes[a.give]?.category !== 'commodity')
       return 'Can not trade that';
     if (a.give === a.get) return 'Pick a different card to receive';
-    const ratio = ctx.reduce('tradeRatio', a.player, a.give, 4);
+    const ratio = bankRatio(ctx, a.player, a.give, a.get);
     if (!ctx.has(a.player, { [a.give]: ratio })) return `You need ${ratio} ${a.give}`;
     if (!ctx.bankHas({ [a.get]: 1 })) return 'The bank has none left';
     return null;
   },
   apply(ctx, a) {
-    const ratio = ctx.reduce('tradeRatio', a.player, a.give, 4);
+    const ratio = bankRatio(ctx, a.player, a.give, a.get);
     ctx.pay(a.player, { [a.give]: ratio });
     ctx.grant(a.player, { [a.get]: 1 });
     ctx.emit({
