@@ -16,6 +16,9 @@ export const explorersPiratesRules: RulebookModule = {
     settler: { name: 'Settler', icon: '🧑‍🌾' },
     crew: { name: 'Crew', icon: '⚔️' },
     lair: { name: 'Pirate lair', icon: '🏴‍☠️' },
+    fish: { name: 'Fish', icon: '🐟' },
+    spice: { name: 'Spice', icon: '🌶️' },
+    village: { name: 'Spice village', icon: '🌶️' },
   },
   pages: [
     {
@@ -41,7 +44,11 @@ export const explorersPiratesRules: RulebookModule = {
 
 **Pirate Lairs** adds crews, pirate lairs on gold fields out in the fog, the pirate ship, and the lair mission track. You need 2 points more than the target you picked (12 with the usual 10).
 
-This is our own version of the expansion, played on our generated boards. Fish and spice come next.`,
+**Fishing Grounds** hides fishing grounds out in the fog, and **Spice Islands** hides spice villages. Both use the usual target (10).
+
+**The Full Voyage** has everything: pirate lairs, the pirate ship, fishing grounds and spice villages. You need 3 points more than the target you picked (13 with the usual 10).
+
+This is our own version of the expansion, played on our generated boards.`,
     },
     {
       id: 'ep-turn',
@@ -127,6 +134,29 @@ On a 7, after discards, you move the pirate ship to a sea hex that doesn't touch
 
 - Sailing onto an edge beside the pirate costs **1 gold** in tribute, once per voyage. Without gold you must sail around it.
 - A ship beside the pirate that hasn't moved this turn can **chase** it: roll a die, and on a 6 the pirate leaves the board until the next 7. The ship's turn ends either way.`,
+    },
+    {
+      id: 'ep-goods',
+      module: 'explorers-pirates',
+      section: 'rules',
+      title: 'Fish and spice',
+      summary: 'Ships catch fish and buy spice out in the fog, then bring them home for points.',
+      tags: ['fish', 'fishing ground', 'spice', 'village', 'deliver', 'mission', 'goods'],
+      body: `Fish and spice each take half a hold, like a crew: a ship carries two.
+
+**Fishing grounds** 🐟
+
+Some sea hexes out in the fog are fishing grounds with a number. When that number is rolled, **every ship beside the fishing ground takes a fish aboard**, if it has room. A catch counts as getting something from the roll, so it means no gold for nothing. The pirate ship on a fishing ground scares the fish away.
+
+**Spice villages** 🌶️
+
+Some islands out in the fog have a spice village. A ship beside one can **buy a sack of spice for 2 gold**, as often as it has room and you have gold.
+
+**Bringing goods home**
+
+A ship beside one of your harbor settlements brings its fish and spice ashore. **Every 2 fish** you have brought home are a step on the fish mission track, and **every 2 sacks of spice** a step on the spice track. Each step is worth **1 point**.
+
+Goods never go on a dock: bring them ashore before you swap a ship's cargo.`,
     },
   ],
 };

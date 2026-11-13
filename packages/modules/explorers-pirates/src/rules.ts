@@ -13,21 +13,25 @@ import type {
 
 export const MODULE_ID = 'explorers-pirates';
 
-export type EpScenario = 'land-ho' | 'pirate-lairs';
+export type EpScenario =
+  'land-ho' | 'pirate-lairs' | 'fishing-grounds' | 'spice-islands' | 'full-voyage';
 
 /** Points each scenario adds to the chosen target (10 by default). */
 export const EP_VP_BONUS: Record<EpScenario, number> = {
   'land-ho': -2,
   'pirate-lairs': 2,
+  'fishing-grounds': 0,
+  'spice-islands': 0,
+  'full-voyage': 3,
 };
 
 export const GOLD = 'gold';
 /** Movement points of a ship each turn, and the extra a wool buys. */
 export const SHIP_MOVES = 4;
 export const BOOST_MOVES = 2;
-/** Room in a ship's hold or a harbor's dock: a settler fills it, a crew takes half. */
+/** Room in a ship's hold or a harbor's dock: a settler fills it; a crew, fish or spice takes half. */
 export const HOLD = 2;
-export const CARGO_SIZE: Record<string, number> = { settler: 2, crew: 1 };
+export const CARGO_SIZE: Record<string, number> = { settler: 2, crew: 1, fish: 1, spice: 1 };
 /** Settlers each player can have out at once. */
 export const SETTLERS = 2;
 /** Gold buys a resource for this much, this many times a turn. */
@@ -35,7 +39,7 @@ export const GOLD_PRICE = 2;
 export const GOLD_BUYS = 2;
 export const STARTING_GOLD = 2;
 
-export type Mission = 'lairs';
+export type Mission = 'lairs' | 'fish' | 'spices';
 
 export interface EpData extends Record<string, unknown> {
   /** Resources bought with gold this turn. */
@@ -47,6 +51,8 @@ export interface EpData extends Record<string, unknown> {
   captured: HexId[];
   /** Steps each player has made on each mission track (1 point each). */
   missions: Record<number, Partial<Record<Mission, number>>>;
+  /** Fish and spice each player has brought home. */
+  delivered: Record<number, Partial<Record<'fish' | 'spice', number>>>;
 }
 
 export function epData(ctx: Ctx): EpData {
@@ -56,6 +62,7 @@ export function epData(ctx: Ctx): EpData {
   d.lairs ??= {};
   d.captured ??= [];
   d.missions ??= {};
+  d.delivered ??= {};
   return d;
 }
 
@@ -150,9 +157,22 @@ export function scenarioOf(ctx: Ctx): EpScenario {
   return ctx.setting<EpScenario | undefined>('epScenario') ?? 'land-ho';
 }
 
-/** Scenarios with the pirate ship, which a 7 moves instead of the robber. */
+/** Scenarios with pirate lairs and the pirate ship, which a 7 moves instead of the robber. */
 export function hasPirate(ctx: Ctx): boolean {
-  return scenarioOf(ctx) !== 'land-ho';
+  const s = scenarioOf(ctx);
+  return s === 'pirate-lairs' || s === 'full-voyage';
+}
+
+/** Scenarios with fishing grounds out in the fog. */
+export function hasFish(ctx: Ctx): boolean {
+  const s = scenarioOf(ctx);
+  return s === 'fishing-grounds' || s === 'full-voyage';
+}
+
+/** Scenarios with spice villages out in the fog. */
+export function hasSpice(ctx: Ctx): boolean {
+  const s = scenarioOf(ctx);
+  return s === 'spice-islands' || s === 'full-voyage';
 }
 
 export function pirateShip(ctx: Ctx): Piece | undefined {
