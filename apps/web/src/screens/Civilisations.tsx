@@ -11,6 +11,7 @@ import {
   habsburgDrawn,
   welfareOf,
   picksOf,
+  unionLeader,
   routeKinds,
   START_NEUTRAL,
   swapsOf,
@@ -39,6 +40,10 @@ export const CIV_MODES = [
   'civRevenge',
   'civHarakiri',
   'civZulu',
+  'civCapital',
+  'civUpgrade',
+  'civHussar',
+  'civRaze',
 ] as const;
 
 export type CivMode = (typeof CIV_MODES)[number];
@@ -113,6 +118,14 @@ export function civModePrompt(who: string, mode: CivMode, picked: string | null)
         : `${who}: tap the settlement (strong knight) or city (mighty knight) it destroys.`;
     case 'civZulu':
       return `${who}: tap the hex of the neutral piece to take over.`;
+    case 'civCapital':
+      return `${who}: tap the hex beside your starting city to take from.`;
+    case 'civUpgrade':
+      return `${who}: tap the settlement that becomes a city.`;
+    case 'civHussar':
+      return `${who}: tap the rival road, ship or basic knight beside the robber to destroy.`;
+    case 'civRaze':
+      return `${who}: tap the rival city the barbarians pillage.`;
   }
 }
 
@@ -236,6 +249,35 @@ export function CivPanel({
       'Pick the knight',
     ],
     ['civZulu', 'Take over a neutral piece beside an active basic knight', 'Pick it'],
+    [
+      'civCapital',
+      'Two resources and two commodities from a hex beside your starting city',
+      'Pick the hex',
+    ],
+    ['civUpgrade', 'Upgrade a settlement to a city for free', 'Pick the settlement'],
+    [
+      'civHussar',
+      "Destroy a rival's road, ship or basic knight beside the robber, and place your own",
+      'Pick it',
+    ],
+    ['civRaze', "The barbarians won: pillage a rival's city", 'Pick the city'],
+  ];
+  const ONCE: [string, string, string][] = [
+    [
+      'civThor',
+      'Once a game, the barbarians land now and win, whatever the knights',
+      "Thor's Hammer",
+    ],
+    ['civBombard', 'Once a game, defeat the barbarians: their ship sails back', 'Fire the Bombard'],
+    [
+      'civUnion',
+      `Once a game, share ${
+        actor === null
+          ? 'the leader'
+          : (ctx.state.players[unionLeader(ctx, actor) ?? -1]?.name ?? 'the leader')
+      }'s production and progress cards for a round`,
+      'Join the Union',
+    ],
   ];
   const freeBuild = legal.filter((a) => a.type === 'civBuilding');
   const welfare = legal.filter((a) => a.type === 'civWelfare');
@@ -246,6 +288,7 @@ export function CivPanel({
     has('civSettle') ||
     has('civKhagan') ||
     MODES.some(([m]) => has(m)) ||
+    ONCE.some(([m]) => has(m)) ||
     improve.length > 0 ||
     calendar.length > 0 ||
     silk.length > 0 ||
@@ -294,6 +337,14 @@ export function CivPanel({
                 <p key={m} className="row wrap">
                   {text}:{' '}
                   <button type="button" onClick={() => pick(m)}>
+                    {button}
+                  </button>
+                </p>
+              ))}
+              {ONCE.filter(([m]) => has(m)).map(([m, text, button]) => (
+                <p key={m} className="row wrap">
+                  {text}:{' '}
+                  <button type="button" onClick={() => doAct({ type: m, player: actor as number })}>
                     {button}
                   </button>
                 </p>
@@ -515,6 +566,43 @@ export function CivChoices({
       </Modal>
     );
   }
+  const colony = legal.filter((a) => a.type === 'civColony');
+  if (state.phase.id === 'civColony' && colony.length) {
+    const spain = civOf(ctx, actor)?.id === 'spain';
+    return (
+      <Modal title={spain ? 'Colonization of the Americas' : 'Colonies of the British Empire'} wide>
+        <p className="small muted">
+          {spain
+            ? 'Play this civilisation from now on, or draw again once.'
+            : 'Pick the civilisation you play from now on.'}{' '}
+          Its start and 10-point gifts come with it.
+        </p>
+        <div className="wonder-list">
+          {colony
+            .filter((a) => a.civ !== 'redraw')
+            .map((a) => {
+              const civ = CIV_BY_ID[a.civ as string]!;
+              return (
+                <section key={civ.id} className="wonder">
+                  <Tile civ={civ} unlocked />
+                  <button type="button" onClick={() => act(a)}>
+                    Lead {civ.name}
+                  </button>
+                </section>
+              );
+            })}
+        </div>
+        {colony.some((a) => a.civ === 'redraw') && (
+          <button
+            type="button"
+            onClick={() => act({ type: 'civColony', player: actor, civ: 'redraw' })}
+          >
+            Draw again
+          </button>
+        )}
+      </Modal>
+    );
+  }
   if (state.phase.id === 'civHabsburg' && legal.some((a) => a.type === 'civHabsburgKeep'))
     return <HabsburgKeep state={state} ctx={ctx} actor={actor} act={act} />;
   const progress = legal.filter((a) => a.type === 'civProgress');
@@ -555,6 +643,21 @@ export function CivChoices({
         <p>Take {n === 1 ? 'a resource' : `${n} resources`} of your choice.</p>
         <div className="row wrap">
           {choose.map((a) => (
+            <button key={a.card as string} type="button" onClick={() => act(a)}>
+              {icon(a.card as string)} {nameOf(a.card as string).name}
+            </button>
+          ))}
+        </div>
+      </Modal>
+    );
+  }
+  const commodity = legal.filter((a) => a.type === 'civCommodity');
+  if (commodity.length) {
+    return (
+      <Modal title="Riches of the Spanish Caribbean">
+        <p>Take a commodity of your choice.</p>
+        <div className="row wrap">
+          {commodity.map((a) => (
             <button key={a.card as string} type="button" onClick={() => act(a)}>
               {icon(a.card as string)} {nameOf(a.card as string).name}
             </button>
@@ -688,6 +791,18 @@ export function civPrompt(state: GameState, names: string[], actor: number | nul
     return a === actor
       ? 'Keep three of the cards you drew.'
       : `Waiting for ${a === null ? 'Austria-Hungary' : names[a]} to keep three cards.`;
+  }
+  if (state.phase.id === 'civColony') {
+    const a = owedTo();
+    return a === actor
+      ? 'Pick the civilisation you play from now on.'
+      : `Waiting for ${a === null ? 'a player' : names[a]} to pick a new civilisation.`;
+  }
+  if (state.phase.id === 'civRaid') {
+    const owed = (state.phase.owed ?? {}) as Record<number, number>;
+    return actor !== null && owed[actor]
+      ? "Thor's Hammer: tap the city you lose to the barbarians."
+      : "Thor's Hammer: waiting for players to pick the city they lose.";
   }
   if (state.phase.id === 'civNeutral') {
     const owed = Object.keys((state.phase.owed ?? {}) as Record<number, number>).map(Number);

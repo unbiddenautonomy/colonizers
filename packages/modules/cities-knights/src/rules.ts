@@ -496,10 +496,11 @@ export function barbarianTrack(ctx: Ctx): number {
 }
 
 export function barbarianStrength(ctx: Ctx): number {
-  return ctx.state.players.reduce(
+  const cities = ctx.state.players.reduce(
     (s, p) => s + citiesOf(ctx, p.seat).filter((c) => !isSheltered(ctx, c)).length,
     0,
   );
+  return Math.max(0, ctx.reduce('barbarians', cities));
 }
 
 /** Cities the barbarians can take: not a metropolis, and not sheltered. */
@@ -522,16 +523,18 @@ export function attack(ctx: Ctx): void {
   const won = knights >= cities;
   ctx.emit({ type: 'barbarianAttack', cities, knights, strengths, defended: won });
 
+  let losers: number[] = [];
   if (!won) {
     const safe = d.refuge ?? [];
-    const exposed = seats.filter((s) => !safe.includes(s) && cityAtRisk(ctx, s).length > 0);
+    const exposed = seats.filter(
+      (s) =>
+        !safe.includes(s) &&
+        !ctx.reduce('barbarianSafe', s, false) &&
+        cityAtRisk(ctx, s).length > 0,
+    );
     if (exposed.length) {
       const weakest = Math.min(...exposed.map((s) => strengths[s] as number));
-      for (const s of exposed.filter((x) => strengths[x] === weakest)) {
-        const open = cityAtRisk(ctx, s);
-        if (open.length === 1) pillage(ctx, open[0] as Piece);
-        else d.pendingLoss.push(s);
-      }
+      losers = exposed.filter((x) => strengths[x] === weakest);
     }
   } else if (knights > 0) {
     const best = Math.max(...strengths);
@@ -546,6 +549,11 @@ export function attack(ctx: Ctx): void {
     }
   }
 
+  for (const s of ctx.reduce('barbarianLosses', won, losers)) {
+    const open = cityAtRisk(ctx, s);
+    if (open.length === 1) pillage(ctx, open[0] as Piece);
+    else if (open.length > 1) d.pendingLoss.push(s);
+  }
   if (d.refuge?.length) d.refuge = [];
   d.alliance = null;
   for (const s of seats)

@@ -14,13 +14,21 @@ import {
 } from './effects.ts';
 import { giftActions } from './gifts.ts';
 import {
-  ethiopiaDefense,
   part3Actions,
   wrapFestival,
   wrapKnightMove,
   wrapPapua,
   wrapSetupSettlement,
 } from './part3.ts';
+import {
+  civBarbarianLosses,
+  civBarbarians,
+  civBarbarianSafe,
+  civDefense,
+  civVp,
+  dropHussars,
+  part4Actions,
+} from './part4.ts';
 import { civData, MODULE_ID } from './core.ts';
 import { afterSetup, deal, redactCivs, setupActions } from './setup.ts';
 
@@ -68,6 +76,7 @@ export {
   welfareOf,
   zuluTargets,
 } from './part3.ts';
+export { capitalHexes, hussarSpots, razeTargets, unionLeader, upgradeTargets } from './part4.ts';
 export { polarHexes, RESOURCE_COMMODITY, TRACK_RESOURCE } from './effects.ts';
 
 /** Points to win with Civilisations, as the author suggests. */
@@ -78,7 +87,14 @@ export const civilisationsModule: GameModule = {
   name: 'Civilisations',
   requires: ['base', 'cities-knights', 'greed-wealth-power'],
   settings: { vpTarget: CIV_VP_TARGET },
-  actions: { ...setupActions, ...giftActions, ...boardActions, ...diceActions, ...part3Actions },
+  actions: {
+    ...setupActions,
+    ...giftActions,
+    ...boardActions,
+    ...diceActions,
+    ...part3Actions,
+    ...part4Actions,
+  },
   wrapActions: {
     improveCity: wrapImprove,
     steal: wrapSteal,
@@ -100,12 +116,17 @@ export const civilisationsModule: GameModule = {
       afterSetup(ctx);
       civEffects(ctx, action);
     },
+    turnEnded: dropHussars,
   },
   reducers: {
     cost: civCost,
     hexYield: civYield,
     swapRatio: civSwapRatio,
-    defense: ethiopiaDefense,
+    defense: civDefense,
+    vp: civVp,
+    barbarians: civBarbarians,
+    barbarianSafe: civBarbarianSafe,
+    barbarianLosses: civBarbarianLosses,
   },
   redact: redactCivs,
 };

@@ -48,8 +48,12 @@ export const civilisationsRules: RulebookModule = {
 - **Striking back:** Babylon, from 10 points, may destroy a road, ship or inactive basic knight of anyone who robs, spies on, displaces, curses or holds a festival against them. Each harm gives one strike, used when they like.
 - **Welfare:** Prussia's welfare tokens show in the 🏳️ Civilisations panel: 2 buy a resource, 3 a commodity.
 - **Board changes:** Gran Colombia's harbor, France's number swap and the Inca's Lago Titicaca are done on the board from the **🏳️ Civilisations** panel: tap the harbor or hex first, then where it goes.
+- **The barbarians:** Nordic sides with them. Nordic's active knights add to their strength, Nordic's cities don't count and can't be taken, and Nordic defends nothing. When the barbarians win, Nordic scores a point and pillages a rival's city; when Catan wins, Nordic loses a city. Britain's cities can't be taken either. Thor's Hammer (Nordic) lands the barbarians at once and they win, everyone's knights left as they are; the Ottoman Bombard sends their ship back to the start.
+- **A new civilisation:** from 10 points, Britain draws three civilisations nobody plays and leads one of them for the rest of the game; Spain draws one from the Americas (Gran Colombia, Maya, Inca, Aztec, Cuba) and may draw again once. The new civilisation's start and 10-point gifts come with it.
+- **Cuba's revolution:** from 10 points, the first other player to reach the winning points hands Cuba each metropolis they own (if Cuba has a city free for it), and that track drops to Cuba's level.
+- **Poland:** each time Poland moves the robber, the hussars may destroy a rival road, ship or basic knight beside it that turn, and Poland places one of the same kind for free.
 
-${ready.length} of the 40 civilisations are in the game so far; the rest come in later updates.`,
+${ready.length === CIVS.length ? `All ${CIVS.length} civilisations are in the game.` : `${ready.length} of the ${CIVS.length} civilisations are in the game so far; the rest come in later updates.`}`,
     },
     {
       id: 'civilisations-list',
@@ -68,6 +72,13 @@ ${ready.length} of the 40 civilisations are in the game so far; the rest come in
         'russia',
         'china',
         'inca',
+        'nordic',
+        'britain',
+        'spain',
+        'cuba',
+        'poland',
+        'ottoman',
+        'aztec',
       ],
       body: list,
     },
