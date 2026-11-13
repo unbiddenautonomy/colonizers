@@ -2043,3 +2043,34 @@ button.ready {
 .editor-tools .field input {
   width: 100%;
 }
+
+/* World Wonders list */
+.wonder-list .wonder {
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 0;
+}
+.wonder-list .wonder header {
+  gap: 0.6rem;
+  align-items: baseline;
+}
+.wonder-stages {
+  list-style: none;
+  margin: 0.3rem 0;
+  padding-left: 0.4rem;
+}
+.wonder-stages li {
+  margin: 0.25rem 0;
+}
+.wonder-stages .stage-no {
+  display: inline-block;
+  min-width: 2.2em;
+  font-weight: 600;
+}
+.wonder-stages li.done .stage-no::after {
+  content: ' ✓';
+  color: #2e7d4f;
+}
+.wonder-abilities p {
+  gap: 0.4rem;
+  align-items: center;
+}

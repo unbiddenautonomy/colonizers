@@ -89,6 +89,7 @@ export function NewGame({
   const [seed, setSeed] = useState(randomSeed);
   const [ckWanted, setCk] = useState(false);
   const [gwpWanted, setGwp] = useState(false);
+  const [wondersWanted, setWonders] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -129,8 +130,10 @@ export function NewGame({
   const ck = (ckWanted || needsCk) && !noCk;
   // Greed, Wealth & Power goes on top of Cities & Knights, on the usual maps and Seafarers.
   const gwp = ck && gwpWanted && !specialId;
+  // World Wonders goes on the usual maps and Seafarers, with or without Cities & Knights.
+  const wonders = wondersWanted && !specialId;
   const extraVp = gwp ? 8 : ck ? 3 : 0;
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}`;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
@@ -175,7 +178,7 @@ export function NewGame({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
           players,
-          modules: moduleList(extraModules, ck, gwp),
+          modules: moduleList(extraModules, ck, gwp, wonders),
           map,
           settings: { ...opts, ...own },
           fixedSeats: true,
@@ -493,6 +496,20 @@ export function NewGame({
           </button>
           <button
             type="button"
+            className={`expansion ${wonders ? 'on' : ''}`}
+            aria-pressed={wonders}
+            disabled={!!specialId}
+            onClick={() => setWonders(!wonders)}
+          >
+            <strong>🏛️ World Wonders</strong>
+            <small>
+              {specialId
+                ? 'Fan expansion for the usual maps and Seafarers, not the special maps.'
+                : 'Fan expansion: fourteen wonders to build in four stages. You need a finished one to win.'}
+            </small>
+          </button>
+          <button
+            type="button"
             className={`expansion ${isTraders ? 'on' : ''}`}
             aria-pressed={isTraders}
             onClick={() =>
@@ -580,6 +597,7 @@ export function NewGame({
           players={count}
           citiesKnights={ck}
           gwp={gwp}
+          wonders={wonders}
           robber={hasRobber(specialId)}
           onChange={setOptions}
         />
@@ -589,7 +607,7 @@ export function NewGame({
               Changed from the standard rules:{' '}
               {[
                 vpTarget !== DEFAULT_VP_BASE && !sea && `${vpTarget + bonus} points to win`,
-                ...describeOptions(options, count, gwp),
+                ...describeOptions(options, count, gwp, wonders),
               ]
                 .filter(Boolean)
                 .join(', ') || 'turn style'}

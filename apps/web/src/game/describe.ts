@@ -2,6 +2,7 @@ import type { GameEvent } from '@colonizers/engine';
 import { nameOf } from '@colonizers/rulebook';
 import { achievementById } from '@colonizers/stats';
 import { TREASURE_TEXT, type TreasureKind } from '@colonizers/module-treasures-dragons';
+import { WONDERS, type WonderId } from '@colonizers/module-world-wonders';
 
 const TRACK: Record<string, string> = {
   science: 'science (green)',
@@ -303,6 +304,21 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🎲 ${n(e.player)} rolled ${Number(e.red) + Number(e.yellow)}: waiting on any Indulgence.`;
     case 'indulgence':
       return `📿 ${n(e.player)} played an Indulgence and threw ${(e.dice as string[]).join(' + ')} again.`;
+    case 'wonderBuilt': {
+      const w = WONDERS[e.wonder as WonderId];
+      const stage = e.stage as number;
+      if (!w) return null;
+      if (stage === 1) return `${w.icon} ${n(e.player)} began the ${w.name}.`;
+      return stage === 4
+        ? `${w.icon} ${n(e.player)} finished the ${w.name}!`
+        : `${w.icon} ${n(e.player)} built ${w.stages[stage - 1]!.name}, stage ${stage} of the ${w.name}.`;
+    }
+    case 'wonderTrade':
+      return `${WONDERS[e.wonder as WonderId]?.icon ?? '🏛️'} ${n(e.player)} swapped ${cards(e.gave as Record<string, number>)} for ${cards(e.got as Record<string, number>)}.`;
+    case 'wonderHarvest':
+      return `🛕 ${n(e.player)} made an offering to Chaac, and a hex produced.`;
+    case 'wonderEcho':
+      return `🏜️ Petra: ${n(e.player)} also collected ${cards(e.got as Record<string, number>)} from their ${e.echo}s.`;
     case 'landDeed':
       return `📜 ${n(e.player)} holds a settlement spot with a Land Deed.`;
     case 'landDeedUsed':

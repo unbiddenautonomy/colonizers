@@ -71,6 +71,9 @@ importers:
       '@colonizers/module-variants':
         specifier: workspace:*
         version: link:../../packages/modules/variants
+      '@colonizers/module-world-wonders':
+        specifier: workspace:*
+        version: link:../../packages/modules/world-wonders
       '@colonizers/stats':
         specifier: workspace:*
         version: link:../../packages/stats
@@ -129,6 +132,9 @@ importers:
       '@colonizers/module-variants':
         specifier: workspace:*
         version: link:../../packages/modules/variants
+      '@colonizers/module-world-wonders':
+        specifier: workspace:*
+        version: link:../../packages/modules/world-wonders
       '@colonizers/rulebook':
         specifier: workspace:*
         version: link:../../packages/rulebook
@@ -182,6 +188,9 @@ importers:
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../modules/seafarers
+      '@colonizers/module-world-wonders':
+        specifier: workspace:*
+        version: link:../modules/world-wonders
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -436,7 +445,36 @@ importers:
         specifier: ~4.1.12
         version: 4.1.12(@types/node@22.20.5)(vite@8.3.6(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
 
+  packages/modules/world-wonders:
+    dependencies:
+      '@colonizers/engine':
+        specifier: workspace:*
+        version: link:../../engine
+      '@colonizers/module-base':
+        specifier: workspace:*
+        version: link:../base
+    devDependencies:
+      '@colonizers/maps':
+        specifier: workspace:*
+        version: link:../../maps
+      '@colonizers/module-cities-knights':
+        specifier: workspace:*
+        version: link:../cities-knights
+      '@colonizers/module-seafarers':
+        specifier: workspace:*
+        version: link:../seafarers
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ~4.1.12
+        version: 4.1.12(@types/node@22.20.5)(vite@8.3.6(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
   packages/rulebook:
+    dependencies:
+      '@colonizers/module-world-wonders':
+        specifier: workspace:*
+        version: link:../modules/world-wonders
     devDependencies:
       typescript:
         specifier: ~6.0.3
