@@ -67,7 +67,35 @@ While a trade offer is open, the partner waits until it is settled.`,
 - **Quiet start**: for the first few rounds a 7 does nothing: no discards and no robber.
 - **Discard limit**: when a 7 is rolled, players holding more than this many cards discard half.
 - **Harbormaster**: a 2-point bonus for building on harbors. See the Harbormaster page.
-- **Event cards**: a deck of cards replaces the dice. See the Event cards page.`,
+- **Event cards**: a deck of cards replaces the dice. See the Event cards page.
+- **Duel rules** (two players only): neutral builders, two rolls a turn and trade tokens. See the Duel rules page.`,
+    },
+    {
+      id: 'duel',
+      module: 'variants',
+      section: 'rules',
+      title: 'Duel rules for two players',
+      summary: 'Two neutral builders, two rolls a turn, and trade tokens.',
+      tags: ['two players', '2 players', 'duel', 'neutral', 'trade tokens', 'forced trade'],
+      body: `A house rule for two players, our version of the two-player rules from Traders & Barbarians. The host switches it on when setting up a two-player game. It doesn't mix with Cities & Knights or Explorers & Pirates.
+
+**Neutral builders**
+
+Two neutral builders, white ⚪ and black ⚫, start with 2 settlements and a road each, on good spots. Their pieces produce nothing and score nothing, but they get in the way like anyone's: they count for the distance rule, and they cut roads.
+
+- Each time you **build a road**, you then place a free road for the neutral builder of your choice, joined to its pieces.
+- Each time you **build a settlement**, you then place a free settlement for a neutral builder, on one of its roads and two corners from any other building. If neither builder has room, you place a neutral road instead.
+
+**Two rolls a turn**
+
+You roll the dice twice at the start of each turn, and both rolls pay. If the second roll comes up the same as the first, it is rolled again. A 7 on either roll works as usual.
+
+**Trade tokens** 🎟️
+
+- You earn 1 token for a settlement on the coast, 1 more if it touches the desert, and 1 for every Knight you play.
+- On your turn, spend tokens on a **forced trade**: take 2 random resources from your opponent, then give back 2 of your choice.
+- Or spend them to **send the robber home** to the desert.
+- Either one costs **1 token**, or **2** while you have more points showing than your opponent.`,
     },
     {
       id: 'harbormaster',

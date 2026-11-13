@@ -91,6 +91,9 @@ function HouseShape({
   );
 }
 
+/** The neutral builders in two-player duel games: white and black. */
+const NEUTRAL_COLORS = ['#f4f1ea', '#2f2f35'];
+
 const CARGO_ICON: Record<string, string> = { settler: '🧑‍🌾', crew: '🏴‍☠️' };
 const CARGO_NAME: Record<string, string> = { settler: 'a settler', crew: 'a crew' };
 
@@ -259,6 +262,11 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const pieces = Object.values(state.pieces);
   const color = (seat: number | null) =>
     seat === null ? '#444' : (theme.players[seat]?.color ?? '#999');
+  // Two-player duel rules: the neutral builders' pieces are white and black.
+  const pieceColor = (p: { owner: number | null; props: Record<string, unknown> }) =>
+    p.owner === null && typeof p.props.neutral === 'number'
+      ? (NEUTRAL_COLORS[p.props.neutral] ?? '#444')
+      : color(p.owner);
   const robberHex = pieces.find((p) => p.type === 'robber')?.at;
   const tb = state.data['traders-barbarians'] as
     | {
@@ -610,7 +618,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 y1={a.y + (b.y - a.y) * k}
                 x2={b.x - (b.x - a.x) * k}
                 y2={b.y - (b.y - a.y) * k}
-                stroke={color(p.owner)}
+                stroke={pieceColor(p)}
                 strokeWidth={S * 0.13}
                 strokeLinecap="round"
                 filter={fx}
@@ -1085,7 +1093,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 <HouseShape
                   x={c.x}
                   y={c.y}
-                  color={color(p.owner)}
+                  color={pieceColor(p)}
                   city={p.type === 'city'}
                   theme={theme}
                 />
