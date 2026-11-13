@@ -1437,6 +1437,8 @@ button.danger {
 }
 .die3d .die-face .die-label {
   font-size: 1.25rem;
+}
+
 /* Rules card: expansions as cards, options in open groups. */
 .expansions {
   display: grid;

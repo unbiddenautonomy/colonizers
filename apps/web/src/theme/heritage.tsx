@@ -1,8 +1,9 @@
 import { cleanTheme, type Theme } from './clean.ts';
+import { tilePatterns, type Palette } from './motifs.tsx';
 
 /**
  * Heritage: the feel of a wooden board game, with our own art. Painted
- * terrain textures, turned-wood pieces, parchment cards and a walnut frame.
+ * tiles, turned-wood pieces, parchment cards and a walnut frame.
  * Every shape here is drawn in code for this project.
  */
 
@@ -25,71 +26,28 @@ const PAINT = {
   hidden: '#6f6a5e',
 };
 
-function Patterns() {
-  return (
-    <>
-      <pattern id="pat-forest" width="36" height="36" patternUnits="userSpaceOnUse">
-        <rect width="36" height="36" fill={PAINT.forest} />
-        <path d="M8 26 l6 -14 l6 14 z" fill="#2f4c1d" />
-        <path d="M22 32 l5 -11 l5 11 z" fill="#3a5a24" />
-        <path d="M26 14 l4 -9 l4 9 z" fill="#2f4c1d" />
-        <rect x="13" y="26" width="2" height="4" fill="#5b3a1f" />
-      </pattern>
-      <pattern id="pat-hills" width="40" height="24" patternUnits="userSpaceOnUse">
-        <rect width="40" height="24" fill={PAINT.hills} />
-        <path d="M0 18 q10 -10 20 0 t20 0" fill="none" stroke="#8a4124" strokeWidth="3" />
-        <rect x="6" y="4" width="10" height="5" fill="#bf6a40" stroke="#8a4124" />
-        <rect x="24" y="6" width="10" height="5" fill="#bf6a40" stroke="#8a4124" />
-      </pattern>
-      <pattern id="pat-pasture" width="30" height="30" patternUnits="userSpaceOnUse">
-        <rect width="30" height="30" fill={PAINT.pasture} />
-        <path
-          d="M5 22 l2 -6 l2 6 M18 10 l2 -6 l2 6 M22 27 l2 -5 l2 5"
-          stroke="#6b8a34"
-          strokeWidth="1.6"
-          fill="none"
-        />
-        <ellipse cx="12" cy="9" rx="4" ry="3" fill="#f3efe2" />
-        <circle cx="15.5" cy="8" r="1.4" fill="#3d3a33" />
-      </pattern>
-      <pattern id="pat-fields" width="24" height="24" patternUnits="userSpaceOnUse">
-        <rect width="24" height="24" fill={PAINT.fields} />
-        <path d="M0 6 h24 M0 14 h24 M0 22 h24" stroke="#bf8f2a" strokeWidth="2" />
-        <path d="M6 2 v6 M14 10 v6 M20 18 v6" stroke="#f1cf72" strokeWidth="1.6" />
-      </pattern>
-      <pattern id="pat-mountains" width="44" height="30" patternUnits="userSpaceOnUse">
-        <rect width="44" height="30" fill={PAINT.mountains} />
-        <path d="M2 28 l12 -20 l12 20 z" fill="#66625c" />
-        <path d="M10 15 l4 -7 l4 7 l-4 -2 z" fill="#ece8df" />
-        <path d="M22 28 l10 -15 l10 15 z" fill="#5b5852" />
-      </pattern>
-      <pattern id="pat-desert" width="40" height="20" patternUnits="userSpaceOnUse">
-        <rect width="40" height="20" fill={PAINT.desert} />
-        <path d="M0 14 q10 -8 20 0 t20 0" fill="none" stroke="#c2a66c" strokeWidth="2" />
-      </pattern>
-      <pattern id="pat-gold" width="28" height="28" patternUnits="userSpaceOnUse">
-        <rect width="28" height="28" fill={PAINT.gold} />
-        <path d="M8 6 l2 4 l4 2 l-4 2 l-2 4 l-2 -4 l-4 -2 l4 -2 z" fill="#f7e08a" />
-        <circle cx="21" cy="20" r="2.5" fill="#f2d065" stroke="#9b7420" />
-      </pattern>
-      <pattern id="pat-volcano" width="32" height="32" patternUnits="userSpaceOnUse">
-        <rect width="32" height="32" fill={PAINT.volcano} />
-        <path
-          d="M4 30 q8 -10 4 -18 M20 30 q6 -8 2 -16"
-          stroke="#d2582a"
-          strokeWidth="2.5"
-          fill="none"
-        />
-        <circle cx="25" cy="8" r="2" fill="#f08a3c" />
-      </pattern>
-      <pattern id="pat-sea" width="48" height="24" patternUnits="userSpaceOnUse">
-        <rect width="48" height="24" fill="#3d6f8e" />
-        <path d="M0 12 q6 -5 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#5a8eac" strokeWidth="2" />
-        <path d="M6 22 q4 -3 8 0 M30 4 q4 -3 8 0" fill="none" stroke="#6f9fbb" strokeWidth="1.5" />
-      </pattern>
-    </>
-  );
-}
+// Painted versions of the printed tiles: earthier colours and a soft
+// light-and-shade wash over each hex.
+const PALETTE: Record<string, Palette> = {
+  forest: { base: PAINT.forest, dark: '#2f4c1d', light: '#5b7d3a' },
+  pasture: { base: PAINT.pasture, dark: '#3d3a33', light: '#f3efe2', accent: '#6b8a34' },
+  fields: { base: PAINT.fields, dark: '#7a4f17', light: '#e8c065' },
+  hills: { base: PAINT.hills, dark: '#6e2f17', light: '#d08a5e' },
+  mountains: { base: PAINT.mountains, dark: '#4a4640', light: '#ece8df', accent: '#958f86' },
+  desert: { base: PAINT.desert, dark: '#9c7f48', light: '#efe0b8' },
+  gold: { base: PAINT.gold, dark: '#7a5a14', light: '#f7e08a' },
+  volcano: { base: PAINT.volcano, dark: '#2e1611', light: '#b9a28c', accent: '#d2582a' },
+  lake: { base: PAINT.lake, dark: '#3d6f8e', light: '#b8d4e2' },
+  fishingLake: { base: PAINT.fishingLake, dark: '#2e5a75', light: '#b8d4e2' },
+  swamp: { base: PAINT.swamp, dark: '#3f4628', light: '#97a368' },
+  oasis: { base: PAINT.oasis, dark: '#3f5a25', light: '#efe0b8', accent: '#6b9cb8' },
+  castle: { base: PAINT.castle, dark: '#4f4438', light: '#e9dfcf' },
+  hidden: { base: PAINT.hidden, dark: '#4a463e', light: '#b5ae9f' },
+  quarry: { base: PAINT.quarry, dark: '#4a4038', light: '#cfc4b2' },
+  glassworks: { base: PAINT.glassworks, dark: '#2b3a36', light: '#d9eae4', accent: '#d2582a' },
+};
+
+const SEA: Palette = { base: '#3d6f8e', dark: '#2e5a75', light: '#4d7f9e', accent: '#7aa6c0' };
 
 export const heritageTheme: Theme = {
   ...cleanTheme,
@@ -122,18 +80,10 @@ export const heritageTheme: Theme = {
   shadePieces: true,
   pieceEffect: 'lift',
   terrainIcons: false,
-  patterns: Patterns,
-  patterned: [
-    'forest',
-    'hills',
-    'pasture',
-    'fields',
-    'mountains',
-    'desert',
-    'gold',
-    'volcano',
-    'sea',
-  ],
+  hexShade: true,
+  hexInset: undefined,
+  patterns: () => tilePatterns(PALETTE, SEA),
+  patterned: [...Object.keys(PALETTE), 'sea'],
   cards: {
     brick: '#b9643c',
     lumber: '#4f7535',
