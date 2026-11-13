@@ -106,6 +106,7 @@ const SAFE_ORDER = [
   'pickGold',
   'pillageCity',
   'pickDefenderCard',
+  'treasureProgress',
   'eventPick',
   'camelBid',
   'returnProgress',

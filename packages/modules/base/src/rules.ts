@@ -235,10 +235,17 @@ export function updateLargestArmy(ctx: Ctx, seat: number): void {
 
 // ---- Turns ----
 
-/** Setup order: 0..n-1 then n-1..0. */
+/** Setup order snakes: 0..n-1, then n-1..0, then 0..n-1 again for a third round. */
 export function setupSeat(ctx: Ctx, index: number): number {
   const n = ctx.playerCount;
-  return index < n ? index : 2 * n - 1 - index;
+  const round = Math.floor(index / n);
+  const i = index % n;
+  return round % 2 === 0 ? i : n - 1 - i;
+}
+
+/** Starting rounds of placement: 2, or 3 where a scenario gives a third settlement. */
+export function setupRounds(ctx: Ctx): number {
+  return ctx.setting<number>('setupRounds') ?? 2;
 }
 
 /** Moves to the next player's turn. Modules can wrap `endTurn` to insert phases first. */

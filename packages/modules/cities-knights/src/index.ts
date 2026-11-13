@@ -98,8 +98,8 @@ export const citiesKnightsModule: GameModule = {
       apply(ctx, a) {
         const index = ctx.state.phase.index as number;
         prev.apply(ctx, a);
-        // The second starting building is a city.
-        if (index < ctx.playerCount) return;
+        // The second starting building is a city (a third, where there is one, stays a settlement).
+        if (index < ctx.playerCount || index >= 2 * ctx.playerCount) return;
         const b = ctx.buildingAt(a.corner as CornerId);
         if (b?.type === 'settlement' && ctx.supplyLeft(a.player, 'city') > 0) {
           ctx.upgrade(b, 'city');
@@ -193,6 +193,7 @@ export {
   canAct,
   ckData,
   citiesOf,
+  drawProgress,
   defenseStrength,
   displaceTargets,
   freeCities,

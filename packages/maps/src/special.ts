@@ -98,7 +98,11 @@ export const SPECIAL_MAPS: SpecialMap[] = [
         ? ['seafarers', 'special-maps', 'treasures-dragons']
         : ['seafarers', 'treasures-dragons'],
     group: 'treasures',
-    ...(citiesKnights ? { needsCitiesKnights: true } : { noCitiesKnights: true }),
+    ...(citiesKnights === 'needs'
+      ? { needsCitiesKnights: true }
+      : citiesKnights === 'optional'
+        ? {}
+        : { noCitiesKnights: true }),
   })),
 ];
 
