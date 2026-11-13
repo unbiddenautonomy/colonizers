@@ -156,6 +156,7 @@ export function SpecialMapButtons({
       title: 'Treasures, Dragons & Adventurers',
       maps: maps.filter((m) => m.group === 'treasures'),
     },
+    { title: 'Explorers & Pirates', maps: maps.filter((m) => m.group === 'explorers') },
   ];
   return (
     <>
@@ -203,6 +204,7 @@ export const SPECIAL_ICON: Record<string, string> = {
   'desert-dragons': '🐉',
   'enchanted-land': '🔮',
   'great-canal': '⛏️',
+  'land-ho': '🔭',
 };
 
 /** Icons for the Seafarers scenarios. */

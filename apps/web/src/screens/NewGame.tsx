@@ -127,6 +127,7 @@ export function NewGame({
   const bonus = vpBonus(ck, specialId);
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
+  const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
   const special = useMemo(
     () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
     [specialId, seed, count],
@@ -428,7 +429,9 @@ export function NewGame({
                 : noCk
                   ? isTreasures
                     ? 'Not with these Treasures, Dragons & Adventurers scenarios yet.'
-                    : 'Not with Traders & Barbarians scenarios, which use the base game.'
+                    : isExplorers
+                      ? 'Not with Explorers & Pirates, which has its own rules.'
+                      : 'Not with Traders & Barbarians scenarios, which use the base game.'
                   : 'Knights, barbarians, commodities and city improvements. Works with every map.'}
             </small>
           </button>
@@ -462,6 +465,23 @@ export function NewGame({
               Map above.
             </small>
           </button>
+          <button
+            type="button"
+            className={`expansion ${isExplorers ? 'on' : ''}`}
+            aria-pressed={isExplorers}
+            disabled={count < 2 || count > 4}
+            onClick={() =>
+              isExplorers
+                ? setChoice({ kind: 'random', mode: 'classic' })
+                : setChoice({ kind: 'special', id: 'land-ho' })
+            }
+          >
+            <strong>🔭 Explorers &amp; Pirates</strong>
+            <small>
+              Harbor settlements, ships that carry settlers into the fog, and gold, for 2 to 4
+              players. No cities or robber.
+            </small>
+          </button>
         </div>
         <h3 className="subhead">Winning</h3>
         {sea ? (
@@ -483,12 +503,13 @@ export function NewGame({
                 </option>
               ))}
             </select>
-            {bonus > 0 && (
+            {bonus !== 0 && (
               <small className="muted">
                 {' '}
                 {[
                   ck && '+3 for Cities & Knights',
                   bonus - extraVp > 0 && `+${bonus - extraVp} for the scenario`,
+                  bonus - extraVp < 0 && `${bonus - extraVp} for the scenario`,
                 ]
                   .filter(Boolean)
                   .join(', ')}{' '}

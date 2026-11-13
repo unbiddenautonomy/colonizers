@@ -138,6 +138,7 @@ export const RESOURCE_ICON: Record<string, string> = {
   paper: '📜',
   cloth: '🧵',
   coin: '🪙',
+  gold: '🪙',
 };
 
 export const RESOURCE_COLOR: Record<string, string> = {
@@ -146,6 +147,7 @@ export const RESOURCE_COLOR: Record<string, string> = {
   wool: '#9fd17a',
   grain: '#e9c46a',
   ore: '#8d99a6',
+  gold: '#f2c230',
   paper: '#efe6c6',
   cloth: '#c9b3e3',
   coin: '#f0cf5e',

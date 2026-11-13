@@ -1,4 +1,4 @@
-import { Ctx, type CornerId, type GameState, type HexId } from '@colonizers/engine';
+import { Ctx, type CornerId, type EdgeId, type GameState, type HexId } from '@colonizers/engine';
 import type { Style } from './styles.ts';
 import { STYLE_WEIGHTS } from './styles.ts';
 
@@ -99,6 +99,10 @@ function targets(ctx: Ctx, seat: number): { item: string; cost: Record<string, n
   add('devCard', !ck && (ctx.state.decks.dev?.length ?? 0) > 0);
   add('knight', ck);
   add('wall', ck);
+  // Explorers & Pirates: harbor settlements and settlers to ship out.
+  const ep = !!ctx.registry.pieceTypes.harbor;
+  add('harbor', ep && ctx.piecesOf(seat, 'settlement').length > 0);
+  add('settler', ep);
   return out;
 }
 
@@ -163,6 +167,7 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
 
   // Module hints.
   if (state.modules.includes('cities-knights')) score += ckHints(state, ctx, seat);
+  if (state.modules.includes('explorers-pirates')) score += epHints(state, ctx, seat, blocked);
   if (ctx.registry.pieceTypes.ship) score += ctx.piecesOf(seat, 'ship').length * 0.15;
 
   // Other players: their production and points count against us, the leader most.
@@ -200,5 +205,68 @@ function ckHints(state: GameState, ctx: Ctx, seat: number): number {
   score += strength * 1.1 * danger;
   for (const c of ctx.piecesOf(seat, 'city')) if (c.props.wall) score += 0.6;
   for (const c of ['paper', 'cloth', 'coin']) score += (state.players[seat]!.hand[c] ?? 0) * 0.5;
+  return score;
+}
+
+// ---- Explorers & Pirates ----
+
+function hiddenHex(state: GameState, hex: HexId): boolean {
+  const h = state.hexes[hex];
+  return !!h && (h.hidden === true || h.type === 'hidden');
+}
+
+function cargo(p: { props: Record<string, unknown> }): string[] {
+  return Array.isArray(p.props.cargo) ? (p.props.cargo as string[]) : [];
+}
+
+/**
+ * Ships are worth more the closer they are to the fog (to explore) or, with
+ * a settler aboard, to a good free corner to found a settlement on.
+ */
+function epHints(state: GameState, ctx: Ctx, seat: number, blocked: Set<string>): number {
+  const g = ctx.geometry;
+  const fogCorner = (c: CornerId) => (g.cornerHexes.get(c) ?? []).some((h) => hiddenHex(state, h));
+  const fogEdge = (e: EdgeId) => (g.edgeCorners.get(e) ?? []).some(fogCorner);
+  const seaEdge = (e: EdgeId) => (g.edgeHexes.get(e) ?? []).some((h) => ctx.isSea(h));
+  const free = (c: CornerId) => openCorner(ctx, c) && !fogCorner(c);
+  let score = 0;
+  for (const p of ctx.piecesOf(seat)) {
+    const load = cargo(p);
+    if (p.type === 'harbor') {
+      score += load.filter((x) => x === 'settler').length * 2.5;
+      continue;
+    }
+    if (p.type !== 'ship' || p.at.kind !== 'edge') continue;
+    const settler = load.includes('settler');
+    score += 1.5;
+    // Sail distance to the fog and to free land, up to a few turns away.
+    let fog = Infinity;
+    let land = 0;
+    const seen = new Set<EdgeId>([p.at.id]);
+    let frontier: EdgeId[] = [p.at.id];
+    for (let step = 0; step <= 14 && frontier.length; step++) {
+      const next: EdgeId[] = [];
+      for (const e of frontier) {
+        if (fogEdge(e)) {
+          fog = Math.min(fog, step);
+          if (step > 0) continue;
+        }
+        if (settler)
+          for (const c of g.edgeCorners.get(e) ?? [])
+            if (free(c)) land = Math.max(land, spotValue(ctx, c, blocked) - step * 1.2);
+        for (const c of g.edgeCorners.get(e) ?? [])
+          for (const n of g.cornerEdges.get(c) ?? []) {
+            if (seen.has(n) || !seaEdge(n)) continue;
+            seen.add(n);
+            next.push(n);
+          }
+      }
+      frontier = next;
+    }
+    if (settler) score += 3 + Math.max(0, land) * 0.25;
+    // Explore: worth most for an empty ship, or a settler with nowhere good to go.
+    if (fog < Infinity) score += Math.max(0, 3 - fog * 0.3) * (settler && land > 6 ? 0.3 : 1);
+  }
+  score += (state.players[seat]!.hand.gold ?? 0) * 0.3;
   return score;
 }

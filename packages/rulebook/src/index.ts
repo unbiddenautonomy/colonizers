@@ -5,6 +5,7 @@ import { specialMapsRules } from './specialMaps.ts';
 import { variantsRules } from './variants.ts';
 import { tradersBarbariansRules } from './tradersBarbarians.ts';
 import { treasuresDragonsRules } from './treasuresDragons.ts';
+import { explorersPiratesRules } from './explorersPirates.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -17,6 +18,7 @@ export const RULEBOOKS: RulebookModule[] = [
   specialMapsRules,
   tradersBarbariansRules,
   treasuresDragonsRules,
+  explorersPiratesRules,
   variantsRules,
 ];
 
@@ -70,6 +72,12 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
  * move can link straight to the rule.
  */
 export const ERROR_PAGES: [RegExp, string][] = [
+  [
+    /harbor settlement|settler|extra sails|no moves left|can not reach there|ashore|gold buys/i,
+    'ep-ships',
+  ],
+  [/explore the fog/i, 'ep-explore'],
+  [/no cities in Explorers|no development cards in Explorers/i, 'explorers-pirates'],
   [/enchanted|ferr|crosses where/i, 'enchanted-land'],
   [/gold river|small islands|off the lake|do not branch/i, 'great-canal'],
   [/dragon/i, 'desert-dragons'],
