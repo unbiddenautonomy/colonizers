@@ -13,6 +13,7 @@ import { baseModule } from '@colonizers/module-base';
 import { seafarersModule } from '@colonizers/module-seafarers';
 import { variantsModule } from '@colonizers/module-variants';
 import { citiesKnightsModule } from '@colonizers/module-cities-knights';
+import { specialMapsModule } from '@colonizers/module-special-maps';
 import { generateTdaBoard, TDA_SCENARIOS } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
 import {
@@ -30,11 +31,16 @@ import {
   enchantedCorner,
   roamTargets,
   DRAGONS_TO_WIN,
+  canalHexes,
+  canalLeft,
+  canalShipProblem,
+  smallIslandCorner,
 } from '../src/index.ts';
 
 const lib = new ModuleLibrary([
   baseModule,
   seafarersModule,
+  specialMapsModule,
   treasuresDragonsModule,
   variantsModule,
   citiesKnightsModule,
@@ -56,10 +62,9 @@ function game(scenario: string, players = 4, seed = 'tda'): GameState {
     seed,
     players: Array.from({ length: players }, (_, i) => `P${i}`),
     // The app's load order: Cities & Knights before this module when it is in the game.
-    modules:
-      scenario === 'enchanted-land'
-        ? ['base', 'seafarers', 'variants', 'cities-knights', 'treasures-dragons']
-        : [...b.modules, 'variants'],
+    modules: TDA_SCENARIOS.find((x) => x.id === scenario)?.citiesKnights
+      ? [...b.modules.slice(0, -1), 'variants', 'cities-knights', 'treasures-dragons']
+      : [...b.modules, 'variants'],
     map: b.map,
     settings: { vpTarget: 10, ...b.settings },
     fixedSeats: true,
@@ -165,6 +170,9 @@ describe('Treasures, Dragons & Adventurers boards', () => {
           for (const d of dragons)
             expect(enchantedCorner(c, (d.at as { id: CornerId }).id)).toBe(true);
           expect(c.piecesOfType('pirate')).toHaveLength(0);
+        } else if (scenario.id === 'great-canal') {
+          // Its board has its own tests below.
+          expect(chests).toHaveLength(0);
         } else if (scenario.id === 'greater-catan') {
           expect(chests).toHaveLength(0);
           expect(tdaData(c).supply).toHaveLength(players <= 3 ? 4 : players === 4 ? 5 : 6);
@@ -539,6 +547,221 @@ describe('Enchanted Land', () => {
         (c.geometry.edgeHexes.get(e) ?? []).some((h) => s.hexes[h]?.props?.enchanted),
     )!;
     expect(lib.check(s, { type: 'buildRoad', player: seat, edge })).toMatch(/no roads/i);
+  });
+});
+
+describe('The Great Canal', () => {
+  const placeKnight = (s: GameState, seat: number, at: CornerId, props: Record<string, unknown>) =>
+    edit(s, (c) => {
+      c.state.phase = { id: 'main' };
+      c.place('knight1', seat, { kind: 'corner', id: at }, { activatedTurn: -1, ...props });
+    });
+  const free = (c: Ctx, k: CornerId) => c.piecesAt({ kind: 'corner', id: k }).length === 0;
+  /** Two free corners of a hex that aren't next to each other. */
+  const twoCorners = (c: Ctx, h: HexId): [CornerId, CornerId] => {
+    const cs = (c.geometry.hexCorners.get(h) ?? []).filter((k) => free(c, k));
+    for (const a of cs)
+      for (const b of cs)
+        if (a < b && !(c.geometry.cornerNeighbours.get(a) ?? []).includes(b)) return [a, b];
+    throw new Error('no free corners');
+  };
+
+  it('lays out a lake, a winding canal, a dry basin and its farmland', () => {
+    for (const n of [3, 4, 5, 6]) {
+      const s = game('great-canal', n, `gc${n}`);
+      const c = ctxOf(s);
+      const canal = canalHexes(c);
+      expect(canal.length).toBeGreaterThanOrEqual(5);
+      expect(canal.every((h) => h.props?.canal === 'dig')).toBe(true);
+      const hexes = Object.values(s.hexes);
+      expect(hexes.filter((h) => h.type === 'lake')).toHaveLength(1);
+      const basin = hexes.find((h) => h.props?.basin)!;
+      expect(basin.type).toBe('desert');
+      expect(c.piecesOfType('robber')[0]!.at).toEqual({ kind: 'hex', id: basin.id });
+      expect(c.piecesOfType('pirate')).toHaveLength(0);
+      const farms = hexes.filter((h) => h.props?.farmland);
+      expect(farms.length).toBeGreaterThan(0);
+      for (const f of farms) {
+        expect(f.type).toBe('fields');
+        expect(c.geometry.hexNeighbours.get(basin.id)).toContain(f.id);
+      }
+      expect(hexes.filter((h) => h.props?.goldRiver).length).toBe(2);
+      expect(s.modules).toContain('cities-knights');
+    }
+  });
+
+  it('keeps the farmland dry until the basin floods', () => {
+    const s = finishSetup(game('great-canal', 4, 'gcf'));
+    const c = ctxOf(s);
+    const farm = Object.values(s.hexes).find((h) => h.props?.farmland)!;
+    const piece = c.piecesOfType('settlement')[0]!;
+    expect(c.reduce('hexYield', farm, piece, { grain: 1 })).toEqual({});
+    const t = edit(s, (x) => (tdaData(x).flooded = true));
+    expect(ctxOf(t).reduce('hexYield', farm, piece, { grain: 1 })).toEqual({ grain: 1 });
+  });
+
+  it('digs a stretch when a second knight beside it is activated', () => {
+    const s = finishSetup(game('great-canal', 4, 'gcd'));
+    const seat = s.turn.player;
+    const hex = canalHexes(ctxOf(s))[2]!;
+    const [a, b] = twoCorners(ctxOf(s), hex.id);
+    let t = placeKnight(s, seat, a, { active: true });
+    t = placeKnight(t, seat, b, { active: false });
+    t = edit(t, (c) => c.grant(seat, { grain: 1 }));
+    const before = ctxOf(t).vp(seat);
+    const k = Object.values(t.pieces).find((p) => (p.at as { id?: string }).id === b)!;
+    t = act(t, { type: 'activateKnight', player: seat, knight: k.id });
+    expect(t.hexes[hex.id]!.props?.canal).toBe('dug');
+    expect(tdaData(ctxOf(t)).chips[seat]).toBe(2);
+    expect(ctxOf(t).vp(seat)).toBe(before + 2);
+    // The knights stay active.
+    expect(t.pieces[k.id]!.props.active).toBe(true);
+  });
+
+  it('splits the chips between two players', () => {
+    const s = finishSetup(game('great-canal', 4, 'gcs'));
+    const seat = s.turn.player;
+    const other = (seat + 1) % 4;
+    const hex = canalHexes(ctxOf(s))[1]!;
+    const [a, b] = twoCorners(ctxOf(s), hex.id);
+    let t = placeKnight(s, other, a, { active: true });
+    t = placeKnight(t, seat, b, { active: false });
+    t = edit(t, (c) => c.grant(seat, { grain: 1 }));
+    const k = Object.values(t.pieces).find((p) => (p.at as { id?: string }).id === b)!;
+    t = act(t, { type: 'activateKnight', player: seat, knight: k.id });
+    expect(tdaData(ctxOf(t)).chips[seat]).toBe(1);
+    expect(tdaData(ctxOf(t)).chips[other]).toBe(1);
+  });
+
+  it('floods the basin when the second-last stretch is dug', () => {
+    const s = finishSetup(game('great-canal', 4, 'gcw'));
+    const seat = s.turn.player;
+    const canal = canalHexes(ctxOf(s));
+    let t = edit(s, (c) => {
+      for (const h of canal.slice(2)) c.state.hexes[h.id]!.props = { ...h.props, canal: 'dug' };
+    });
+    expect(canalLeft(ctxOf(t))).toBe(2);
+    const [a, b] = twoCorners(ctxOf(t), canal[0]!.id);
+    t = placeKnight(t, seat, a, { active: true });
+    t = placeKnight(t, seat, b, { active: false });
+    t = edit(t, (c) => c.grant(seat, { grain: 1 }));
+    const k = Object.values(t.pieces).find((p) => (p.at as { id?: string }).id === b)!;
+    t = act(t, { type: 'activateKnight', player: seat, knight: k.id });
+    const c = ctxOf(t);
+    expect(tdaData(c).flooded).toBe(true);
+    expect(canalHexes(c).every((h) => h.props?.canal === 'water')).toBe(true);
+    expect(Object.values(t.hexes).find((h) => h.props?.basin)!.type).toBe('lake');
+    // Only the stretch dug here paid out; the last one's chips left the game.
+    expect(tdaData(c).chips[seat]).toBe(2);
+    const farm = Object.values(t.hexes).find((h) => h.props?.farmland)!;
+    const piece = c.piecesOfType('settlement')[0]!;
+    expect(c.reduce('hexYield', farm, piece, { grain: 1 })).toEqual({ grain: 1 });
+  });
+
+  it('raises knights on the small islands only by gold rivers and harbors', () => {
+    const s = finishSetup(game('great-canal', 4, 'gck'));
+    const seat = s.turn.player;
+    const c0 = ctxOf(s);
+    const gold = Object.values(s.hexes).find((h) => h.props?.goldRiver)!;
+    const spot = (c0.geometry.hexCorners.get(gold.id) ?? []).find(
+      (k) => smallIslandCorner(c0, k) && free(c0, k),
+    )!;
+    // A ship of ours touching the gold river corner.
+    const edge = (c0.geometry.cornerEdges.get(spot) ?? []).find((e) =>
+      (c0.geometry.edgeHexes.get(e) ?? []).some((h) => s.hexes[h]?.type === 'sea'),
+    ) as EdgeId;
+    let t = edit(s, (c) => {
+      c.state.phase = { id: 'main' };
+      c.place('ship', seat, { kind: 'edge', id: edge });
+      c.grant(seat, { wool: 2, ore: 2 });
+    });
+    t = act(t, { type: 'buildKnight', player: seat, corner: spot });
+    const k = Object.values(t.pieces).find((p) => (p.at as { id?: string }).id === spot)!;
+    expect(k.type).toBe('knight1');
+    expect(k.props.away).toBe(true);
+
+    // Elsewhere on a small island: no.
+    const c = ctxOf(t);
+    const plain = c.geometry.corners.find(
+      (x) =>
+        smallIslandCorner(c, x) &&
+        !(c.geometry.cornerHexes.get(x) ?? []).some((h) => t.hexes[h]?.props?.goldRiver) &&
+        !t.harbors.some((h) =>
+          (c.geometry.edgeCorners.get(h.edge) ?? ([] as CornerId[])).includes(x),
+        ),
+    )!;
+    const plainEdge = (c.geometry.cornerEdges.get(plain) ?? [])[0]!;
+    const u = edit(t, (x) => x.place('ship', seat, { kind: 'edge', id: plainEdge }));
+    expect(() => act(u, { type: 'buildKnight', player: seat, corner: plain })).toThrow(
+      /gold river or a harbor/,
+    );
+    expect(() => act(u, { type: 'buildSettlement', player: seat, corner: plain })).toThrow();
+  });
+
+  it('pans gold on an 8 for knights by a gold river', () => {
+    const s = finishSetup(game('great-canal', 4, 'gcg'));
+    const seat = s.turn.player;
+    const c0 = ctxOf(s);
+    const gold = Object.values(s.hexes).find((h) => h.props?.goldRiver)!;
+    const spot = (c0.geometry.hexCorners.get(gold.id) ?? []).find((k) => free(c0, k))!;
+    let t = edit(s, (c) => {
+      c.state.phase = { id: 'roll' };
+      c.place('knight1', seat, { kind: 'corner', id: spot }, { away: true });
+      const d = c.state.data['cities-knights'] as { alchemist: unknown; forcedRoll: unknown };
+      d.forcedRoll = null;
+      d.alchemist = { red: 4, yellow: 4 };
+    });
+    t = act(t, { type: 'roll', player: seat });
+    for (let i = 0; i < 10 && t.phase.id !== 'pickGold' && t.phase.id !== 'main'; i++)
+      t = act(t, lib.legalActions(t, lib.waitingOn(t)[0]!)[0]!);
+    expect(t.phase.id).toBe('pickGold');
+    expect((t.phase.owed as Record<number, number>)[seat]).toBeGreaterThanOrEqual(1);
+  });
+
+  it('trades at a small island harbor through a knight', () => {
+    const s = finishSetup(game('great-canal', 4, 'gct'));
+    const seat = s.turn.player;
+    const c0 = ctxOf(s);
+    const harbor = s.harbors.find((h) =>
+      (c0.geometry.edgeCorners.get(h.edge) ?? []).some((k) => smallIslandCorner(c0, k)),
+    );
+    expect(harbor).toBeDefined();
+    if (!harbor) return;
+    const card = harbor.resource === 'any' ? 'brick' : harbor.resource;
+    const corner = (c0.geometry.edgeCorners.get(harbor.edge) ?? []).find((k) => free(c0, k))!;
+    const before = c0.reduce('tradeRatio', seat, card, 4);
+    const t = edit(s, (c) =>
+      c.place('knight1', seat, { kind: 'corner', id: corner }, { away: true }),
+    );
+    expect(ctxOf(t).reduce('tradeRatio', seat, card, 4)).toBe(Math.min(before, harbor.ratio));
+    expect(harbor.ratio).toBeLessThan(4);
+  });
+
+  it('keeps ships off the lake and shipping lines from branching', () => {
+    const s = finishSetup(game('great-canal', 4, 'gcb'));
+    const seat = s.turn.player;
+    const c = ctxOf(s);
+    const lake = Object.values(s.hexes).find((h) => h.type === 'lake')!;
+    const lakeEdge = c.geometry.edges.find((e) =>
+      (c.geometry.edgeHexes.get(e) ?? []).includes(lake.id),
+    )!;
+    expect(canalShipProblem(c, seat, lakeEdge)).toMatch(/lake/);
+    // A sea corner with no buildings, and three sea edges around it.
+    const corner = c.geometry.corners.find((k) => {
+      const es = c.geometry.cornerEdges.get(k) ?? [];
+      return (
+        es.length === 3 &&
+        es.every((e) =>
+          (c.geometry.edgeHexes.get(e) ?? []).every((h) => s.hexes[h]?.type === 'sea'),
+        )
+      );
+    })!;
+    const [e1, e2, e3] = c.geometry.cornerEdges.get(corner)!;
+    const t = edit(s, (x) => {
+      x.place('ship', seat, { kind: 'edge', id: e1! });
+      x.place('ship', seat, { kind: 'edge', id: e2! });
+    });
+    expect(canalShipProblem(ctxOf(t), seat, e3!)).toMatch(/branch/);
   });
 });
 

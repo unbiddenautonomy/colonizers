@@ -1,5 +1,6 @@
 import {
   buildGeometry,
+  hexDistance,
   hexId,
   parseHexId,
   Rng,
@@ -16,7 +17,12 @@ import type { SpecialBoard } from './special.ts';
  */
 export interface TdaScenarioInfo {
   id:
-    'treasure-islands' | 'into-the-unknown' | 'greater-catan' | 'desert-dragons' | 'enchanted-land';
+    | 'treasure-islands'
+    | 'into-the-unknown'
+    | 'greater-catan'
+    | 'desert-dragons'
+    | 'enchanted-land'
+    | 'great-canal';
   name: string;
   description: string;
   players: { min: number; max: number };
@@ -58,6 +64,14 @@ export const TDA_SCENARIOS: TdaScenarioInfo[] = [
     name: 'Enchanted Land',
     description:
       'With Cities & Knights. Dragons guard a strange island with no roads. Ship one knight across, roam the land and fight the dragons: some fall to any knight, some only to the mighty. Six dragons win the game.',
+    players: { min: 3, max: 6 },
+    citiesKnights: true,
+  },
+  {
+    id: 'great-canal',
+    name: 'The Great Canal',
+    description:
+      'With Cities & Knights. Drought has dried out the farmland in the west. Two active knights beside a marked hex dig the next stretch of canal from the mountain lake; once it is done the basin floods and the fields grow grain again. Knights on the small islands pan for gold or run a harbor.',
     players: { min: 3, max: 6 },
     citiesKnights: true,
   },
@@ -104,6 +118,17 @@ const SEA: Record<TdaScenarioInfo['id'], Omit<SeaScenario, 'id' | 'name' | 'desc
     outerSizes: (n) => [n > 4 ? 18 : 15],
     gold: 2,
   },
+  'great-canal': {
+    layout: 'newShores',
+    players: { min: 3, max: 6 },
+    vpTarget: () => 18,
+    islandBonus: 0,
+    fog: false,
+    homeDeserts: 1,
+    homeSize: (n) => (n > 4 ? 32 : 26),
+    outerSizes: (n) => (n > 4 ? [3, 3, 3, 3, 2] : [3, 3, 3, 2]),
+    gold: 2,
+  },
   'desert-dragons': {
     layout: 'twoIslands',
     players: { min: 3, max: 6 },
@@ -146,6 +171,135 @@ function inlandCorners(hexes: { q: number; r: number }[], island: HexId[]): Corn
   });
 }
 
+// ---- The Great Canal ----
+
+interface CanalPlan {
+  lake: HexId;
+  basin: HexId;
+  /** Canal hexes in order, from the lake to the basin. */
+  path: HexId[];
+}
+
+const CANAL_MIN = 5;
+const CANAL_MAX = 7;
+const dist = (a: HexId, b: HexId) => hexDistance(parseHexId(a), parseHexId(b));
+const east = (h: HexId) => {
+  const { q, r } = parseHexId(h);
+  return 2 * q + r;
+};
+
+/** A mountain lake in the east, a dry basin in the west, and a winding canal between. */
+function planCanal(rng: Rng, homeList: HexId[]): CanalPlan | null {
+  const home = new Set(homeList);
+  const inland = homeList.filter((h) => neighbours(h).every((n) => home.has(n)));
+  if (inland.length < 2) return null;
+  const byEast = [...inland].sort((a, b) => east(a) - east(b) || (a < b ? -1 : 1));
+  const wests = byEast.slice(0, 3);
+  const easts = byEast.slice(-3).reverse();
+  for (const lake of easts) {
+    for (const basin of rng.shuffle(wests)) {
+      if (lake === basin || dist(lake, basin) < 3) continue;
+      const path = canalPath(rng, home, lake, basin);
+      if (path) return { lake, basin, path };
+    }
+  }
+  return null;
+}
+
+/** A random single-line path of canal hexes, never touching itself. */
+function canalPath(rng: Rng, home: Set<HexId>, lake: HexId, basin: HexId): HexId[] | null {
+  let budget = 4000;
+  const path: HexId[] = [];
+  const dfs = (cur: HexId): boolean => {
+    if (budget-- <= 0) return false;
+    // Once beside the basin, the canal runs straight into it.
+    if (cur !== lake && neighbours(cur).includes(basin)) return path.length >= CANAL_MIN;
+    for (const n of rng.shuffle(neighbours(cur))) {
+      if (n === basin || !home.has(n) || n === lake || path.includes(n)) continue;
+      if (path.length >= CANAL_MAX) continue;
+      if (neighbours(n).some((m) => m !== cur && (m === lake || path.includes(m)))) continue;
+      if (dist(n, basin) - 1 > CANAL_MAX - path.length - 1) continue;
+      path.push(n);
+      if (dfs(n)) return true;
+      path.pop();
+    }
+    return false;
+  };
+  return dfs(lake) ? [...path] : null;
+}
+
+type MapHex = SpecialBoard['map']['hexes'][number];
+
+function digCanal(
+  rng: Rng,
+  map: SpecialBoard['map'],
+  homeList: HexId[],
+  gold: HexId[],
+  plan: CanalPlan,
+): void {
+  const byId = new Map<HexId, MapHex>(map.hexes.map((h) => [hexId(h.q, h.r), h]));
+  const home = new Set(homeList);
+  const at = (h: HexId) => byId.get(h)!;
+
+  // The home desert moves to the basin, trading places with whatever was there.
+  const basin = at(plan.basin);
+  const desert = homeList.map(at).find((h) => h.type === 'desert' && h !== basin);
+  if (desert) {
+    desert.type = basin.type;
+    if (basin.token !== undefined) desert.token = basin.token;
+  }
+  basin.type = 'desert';
+  delete basin.token;
+  basin.props = { ...basin.props, basin: true };
+
+  const lake = at(plan.lake);
+  lake.type = 'lake';
+  delete lake.token;
+
+  plan.path.forEach((h, i) => {
+    const hex = at(h);
+    hex.props = { ...hex.props, canal: 'dig', canalStep: i };
+  });
+
+  // The fields around the basin are the dry farmland; the home island grows no other grain.
+  const canalSet = new Set(plan.path);
+  const farmland = neighbours(plan.basin).filter(
+    (h) => home.has(h) && h !== plan.lake && !canalSet.has(h),
+  );
+  const swap = ['forest', 'pasture', 'hills'];
+  let k = rng.int(0, 2);
+  for (const h of homeList) {
+    const hex = at(h);
+    if (farmland.includes(h)) {
+      hex.type = 'fields';
+      hex.props = { ...hex.props, farmland: true };
+    } else if (hex.type === 'fields') hex.type = swap[k++ % 3]!;
+  }
+
+  // A mountain lake: at least two mountains on its shore.
+  const shore = neighbours(plan.lake).filter(
+    (h) => home.has(h) && !canalSet.has(h) && !farmland.includes(h) && h !== plan.basin,
+  );
+  let peaks = shore.filter((h) => at(h).type === 'mountains').length;
+  for (const h of rng.shuffle(shore)) {
+    if (peaks >= 2) break;
+    if (at(h).type === 'mountains') continue;
+    at(h).type = 'mountains';
+    peaks++;
+  }
+
+  for (const h of gold) {
+    const hex = byId.get(h);
+    if (hex?.type === 'gold') hex.props = { ...hex.props, goldRiver: true };
+  }
+
+  map.pieces = (map.pieces ?? []).map((p) =>
+    p.type === 'robber' ? { ...p, at: { kind: 'hex' as const, id: plan.basin } } : p,
+  );
+  if (!map.pieces.some((p) => p.type === 'robber'))
+    map.pieces.push({ type: 'robber', at: { kind: 'hex', id: plan.basin } });
+}
+
 export function generateTdaBoard(opts: {
   seed: string;
   players: number;
@@ -164,6 +318,17 @@ export function generateTdaBoard(opts: {
   for (let tries = 1; spec.id === 'enchanted-land' && tries < 30; tries++) {
     if (inlandCorners(sea.map.hexes, sea.info.islands[1] ?? []).length >= MIN_INLAND) break;
     sea = build(`${opts.seed}~${tries}`);
+  }
+  // The Great Canal needs room on the home island for a long canal.
+  let canal: CanalPlan | null = null;
+  if (spec.id === 'great-canal') {
+    const crng = Rng.fromSeed(`canal:${opts.players}:${opts.seed}`);
+    for (let tries = 1; tries < 40; tries++) {
+      canal = planCanal(crng, sea.info.home ?? []);
+      if (canal) break;
+      sea = build(`${opts.seed}~${tries}`);
+    }
+    if (!canal) throw new Error('Could not lay out The Great Canal');
   }
   const map = sea.map;
   const rng = Rng.fromSeed(`tda:${spec.id}:${opts.players}:${opts.seed}`);
@@ -237,7 +402,9 @@ export function generateTdaBoard(opts: {
     ];
   }
 
-  // Into the Unknown, Desert Dragons and the Enchanted Land have no pirate.
+  if (canal) digCanal(rng, map, sea.info.home ?? [], sea.info.gold, canal);
+
+  // Into the Unknown, Desert Dragons, the Enchanted Land and the Great Canal have no pirate.
   if (spec.id !== 'treasure-islands' && spec.id !== 'greater-catan')
     map.pieces = (map.pieces ?? []).filter((p) => p.type !== 'pirate');
 
@@ -246,7 +413,8 @@ export function generateTdaBoard(opts: {
   delete settings.vpTarget;
   return {
     map,
-    modules: ['base', 'seafarers', 'treasures-dragons'],
+    // The canal's mountain lake is the special maps' lake hex.
+    modules: ['base', 'seafarers', ...(canal ? ['special-maps'] : []), 'treasures-dragons'],
     settings: { ...settings, tdaScenario: spec.id, treasureStack: stack, tokenSupply },
   };
 }

@@ -166,7 +166,8 @@ After the two main ones, in this order (we can reorder).
 **Treasures, Dragons & Adventurers** (official). Six Seafarers scenarios, built in two parts:
 - Part 1: *Treasure Islands* and *Into the Unknown* (treasure chests on corners, treasures in empty fog hexes) and *Desert Dragons* (dragons gather in three deserts, then spread to block hexes, roads and towns; Knight cards drive them out). Our own generated boards and wording.
 - *Greater Catan* (done): new islands start bare and take numbers from a small pile, then from the home island; 4 extra cities each.
-- Still to do: *The Great Canal* and *Enchanted Land* (both need Cities & Knights).
+- *Enchanted Land* (done, with Cities & Knights): ship one knight to a roadless island, roam and fight dragons of three strengths; six dragons win.
+- *The Great Canal* (done, with Cities & Knights): pairs of active knights dig a canal from a mountain lake to a dry basin; once it floods, the farmland grows grain again. Knights on small islands pan gold on an 8 or run a harbor.
 
 **Explorers & Pirates** (official). Missions on an unexplored sea:
 - Ships carry settlers and crews; harbor settlements are needed to build ships.

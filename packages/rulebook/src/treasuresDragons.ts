@@ -24,8 +24,7 @@ export const treasuresDragonsRules: RulebookModule = {
 - **Desert Dragons**: dragons gather in three deserts and then spread across your island. You need 3 more points than your target (13 with the usual 10).
 
 - **Enchanted Land** (with Cities & Knights): ship one knight to a dragon-haunted island and beat 6 dragons, or reach the target (18 with the usual 10).
-
-One more scenario from this box, the Great Canal, is on the way.`,
+- **The Great Canal** (with Cities & Knights): dig a canal across your island with pairs of knights so the dry farmland grows grain again. You need 5 more points than your target, plus Cities & Knights' 3 (18 with the usual 10).`,
     },
     {
       id: 'treasures',
@@ -105,6 +104,40 @@ Once in the game, you may send **one active knight** across. Its corner must be 
 Knights on the enchanted land don't defend against the barbarians and aren't switched off by an attack. The Inventor can't move its numbers, and Deserter and Intrigue can't touch knights there.
 
 This is our own version of the scenario, on our own generated boards.`,
+    },
+    {
+      id: 'great-canal',
+      module: 'treasures-dragons',
+      section: 'rules',
+      title: 'The Great Canal',
+      summary: 'Dig a canal with your knights so the dry farmland grows grain again.',
+      tags: ['canal', 'farmland', 'basin', 'lake', 'gold river', 'prospector', 'harbor', 'knight'],
+      body: `Played with **Cities & Knights**. A drought has dried out the farmland around the **basin** in the west of your island. A canal is planned from the **mountain lake** in the east to the basin: the dashed line, with two point chips on each hex it crosses.
+
+**Dry farmland**
+
+The fields around the basin (cracked earth, faded numbers) produce **nothing** until the canal is finished. They still count for your starting resources, and the Irrigation card still works on them. Your home island has no other grain fields.
+
+**Digging**
+
+- When **two active knights** stand on corners of a marked hex, that stretch is dug at once. It doesn't matter how strong they are, and they stay active.
+- Both knights yours: you take **both chips**. One each: you each take **one**. Each chip is **1 point**.
+- One knight can stand next to two marked hexes, so one activation can dig two stretches.
+- When only **one stretch** is left, the canal is finished: those last chips leave the game, the basin floods into a lake, and the farmland produces grain from then on.
+
+**The small islands**
+
+- No settlements there.
+- You can raise a knight there at the end of your ships, but only beside a **gold river** or a **harbor**. It stays put.
+- **Prospector:** a knight beside a gold river pans **1 resource of your choice** on every 8, until the basin floods. Two of your knights on the same river still pan one.
+- **Trader:** a knight at a harbor lets you trade there as if you had a settlement.
+- Knights on the small islands don't defend against the barbarians.
+
+**Ships**
+
+Ships can't sail on the lake, and a line of ships can't branch.
+
+There is no pirate; the robber starts in the basin. This is our own version of the scenario, on our own generated boards. One change from the box: you don't have to start on the coast.`,
     },
     {
       id: 'desert-dragons',

@@ -8,6 +8,7 @@ import {
   type EdgeId,
   type GameModule,
   type HexId,
+  type HexState,
   type Phase,
   type Piece,
 } from '@colonizers/engine';
@@ -39,7 +40,12 @@ import {
 export const MODULE_ID = 'treasures-dragons';
 
 export type TdaScenario =
-  'treasure-islands' | 'into-the-unknown' | 'greater-catan' | 'desert-dragons' | 'enchanted-land';
+  | 'treasure-islands'
+  | 'into-the-unknown'
+  | 'greater-catan'
+  | 'desert-dragons'
+  | 'enchanted-land'
+  | 'great-canal';
 
 /** Points each scenario adds to the chosen target. */
 export const TDA_VP_BONUS: Record<TdaScenario, number> = {
@@ -48,6 +54,7 @@ export const TDA_VP_BONUS: Record<TdaScenario, number> = {
   'greater-catan': 8,
   'enchanted-land': 5,
   'desert-dragons': 3,
+  'great-canal': 5,
 };
 
 export type TreasureKind =
@@ -102,6 +109,12 @@ export interface TdaData extends Record<string, unknown> {
   bare: { seat: number; hex: HexId }[];
   /** Enchanted Land: players who have sent their one knight across. */
   crossed: Record<number, boolean>;
+  /** Great Canal: canal chips each player has earned (1 point each). */
+  chips: Record<number, number>;
+  /** Great Canal: the canal is finished and the basin has flooded. */
+  flooded: boolean;
+  /** Great Canal: gold owed to prospectors, waiting for the main phase. */
+  prospect: Record<number, number>;
 }
 
 export function tdaData(ctx: Ctx): TdaData {
@@ -116,6 +129,9 @@ export function tdaData(ctx: Ctx): TdaData {
   d.supply ??= [];
   d.bare ??= [];
   d.crossed ??= {};
+  d.chips ??= {};
+  d.flooded ??= false;
+  d.prospect ??= {};
   return d;
 }
 
@@ -688,11 +704,18 @@ const fightDragon: ActionDef<Action & { knight: string }> = {
 const homeKnightsOnly = (prev: ActionDef): ActionDef => ({
   ...prev,
   check(ctx, a) {
-    if (enchanted(ctx)) {
+    if (enchanted(ctx) || canalGame(ctx)) {
+      const where = enchanted(ctx) ? 'on the enchanted land' : 'on a small island';
       const k = typeof a.knight === 'string' ? ctx.state.pieces[a.knight] : undefined;
-      if (k && isAway(k)) return 'This knight roams the enchanted land';
-      const target = typeof a.to === 'string' ? knightAt(ctx, a.to as CornerId) : undefined;
-      if (target && isAway(target)) return 'That knight is on the enchanted land';
+      if (k && isAway(k))
+        return enchanted(ctx)
+          ? 'This knight roams the enchanted land'
+          : 'This knight stays on its island';
+      const to = typeof a.to === 'string' ? (a.to as CornerId) : undefined;
+      const target = to ? knightAt(ctx, to) : undefined;
+      if (target && isAway(target)) return `That knight is ${where}`;
+      if (to && canalGame(ctx) && smallIslandCorner(ctx, to))
+        return 'Knights on the small islands are raised there';
     }
     return prev.check(ctx, a);
   },
@@ -721,6 +744,180 @@ const enchantedBuild =
     },
   });
 
+// ---- The Great Canal (with Cities & Knights) ----
+
+export const canalGame = (ctx: Ctx) => scenarioOf(ctx) === 'great-canal';
+
+/** The canal's hexes in order, from the lake to the basin. */
+export function canalHexes(ctx: Ctx): HexState[] {
+  return Object.values(ctx.state.hexes)
+    .filter((h) => typeof h.props?.canal === 'string')
+    .sort((a, b) => Number(a.props?.canalStep ?? 0) - Number(b.props?.canalStep ?? 0));
+}
+
+/** Stretches of canal still to dig. */
+export function canalLeft(ctx: Ctx): number {
+  return canalHexes(ctx).filter((h) => h.props?.canal === 'dig').length;
+}
+
+/** A corner on one of the small islands, away from the home island. */
+export function smallIslandCorner(ctx: Ctx, c: CornerId): boolean {
+  const home = homeHexes(ctx);
+  const hs = ctx.geometry.cornerHexes.get(c) ?? [];
+  return !hs.some((h) => home.has(h)) && hs.some((h) => ctx.isLand(h));
+}
+
+const goldRiverCorner = (ctx: Ctx, c: CornerId) =>
+  (ctx.geometry.cornerHexes.get(c) ?? []).some(
+    (h) => ctx.state.hexes[h]?.props?.goldRiver === true,
+  );
+
+const harborCorner = (ctx: Ctx, c: CornerId) =>
+  ctx.state.harbors.some((h) =>
+    (ctx.geometry.edgeCorners.get(h.edge) ?? ([] as CornerId[])).includes(c),
+  );
+
+const activeAtHome = (k: Piece | undefined): k is Piece =>
+  !!k && k.owner !== null && k.props.active === true && !isAway(k);
+
+/** Two active knights beside a marked hex dig its stretch of canal. */
+function digCanal(ctx: Ctx): void {
+  const d = tdaData(ctx);
+  if (d.flooded) return;
+  for (const hex of canalHexes(ctx)) {
+    if (hex.props?.canal !== 'dig') continue;
+    const knights = (ctx.geometry.hexCorners.get(hex.id) ?? [])
+      .map((c) => knightAt(ctx, c))
+      .filter(activeAtHome);
+    if (knights.length < 2) continue;
+    const mine = knights.filter((k) => k.owner === ctx.active);
+    const pair =
+      mine.length >= 2
+        ? mine.slice(0, 2)
+        : mine.length === 1
+          ? [mine[0]!, knights.find((k) => k.owner !== ctx.active)!]
+          : knights.slice(0, 2);
+    const diggers = pair.map((k) => k.owner!);
+    hex.props = { ...hex.props, canal: 'dug' };
+    for (const seat of diggers) d.chips[seat] = (d.chips[seat] ?? 0) + 1;
+    ctx.emit({ type: 'canalDug', hex: hex.id, players: diggers });
+  }
+  // With one stretch left the canal is done: its chips leave the game and the basin floods.
+  if (canalHexes(ctx).length && canalLeft(ctx) <= 1) flood(ctx);
+}
+
+function flood(ctx: Ctx): void {
+  tdaData(ctx).flooded = true;
+  for (const hex of canalHexes(ctx)) hex.props = { ...hex.props, canal: 'water' };
+  for (const hex of Object.values(ctx.state.hexes)) {
+    if (hex.props?.basin !== true) continue;
+    hex.type = 'lake';
+    ctx.hook('hexChanged', hex);
+  }
+  ctx.emit({ type: 'canalFlooded' });
+}
+
+/** On an 8, each knight's owner beside a gold river pans one resource of their choice. */
+function prospect(ctx: Ctx): void {
+  const d = tdaData(ctx);
+  for (const hex of Object.values(ctx.state.hexes)) {
+    if (hex.props?.goldRiver !== true) continue;
+    const owners = new Set<number>();
+    for (const c of ctx.geometry.hexCorners.get(hex.id) ?? []) {
+      const k = knightAt(ctx, c);
+      if (k && k.owner !== null) owners.add(k.owner);
+    }
+    for (const seat of owners) d.prospect[seat] = (d.prospect[seat] ?? 0) + 1;
+  }
+}
+
+function settleProspect(ctx: Ctx): void {
+  const d = tdaData(ctx);
+  if (!Object.keys(d.prospect).length || ctx.state.winner !== null) return;
+  const ph = ctx.state.phase;
+  if (ph.id === 'pickGold') {
+    // Seafarers gold is already being picked: add the panned gold to it.
+    const owed = { ...(ph.owed as Record<number, number>) };
+    for (const [seat, n] of Object.entries(d.prospect))
+      owed[Number(seat)] = (owed[Number(seat)] ?? 0) + n;
+    ctx.setPhase({ ...ph, owed });
+  } else if (ph.id === 'main') {
+    startGoldPick(ctx, d.prospect, { id: 'main' });
+  } else return;
+  ctx.emit({ type: 'goldPanned', owed: d.prospect });
+  d.prospect = {};
+}
+
+/** Small islands: knights only by a gold river or a harbor, and they stay there. */
+const canalKnight = (prev: ActionDef): ActionDef => ({
+  ...prev,
+  check(ctx, a) {
+    if (canalGame(ctx) && typeof a.corner === 'string') {
+      const c = a.corner as CornerId;
+      if (smallIslandCorner(ctx, c) && !goldRiverCorner(ctx, c) && !harborCorner(ctx, c))
+        return 'On the small islands, knights stand by a gold river or a harbor';
+    }
+    return prev.check(ctx, a);
+  },
+  apply(ctx, a) {
+    prev.apply(ctx, a);
+    if (!canalGame(ctx) || typeof a.corner !== 'string') return;
+    const c = a.corner as CornerId;
+    const k = knightAt(ctx, c);
+    if (k && smallIslandCorner(ctx, c)) k.props.away = true;
+  },
+});
+
+const canalSettlement = (prev: ActionDef): ActionDef => ({
+  ...prev,
+  check(ctx, a) {
+    if (
+      canalGame(ctx) &&
+      typeof a.corner === 'string' &&
+      smallIslandCorner(ctx, a.corner as CornerId)
+    )
+      return 'No settlements on the small islands';
+    return prev.check(ctx, a);
+  },
+});
+
+/** Great Canal ships: never on the lake, and shipping lines don't branch. */
+export function canalShipProblem(
+  ctx: Ctx,
+  seat: number,
+  edge: EdgeId,
+  moving?: string,
+): string | null {
+  if (!canalGame(ctx)) return null;
+  const hs = ctx.geometry.edgeHexes.get(edge) ?? [];
+  if (!hs.some((h) => ctx.state.hexes[h]?.type === 'sea')) return 'Ships stay off the lake';
+  for (const c of ctx.geometry.edgeCorners.get(edge) ?? []) {
+    if (ctx.buildingAt(c)?.owner === seat) continue;
+    const ships = (ctx.geometry.cornerEdges.get(c) ?? []).filter(
+      (e) =>
+        e !== edge &&
+        ctx
+          .piecesAt({ kind: 'edge', id: e })
+          .some((p) => p.owner === seat && p.type === 'ship' && p.id !== moving),
+    ).length;
+    if (ships >= 2) return 'Shipping lines do not branch in this scenario';
+  }
+  return null;
+}
+
+const canalShip = (prev: ActionDef): ActionDef => ({
+  ...prev,
+  check(ctx, a) {
+    const edge = (typeof a.edge === 'string' ? a.edge : a.to) as EdgeId | undefined;
+    if (typeof edge === 'string') {
+      const moving = typeof a.ship === 'string' ? a.ship : undefined;
+      const err = canalShipProblem(ctx, a.player, edge, moving);
+      if (err) return err;
+    }
+    return prev.check(ctx, a);
+  },
+});
+
 // ---- Module ----
 
 export const treasuresDragonsModule: GameModule = {
@@ -738,7 +935,7 @@ export const treasuresDragonsModule: GameModule = {
     moveKnight: homeKnightsOnly,
     displaceKnight: homeKnightsOnly,
     chaseRobber: homeKnightsOnly,
-    buildKnight: enchantedBuild('knight'),
+    buildKnight: (prev) => enchantedBuild('knight')(canalKnight(prev)),
   },
   wrapActions: {
     playDevCard: (prev): ActionDef => ({
@@ -759,13 +956,17 @@ export const treasuresDragonsModule: GameModule = {
     movePirate: (prev): ActionDef => ({
       ...prev,
       check(ctx, a) {
-        if (scenarioOf(ctx) !== 'treasure-islands') return 'There is no pirate in this scenario';
+        if (!ctx.piecesOfType('pirate').length) return 'There is no pirate in this scenario';
         return prev.check(ctx, a);
       },
     }),
     buildRoad: (prev) => enchantedBuild('road')(dragonRoad(prev)),
     placeFreeRoad: (prev) => enchantedBuild('road')(dragonRoad(prev)),
-    buildSettlement: enchantedBuild('settlement'),
+    buildSettlement: (prev) => enchantedBuild('settlement')(canalSettlement(prev)),
+    buildShip: canalShip,
+    moveShip: canalShip,
+    placeSetupShip: canalShip,
+    placeFreeShip: canalShip,
     buildCity: enchantedBuild('city'),
   },
   hooks: {
@@ -774,6 +975,7 @@ export const treasuresDragonsModule: GameModule = {
       for (const p of ctx.state.players) {
         d.found[p.seat] = 0;
         d.slain[p.seat] = 0;
+        if (canalGame(ctx)) d.chips[p.seat] = 0;
       }
       const chests = ctx.piecesOfType('treasure').length;
       d.stack = ctx.setting<number>('treasureStack') ?? 0;
@@ -814,17 +1016,32 @@ export const treasuresDragonsModule: GameModule = {
         openTreasure(ctx, e.player, 'fog');
       }
       if (dragonsOn(ctx) && ctx.state.phase.id === 'moveRobber') stealFromAnyone(ctx);
+      if (canalGame(ctx)) {
+        digCanal(ctx);
+        if (!d.flooded && ctx.events.some((e) => e.type === 'production' && e.total === 8))
+          prospect(ctx);
+        settleProspect(ctx);
+      }
       if (greater(ctx) && ctx.state.phase.id !== 'moveToken' && settleBare(ctx)) return;
       settleOwed(ctx);
     },
   },
   reducers: {
     hexYield(ctx, hex, _piece, value) {
+      // Dry farmland grows nothing until the basin floods (starting resources still come).
+      if (
+        canalGame(ctx) &&
+        hex.props?.farmland === true &&
+        !tdaData(ctx).flooded &&
+        ctx.state.phase.id !== 'setup'
+      )
+        return {};
       return dragonsOn(ctx) && dragonHex(ctx, hex.id) ? {} : value;
     },
     vp(ctx, seat, value) {
       // Each dragon beaten on the enchanted land is a point.
       if (enchanted(ctx)) return value + (tdaData(ctx).slain[seat] ?? 0);
+      if (canalGame(ctx)) return value + (tdaData(ctx).chips[seat] ?? 0);
       if (!dragonsOn(ctx)) return value;
       let lost = 0;
       for (const p of ctx.piecesOf(seat)) {
@@ -836,6 +1053,19 @@ export const treasuresDragonsModule: GameModule = {
     supply(ctx, _seat, type, value) {
       // Greater Catan gives everyone 4 more cities.
       return greater(ctx) && type === 'city' ? value + 4 : value;
+    },
+    tradeRatio(ctx, seat, card, value) {
+      if (!canalGame(ctx)) return value;
+      // A knight at a small island's harbor trades there as if it were a settlement.
+      let best = value;
+      for (const h of ctx.state.harbors) {
+        const here = (ctx.geometry.edgeCorners.get(h.edge) ?? []).some((c) => {
+          const k = knightAt(ctx, c);
+          return k?.owner === seat && isAway(k);
+        });
+        if (here && (h.resource === 'any' || h.resource === card)) best = Math.min(best, h.ratio);
+      }
+      return best;
     },
     vpTarget(ctx, value) {
       return value + (TDA_VP_BONUS[scenarioOf(ctx)] ?? 0);

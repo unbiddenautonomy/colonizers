@@ -71,6 +71,7 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
  */
 export const ERROR_PAGES: [RegExp, string][] = [
   [/enchanted|ferr|crosses where/i, 'enchanted-land'],
+  [/gold river|small islands|off the lake|do not branch/i, 'great-canal'],
   [/dragon/i, 'desert-dragons'],
   [/no pirate in this scenario/i, 'treasures-dragons'],
   [/progress card|alchemist|scores by itself/i, 'progress-cards'],

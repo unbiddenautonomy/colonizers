@@ -12,6 +12,14 @@ import {
 import { RESOURCE_ICON, TRACK_COLOR, type Theme } from '../theme/clean.ts';
 import { useTheme } from '../theme/themes.tsx';
 import { motionAttrs, useBoardMotion } from './motion.ts';
+import {
+  CanalStretch,
+  canalLinks,
+  DryBasin,
+  DryFarmland,
+  farmlandDry,
+  GoldRiver,
+} from './CanalArt.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -190,6 +198,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const fx = theme.pieceEffect === 'glow' ? 'url(#glow)' : 'url(#lift)';
   const patterned = new Set(theme.patterned ?? []);
   const hexes = useMemo(() => Object.values(state.hexes), [state.hexes]);
+  const canal = useMemo(() => canalLinks(state, S), [state]);
+  const dry = farmlandDry(state);
   const g = useMemo(() => buildGeometry(hexes.map((h) => h.id)), [hexes]);
   const svgRef = useRef<SVGSVGElement>(null);
   useBoardMotion(svgRef, g, state);
@@ -377,8 +387,17 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 <title>Held by barbarians: no production, and no building next to it</title>
               </polygon>
             )}
+            {dry && h.props?.farmland === true && (
+              <DryFarmland hex={h} S={S} points={hexPoints(h.q, h.r)} />
+            )}
+            {h.props?.basin === true && h.type === 'desert' && <DryBasin hex={h} S={S} />}
+            {h.props?.goldRiver === true && !fog && <GoldRiver hex={h} S={S} />}
+            {canal.has(h.id) && <CanalStretch hex={h} link={canal.get(h.id)!} S={S} />}
             {h.token && !fog && (barbarians[h.id] ?? 0) < 3 && (
-              <g className={rolled === h.token ? 'token hot' : 'token'}>
+              <g
+                className={rolled === h.token ? 'token hot' : 'token'}
+                opacity={dry && h.props?.farmland === true ? 0.55 : undefined}
+              >
                 <circle
                   cx={c.x}
                   cy={c.y}
