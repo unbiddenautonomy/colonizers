@@ -215,6 +215,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
     | {
         barbarians?: Record<string, number>;
         knights?: { id: string; owner: number; edge: EdgeId }[];
+        wagons?: Record<string, { corner: CornerId | null }>;
+        edgeBarbarians?: EdgeId[];
       }
     | undefined;
   const barbarians = tb?.barbarians ?? {};
@@ -585,6 +587,51 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               {n} barbarian{n === 1 ? '' : 's'}
               {n >= 3 ? ': this hex is held' : ''}
             </title>
+          </g>
+        );
+      })}
+
+      {(tb?.edgeBarbarians ?? []).map((e) => {
+        const [a, b] = edgeEnds(e, g);
+        const x = (a.x + b.x) / 2;
+        const y = (a.y + b.y) / 2;
+        return (
+          <g key={`ebarb-${e}`} className="barbarians" filter="url(#lift)">
+            <circle cx={x} cy={y} r={S * 0.17} fill="#3b2a20" stroke="#f1e3c8" strokeWidth={2} />
+            <text
+              x={x}
+              y={y + S * 0.07}
+              textAnchor="middle"
+              fontSize={S * 0.18}
+              pointerEvents="none"
+            >
+              🪓
+            </text>
+            <title>Barbarian: blocks road building; wagons pay 2 more moves to pass</title>
+          </g>
+        );
+      })}
+
+      {Object.entries(tb?.wagons ?? {}).map(([seat, w], i) => {
+        if (!w.corner) return null;
+        const p = cornerToPixel(w.corner, S);
+        const x = p.x + S * 0.22 + (i % 2) * S * 0.12;
+        const y = p.y - S * 0.22 + Math.floor(i / 2) * S * 0.12;
+        return (
+          <g key={`wagon-${seat}`} className="wagon" filter="url(#lift)">
+            <rect
+              x={x - S * 0.15}
+              y={y - S * 0.11}
+              width={S * 0.3}
+              height={S * 0.18}
+              rx={S * 0.04}
+              fill={color(Number(seat))}
+              stroke={theme.outline}
+              strokeWidth={2}
+            />
+            <circle cx={x - S * 0.08} cy={y + S * 0.09} r={S * 0.05} fill={theme.outline} />
+            <circle cx={x + S * 0.08} cy={y + S * 0.09} r={S * 0.05} fill={theme.outline} />
+            <title>Wagon</title>
           </g>
         );
       })}

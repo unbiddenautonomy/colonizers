@@ -10,6 +10,9 @@ export const tradersBarbariansRules: RulebookModule = {
     swamp: { name: 'Swamp', icon: '🪷' },
     oasis: { name: 'Oasis', icon: '🌴' },
     castle: { name: 'Castle', icon: '🏰' },
+    quarry: { name: 'Quarry', icon: '⛏️' },
+    glassworks: { name: 'Glassworks', icon: '🏭' },
+    swiftJourney: { name: 'Swift Journey', icon: '🐎' },
     river: { name: 'River', icon: '🌊' },
     bridge: { name: 'Bridge', icon: '🌉' },
   },
@@ -35,8 +38,9 @@ export const tradersBarbariansRules: RulebookModule = {
 - **Rivers**: rivers cross the island, bridges cost extra, and gold decides who gains or loses points.
 - **Caravans**: camels leave an oasis; everyone votes on where they go.
 - **Barbarian Attack**: barbarians land on the coast; knights from the castle fight them.
+- **Traders & Barbarians**: wagons carry goods between the castle, the quarry and the glassworks.
 
-These scenarios use the base game only, so Cities & Knights is switched off for them. The house rules (and the Harbormaster bonus) still work. More scenarios from the box will follow.`,
+These scenarios use the base game only, so Cities & Knights is switched off for them. The house rules (and the Harbormaster bonus) still work.`,
     },
     {
       id: 'fishermen',
@@ -181,6 +185,71 @@ At the end of each turn, knights on the six paths around a hex fight the barbari
 2 gold buys one resource from the bank, up to twice a turn.
 
 This is our own version of the scenario: Knight cards stand in for the box's own development cards, and new knights start just outside the castle.`,
+    },
+    {
+      id: 'traders-main',
+      module: 'traders-barbarians',
+      section: 'rules',
+      title: 'Traders & Barbarians (main scenario)',
+      summary: 'Drive your wagon between three trade hexes, delivering goods for gold and points.',
+      tags: [
+        'wagon',
+        'trade',
+        'castle',
+        'quarry',
+        'glassworks',
+        'glass',
+        'marble',
+        'sand',
+        'tools',
+        'toll',
+        'swift journey',
+      ],
+      body: `**The board**
+
+Three trade hexes sit on the coast: the **castle** 🏰, the **quarry** ⛏️ and the **glassworks** 🏭. They don't produce, and the 2 and 12 are left out. There is **no robber** and **no Longest Road**. Three barbarians stand on inland paths. Everyone starts with **5 gold**, and your second starting settlement goes down as a **city** with your wagon on it.
+
+**Moving your wagon**
+
+Your wagon goes from corner to corner along the paths. Each turn it has moves to spend (4 to start):
+
+- A path with no road takes **2** moves. A road takes **1**. On someone else's road you also pay them **1 gold**.
+- A barbarian on the path adds **2** more moves.
+- Once a turn you can pay **1 grain** for 2 more moves. Moves you don't use are lost.
+
+**Goods**
+
+Each trade hex has a face-down stack of goods. The first time your wagon reaches a corner of any trade hex, you load the top one. Then take it where it belongs:
+
+- 🔮 Glass and 🪨 marble go to the **castle**.
+- 🔨 Tools go to the **quarry**.
+- ⏳ Sand goes to the **glassworks**.
+
+When you deliver, it's worth **1 point** and gold (1 to 5, by your wagon's level), and you load the next one from the stack there. Loading or delivering ends the wagon's moves for the turn. You carry one load at a time.
+
+**Upgrading the wagon**
+
+| Level | Moves | Gold a delivery | Drive off a barbarian on | Upgrade cost |
+|---|---|---|---|---|
+| 1 | 4 | 1 | – | – |
+| 2 | 5 | 2 | 6 | 1 lumber, 1 wool, 1 ore |
+| 3 | 6 | 3 | 5–6 | 1 lumber, 1 wool, 1 ore, 1 grain |
+| 4 | 7 | 4 | 4–6 | 1 lumber, 2 wool, 2 ore |
+| 5 | 8 | 5 | 3–6 | 2 lumber, 2 wool, 2 ore |
+
+Reaching level 5 is worth **1 point**.
+
+**Barbarians**
+
+- Nobody can build a road on a path with a barbarian.
+- On a 7 (after discards) or a Knight card, move one barbarian to a free inland path. If it lands on someone's road, take a random card from them.
+- From level 2, a wagon next to a barbarian can try to drive it off once a turn: roll a die, and on a high enough number move it to a free inland path (you take no card).
+
+**Cards and winning**
+
+The development deck has 25 cards: 16 Knights, 3 Road Building, 3 **Swift Journey** (your wagon gets its moves again this turn) and 3 Victory Points. 2 gold buys a resource, twice a turn. You need **13 points** to win.
+
+This is our own version: wagons stop at any corner of a trade hex, and the wagon levels and costs are our own.`,
     },
   ],
 };

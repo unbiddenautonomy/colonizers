@@ -181,6 +181,19 @@ async function googleCallback(request: Request, url: URL, env: Env): Promise<Res
 
 // ---- Routes ----
 
+/** An account listed in ADMIN_EMAILS, whose email is proven (verified, or from Google). */
+export function isAdmin(
+  env: { ADMIN_EMAILS?: string },
+  user: { email: string | null; emailVerified: boolean; google: boolean },
+): boolean {
+  if (!user.email || !(user.emailVerified || user.google)) return false;
+  const list = (env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return list.includes(user.email.toLowerCase());
+}
+
 /** Handles /api/auth/*, /api/me* and /api/crews*. Returns null for any other path. */
 export async function accountRoutes(
   request: Request,
@@ -204,7 +217,10 @@ export async function accountRoutes(
     return json({ google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) });
 
   if (method === 'GET') {
-    if (path === '/api/me') return json({ user: token ? await acc.me(token) : null });
+    if (path === '/api/me') {
+      const user = token ? await acc.me(token) : null;
+      return json({ user: user && { ...user, admin: isAdmin(env, user) } });
+    }
     if (path === '/api/me/history')
       return fromResult(await acc.history(token), (games) => ({ games }));
     if (path === '/api/me/stats') return fromResult(await acc.stats(token), (stats) => ({ stats }));

@@ -21,6 +21,8 @@ const PAINT = {
   swamp: '#6f7a4c',
   oasis: '#dcc27c',
   castle: '#a89a88',
+  quarry: '#b5a48d',
+  glassworks: '#94b2b2',
   hidden: '#6f6a5e',
 };
 
@@ -41,6 +43,8 @@ const PALETTE: Record<string, Palette> = {
   oasis: { base: PAINT.oasis, dark: '#3f5a25', light: '#efe0b8', accent: '#6b9cb8' },
   castle: { base: PAINT.castle, dark: '#4f4438', light: '#e9dfcf' },
   hidden: { base: PAINT.hidden, dark: '#4a463e', light: '#b5ae9f' },
+  quarry: { base: PAINT.quarry, dark: '#4a4038', light: '#cfc4b2' },
+  glassworks: { base: PAINT.glassworks, dark: '#2b3a36', light: '#d9eae4', accent: '#d2582a' },
 };
 
 const SEA: Palette = { base: '#3d6f8e', dark: '#2e5a75', light: '#4d7f9e', accent: '#7aa6c0' };

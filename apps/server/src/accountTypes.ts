@@ -15,6 +15,8 @@ export interface PublicUser {
   hasPassword: boolean;
   google: boolean;
   created: number;
+  /** Listed in ADMIN_EMAILS (with a verified email or Google sign-in). */
+  admin?: boolean;
 }
 
 export interface HistoryGame {
