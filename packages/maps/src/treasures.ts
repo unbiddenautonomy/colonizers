@@ -26,8 +26,8 @@ export interface TdaScenarioInfo {
   name: string;
   description: string;
   players: { min: number; max: number };
-  /** Needs Cities & Knights. */
-  citiesKnights?: boolean;
+  /** Cities & Knights: required, allowed, or (when left out) not played with this scenario. */
+  citiesKnights?: 'needs' | 'optional';
 }
 
 export const TDA_SCENARIOS: TdaScenarioInfo[] = [
@@ -37,6 +37,7 @@ export const TDA_SCENARIOS: TdaScenarioInfo[] = [
     description:
       'Fog hides the islands around your home. Build next to a treasure chest to open it, and find a treasure in every empty sea or desert you uncover.',
     players: { min: 3, max: 6 },
+    citiesKnights: 'optional',
   },
   {
     id: 'into-the-unknown',
@@ -44,6 +45,7 @@ export const TDA_SCENARIOS: TdaScenarioInfo[] = [
     description:
       'A small home island and a sea of tiny islands under fog, with treasure chests scattered everywhere. Explore fast: there is no pirate.',
     players: { min: 3, max: 6 },
+    citiesKnights: 'optional',
   },
   {
     id: 'greater-catan',
@@ -51,6 +53,7 @@ export const TDA_SCENARIOS: TdaScenarioInfo[] = [
     description:
       'The new islands have no numbers. Reach one and it takes a number from the pile; once the pile runs out, numbers move over from the home island. A long game to 18 points, with 4 extra cities each.',
     players: { min: 3, max: 6 },
+    citiesKnights: 'optional',
   },
   {
     id: 'desert-dragons',
@@ -65,7 +68,7 @@ export const TDA_SCENARIOS: TdaScenarioInfo[] = [
     description:
       'With Cities & Knights. Dragons guard a strange island with no roads. Ship one knight across, roam the land and fight the dragons: some fall to any knight, some only to the mighty. Six dragons win the game.',
     players: { min: 3, max: 6 },
-    citiesKnights: true,
+    citiesKnights: 'needs',
   },
   {
     id: 'great-canal',
@@ -73,7 +76,7 @@ export const TDA_SCENARIOS: TdaScenarioInfo[] = [
     description:
       'With Cities & Knights. Drought has dried out the farmland in the west. Two active knights beside a marked hex dig the next stretch of canal from the mountain lake; once it is done the basin floods and the fields grow grain again. Knights on the small islands pan for gold or run a harbor.',
     players: { min: 3, max: 6 },
-    citiesKnights: true,
+    citiesKnights: 'needs',
   },
 ];
 

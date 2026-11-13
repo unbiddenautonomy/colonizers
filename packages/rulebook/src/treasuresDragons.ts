@@ -24,7 +24,9 @@ export const treasuresDragonsRules: RulebookModule = {
 - **Desert Dragons**: dragons gather in three deserts and then spread across your island. You need 3 more points than your target (13 with the usual 10).
 
 - **Enchanted Land** (with Cities & Knights): ship one knight to a dragon-haunted island and beat 6 dragons, or reach the target (18 with the usual 10).
-- **The Great Canal** (with Cities & Knights): dig a canal across your island with pairs of knights so the dry farmland grows grain again. You need 5 more points than your target, plus Cities & Knights' 3 (18 with the usual 10).`,
+- **The Great Canal** (with Cities & Knights): dig a canal across your island with pairs of knights so the dry farmland grows grain again. You need 5 more points than your target, plus Cities & Knights' 3 (18 with the usual 10).
+
+Treasure Islands, Into the Unknown and Greater Catan can also be played **with Cities & Knights**. A treasure that would be a development card is then the top progress card of a deck you choose. Cities & Knights adds its usual 3 points, except that Into the Unknown and Greater Catan aim 1 point lower (14 and 20 with the usual 10).`,
     },
     {
       id: 'treasures',

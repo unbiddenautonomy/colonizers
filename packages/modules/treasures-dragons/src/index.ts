@@ -22,6 +22,9 @@ import {
   knightLevel,
   knightsOf,
   reachable,
+  drawProgress,
+  TRACKS,
+  type Track,
 } from '@colonizers/module-cities-knights';
 
 /**
@@ -57,6 +60,17 @@ export const TDA_VP_BONUS: Record<TdaScenario, number> = {
   'great-canal': 5,
 };
 
+/**
+ * With Cities & Knights (which adds 3 points itself), these scenarios aim a
+ * point lower: 14 and 20 with the usual 10.
+ */
+export const TDA_CK_ADJUST: Partial<Record<TdaScenario, number>> = {
+  'into-the-unknown': -1,
+  'greater-catan': -1,
+};
+
+const withCk = (ctx: Ctx) => ctx.state.modules.includes('cities-knights');
+
 export type TreasureKind =
   'freeRoads' | 'devCard' | 'grain' | 'wool' | 'brick' | 'anyTwo' | 'anyOne';
 
@@ -86,7 +100,7 @@ export const TOTAL_DRAGONS = 18;
 /** Treasures that need a choice or a build, kept until it is that player's turn. */
 interface Owed {
   seat: number;
-  kind: 'freeRoads' | 'anyTwo' | 'anyOne';
+  kind: 'freeRoads' | 'anyTwo' | 'anyOne' | 'progress';
 }
 
 export interface TdaData extends Record<string, unknown> {
@@ -189,6 +203,11 @@ function openTreasure(ctx: Ctx, seat: number, from: 'chest' | 'fog'): void {
       }
       return;
     case 'devCard': {
+      // With Cities & Knights, the finder takes a progress card from a deck of their choice.
+      if (withCk(ctx)) {
+        d.owed.push({ seat, kind: 'progress' });
+        return;
+      }
       const card = ctx.drawCard('dev');
       if (!card) return;
       (ctx.player(seat).held.dev ??= []).push({ card, acquiredTurn: ctx.state.turn.number });
@@ -228,6 +247,11 @@ function settleOwed(ctx: Ctx): void {
   if (i < 0) return;
   const [o] = d.owed.splice(i, 1);
   if (!o) return;
+  if (o.kind === 'progress') {
+    if (!TRACKS.some((t) => (ctx.state.decks[t]?.length ?? 0) > 0)) return;
+    ctx.setPhase({ id: 'treasureProgress', owed: { [o.seat]: 1 }, returnTo: { id: 'main' } });
+    return;
+  }
   if (o.kind === 'freeRoads') {
     const left = ctx.supplyLeft(o.seat, 'road') + ctx.supplyLeft(o.seat, 'ship');
     if (left > 0 && freeSpots(ctx, o.seat))
@@ -236,6 +260,31 @@ function settleOwed(ctx: Ctx): void {
   }
   startGoldPick(ctx, { [o.seat]: o.kind === 'anyTwo' ? 2 : 1 }, { id: 'main' });
 }
+
+/** Cities & Knights: a treasure's progress card, from the deck the finder picks. */
+const treasureProgress: ActionDef<Action & { deck: string }> = {
+  phases: ['treasureProgress'],
+  check(ctx, a) {
+    const owed = ctx.state.phase.owed as Record<number, number> | undefined;
+    if (!owed?.[a.player]) return 'You have no treasure to take';
+    if (!(TRACKS as readonly string[]).includes(a.deck)) return 'Pick a progress deck';
+    return ctx.state.decks[a.deck]?.length ? null : 'That deck is empty';
+  },
+  apply(ctx, a) {
+    const returnTo = (ctx.state.phase.returnTo as Phase | undefined) ?? { id: 'main' };
+    ctx.setPhase(returnTo);
+    drawProgress(ctx, a.player, a.deck as Track);
+  },
+  enumerate(ctx, player) {
+    const owed = ctx.state.phase.owed as Record<number, number> | undefined;
+    if (!owed?.[player]) return [];
+    return TRACKS.filter((t) => (ctx.state.decks[t]?.length ?? 0) > 0).map((deck) => ({
+      type: 'treasureProgress',
+      player,
+      deck,
+    }));
+  },
+};
 
 // ---- Greater Catan: numbers for the new islands ----
 
@@ -930,7 +979,7 @@ export const treasuresDragonsModule: GameModule = {
     treasure: { on: 'corner' },
     dragon: { on: 'corner' },
   },
-  actions: { slayDragon, takeToken, crossKnight, roamKnight, fightDragon },
+  actions: { slayDragon, takeToken, crossKnight, roamKnight, fightDragon, treasureProgress },
   wrapActionsIfPresent: {
     moveKnight: homeKnightsOnly,
     displaceKnight: homeKnightsOnly,
@@ -1068,7 +1117,8 @@ export const treasuresDragonsModule: GameModule = {
       return best;
     },
     vpTarget(ctx, value) {
-      return value + (TDA_VP_BONUS[scenarioOf(ctx)] ?? 0);
+      const s = scenarioOf(ctx);
+      return value + (TDA_VP_BONUS[s] ?? 0) + (withCk(ctx) ? (TDA_CK_ADJUST[s] ?? 0) : 0);
     },
     routeWeight(ctx, piece, value) {
       // A cut road breaks the trade route: no path through it can be the longest.

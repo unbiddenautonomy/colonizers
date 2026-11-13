@@ -193,6 +193,7 @@ export {
   canAct,
   ckData,
   citiesOf,
+  drawProgress,
   defenseStrength,
   displaceTargets,
   freeCities,

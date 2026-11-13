@@ -1,4 +1,4 @@
-import { TDA_VP_BONUS } from '@colonizers/module-treasures-dragons';
+import { TDA_CK_ADJUST, TDA_VP_BONUS } from '@colonizers/module-treasures-dragons';
 import { DEFAULT_OPTIONS, type GameOptions } from '../../../server/src/protocol.ts';
 
 /** Points the expansion scenarios add to the target (their modules add them in play). */
@@ -9,7 +9,9 @@ const NO_ROBBER = new Set(['barbarians', 'traders', 'desert-dragons']);
 
 /** Points added on top of the chosen target by Cities & Knights and the map. */
 export function vpBonus(citiesKnights: boolean, specialId: string | null): number {
-  return (citiesKnights ? 3 : 0) + (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0);
+  const ckAdjust =
+    citiesKnights && specialId ? (TDA_CK_ADJUST[specialId as keyof typeof TDA_CK_ADJUST] ?? 0) : 0;
+  return (citiesKnights ? 3 : 0) + (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) + ckAdjust;
 }
 
 export function hasRobber(specialId: string | null): boolean {
