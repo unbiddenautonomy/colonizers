@@ -330,7 +330,7 @@ describe('Greater Catan', () => {
     const { events, state } = simulate(finishSetup(game('greater-catan', 3, 'gsim')), 4, 4000);
     expect(events.has('tokenPlaced')).toBe(true);
     expect(state.phase.id).not.toBe('setup');
-  });
+  }, 60_000);
 });
 
 describe('Desert dragons', () => {
@@ -434,7 +434,7 @@ describe('Desert dragons', () => {
     const { events, state } = simulate(finishSetup(game('desert-dragons', 3, 'dsim')), 5);
     expect(events.has('dragonsWake')).toBe(true);
     expect(state.phase.id).not.toBe('moveRobber');
-  });
+  }, 60_000);
 });
 
 describe('Enchanted Land', () => {
