@@ -1,7 +1,18 @@
 import type { ActionDef, Cards, Ctx, HexId, Phase } from '@colonizers/engine';
 import { drawProgress, progressOverLimit, type Track } from '@colonizers/module-cities-knights';
 import { CIV_BY_ID, READY_CIVS } from './civs.ts';
-import { action, addGift, addPicks, civData, civOf, civView, MODULE_ID } from './core.ts';
+import { RESOURCES } from '@colonizers/module-base';
+import {
+  action,
+  addGift,
+  addPicks,
+  civData,
+  civOf,
+  civView,
+  MODULE_ID,
+  owes,
+  type Gift,
+} from './core.ts';
 
 /**
  * Picking civilisations: each player is dealt up to three tiles and keeps one,
@@ -19,18 +30,21 @@ const START_CARDS: Record<string, Cards> = {
   kongo: { grain: 2, wool: 1 },
   mali: { wool: 2, paper: 2 },
   inuit: { wool: 2, cloth: 2 },
+  indonesia: { brick: 2, coin: 2 },
 };
 
 /** Start progress cards. */
 const START_DECKS: Record<string, Track[]> = {
   judea: ['magic', 'magic'],
   persia: ['politics', 'politics'],
+  greece: ['science', 'science'],
 };
 
 /** Start neutral pieces, put on any land hex. */
 export const START_NEUTRAL: Record<string, string> = {
   judea: 'wizard',
   persia: 'duke',
+  greece: 'scholar',
 };
 
 export function deal(ctx: Ctx): void {
@@ -74,9 +88,6 @@ function settle(ctx: Ctx, returnTo: Phase): void {
   const owed = progressOverLimit(ctx);
   if (Object.keys(owed).length) ctx.setPhase({ id: 'progressDiscard', owed, returnTo });
 }
-
-const owes = (ctx: Ctx, seat: number) =>
-  ((ctx.state.phase.owed as Record<number, number> | undefined)?.[seat] ?? 0) > 0;
 
 const pickCiv = action<{ civ: string }>({
   phases: ['civPick'],
@@ -136,6 +147,29 @@ const civNeutral = action<{ hex: HexId }>({
 
 export const setupActions: Record<string, ActionDef> = { pickCiv, civNeutral };
 
+/** A free ship where there are ships, else a road. */
+export const shipGift = (ctx: Ctx): Gift => ({
+  kind: 'route',
+  only: ctx.registry.pieceTypes.ship ? 'ship' : 'road',
+});
+
+/** Dots on a number token: how often it comes up, out of 36. */
+const pips = (token: number | undefined) => (token ? 6 - Math.abs(7 - token) : 0);
+
+/** Maasai: the resource a player's buildings bring in least. */
+export function scarcest(ctx: Ctx, seat: number): string {
+  const odds: Record<string, number> = Object.fromEntries(RESOURCES.map((r) => [r, 0]));
+  for (const b of ctx.piecesOf(seat)) {
+    if (b.at.kind !== 'corner' || !ctx.registry.pieceTypes[b.type]?.building) continue;
+    for (const h of ctx.geometry.cornerHexes.get(b.at.id) ?? []) {
+      const hex = ctx.state.hexes[h];
+      const res = hex && ctx.registry.hexTypes[hex.type]?.produces;
+      if (res && odds[res] !== undefined) odds[res] += pips(hex.token);
+    }
+  }
+  return RESOURCES.reduce((best, r) => ((odds[r] ?? 0) < (odds[best] ?? 0) ? r : best));
+}
+
 /** Once the starting placements are over: start gifts. */
 export function afterSetup(ctx: Ctx): void {
   const d = civView(ctx);
@@ -144,11 +178,32 @@ export function afterSetup(ctx: Ctx): void {
   for (const p of ctx.state.players) {
     const c = civOf(ctx, p.seat);
     if (!c) continue;
-    if (c.cls === 'warlord') addGift(ctx, p.seat, { kind: 'knight' });
-    if (c.id === 'mali') addGift(ctx, p.seat, { kind: 'route' });
+    const seat = p.seat;
+    if (c.cls === 'warlord') addGift(ctx, seat, { kind: 'knight' });
+    if (c.id === 'mali') addGift(ctx, seat, { kind: 'route' });
     if (c.id === 'netherlands') {
-      addGift(ctx, p.seat, { kind: 'route' });
-      addGift(ctx, p.seat, { kind: 'route' });
+      addGift(ctx, seat, { kind: 'route' });
+      addGift(ctx, seat, { kind: 'route' });
+    }
+    if (c.id === 'granColombia') {
+      addGift(ctx, seat, { kind: 'harbor' });
+      addGift(ctx, seat, shipGift(ctx));
+      addGift(ctx, seat, shipGift(ctx));
+    }
+    if (c.id === 'china') addGift(ctx, seat, { kind: 'silk' });
+    if (c.id === 'maasai') {
+      const res = scarcest(ctx, seat);
+      (civData(ctx).lake ??= {})[seat] = res;
+      const n = Math.min(2, ctx.state.bank[res] ?? 0);
+      if (n > 0) ctx.grant(seat, { [res]: n });
+      ctx.emit({ type: 'civLake', player: seat, card: res, count: n });
+    }
+    if (c.id === 'indonesia') {
+      const city = ctx.piecesOf(seat, 'city')[0];
+      if (city) {
+        city.props.wall = true;
+        ctx.emit({ type: 'civWall', player: seat, at: (city.at as { id: string }).id });
+      }
     }
   }
 }
@@ -158,6 +213,10 @@ export function redactCivs(data: Record<string, unknown>, viewer: number | null)
   const d = data as Partial<{ dealt: Record<number, string[]>; civ: Record<number, string> }> & {
     revealed?: boolean;
   };
+  const h = (data as { habsburg?: { seat: number; drawn: { card: string; deck: string }[] } })
+    .habsburg;
+  if (h && viewer !== h.seat)
+    data.habsburg = { seat: h.seat, drawn: h.drawn.map((x) => ({ card: 'hidden', deck: x.deck })) };
   if (d.revealed) return data;
   const mine = (rec: Record<number, unknown> | undefined) =>
     Object.fromEntries(Object.entries(rec ?? {}).filter(([s]) => Number(s) === viewer));

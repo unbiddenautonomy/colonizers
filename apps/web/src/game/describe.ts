@@ -348,11 +348,56 @@ export function describe(e: GameEvent, names: string[]): string | null {
     case 'civUnlocked':
       return `✨ ${n(e.player)} reached 10 points: ${CIV_BY_ID[e.civ as string]?.later.name ?? 'a new ability'} is theirs.`;
     case 'civPicks':
+      if (e.any) return `🏳️ ${e.why}: ${n(e.player)} may take any resource or commodity.`;
       return `🏳️ ${e.why}: ${n(e.player)} may take ${e.count === 1 ? 'a resource' : `${e.count} resources`} of their choice.`;
     case 'civPick':
       return `${n(e.player)} took ${cards({ [e.card as string]: 1 })}.`;
     case 'civHarvest':
-      return `🏛️ ${n(e.player)}'s Republic took ${cards({ [e.card as string]: 1 })} from beside their new building.`;
+      return `🏳️ ${n(e.player)} took ${cards({ [e.card as string]: 1 })} from beside their building.`;
+    case 'civHarbor':
+      return `⚓ ${n(e.player)} ${e.swapped ? 'swapped two harbors' : 'moved a harbor'}.`;
+    case 'civSilk':
+      return `🏳️ ${n(e.player)} now trades ${cards({ [e.card as string]: 1 })} 2:1.`;
+    case 'civLake':
+      return `🏳️ Lake Victoria: ${n(e.player)} takes ${e.count} ${e.card} and trades it 1:1.`;
+    case 'civWall':
+      return `🧱 ${n(e.player)}'s starting city has a wall.`;
+    case 'civGallic':
+      return `🏳️ ${n(e.player)} swapped the number under the robber with another hex's.`;
+    case 'civRevolution':
+      return `🏳️ ${n(e.player)}'s revolution brought down ${n(e.victim)}'s strong knight.`;
+    case 'civTiticaca':
+      return `🏳️ ${n(e.player)} moved a hex out to sea: Lago Titicaca.`;
+    case 'civLeap':
+      return `🏳️ ${n(e.player)} turned a city back into a settlement for five progress cards.`;
+    case 'civKhagan':
+      return `⚔️ ${n(e.player)} moves the robber on their 3 or 11.`;
+    case 'civSpoils':
+      return `⚔️ ${n(e.player)} also took a progress card from ${n(e.from)}.`;
+    case 'civMuscovyRoll':
+      return e.hexes
+        ? `🏳️ ${n(e.player)} threw ${e.total} for the robber.`
+        : `🏳️ ${n(e.player)} threw ${e.total}: no hex for the robber there.`;
+    case 'civMuscovyHex':
+      return null;
+    case 'civHabsburg':
+      return `🏳️ ${n(e.player)} drew ${e.count} progress cards for the Habsburg Marriage.`;
+    case 'civHabsburgKept':
+      return `🏳️ ${n(e.player)} kept three and put the rest back.`;
+    case 'civVienna':
+      return `🏳️ Vienna Conference: ${n(e.player)} takes a ${e.deck} card.`;
+    case 'civElDorado':
+      return e.deck
+        ? `🏳️ El Dorado: ${n(e.player)} threw again and takes a ${e.deck} card.`
+        : `🏳️ El Dorado: ${n(e.player)} threw again, no card this time.`;
+    case 'civPolynesia':
+      return `🏳️ Polynesian Migration: ${n(e.player)} takes three free roads and three progress cards.`;
+    case 'civCuzco':
+      return `🏳️ Kingdom of Cuzco: ${n(e.player)} gets a second road free.`;
+    case 'civDiceHeld':
+      return `🏳️ ${n(e.player)} may throw the dice again.`;
+    case 'civDemocracy':
+      return `🏳️ ${n(e.player)} threw the ${(e.dice as string[]).join(' and ')} again: ${(e.red as number) + (e.yellow as number)}.`;
     case 'civSwapReady':
       return null;
     case 'civSwap':

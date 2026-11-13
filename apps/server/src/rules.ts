@@ -179,6 +179,10 @@ const SAFE_ORDER = [
   'moveEdgeBarbarian',
   'pickCiv',
   'civNeutral',
+  'civDemocracy',
+  'civMuscovy',
+  'civMuscovyHex',
+  'civHabsburgKeep',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',
@@ -200,6 +204,9 @@ export function timeoutAction(state: GameState, seat: number, rand: () => number
     let options = legal.filter((a) => a.type === type);
     // A camel vote from the timer never spends cards.
     if (type === 'camelBid') options = options.filter((a) => a.wool === 0 && a.grain === 0);
+    // The timer keeps Greece's dice and lets the roller place their own robber.
+    if (type === 'civDemocracy') options = options.filter((a) => a.dice === 'keep');
+    if (type === 'civMuscovy') options = options.filter((a) => a.use === false);
     if (options.length) return options[Math.floor(rand() * options.length)] ?? null;
   }
   return null;
