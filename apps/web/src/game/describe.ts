@@ -88,6 +88,23 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return e.chased
         ? `${n(e.player)} rolled ${e.roll as number} and drove the pirate ship off!`
         : `${n(e.player)} rolled ${e.roll as number}: the pirate ship holds its ground.`;
+    case 'shipsFished':
+      return `Fish on ${e.total as number}: ${Object.entries(e.caught as Record<string, number>)
+        .map(([seat, k]) => `${n(Number(seat))} caught ${k}`)
+        .join(', ')}.`;
+    case 'spiceBought':
+      return `${n(e.player)} bought a sack of spice for ${e.gold as number} gold.`;
+    case 'goodsDelivered': {
+      const g = e.goods as Record<string, number>;
+      const what = [
+        g.fish ? `${g.fish} fish` : '',
+        g.spice ? `${g.spice} sack${g.spice === 1 ? '' : 's'} of spice` : '',
+      ]
+        .filter(Boolean)
+        .join(' and ');
+      const steps = e.steps as number;
+      return `${n(e.player)} brought home ${what}${steps ? `: ${steps} mission step${steps === 1 ? '' : 's'}` : ''}.`;
+    }
     case 'tributePaid':
       return `${n(e.player)} paid the pirate ${e.gold as number} gold to sail past.`;
     case 'goldForNothing':

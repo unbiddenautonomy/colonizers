@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { hexToPixel, type GameState, type HexId } from '@colonizers/engine';
 
-/** Explorers & Pirates on the board: pirate lairs and the crews storming them. */
+/** Explorers & Pirates on the board: pirate lairs, the crews storming them, and spice villages. */
 
 interface EpView {
   lairs?: Record<string, Record<number, number>>;
@@ -20,6 +20,26 @@ export function LairMarkers({
   const d = state.data['explorers-pirates'] as EpView | undefined;
   if (!d) return null;
   const marks: ReactElement[] = [];
+  for (const h of Object.values(state.hexes)) {
+    if (h.hidden || h.props?.village !== true) continue;
+    const c = hexToPixel(h.q, h.r, S);
+    marks.push(
+      <g key={`village-${h.id}`} pointerEvents="none" className="village">
+        <circle
+          cx={c.x}
+          cy={c.y - S * 0.42}
+          r={S * 0.2}
+          fill="#fbf6e9"
+          stroke="#a8432a"
+          strokeWidth={2}
+        />
+        <text x={c.x} y={c.y - S * 0.34} textAnchor="middle" fontSize={S * 0.22}>
+          🌶️
+        </text>
+        <title>Spice village: a ship beside it buys spice for 2 gold</title>
+      </g>,
+    );
+  }
   for (const [id, crews] of Object.entries(d.lairs ?? {})) {
     const h = state.hexes[id as HexId];
     if (!h || h.hidden || h.type === 'hidden') continue;

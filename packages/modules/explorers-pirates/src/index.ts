@@ -45,9 +45,11 @@ import {
 } from './rules.ts';
 
 import { CAPTURED_FIELD_GOLD, lairActions, lairWraps, missionSteps } from './lairs.ts';
+import { catchFish, goodsActions, goodsOf } from './goods.ts';
 
 export * from './rules.ts';
 export * from './lairs.ts';
+export * from './goods.ts';
 
 /**
  * Explorers & Pirates, starting with Land Ho!
@@ -283,6 +285,7 @@ const swapCargo = action<{ ship: string }>({
     if (typeof ship === 'string') return ship;
     const harbor = harborBeside(ctx, a.player, (ship.at as { id: EdgeId }).id);
     if (!harbor) return 'The ship must be beside one of your harbor settlements';
+    if (goodsOf(ship).length) return 'Deliver the fish and spice first';
     if (!cargoOf(ship).length && !cargoOf(harbor).length) return 'There is nothing to load';
     return null;
   },
@@ -398,6 +401,8 @@ export const explorersPiratesModule: GameModule = {
   hexTypes: {
     // Gold fields hold pirate lairs; once captured they pay gold.
     gold: { terrain: 'land', robber: false },
+    // Fishing grounds: open sea with a number, fished by the ships beside them.
+    shoal: { terrain: 'sea', robber: false },
   },
   pieceTypes: {
     pirate: { on: 'hex' },
@@ -422,6 +427,7 @@ export const explorersPiratesModule: GameModule = {
     foundSettlement,
     buyWithGold,
     ...lairActions,
+    ...goodsActions,
   },
   wrapActions: {
     ...lairWraps,
@@ -528,11 +534,13 @@ export const explorersPiratesModule: GameModule = {
       if (a.type !== 'roll') return;
       const prod = ctx.events.find((e) => e.type === 'production');
       if (!prod) return;
+      const fish = catchFish(ctx, prod.total as number);
       // A roll that brings you nothing pays 1 gold.
       const received = (prod.received ?? {}) as Record<number, Record<string, number>>;
       const paid: number[] = [];
       for (const p of ctx.state.players) {
-        const got = Object.values(received[p.seat] ?? {}).reduce((s, n) => s + n, 0);
+        const got =
+          Object.values(received[p.seat] ?? {}).reduce((s, n) => s + n, 0) + (fish[p.seat] ?? 0);
         if (got > 0 || !ctx.bankHas({ [GOLD]: 1 })) continue;
         ctx.grant(p.seat, { [GOLD]: 1 });
         paid.push(p.seat);

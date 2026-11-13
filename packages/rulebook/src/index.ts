@@ -77,6 +77,7 @@ export const ERROR_PAGES: [RegExp, string][] = [
     'ep-ships',
   ],
   [/explore the fog/i, 'ep-explore'],
+  [/spice|no room aboard/i, 'ep-goods'],
   [/pirate ship|pirate lair|crew|chase the pirate|beside the pirate/i, 'pirate-lairs'],
   [/no cities in Explorers|no development cards in Explorers/i, 'explorers-pirates'],
   [/enchanted|ferr|crosses where/i, 'enchanted-land'],
