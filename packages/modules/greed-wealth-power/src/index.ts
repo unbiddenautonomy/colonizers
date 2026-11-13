@@ -52,6 +52,13 @@ import {
   wrapMoveRobber,
 } from './dragon.ts';
 import {
+  endFestivals,
+  festivalActions,
+  festivalBlock,
+  festivalBlocksYield,
+  guardFestival,
+} from './festival.ts';
+import {
   crownHeroes,
   dukeStrength,
   neutralActions,
@@ -83,6 +90,7 @@ import {
  */
 
 export * from './constants.ts';
+export { FESTIVALS, festivals, type Festival, type FestivalKind } from './festival.ts';
 export {
   bonusCard,
   heroes,
@@ -289,7 +297,7 @@ const beerTrade = action<{ get: string }>({
 const beerKnight = action<{ knight: string }>({
   phases: ['main'],
   check(ctx, a) {
-    const err = onlyActive(ctx, a);
+    const err = onlyActive(ctx, a) ?? festivalBlock(ctx, a);
     if (err) return err;
     const k = typeof a.knight === 'string' ? ctx.state.pieces[a.knight] : undefined;
     if (!k || !isKnight(k)) return 'Pick a knight';
@@ -380,11 +388,14 @@ export const greedWealthPowerModule: GameModule = {
     ...neutralActions,
     ...cardActions,
     ...dragonActions,
+    ...festivalActions,
   },
   wrapActionsIfPresent: Object.fromEntries(OPTIONAL_BUILDS.map((b) => [b, guardBuild(true)])),
   wrapActions: {
     playProgress: (prev) => wrapCards(wrapPlayProgress(prev)),
     moveRobber: wrapMoveRobber,
+    activateKnight: guardFestival,
+    improveCity: guardFestival,
     chaseRobber: wrapChaseRobber,
     ...Object.fromEntries(BUILD_ACTIONS.map((b) => [b, guardBuild(true)])),
     ...Object.fromEntries(LENT_ONLY.map((b) => [b, guardBuild(false)])),
@@ -438,6 +449,7 @@ export const greedWealthPowerModule: GameModule = {
       syncInquisitor(ctx);
       crownHeroes(ctx);
       dragonAfter(ctx);
+      endFestivals(ctx);
     },
     turnStarted: lentTurnStarted,
     turnEnded: lentTurnEnded,
@@ -445,7 +457,12 @@ export const greedWealthPowerModule: GameModule = {
   reducers: {
     knightStrength: dukeStrength,
     hexBlocked: (ctx, hex, piece, value) =>
-      dragonBlocks(ctx, hex, piece, wizardUnblocks(ctx, hex, piece, value)),
+      festivalBlocksYield(
+        ctx,
+        hex,
+        piece,
+        dragonBlocks(ctx, hex, piece, wizardUnblocks(ctx, hex, piece, value)),
+      ),
     vp(ctx, seat, value) {
       return value + neutralVp(ctx, seat) + slayerVp(ctx, seat);
     },
