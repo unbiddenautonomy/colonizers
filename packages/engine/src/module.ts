@@ -104,6 +104,10 @@ export interface Reducers {
   knightStrength(ctx: Ctx, knight: Piece, value: number): number;
   /** May this player win now that they have the points? A module can add a condition. */
   canWin(ctx: Ctx, player: number, value: boolean): boolean;
+  /** A player's strength against the barbarians (Cities & Knights starts from their active knights). */
+  defense(ctx: Ctx, player: number, value: number): number;
+  /** Is this piece safe from rivals and the barbarians: it can't be downgraded, displaced or destroyed? */
+  shielded(ctx: Ctx, piece: Piece, value: boolean): boolean;
 }
 
 export interface DiceResult {

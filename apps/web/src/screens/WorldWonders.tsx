@@ -2,12 +2,16 @@ import { useState } from 'react';
 import type { Action, Ctx, GameState, HexId } from '@colonizers/engine';
 import {
   builtWonders,
+  huntOf,
+  OFFERING,
   picksOf,
+  refundOf,
   stageItem,
   WONDER_IDS,
   WONDERS,
   type WonderId,
 } from '@colonizers/module-world-wonders';
+import { TRACK_COMMODITY } from '@colonizers/module-cities-knights';
 import { nameOf } from '@colonizers/rulebook';
 import { CostLine } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
@@ -20,6 +24,11 @@ const ROMAN = ['I', 'II', 'III', 'IV'];
 const RESOURCES = ['brick', 'lumber', 'wool', 'grain', 'ore'];
 
 const icon = (card: string) => nameOf(card).icon ?? nameOf(card).name;
+
+const EVENT_TEXT: Record<string, string> = {
+  ship: 'the barbarian ship',
+  wild: 'the barbarian ship',
+};
 
 /** "Forest 6", for picking a wonder's hex. */
 export function hexLabel(state: GameState, hex: HexId): string {
@@ -66,10 +75,7 @@ function WonderRow({
             <span className="stage-no">{ROMAN[i]}</span> <em>{s.name}</em>{' '}
             <CostLine cost={actor === null ? s.cost : ctx.cost(stageItem(id, i + 1), actor)} />
             <br />
-            <span className="small">
-              {s.text}
-              {!s.works && <span className="muted"> (coming in a later update)</span>}
-            </span>
+            <span className="small">{s.text}</span>
           </li>
         ))}
       </ul>
@@ -120,6 +126,7 @@ export function WonderPanel({
     legal.some((a) => a.type === 'wonderTrade' && a.wonder === 'petra' && a.give === r),
   );
   const harvest = legal.filter((a) => a.type === 'wonderHarvest');
+  const offering = legal.filter((a) => a.type === 'wonderOffering');
   const doAct = (a: Action) => {
     act(a);
     setOpen(false);
@@ -147,7 +154,10 @@ export function WonderPanel({
         ))}
       {open && (
         <Modal title="World Wonders" onClose={() => setOpen(false)} wide>
-          {(gardens.length > 0 || petraGives.length > 0 || harvest.length > 0) && (
+          {(gardens.length > 0 ||
+            petraGives.length > 0 ||
+            harvest.length > 0 ||
+            offering.length > 0) && (
             <div className="wonder-abilities">
               {gardens.length > 0 && (
                 <p className="row wrap">
@@ -185,6 +195,19 @@ export function WonderPanel({
                       {hexLabel(ctx.state, a.hex as HexId)}
                     </button>
                   ))}
+                </p>
+              )}
+              {offering.length > 0 && (
+                <p className="row wrap">
+                  ⚡ Offering at Olympia, for a progress card:{' '}
+                  {offering.map((a) => {
+                    const track = a.track as keyof typeof OFFERING;
+                    return (
+                      <button key={track} type="button" onClick={() => doAct(a)}>
+                        {icon(OFFERING[track] as string)} + {icon(TRACK_COMMODITY[track])} {track}
+                      </button>
+                    );
+                  })}
                 </p>
               )}
             </div>
@@ -247,15 +270,28 @@ export function WonderChoices({
   act: (a: Action) => void;
 }) {
   if (state.phase.id === 'wonderRoll' && state.phase.roller === actor) {
-    const held = state.phase.held as { a: number; b: number };
+    const held = state.phase.held as { a: number; b: number; event?: string };
     const ck = state.modules.includes('cities-knights');
     const names = ck ? ['red', 'yellow'] : ['first', 'second'];
+    const wall = legal.filter((a) => a.type === 'wonderWall');
+    const ship = held.event ? EVENT_TEXT[held.event] : undefined;
     return (
       <Modal title="Your roll">
         <p>
-          You rolled {DIE[held.a]} {DIE[held.b]} ({held.a + held.b}). Throw again, or keep it. A
-          second throw is final.
+          You rolled {DIE[held.a]} {DIE[held.b]} ({held.a + held.b}){ship ? `, and ${ship}` : ''}.{' '}
+          {legal.some((a) => a.type === 'wonderReroll')
+            ? 'Throw again, or keep it. A second throw is final.'
+            : ''}
         </p>
+        {wall.length > 0 && (
+          <div className="row wrap">
+            {wall.map((a) => (
+              <button key={a.steps as number} type="button" onClick={() => act(a)}>
+                {a.steps === 0 ? '🧱 Hold the barbarians back' : '🧱 Move them two spaces'}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="row wrap">
           <button type="button" onClick={() => act({ type: 'keepRoll', player: actor })}>
             Keep {held.a + held.b}
@@ -269,6 +305,41 @@ export function WonderChoices({
                   .replace('the second', `the ${names[1]}`)}
               </button>
             ))}
+        </div>
+      </Modal>
+    );
+  }
+  const hunt = huntOf(ctx, actor);
+  const hunting = legal.filter((a) => a.type === 'wonderHunt');
+  if (hunt && hunting.length) {
+    const label = (card: string) => `${nameOf(card).icon ?? ''} ${nameOf(card).name}`.trim();
+    return (
+      <Modal title="Artemis, Goddess of the Hunt">
+        <p>
+          You drew {label(hunt.card)}. The next card is {label(hunt.alt)}. Keep one; the other goes
+          under the deck.
+        </p>
+        <div className="row wrap">
+          {hunting.map((a) => (
+            <button key={String(a.swap)} type="button" onClick={() => act(a)}>
+              Keep {label(a.swap ? hunt.alt : hunt.card)}
+            </button>
+          ))}
+        </div>
+      </Modal>
+    );
+  }
+  const refunds = legal.filter((a) => a.type === 'wonderRefund');
+  if (refundOf(ctx, actor).length && refunds.length) {
+    return (
+      <Modal title="Eight Levels of Paradise">
+        <p>Take back one resource you spent last turn.</p>
+        <div className="row wrap">
+          {refunds.map((a) => (
+            <button key={a.card as string} type="button" onClick={() => act(a)}>
+              {icon(a.card as string)} {nameOf(a.card as string).name}
+            </button>
+          ))}
         </div>
       </Modal>
     );

@@ -1,5 +1,5 @@
 import type { Action, ActionDef, Ctx, DiceResult, Phase } from '@colonizers/engine';
-import { rewrapRoll } from '@colonizers/module-cities-knights';
+import { rewrapRoll, rollEventDie, type CkData } from '@colonizers/module-cities-knights';
 import { action, hasStage, markUsed, MODULE_ID, usedThisTurn } from './core.ts';
 
 /**
@@ -12,8 +12,11 @@ import { action, hasStage, markUsed, MODULE_ID, usedThisTurn } from './core.ts';
  *
  * When the roller has either, the number dice are thrown and held in a
  * `wonderRoll` step before anything is worked out. The second throw is final.
- * With Cities & Knights the event die is thrown once the number dice are
- * settled, so it is never thrown twice.
+ * - **Great Wall III** (The Cry of Meng Jiangnu): when the event die shows the
+ *   barbarian ship, move the ship two spaces or none (Cities & Knights).
+ *
+ * With Cities & Knights the event die is thrown with the number dice and held
+ * too; throwing again never throws it.
  *
  * Also here, read from the dice once they are worked out:
  *
@@ -30,6 +33,8 @@ export interface HeldDice {
   /** Red die with Cities & Knights, else the first white die. */
   a: number;
   b: number;
+  /** The event die, with Cities & Knights. */
+  event?: string;
 }
 
 interface RollData extends Record<string, unknown> {
@@ -38,9 +43,7 @@ interface RollData extends Record<string, unknown> {
 
 const ck = (ctx: Ctx) => ctx.state.modules.includes('cities-knights');
 
-interface CkDice extends Record<string, unknown> {
-  alchemist?: { red: number; yellow: number } | null;
-}
+type CkDice = Pick<CkData, 'alchemist' | 'forcedEvent' | 'shipSteps'>;
 
 /** What the roller may do with the held dice. */
 export function rerollChoices(ctx: Ctx, seat: number, dice: HeldDice): string[] {
@@ -51,8 +54,17 @@ export function rerollChoices(ctx: Ctx, seat: number, dice: HeldDice): string[] 
   return out;
 }
 
+/** Great Wall III: how far the roller may move the barbarian ship instead of one space. */
+export function wallChoices(ctx: Ctx, seat: number, dice: HeldDice): number[] {
+  if (dice.event !== 'ship' && dice.event !== 'wild') return [];
+  if (ctx.state.phase.wall !== undefined) return [];
+  return hasStage(ctx, seat, 'greatWall', 3) ? [0, 2] : [];
+}
+
 function show(ctx: Ctx, dice: HeldDice): void {
-  const shown = ck(ctx) ? { red: dice.a, yellow: dice.b } : { white1: dice.a, white2: dice.b };
+  const shown = ck(ctx)
+    ? { red: dice.a, yellow: dice.b, ...(dice.event ? { event: dice.event } : {}) }
+    : { white1: dice.a, white2: dice.b };
   ctx.state.data.base = {
     ...(ctx.state.data.base as object),
     lastRoll: { dice: shown, total: dice.a + dice.b },
@@ -60,14 +72,17 @@ function show(ctx: Ctx, dice: HeldDice): void {
 }
 
 /** Works the roll out with these number dice. */
-function release(ctx: Ctx, seat: number, dice: HeldDice, returnTo: Phase): void {
+function release(ctx: Ctx, seat: number, dice: HeldDice, returnTo: Phase, steps?: number): void {
   ctx.setPhase(returnTo);
   const data = ctx.data<RollData>(MODULE_ID);
   data.releasing = true;
   const roll = ctx.registry.actions.roll!;
   try {
     if (ck(ctx)) {
-      (ctx.state.data['cities-knights'] as CkDice).alchemist = { red: dice.a, yellow: dice.b };
+      const d = ctx.state.data['cities-knights'] as CkDice;
+      d.alchemist = { red: dice.a, yellow: dice.b };
+      if (dice.event) d.forcedEvent = dice.event as NonNullable<CkData['forcedEvent']>;
+      if (steps !== undefined) d.shipSteps = steps;
       roll.apply(ctx, { type: 'roll', player: seat });
     } else {
       // The base roll throws through ctx.rollDice: hand it these dice instead.
@@ -96,7 +111,10 @@ export function wrapRoll(prev: ActionDef): ActionDef {
     apply(ctx, a: Action) {
       const data = ctx.state.data[MODULE_ID] as RollData | undefined;
       const seat = a.player;
-      const canHold = hasStage(ctx, seat, 'colosseum', 3) || hasStage(ctx, seat, 'machuPicchu', 3);
+      const canHold =
+        hasStage(ctx, seat, 'colosseum', 3) ||
+        hasStage(ctx, seat, 'machuPicchu', 3) ||
+        (ck(ctx) && hasStage(ctx, seat, 'greatWall', 3));
       if (data?.releasing || !canHold) return prev.apply(ctx, a);
       let dice: HeldDice;
       if (ck(ctx)) {
@@ -106,6 +124,8 @@ export function wrapRoll(prev: ActionDef): ActionDef {
         dice = chosen
           ? { a: chosen.red, b: chosen.yellow }
           : { a: ctx.rng.int(1, 6), b: ctx.rng.int(1, 6) };
+        dice.event = d.forcedEvent ?? rollEventDie(ctx);
+        d.forcedEvent = null;
       } else {
         const r = ctx.rollDice();
         const w1 = r.dice.white1;
@@ -123,7 +143,8 @@ export function wrapRoll(prev: ActionDef): ActionDef {
         }
         dice = { a: w1, b: w2 };
       }
-      if (!rerollChoices(ctx, seat, dice).length) return release(ctx, seat, dice, ctx.state.phase);
+      if (!rerollChoices(ctx, seat, dice).length && !wallChoices(ctx, seat, dice).length)
+        return release(ctx, seat, dice, ctx.state.phase);
       show(ctx, dice);
       ctx.emit({ type: 'wonderDiceHeld', player: seat, a: dice.a, b: dice.b });
       ctx.setPhase({ id: 'wonderRoll', roller: seat, held: dice, returnTo: ctx.state.phase });
@@ -133,12 +154,13 @@ export function wrapRoll(prev: ActionDef): ActionDef {
 }
 
 const held = (ctx: Ctx) => ctx.state.phase.held as HeldDice;
+const wallSteps = (ctx: Ctx) => ctx.state.phase.wall as number | undefined;
 
 const keepRoll: ActionDef = {
   phases: ['wonderRoll'],
   check: (ctx, a) => (a.player === ctx.state.phase.roller ? null : 'Not your roll'),
   apply(ctx, a) {
-    release(ctx, a.player, held(ctx), ctx.state.phase.returnTo as Phase);
+    release(ctx, a.player, held(ctx), ctx.state.phase.returnTo as Phase, wallSteps(ctx));
   },
   enumerate: (ctx, player) =>
     player === ctx.state.phase.roller ? [{ type: 'keepRoll', player }] : [],
@@ -166,7 +188,7 @@ const wonderReroll = action<{ use: string }>({
       a: dice.a,
       b: dice.b,
     });
-    release(ctx, a.player, dice, ctx.state.phase.returnTo as Phase);
+    release(ctx, a.player, dice, ctx.state.phase.returnTo as Phase, wallSteps(ctx));
   },
   enumerate(ctx, player) {
     if (player !== ctx.state.phase.roller) return [];
@@ -178,7 +200,33 @@ const wonderReroll = action<{ use: string }>({
   },
 });
 
-export const diceActions: Record<string, ActionDef> = { keepRoll, wonderReroll };
+/** Great Wall III: the barbarian ship moves two spaces, or stays. */
+const wonderWall = action<{ steps: number }>({
+  phases: ['wonderRoll'],
+  check(ctx, a) {
+    if (a.player !== ctx.state.phase.roller) return 'Not your roll';
+    return wallChoices(ctx, a.player, held(ctx)).includes(a.steps)
+      ? null
+      : 'The barbarian ship moves one space';
+  },
+  apply(ctx, a) {
+    ctx.state.phase.wall = a.steps;
+    ctx.emit({ type: 'wonderWall', player: a.player, steps: a.steps });
+    // With nothing left to choose, the roll goes on.
+    if (!rerollChoices(ctx, a.player, held(ctx)).length)
+      release(ctx, a.player, held(ctx), ctx.state.phase.returnTo as Phase, a.steps);
+  },
+  enumerate(ctx, player) {
+    if (player !== ctx.state.phase.roller) return [];
+    return wallChoices(ctx, player, held(ctx)).map((steps) => ({
+      type: 'wonderWall',
+      player,
+      steps,
+    }));
+  },
+});
+
+export const diceActions: Record<string, ActionDef> = { keepRoll, wonderReroll, wonderWall };
 
 /** The two number dice of a roll, if it had two. */
 export function numberDice(dice: Record<string, unknown>): [number, number] | null {
