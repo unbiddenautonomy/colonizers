@@ -47,7 +47,7 @@ interface TradeOffer {
 const MAX_OPTIONS = 140;
 const MAX_ACTIONS_PER_TURN = 40;
 /** Actions whose outcome is luck: the bot can't (and mustn't) peek at it. */
-const LUCK = new Set(['roll', 'wonderReroll', 'civDemocracy', 'civMuscovy']);
+const LUCK = new Set(['roll', 'wonderReroll', 'civDemocracy', 'civMuscovy', 'civColony']);
 const OFFER_WAIT_MS = 12_000;
 
 /**
