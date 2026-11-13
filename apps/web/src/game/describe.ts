@@ -394,6 +394,26 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🏳️ Polynesian Migration: ${n(e.player)} takes three free roads and three progress cards.`;
     case 'civCuzco':
       return `🏳️ Kingdom of Cuzco: ${n(e.player)} gets a second road free.`;
+    case 'civTwoCities':
+      return `🗿 ${n(e.player)} starts with two cities.`;
+    case 'civAnnex':
+      return `🗿 ${n(e.player)} annexed ${n(e.victim)}'s ${e.piece}, paying its price.`;
+    case 'civRevengeReady':
+      return `🗿 Code of Hammurabi: ${n(e.player)} may strike back at ${n(e.target)}.`;
+    case 'civRevenge':
+      return `🗿 ${n(e.player)} struck back, destroying ${n(e.target)}'s ${e.piece === 'knight1' ? 'knight' : e.piece}.`;
+    case 'civWelfare':
+      return `🏳️ ${n(e.player)} spent welfare tokens on ${cards({ [e.card as string]: 1 })}.`;
+    case 'civHarakiri':
+      return `⚔️ ${n(e.player)}'s samurai gave their life to destroy ${n(e.victim)}'s ${e.piece}.`;
+    case 'civZulu':
+      return `⚔️ ${n(e.player)}'s knight took over the ${e.piece}.`;
+    case 'civCurse':
+      return `💡 Curse of the Medicine Man: ${n(e.target)} loses a city too.`;
+    case 'civMaya':
+      return `🗿 The yellow die brings ${n(e.player)} a ${e.deck} card.`;
+    case 'civKhmer':
+      return `⚔️ ${n(e.player)} reached ${e.points} points: a progress card of their choice.`;
     case 'civDiceHeld':
       return `🏳️ ${n(e.player)} may throw the dice again.`;
     case 'civDemocracy':

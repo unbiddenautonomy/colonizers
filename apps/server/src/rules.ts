@@ -183,6 +183,7 @@ const SAFE_ORDER = [
   'civMuscovy',
   'civMuscovyHex',
   'civHabsburgKeep',
+  'civCurse',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',
@@ -207,6 +208,7 @@ export function timeoutAction(state: GameState, seat: number, rand: () => number
     // The timer keeps Greece's dice and lets the roller place their own robber.
     if (type === 'civDemocracy') options = options.filter((a) => a.dice === 'keep');
     if (type === 'civMuscovy') options = options.filter((a) => a.use === false);
+    if (type === 'civCurse') options = options.filter((a) => a.target === null);
     if (options.length) return options[Math.floor(rand() * options.length)] ?? null;
   }
   return null;

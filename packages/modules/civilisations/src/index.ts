@@ -13,6 +13,14 @@ import {
   wrapSteal,
 } from './effects.ts';
 import { giftActions } from './gifts.ts';
+import {
+  ethiopiaDefense,
+  part3Actions,
+  wrapFestival,
+  wrapKnightMove,
+  wrapPapua,
+  wrapSetupSettlement,
+} from './part3.ts';
 import { civData, MODULE_ID } from './core.ts';
 import { afterSetup, deal, redactCivs, setupActions } from './setup.ts';
 
@@ -36,6 +44,7 @@ export {
   calendarTrack,
   coastEdges,
   harvestHexes,
+  giftDecks,
   routeKinds,
   settleBlock,
   swapsOf,
@@ -49,6 +58,16 @@ export {
   titicacaSea,
 } from './board.ts';
 export { democracySeat, REROLLS, type Dice } from './dice.ts';
+export {
+  annexTargets,
+  curseTargets,
+  freeBuildingBlock,
+  harakiriOptions,
+  papuaZone,
+  revengeTargets,
+  welfareOf,
+  zuluTargets,
+} from './part3.ts';
 export { polarHexes, RESOURCE_COMMODITY, TRACK_RESOURCE } from './effects.ts';
 
 /** Points to win with Civilisations, as the author suggests. */
@@ -59,13 +78,17 @@ export const civilisationsModule: GameModule = {
   name: 'Civilisations',
   requires: ['base', 'cities-knights', 'greed-wealth-power'],
   settings: { vpTarget: CIV_VP_TARGET },
-  actions: { ...setupActions, ...giftActions, ...boardActions, ...diceActions },
+  actions: { ...setupActions, ...giftActions, ...boardActions, ...diceActions, ...part3Actions },
   wrapActions: {
     improveCity: wrapImprove,
     steal: wrapSteal,
     roll: wrapRoll,
-    buildSettlement: wrapBuildSettlement,
+    buildSettlement: (prev) => wrapPapua(wrapBuildSettlement(prev)),
+    placeSetupSettlement: (prev) => wrapPapua(wrapSetupSettlement(prev)),
     buildRoad: wrapBuildRoad,
+    moveKnight: wrapKnightMove,
+    displaceKnight: wrapKnightMove,
+    startFestival: wrapFestival,
   },
   wrapActionsIfPresent: { buildWonder: wrapBuildWonder },
   hooks: {
@@ -82,6 +105,7 @@ export const civilisationsModule: GameModule = {
     cost: civCost,
     hexYield: civYield,
     swapRatio: civSwapRatio,
+    defense: ethiopiaDefense,
   },
   redact: redactCivs,
 };

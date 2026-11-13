@@ -38,6 +38,9 @@ const START_DECKS: Record<string, Track[]> = {
   judea: ['magic', 'magic'],
   persia: ['politics', 'politics'],
   greece: ['science', 'science'],
+  rome: ['religion', 'religion'],
+  babylon: ['trade', 'trade'],
+  maya: ['magic', 'magic'],
 };
 
 /** Start neutral pieces, put on any land hex. */
@@ -45,6 +48,7 @@ export const START_NEUTRAL: Record<string, string> = {
   judea: 'wizard',
   persia: 'duke',
   greece: 'scholar',
+  babylon: 'merchant',
 };
 
 export function deal(ctx: Ctx): void {
@@ -170,6 +174,15 @@ export function scarcest(ctx: Ctx, seat: number): string {
   return RESOURCES.reduce((best, r) => ((odds[r] ?? 0) < (odds[best] ?? 0) ? r : best));
 }
 
+/** City walls on a player's first cities. */
+function wallUp(ctx: Ctx, seat: number, n = 1): void {
+  for (const city of ctx.piecesOf(seat, 'city').slice(0, n)) {
+    if (city.props.wall) continue;
+    city.props.wall = true;
+    ctx.emit({ type: 'civWall', player: seat, at: (city.at as { id: string }).id });
+  }
+}
+
 /** Once the starting placements are over: start gifts. */
 export function afterSetup(ctx: Ctx): void {
   const d = civView(ctx);
@@ -198,13 +211,28 @@ export function afterSetup(ctx: Ctx): void {
       if (n > 0) ctx.grant(seat, { [res]: n });
       ctx.emit({ type: 'civLake', player: seat, card: res, count: n });
     }
-    if (c.id === 'indonesia') {
-      const city = ctx.piecesOf(seat, 'city')[0];
-      if (city) {
-        city.props.wall = true;
-        ctx.emit({ type: 'civWall', player: seat, at: (city.at as { id: string }).id });
-      }
+    if (c.id === 'indonesia' || c.id === 'maya') wallUp(ctx, seat);
+    if (c.id === 'khmer') {
+      addGift(ctx, seat, { kind: 'building', options: ['diocese', 'citadel'] });
+      addGift(ctx, seat, { kind: 'progress', decks: ['religion', 'magic'] });
     }
+    if (c.id === 'rome') addGift(ctx, seat, { kind: 'building', options: ['diocese'] });
+    if (c.id === 'maya') addGift(ctx, seat, { kind: 'building', options: ['citadel'] });
+    if (c.id === 'india') {
+      const first = ctx.piecesOf(seat, 'settlement')[0];
+      if (first && ctx.supplyLeft(seat, 'city') > 0) {
+        ctx.upgrade(first, 'city');
+        ctx.emit({ type: 'civTwoCities', player: seat, at: (first.at as { id: string }).id });
+      }
+      wallUp(ctx, seat, 2);
+    }
+    if (c.id === 'america') addGift(ctx, seat, { kind: 'settlement', where: 'free' });
+    if (c.id === 'papua')
+      civData(ctx).papua = ctx
+        .piecesOf(seat)
+        .flatMap((p) =>
+          p.at.kind === 'corner' && ctx.registry.pieceTypes[p.type]?.building ? [p.at.id] : [],
+        );
   }
 }
 

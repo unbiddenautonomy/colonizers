@@ -45,6 +45,8 @@ export const civilisationsRules: RulebookModule = {
 - **Free pieces and cards** wait for you: tap **🏳️ Civilisations** on your turn to place a free road or knight, or to use a once-a-game ability.
 - **Any card:** some civilisations may swap one card a roll from a terrain for any resource or commodity. The offer shows up after the roll; keep your cards if you like.
 - **On other players' turns:** Greece, from 10 points, is asked after each roll whether to throw some dice again, until it has done so; then it waits two rounds. Russia is asked after a 7 by the player before them whether to throw for the robber.
+- **Striking back:** Babylon, from 10 points, may destroy a road, ship or inactive basic knight of anyone who robs, spies on, displaces, curses or holds a festival against them. Each harm gives one strike, used when they like.
+- **Welfare:** Prussia's welfare tokens show in the 🏳️ Civilisations panel: 2 buy a resource, 3 a commodity.
 - **Board changes:** Gran Colombia's harbor, France's number swap and the Inca's Lago Titicaca are done on the board from the **🏳️ Civilisations** panel: tap the harbor or hex first, then where it goes.
 
 ${ready.length} of the 40 civilisations are in the game so far; the rest come in later updates.`,
