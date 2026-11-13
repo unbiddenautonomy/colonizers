@@ -16,6 +16,7 @@ import {
   continueRoll,
   displaceTargets,
   drawProgress,
+  cityAtRisk,
   freeCities,
   progressHeld,
   improveBlock,
@@ -396,7 +397,7 @@ const pillageCity = action<{ corner: CornerId }>({
   check(ctx, a) {
     if (!owes(ctx, a.player)) return 'You do not lose a city';
     const b = ctx.buildingAt(a.corner);
-    if (!b || b.type !== 'city' || b.owner !== a.player || b.props.metropolis)
+    if (!b || !cityAtRisk(ctx, a.player).includes(b))
       return 'Pick one of your cities without a metropolis';
     return null;
   },
@@ -408,7 +409,7 @@ const pillageCity = action<{ corner: CornerId }>({
   },
   enumerate(ctx, player) {
     if (!owes(ctx, player)) return [];
-    return freeCities(ctx, player).map((c) => ({
+    return cityAtRisk(ctx, player).map((c) => ({
       type: 'pillageCity',
       player,
       corner: cornerOf(c),

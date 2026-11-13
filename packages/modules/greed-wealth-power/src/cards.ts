@@ -33,6 +33,7 @@ import {
   type Track,
 } from '@colonizers/module-cities-knights';
 import { MODULE_ID } from './constants.ts';
+import { dragonData, dragonGone, landDragon } from './dragon.ts';
 
 /**
  * Greed, Wealth & Power's new progress cards (besides the neutral pieces and
@@ -333,6 +334,25 @@ export const CARDS: Record<string, CardDef> = {
       });
     },
   },
+  alliance: {
+    deck: 'politics',
+    count: 1,
+    when: 'beforeOrAfter',
+    options(ctx, seat) {
+      return Object.values(ctx.state.pieces)
+        .filter((k) => isKnight(k) && k.owner !== null && k.owner !== seat && isActive(k))
+        .map((k) => ({ knight: k.id }));
+    },
+    check(ctx, a) {
+      const k = ctx.state.pieces[a.knight ?? ''];
+      if (!k || !isKnight(k) || k.owner === a.player || k.owner === null || !isActive(k))
+        return 'Pick another player’s active knight';
+      return null;
+    },
+    apply(ctx, a) {
+      ckData(ctx).alliance = { seat: a.player, knight: a.knight as string };
+    },
+  },
   tournament: {
     deck: 'politics',
     count: 2,
@@ -573,6 +593,19 @@ export const CARDS: Record<string, CardDef> = {
       ctx.setPhase({ id: 'riverNaiad', returnTo: MAIN });
     },
   },
+  dragonLair: {
+    deck: 'magic',
+    count: 1,
+    options: (ctx) => lairHexes(ctx).map((hex) => ({ option: hex })),
+    check(ctx, a) {
+      if (dragonGone(ctx)) return 'The dragon was slain';
+      return lairHexes(ctx).includes(a.option as HexId) ? null : 'Pick an ore hex';
+    },
+    apply(ctx, a) {
+      landDragon(ctx, a.option as HexId, true);
+      ctx.emit({ type: 'dragonLair', player: a.player, hex: a.option });
+    },
+  },
   magicRitual: {
     deck: 'magic',
     count: 2,
@@ -641,6 +674,17 @@ export const CARDS: Record<string, CardDef> = {
   },
   dogma: takeFromEach('science'),
   witchBurning: takeFromEach('magic'),
+  lent: {
+    deck: 'religion',
+    count: 1,
+    when: 'beforeOrAfter',
+    options: (ctx, seat) => others(ctx, seat).map((target) => ({ target })),
+    check: (ctx, a) =>
+      pickTarget(ctx, a) ?? (dragonData(ctx).lent ? 'Someone is already under Lent' : null),
+    apply(ctx, a) {
+      dragonData(ctx).lent = { target: a.target as number, by: a.player, turn: null, paid: false };
+    },
+  },
   churchTax: {
     deck: 'religion',
     count: 4,
@@ -926,6 +970,13 @@ function robberToDesert(ctx: Ctx): HexId | null {
   const d = deserts(ctx);
   if (!d.length || (at?.kind === 'hex' && d.includes(at.id))) return null;
   return d[0] as HexId;
+}
+
+/** Ore hexes the Dragon Lair can take. */
+function lairHexes(ctx: Ctx): HexId[] {
+  return Object.values(ctx.state.hexes)
+    .filter((h) => !h.hidden && ctx.registry.hexTypes[h.type]?.produces === 'ore')
+    .map((h) => h.id);
 }
 
 export function naiadGrain(ctx: Ctx): HexId[] {
