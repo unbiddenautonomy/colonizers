@@ -148,6 +148,7 @@ function targetsFor(
     want.add('driveBarbarian');
   }
   if (ph === 'slayDragon') want.add('slayDragon');
+  if (ph === 'moveToken') want.add('takeToken');
   if (ph === 'moveRobber') {
     want.add('moveRobber');
     want.add('movePirate');
@@ -264,6 +265,8 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
       return `${who}: choose who to steal from.`;
     case 'slayDragon':
       return `${who}: tap a hex with a dragon to drive it out for good.`;
+    case 'moveToken':
+      return `${who}: the pile of numbers is empty. Tap a glowing home hex to move its number to the new island.`;
     case 'roadBuilding':
       return `${who}: place a free ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} (${state.phase.remaining as number} left).`;
     case 'main':

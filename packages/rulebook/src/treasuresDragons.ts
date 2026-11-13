@@ -20,9 +20,10 @@ export const treasuresDragonsRules: RulebookModule = {
 
 - **Treasure Islands**: fog hides the islands around your home, and treasure chests wait out at sea. 1 point for your first settlement on each new island. You need 4 more points than the target you picked (14 with the usual 10).
 - **Into the Unknown**: a small home island and many tiny islands in the fog, with chests everywhere and no pirate. You need 2 more points than your target (12 with the usual 10).
+- **Greater Catan**: the new islands have no numbers until someone reaches them. A long game: you need 8 more points than your target (18 with the usual 10), and everyone has 4 extra cities.
 - **Desert Dragons**: dragons gather in three deserts and then spread across your island. You need 3 more points than your target (13 with the usual 10).
 
-More scenarios from this box (Greater Catan, the Great Canal and the Enchanted Land) are on the way.`,
+Two more scenarios from this box, the Great Canal and the Enchanted Land, need Cities & Knights and are on the way.`,
     },
     {
       id: 'treasures',
@@ -48,6 +49,31 @@ When your road or ship turns over a fog hex:
 - An empty **sea** or **desert** hex holds a treasure from the face-down pile beside the board, while it lasts.
 
 This is our own version: the chests are on our generated boards, and each one is decided when you open it.`,
+    },
+    {
+      id: 'greater-catan',
+      module: 'treasures-dragons',
+      section: 'rules',
+      title: 'Greater Catan',
+      summary: 'New islands take their numbers from a small pile, then from the home island.',
+      tags: ['greater catan', 'number', 'token', 'pile', 'move number'],
+      body: `The home island is numbered as usual, but the new islands have **no numbers**. Everyone has **4 extra cities** (8 in all).
+
+**Numbering a new hex**
+
+When you build a road or ship that touches a land hex with no number, it gets one:
+
+- While the face-down **pile** lasts, the top number goes on it.
+- Once the pile is empty, you **move a number from the home island** to it. The game shows which numbers you may take. In order, the rules are:
+  1. No 6 or 8 next to another 6 or 8 on the new island.
+  2. Take it from a hex next to one of **your own** settlements or cities.
+  3. Every settlement or city next to that hex must keep at least one other number.
+
+If no number keeps all three rules, the first rule is dropped, then the second, then the third.
+
+The home island slowly empties as the game goes on, so spread out early. You need **18 points** with the usual target.
+
+This is our own version of the scenario, on our own generated boards.`,
     },
     {
       id: 'desert-dragons',

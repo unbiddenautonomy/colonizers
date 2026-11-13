@@ -8,6 +8,7 @@ import {
   type EdgeId,
   type GameModule,
   type HexId,
+  type Phase,
   type Piece,
 } from '@colonizers/engine';
 import { routesAt, stealFrom } from '@colonizers/module-base';
@@ -28,12 +29,14 @@ import { freeSpots, startGoldPick } from '@colonizers/module-seafarers';
 
 export const MODULE_ID = 'treasures-dragons';
 
-export type TdaScenario = 'treasure-islands' | 'into-the-unknown' | 'desert-dragons';
+export type TdaScenario =
+  'treasure-islands' | 'into-the-unknown' | 'greater-catan' | 'desert-dragons';
 
 /** Points each scenario adds to the chosen target. */
 export const TDA_VP_BONUS: Record<TdaScenario, number> = {
   'treasure-islands': 4,
   'into-the-unknown': 2,
+  'greater-catan': 8,
   'desert-dragons': 3,
 };
 
@@ -83,6 +86,10 @@ export interface TdaData extends Record<string, unknown> {
   awake: number;
   /** Dragons each player has driven out. */
   slain: Record<number, number>;
+  /** Greater Catan: face-down number tokens for the new islands, top last. */
+  supply: number[];
+  /** Bare hexes reached this action, waiting for a number. */
+  bare: { seat: number; hex: HexId }[];
 }
 
 export function tdaData(ctx: Ctx): TdaData {
@@ -94,6 +101,8 @@ export function tdaData(ctx: Ctx): TdaData {
   d.dragons ??= {};
   d.awake ??= 0;
   d.slain ??= {};
+  d.supply ??= [];
+  d.bare ??= [];
   return d;
 }
 
@@ -198,6 +207,130 @@ function settleOwed(ctx: Ctx): void {
   }
   startGoldPick(ctx, { [o.seat]: o.kind === 'anyTwo' ? 2 : 1 }, { id: 'main' });
 }
+
+// ---- Greater Catan: numbers for the new islands ----
+
+const greater = (ctx: Ctx) => scenarioOf(ctx) === 'greater-catan';
+const RED = (t: number | undefined) => t === 6 || t === 8;
+
+function homeHexes(ctx: Ctx): Set<HexId> {
+  return new Set(ctx.setting<HexId[] | null>('setupHexes') ?? []);
+}
+
+/** Land hexes next to a newly built road or ship that still have no number. */
+function queueBare(ctx: Ctx, piece: Piece): void {
+  if (piece.owner === null || piece.at.kind !== 'edge') return;
+  if (!ctx.registry.pieceTypes[piece.type]?.route) return;
+  const d = tdaData(ctx);
+  for (const c of ctx.geometry.edgeCorners.get(piece.at.id) ?? []) {
+    for (const h of ctx.geometry.cornerHexes.get(c) ?? []) {
+      const hex = ctx.state.hexes[h];
+      if (!hex || hex.hidden || hex.token !== undefined || hex.type === 'desert') continue;
+      if (ctx.registry.hexTypes[hex.type]?.terrain !== 'land') continue;
+      if (!ctx.registry.hexTypes[hex.type]?.produces && hex.type !== 'gold') continue;
+      if (d.bare.some((b) => b.hex === h)) continue;
+      d.bare.push({ seat: piece.owner, hex: h });
+    }
+  }
+}
+
+/**
+ * Home-island numbers a player may move to a bare hex. In order, the rules
+ * are: no 6 or 8 next to another 6 or 8 on the new island; take it from a
+ * hex next to your own building; and leave every building next to that hex
+ * at least one other number. When no number keeps all three, the first rule
+ * is dropped, then the second, then the third.
+ */
+export function tokenOptions(ctx: Ctx, seat: number, target: HexId): HexId[] {
+  const home = homeHexes(ctx);
+  const all = [...home].filter((h) => ctx.state.hexes[h]?.token !== undefined).sort();
+  const near = ctx.geometry.hexNeighbours.get(target) ?? [];
+  const rule1 = (h: HexId) =>
+    !RED(ctx.state.hexes[h]?.token) ||
+    !near.some((n) => n !== h && !home.has(n) && RED(ctx.state.hexes[n]?.token));
+  const corners = (h: HexId) => ctx.geometry.hexCorners.get(h) ?? [];
+  const rule2 = (h: HexId) => corners(h).some((c) => ctx.buildingAt(c)?.owner === seat);
+  const rule3 = (h: HexId) =>
+    corners(h).every((c) => {
+      if (!ctx.buildingAt(c)) return true;
+      return (ctx.geometry.cornerHexes.get(c) ?? []).some(
+        (o) => o !== h && ctx.state.hexes[o]?.token !== undefined,
+      );
+    });
+  for (const rules of [[rule1, rule2, rule3], [rule2, rule3], [rule3], []]) {
+    const ok = all.filter((h) => rules.every((r) => r(h)));
+    if (ok.length) return ok;
+  }
+  return [];
+}
+
+export interface TokenPhase {
+  id: 'moveToken';
+  hex: HexId;
+  options: HexId[];
+  returnTo: Phase;
+}
+
+/** Numbers bare hexes from the pile, or asks the builder to move one from home. */
+function settleBare(ctx: Ctx): boolean {
+  const d = tdaData(ctx);
+  while (d.bare.length) {
+    const next = d.bare[0]!;
+    const hex = ctx.state.hexes[next.hex];
+    if (!hex || hex.token !== undefined) {
+      d.bare.shift();
+      continue;
+    }
+    const token = d.supply.pop();
+    if (token !== undefined) {
+      d.bare.shift();
+      hex.token = token;
+      ctx.emit({ type: 'tokenPlaced', hex: hex.id, token, player: next.seat, from: 'pile' });
+      ctx.hook('hexChanged', hex);
+      continue;
+    }
+    const options = tokenOptions(ctx, next.seat, next.hex);
+    // Only the builder, on their own move, picks the number to bring over.
+    if (!options.length || next.seat !== ctx.active || ctx.state.winner !== null) {
+      d.bare.shift();
+      continue;
+    }
+    ctx.setPhase({
+      id: 'moveToken',
+      hex: next.hex,
+      options,
+      returnTo: ctx.state.phase,
+    } as TokenPhase & Phase);
+    return true;
+  }
+  return false;
+}
+
+const takeToken: ActionDef<Action & { hex: HexId }> = {
+  phases: ['moveToken'],
+  check(ctx, a) {
+    if (a.player !== ctx.active) return 'Not your turn';
+    const ph = ctx.state.phase as unknown as TokenPhase;
+    return ph.options.includes(a.hex) ? null : 'Take a number from one of the glowing hexes';
+  },
+  apply(ctx, a) {
+    const ph = ctx.state.phase as unknown as TokenPhase;
+    const from = ctx.state.hexes[a.hex]!;
+    const to = ctx.state.hexes[ph.hex]!;
+    to.token = from.token as number;
+    delete from.token;
+    tdaData(ctx).bare.shift();
+    ctx.emit({ type: 'tokenPlaced', hex: to.id, token: to.token, player: a.player, from: a.hex });
+    ctx.hook('hexChanged', from);
+    ctx.hook('hexChanged', to);
+    ctx.setPhase(ph.returnTo);
+  },
+  enumerate(ctx, player) {
+    if (player !== ctx.active) return [];
+    const ph = ctx.state.phase as unknown as TokenPhase;
+    return ph.options.map((hex) => ({ type: 'takeToken', player, hex }));
+  },
+};
 
 // ---- Dragons ----
 
@@ -354,11 +487,11 @@ export const treasuresDragonsModule: GameModule = {
   name: 'Treasures, Dragons & Adventurers',
   requires: ['base', 'seafarers'],
   conflicts: ['traders-barbarians', 'cities-knights'],
-  settings: { tdaScenario: 'treasure-islands', treasureStack: 0 },
+  settings: { tdaScenario: 'treasure-islands', treasureStack: 0, tokenSupply: [] },
   pieceTypes: {
     treasure: { on: 'corner' },
   },
-  actions: { slayDragon },
+  actions: { slayDragon, takeToken },
   wrapActions: {
     roll: (prev): ActionDef => ({
       ...prev,
@@ -404,6 +537,7 @@ export const treasuresDragonsModule: GameModule = {
       const chests = ctx.piecesOfType('treasure').length;
       d.stack = ctx.setting<number>('treasureStack') ?? 0;
       d.deck = shuffle(ctx, treasureDeck(chests + d.stack));
+      d.supply = [...(ctx.setting<number[]>('tokenSupply') ?? [])];
       if (dragonsOn(ctx)) {
         // No robber, no pirate, and no Largest Army: Knights fight dragons.
         for (const r of ctx.piecesOfType('robber')) ctx.remove(r);
@@ -414,6 +548,7 @@ export const treasuresDragonsModule: GameModule = {
     piecePlaced(ctx, piece, previous) {
       if (previous !== null) return;
       takeChests(ctx, piece);
+      if (greater(ctx)) queueBare(ctx, piece);
       if (
         dragonsOn(ctx) &&
         piece.owner !== null &&
@@ -433,6 +568,7 @@ export const treasuresDragonsModule: GameModule = {
         openTreasure(ctx, e.player, 'fog');
       }
       if (dragonsOn(ctx) && ctx.state.phase.id === 'moveRobber') stealFromAnyone(ctx);
+      if (greater(ctx) && ctx.state.phase.id !== 'moveToken' && settleBare(ctx)) return;
       settleOwed(ctx);
     },
   },
@@ -449,6 +585,10 @@ export const treasuresDragonsModule: GameModule = {
       }
       return value - lost;
     },
+    supply(ctx, _seat, type, value) {
+      // Greater Catan gives everyone 4 more cities.
+      return greater(ctx) && type === 'city' ? value + 4 : value;
+    },
     vpTarget(ctx, value) {
       return value + (TDA_VP_BONUS[scenarioOf(ctx)] ?? 0);
     },
@@ -460,6 +600,6 @@ export const treasuresDragonsModule: GameModule = {
   redact(data) {
     const d = data as TdaData;
     // Treasures stay face down: everyone sees only how many are left.
-    return { ...d, deck: d.deck.map(() => 'anyOne') };
+    return { ...d, deck: d.deck.map(() => 'anyOne'), supply: (d.supply ?? []).map(() => 0) };
   },
 };

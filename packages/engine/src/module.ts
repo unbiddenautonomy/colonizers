@@ -88,6 +88,8 @@ export interface Reducers {
   vpTarget(ctx: Ctx, value: number): number;
   /** How much one route piece counts toward the longest route (normally 1). */
   routeWeight(ctx: Ctx, piece: Piece, value: number): number;
+  /** How many pieces of a type a player has in all (from the piece type's perPlayer). */
+  supply(ctx: Ctx, player: number, type: string, value: number): number;
 }
 
 export interface DiceResult {

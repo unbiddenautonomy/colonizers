@@ -15,7 +15,7 @@ import type { SpecialBoard } from './special.ts';
  * home island with three deserts where dragons gather.
  */
 export interface TdaScenarioInfo {
-  id: 'treasure-islands' | 'into-the-unknown' | 'desert-dragons';
+  id: 'treasure-islands' | 'into-the-unknown' | 'greater-catan' | 'desert-dragons';
   name: string;
   description: string;
   players: { min: number; max: number };
@@ -34,6 +34,13 @@ export const TDA_SCENARIOS: TdaScenarioInfo[] = [
     name: 'Into the Unknown',
     description:
       'A small home island and a sea of tiny islands under fog, with treasure chests scattered everywhere. Explore fast: there is no pirate.',
+    players: { min: 3, max: 6 },
+  },
+  {
+    id: 'greater-catan',
+    name: 'Greater Catan',
+    description:
+      'The new islands have no numbers. Reach one and it takes a number from the pile; once the pile runs out, numbers move over from the home island. A long game to 18 points, with 4 extra cities each.',
     players: { min: 3, max: 6 },
   },
   {
@@ -66,6 +73,14 @@ const SEA: Record<TdaScenarioInfo['id'], Omit<SeaScenario, 'id' | 'name' | 'desc
     islandBonus: 0,
     fog: true,
     outerDeserts: 2,
+  },
+  'greater-catan': {
+    layout: 'newShores',
+    players: { min: 3, max: 6 },
+    vpTarget: () => 18,
+    islandBonus: 0,
+    fog: false,
+    homeDeserts: 1,
   },
   'desert-dragons': {
     layout: 'twoIslands',
@@ -144,8 +159,22 @@ export function generateTdaBoard(opts: {
     ];
   }
 
+  // Greater Catan: the new islands start bare, and a few of their numbers wait in a pile.
+  let tokenSupply: number[] = [];
+  if (spec.id === 'greater-catan') {
+    const home = new Set(sea.info.home ?? []);
+    const pool: number[] = [];
+    for (const h of map.hexes) {
+      if (home.has(hexId(h.q, h.r)) || h.token === undefined) continue;
+      pool.push(h.token);
+      delete h.token;
+    }
+    const size = opts.players <= 3 ? 4 : opts.players === 4 ? 5 : 6;
+    tokenSupply = rng.shuffle(pool).slice(0, size);
+  }
+
   // Into the Unknown and Desert Dragons have no pirate.
-  if (spec.id !== 'treasure-islands')
+  if (spec.id === 'into-the-unknown' || spec.id === 'desert-dragons')
     map.pieces = (map.pieces ?? []).filter((p) => p.type !== 'pirate');
 
   // The host's points target applies; the module adds the scenario's extra points.
@@ -154,6 +183,6 @@ export function generateTdaBoard(opts: {
   return {
     map,
     modules: ['base', 'seafarers', 'treasures-dragons'],
-    settings: { ...settings, tdaScenario: spec.id, treasureStack: stack },
+    settings: { ...settings, tdaScenario: spec.id, treasureStack: stack, tokenSupply },
   };
 }
