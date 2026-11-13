@@ -229,13 +229,15 @@ When you deliver, it's worth **1 point** and gold (1 to 5, by your wagon's level
 
 **Upgrading the wagon**
 
-| Level | Moves | Gold a delivery | Drive off a barbarian on | Upgrade cost |
-|---|---|---|---|---|
-| 1 | 4 | 1 | – | – |
-| 2 | 5 | 2 | 6 | 1 lumber, 1 wool, 1 ore |
-| 3 | 6 | 3 | 5–6 | 1 lumber, 1 wool, 1 ore, 1 grain |
-| 4 | 7 | 4 | 4–6 | 1 lumber, 2 wool, 2 ore |
-| 5 | 8 | 5 | 3–6 | 2 lumber, 2 wool, 2 ore |
+| Level | Card | Moves | Gold a delivery | Drive off a barbarian on | Upgrade cost |
+|---|---|---|---|---|---|
+| 1 | Handcart | 4 | 1 | – | – |
+| 2 | Ox cart | 5 | 2 | 6 | 1 lumber, 1 wool, 1 ore |
+| 3 | Covered wagon | 6 | 3 | 5–6 | 1 lumber, 1 wool, 1 ore, 1 grain |
+| 4 | Team wagon | 7 | 4 | 4–6 | 1 lumber, 2 wool, 2 ore |
+| 5 | Merchant caravan | 8 | 5 | 3–6 | 2 lumber, 2 wool, 2 ore |
+
+Tap **⬆ Wagon** to see all five cards and upgrade to the next one.
 
 Reaching level 5 is worth **1 point**.
 
