@@ -48,7 +48,8 @@ import {
   touchesTerrain,
   usedOnce,
 } from './core.ts';
-import { addAnyPick, offerHarvest } from './gifts.ts';
+import { addAnyPick, dropDeadProgress, offerHarvest } from './gifts.ts';
+import { americaCity, part3Effects, prussiaBeer } from './part3.ts';
 import { shipGift } from './setup.ts';
 
 /** Civilisation abilities worked out from what happens in the game. */
@@ -60,6 +61,8 @@ const ANY_CARD: { civ: string; terrain: string; later: boolean }[] = [
   { civ: 'amazon', terrain: 'forest', later: false },
   { civ: 'kongo', terrain: 'pasture', later: true },
   { civ: 'australia', terrain: 'hills', later: false },
+  { civ: 'zulu', terrain: 'fields', later: true },
+  { civ: 'papua', terrain: 'mountains', later: true },
 ];
 
 /** The resource that matches each track's commodity (Korea). */
@@ -303,6 +306,7 @@ function unlocks(ctx: Ctx): void {
       addGift(ctx, seat, { kind: 'settlement', where: 'coastal' });
     }
     if (c.id === 'australia') addGift(ctx, seat, { kind: 'settlement', where: 'island' });
+    if (c.id === 'prussia') prussiaBeer(ctx, seat);
   }
 }
 
@@ -317,7 +321,9 @@ export function civEffects(ctx: Ctx, action?: Action): void {
   permafrost(ctx);
   unlocks(ctx);
   polynesia(ctx);
+  part3Effects(ctx);
   startMuscovy(ctx);
+  dropDeadProgress(ctx);
 }
 
 // ---- The Inca's Kingdom of Cuzco ----
@@ -378,7 +384,8 @@ export function wrapBuildRoad(prev: ActionDef): ActionDef {
 
 // ---- Reducers ----
 
-export function civCost(ctx: Ctx, item: string, seat: number, value: Cards): Cards {
+export function civCost(ctx: Ctx, item: string, seat: number, cost: Cards): Cards {
+  const value = americaCity(ctx, item, seat, cost);
   // Kongo, and the Inca by mountains or pasture: settlements cost one card
   // less, the one you lack if any.
   if (item === 'settlement' && (plays(ctx, seat, 'kongo') || cuzcoCorner(ctx, seat, buildingAt))) {

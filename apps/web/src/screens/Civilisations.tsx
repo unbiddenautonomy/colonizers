@@ -9,6 +9,7 @@ import {
   civView,
   giftsOf,
   habsburgDrawn,
+  welfareOf,
   picksOf,
   routeKinds,
   START_NEUTRAL,
@@ -34,14 +35,21 @@ export const CIV_MODES = [
   'civRevolution',
   'civTiticaca',
   'civLeap',
+  'civAnnex',
+  'civRevenge',
+  'civHarakiri',
+  'civZulu',
 ] as const;
 
 export type CivMode = (typeof CIV_MODES)[number];
 
 /** Modes where you pick one thing on the board, then where it goes. */
-const TWO_STEP: Partial<Record<CivMode, { first: string; then: string; kind: 'edge' | 'hex' }>> = {
+const TWO_STEP: Partial<
+  Record<CivMode, { first: string; then: string; kind: 'edge' | 'hex' | 'corner' }>
+> = {
   civHarbor: { first: 'from', then: 'to', kind: 'edge' },
   civTiticaca: { first: 'land', then: 'sea', kind: 'hex' },
+  civHarakiri: { first: 'knight', then: 'corner', kind: 'corner' },
 };
 
 /** Board targets for a civilisation's ability. `picked` is the first pick of a two-step one. */
@@ -56,7 +64,13 @@ export function civTargets(legal: Action[], mode: CivMode, picked: string | null
       if (picked !== null && first !== picked) continue;
       const target = picked === null ? { type: 'selectShip', player: a.player, ship: first } : a;
       if (two.kind === 'edge') t.edges.set(where as EdgeId, target);
+      else if (two.kind === 'corner') t.corners.set(where as CornerId, target);
       else t.hexes.set(where as HexId, target);
+      continue;
+    }
+    if (typeof a.at === 'string') {
+      if (a.at.startsWith('e:')) t.edges.set(a.at as EdgeId, a);
+      else t.corners.set(a.at as CornerId, a);
       continue;
     }
     if (typeof a.corner === 'string') t.corners.set(a.corner as CornerId, a);
@@ -72,7 +86,7 @@ export function civModePrompt(who: string, mode: CivMode, picked: string | null)
     case 'civRoute':
       return `${who}: tap where your free road or ship goes.`;
     case 'civKnight':
-      return `${who}: tap a corner on your roads for your strong knight.`;
+      return `${who}: tap a corner on your roads for your free knight.`;
     case 'civSettle':
       return `${who}: tap where your free settlement goes.`;
     case 'civHarbor':
@@ -89,6 +103,16 @@ export function civModePrompt(who: string, mode: CivMode, picked: string | null)
         : `${who}: tap the sea hex it swaps with.`;
     case 'civLeap':
       return `${who}: tap the city that goes back to a settlement.`;
+    case 'civAnnex':
+      return `${who}: tap the rival settlement or city to annex.`;
+    case 'civRevenge':
+      return `${who}: tap the road, ship or inactive basic knight to destroy.`;
+    case 'civHarakiri':
+      return picked === null
+        ? `${who}: tap the strong or mighty knight to give up.`
+        : `${who}: tap the settlement (strong knight) or city (mighty knight) it destroys.`;
+    case 'civZulu':
+      return `${who}: tap the hex of the neutral piece to take over.`;
   }
 }
 
@@ -127,6 +151,7 @@ const title = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const WHERE: Record<Extract<Gift, { kind: 'settlement' }>['where'], string> = {
   any: 'by your roads',
+  free: 'anywhere it may stand, no road needed',
   inland: 'inland, by your roads',
   coastal: 'on the coast, by your roads or ships',
   island: 'on an island where you have no building',
@@ -199,7 +224,22 @@ export function CivPanel({
       'Once a game, a city back to a settlement for five progress cards',
       'Pick the city',
     ],
+    [
+      'civAnnex',
+      "Twice a game, annex a rival's building by your roads, paying its price",
+      'Pick it',
+    ],
+    ['civRevenge', 'Strike back at a player who harmed you', 'Pick what to destroy'],
+    [
+      'civHarakiri',
+      'Twice a game, a knight gives itself up to destroy a rival building',
+      'Pick the knight',
+    ],
+    ['civZulu', 'Take over a neutral piece beside an active basic knight', 'Pick it'],
   ];
+  const freeBuild = legal.filter((a) => a.type === 'civBuilding');
+  const welfare = legal.filter((a) => a.type === 'civWelfare');
+  const tokens = actor === null ? 0 : welfareOf(ctx, actor);
   const ready =
     has('civRoute') ||
     has('civKnight') ||
@@ -209,7 +249,9 @@ export function CivPanel({
     improve.length > 0 ||
     calendar.length > 0 ||
     silk.length > 0 ||
-    habsburg.length > 0;
+    habsburg.length > 0 ||
+    freeBuild.length > 0 ||
+    welfare.length > 0;
   const doAct = (a: Action) => {
     act(a);
     setOpen(false);
@@ -273,6 +315,30 @@ export function CivPanel({
                   {silk.map((a) => (
                     <button key={a.card as string} type="button" onClick={() => doAct(a)}>
                       {icon(a.card as string)} {nameOf(a.card as string).name}
+                    </button>
+                  ))}
+                </p>
+              )}
+              {freeBuild.length > 0 && (
+                <p className="row wrap">
+                  A free building beside one of your cities:{' '}
+                  {freeBuild.map((a) => (
+                    <button
+                      key={`${a.building as string}:${a.corner as string}:${a.hex as string}`}
+                      type="button"
+                      onClick={() => doAct(a)}
+                    >
+                      {title(a.building as string)} on {hexLabel(ctx.state, a.hex as HexId)}
+                    </button>
+                  ))}
+                </p>
+              )}
+              {welfare.length > 0 && (
+                <p className="row wrap">
+                  {tokens} welfare tokens (2 buy a resource, 3 a commodity):{' '}
+                  {welfare.map((a) => (
+                    <button key={a.card as string} type="button" onClick={() => doAct(a)}>
+                      {icon(a.card as string)}
                     </button>
                   ))}
                 </p>
@@ -430,6 +496,21 @@ export function CivChoices({
           >
             Let them place it
           </button>
+        </div>
+      </Modal>
+    );
+  }
+  const curse = legal.filter((a) => a.type === 'civCurse');
+  if (state.phase.id === 'civCurse' && curse.length) {
+    return (
+      <Modal title="Curse of the Medicine Man">
+        <p>The barbarians won. Pick one more player to lose a city:</p>
+        <div className="row wrap">
+          {curse.map((a) => (
+            <button key={String(a.target)} type="button" onClick={() => act(a)}>
+              {a.target === null ? 'Nobody' : state.players[a.target as number]?.name}
+            </button>
+          ))}
         </div>
       </Modal>
     );
@@ -595,6 +676,12 @@ export function civPrompt(state: GameState, names: string[], actor: number | nul
     return r === actor
       ? `You threw ${total}: tap the hex where the robber goes.`
       : `${r === null ? 'Russia' : names[r]} threw ${total} and puts the robber on a hex.`;
+  }
+  if (state.phase.id === 'civCurse') {
+    const a = owedTo();
+    return a === actor
+      ? 'Pick one more player to lose a city.'
+      : `Waiting for ${a === null ? 'America' : names[a]} to curse one more player.`;
   }
   if (state.phase.id === 'civHabsburg') {
     const a = owedTo();
