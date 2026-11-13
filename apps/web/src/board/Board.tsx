@@ -43,11 +43,12 @@ interface BoardProps {
   rolled?: number | null | undefined;
 }
 
-function hexPoints(q: number, r: number): string {
+function hexPoints(q: number, r: number, scale = 1): string {
   const c = hexToPixel(q, r, S);
+  const R = S * scale;
   return Array.from({ length: 6 }, (_, i) => {
     const a = (Math.PI / 180) * (60 * i - 90);
-    return `${(c.x + S * Math.cos(a)).toFixed(1)},${(c.y + S * Math.sin(a)).toFixed(1)}`;
+    return `${(c.x + R * Math.cos(a)).toFixed(1)},${(c.y + R * Math.sin(a)).toFixed(1)}`;
   }).join(' ');
 }
 
@@ -239,6 +240,11 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
           <stop offset="1" stopColor="#000" stopOpacity="0.3" />
         </linearGradient>
+        <radialGradient id="hex-shade" cx="0.35" cy="0.3" r="0.8">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.22" />
+          <stop offset="0.55" stopColor="#fff" stopOpacity="0" />
+          <stop offset="1" stopColor="#000" stopOpacity="0.28" />
+        </radialGradient>
         {theme.patterns?.()}
       </defs>
 
@@ -261,7 +267,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               points={hexPoints(h.q, h.r)}
               fill={fill}
               stroke={isSea ? theme.seaEdge : theme.landStroke}
-              strokeWidth={isSea ? 0.5 : 3}
+              strokeWidth={isSea ? 0.5 : (theme.landStrokeWidth ?? 3)}
               strokeOpacity={isSea ? 0.5 : 1}
             >
               <title>
@@ -314,16 +320,46 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 </text>
               </g>
             )}
-            {!isSea && theme.terrainIcons && theme.terrainIcon[type] && (
-              <text
-                x={c.x}
-                y={c.y - S * 0.48}
-                textAnchor="middle"
-                fontSize={S * 0.28}
+            {!isSea && theme.hexShade && (
+              <polygon
+                points={hexPoints(h.q, h.r)}
+                fill="url(#hex-shade)"
+                pointerEvents="none"
                 aria-hidden="true"
-              >
-                {theme.terrainIcon[type]}
-              </text>
+              />
+            )}
+            {!isSea && theme.hexInset && (
+              <polygon
+                points={hexPoints(h.q, h.r, 0.86)}
+                fill="none"
+                stroke={theme.hexInset}
+                strokeOpacity={0.4}
+                strokeWidth={2.5}
+                pointerEvents="none"
+                aria-hidden="true"
+              />
+            )}
+            {!isSea && theme.terrainIcons && theme.terrainIcon[type] && (
+              <g aria-hidden="true" pointerEvents="none">
+                <circle
+                  cx={c.x}
+                  cy={c.y - S * 0.6}
+                  r={S * 0.19}
+                  fill={theme.token}
+                  fillOpacity={0.9}
+                  stroke={theme.outline}
+                  strokeOpacity={0.35}
+                />
+                <text
+                  x={c.x}
+                  y={c.y - S * 0.6}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={S * 0.24}
+                >
+                  {theme.terrainIcon[type]}
+                </text>
+              </g>
             )}
             {(barbarians[h.id] ?? 0) >= 3 && (
               <polygon
