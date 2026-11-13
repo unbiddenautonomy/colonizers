@@ -17,7 +17,7 @@ import {
   type MapSpec,
 } from '@colonizers/engine';
 
-export type SeaLayout = 'newShores' | 'fourIslands' | 'fogIslands' | 'archipelago';
+export type SeaLayout = 'newShores' | 'fourIslands' | 'fogIslands' | 'archipelago' | 'twoIslands';
 
 export interface SeaScenario {
   id: string;
@@ -28,6 +28,10 @@ export interface SeaScenario {
   vpTarget: (players: number) => number;
   islandBonus: number;
   fog: boolean;
+  /** Deserts on the home island, spread apart and inland where possible. */
+  homeDeserts?: number;
+  /** Deserts among the outer islands. */
+  outerDeserts?: number;
 }
 
 export const SEA_SCENARIOS: SeaScenario[] = [
@@ -157,6 +161,14 @@ function planFor(layout: SeaLayout, players: number, rng: Rng): Plan {
         outer: Array.from({ length: big ? 9 : 7 }, () => pick(2, 4)),
         gold: big ? 3 : 2,
       };
+    case 'twoIslands':
+      // One big home island and one neighbour across a strait.
+      return {
+        radius,
+        home: huge ? 28 : big ? 24 : 19,
+        outer: [big ? 10 : 8],
+        gold: 1,
+      };
   }
 }
 
@@ -284,15 +296,37 @@ function scaledCounts(total: number, rng: Rng): string[] {
   return counts.flatMap((c, i) => Array<string>(c).fill(RESOURCE_TERRAIN[i]!));
 }
 
+/** Spread-out desert spots on an island: inland first, never side by side. */
+function desertSpots(rng: Rng, island: HexId[], count: number): HexId[] | null {
+  const set = new Set(island);
+  const inland = (h: HexId) => neighbours(h).every((n) => set.has(n));
+  const order = rng.shuffle(island).sort((a, b) => Number(inland(b)) - Number(inland(a)));
+  const out: HexId[] = [];
+  for (const h of order) {
+    if (out.length >= count) break;
+    if (out.some((d) => dist(d, h) < 2)) continue;
+    out.push(h);
+  }
+  return out.length === count ? out : null;
+}
+
 function assignTerrain(
   rng: Rng,
   layout: Layout,
   plan: Plan,
+  scenario: SeaScenario,
 ): { terrain: Map<HexId, string>; gold: HexId[] } | null {
   const terrain = new Map<HexId, string>();
   const outerIslands = layout.home ? layout.islands.slice(1) : layout.islands;
 
-  if (layout.home) {
+  if (layout.home && scenario.homeDeserts !== undefined) {
+    const deserts = desertSpots(rng, layout.home, scenario.homeDeserts);
+    if (!deserts) return null;
+    deserts.forEach((h) => terrain.set(h, 'desert'));
+    const rest = layout.home.filter((h) => !terrain.has(h));
+    const types = rng.shuffle(scaledCounts(rest.length, rng));
+    rest.forEach((h, i) => terrain.set(h, types[i]!));
+  } else if (layout.home) {
     const deserts = layout.home.length >= 20 ? 1 : 0;
     const types = rng.shuffle([
       ...scaledCounts(layout.home.length - deserts, rng),
@@ -313,6 +347,17 @@ function assignTerrain(
     gold.push(h);
   }
   gold.forEach((h) => terrain.set(h, 'gold'));
+
+  // Outer deserts: never the last ordinary hex of an island.
+  let outerDeserts = scenario.outerDeserts ?? 0;
+  for (const h of outerDeserts ? rng.shuffle(outerHexes) : []) {
+    if (outerDeserts <= 0) break;
+    if (terrain.has(h)) continue;
+    const isle = outerIslands.find((i) => i.includes(h))!;
+    if (isle.filter((x) => !terrain.has(x)).length <= 1) continue;
+    terrain.set(h, 'desert');
+    outerDeserts--;
+  }
 
   if (layout.home) {
     // Outer islands lean toward one resource, which gives a reason to sail.
@@ -452,13 +497,18 @@ const TERRAIN_RESOURCE: Record<string, string> = {
 export function generateSeaBoard(opts: SeaBoardOptions): SeaBoard {
   const scenario = seaScenarioById(opts.scenario);
   if (!scenario) throw new Error(`Unknown Seafarers scenario "${opts.scenario}"`);
+  return buildSeaBoard(scenario, opts);
+}
+
+/** Builds a board from a scenario recipe that need not be in SEA_SCENARIOS (expansions use this). */
+export function buildSeaBoard(scenario: SeaScenario, opts: SeaBoardOptions): SeaBoard {
   const rng = Rng.fromSeed(`sea:${opts.scenario}:${opts.players}:${opts.seed}`);
 
   for (let attempt = 1; attempt <= 300; attempt++) {
     const plan = planFor(scenario.layout, opts.players, rng);
     const layout = layOut(rng, scenario.layout, plan);
     if (!layout) continue;
-    const t = assignTerrain(rng, layout, plan);
+    const t = assignTerrain(rng, layout, plan, scenario);
     if (!t) continue;
     const tokens = assignTokens(rng, t.terrain, layout.islands);
     if (!tokens) continue;
@@ -518,7 +568,7 @@ export function generateSeaBoard(opts: SeaBoardOptions): SeaBoard {
     const pirateHex = seaHexes
       .map((h) => ({ h, d: Math.min(...ref.map((x) => dist(h, x))) }))
       .sort((a, b) => b.d - a.d || (a.h < b.h ? -1 : 1))[0]!.h;
-    const desert = layout.board.find((h) => t.terrain.get(h) === 'desert');
+    const desert = layout.board.find((h) => t.terrain.get(h) === 'desert' && !hidden.has(h));
 
     const map: MapSpec = {
       hexes: layout.board.map((h) => {

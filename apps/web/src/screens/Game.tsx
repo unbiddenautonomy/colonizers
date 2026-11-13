@@ -65,6 +65,7 @@ import {
   TB_MOVE_PROMPT,
   WAGON_PROMPT,
 } from './TradersBarbarians.tsx';
+import { TdaPlayerStats, TdaStatus } from './TreasuresDragons.tsx';
 
 type Mode =
   | null
@@ -146,6 +147,7 @@ function targetsFor(
     want.add('moveWagon');
     want.add('driveBarbarian');
   }
+  if (ph === 'slayDragon') want.add('slayDragon');
   if (ph === 'moveRobber') {
     want.add('moveRobber');
     want.add('movePirate');
@@ -260,6 +262,8 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
     }
     case 'steal':
       return `${who}: choose who to steal from.`;
+    case 'slayDragon':
+      return `${who}: tap a hex with a dragon to drive it out for good.`;
     case 'roadBuilding':
       return `${who}: place a free ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} (${state.phase.remaining as number} left).`;
     case 'main':
@@ -366,6 +370,7 @@ export function Game({
   const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
   const tb = state.modules.includes('traders-barbarians') || state.settings.harbormaster === true;
+  const tda = state.modules.includes('treasures-dragons');
   const [chosenEdgeKind, setEdgeKind] = useState<EdgeKind>('road');
   const [selectedShip, setSelectedShip] = useState<string | null>(null);
   const canControl = (s: number) => (!online && !bots[s]) || s === seat;
@@ -627,6 +632,7 @@ export function Game({
                   </>
                 )}
                 {tb && <TbPlayerStats ctx={ctx} seat={p.seat} viewer={seat ?? actor} />}
+                {tda && <TdaPlayerStats ctx={ctx} seat={p.seat} />}
                 <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
                 {data.longestRoad === p.seat && (
                   <span className="award">
@@ -649,6 +655,7 @@ export function Game({
           );
         })}
         {ck && <BarbarianTrack ctx={ctx} />}
+        {tda && <TdaStatus ctx={ctx} />}
       </aside>
 
       <main className="board-wrap">

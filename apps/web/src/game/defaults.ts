@@ -1,10 +1,11 @@
+import { TDA_VP_BONUS } from '@colonizers/module-treasures-dragons';
 import { DEFAULT_OPTIONS, type GameOptions } from '../../../server/src/protocol.ts';
 
-/** Points the Traders & Barbarians scenarios add to the target (their module adds them in play). */
-const TB_VP_BONUS: Record<string, number> = { caravans: 2, traders: 3 };
+/** Points the expansion scenarios add to the target (their modules add them in play). */
+const TB_VP_BONUS: Record<string, number> = { caravans: 2, traders: 3, ...TDA_VP_BONUS };
 
 /** Maps with no robber at all, where robber options mean nothing. */
-const NO_ROBBER = new Set(['barbarians', 'traders']);
+const NO_ROBBER = new Set(['barbarians', 'traders', 'desert-dragons']);
 
 /** Points added on top of the chosen target by Cities & Knights and the map. */
 export function vpBonus(citiesKnights: boolean, specialId: string | null): number {

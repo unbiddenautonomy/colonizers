@@ -479,8 +479,9 @@ function Lobby({
             <li>
               Expansions:{' '}
               {[
-                seaPick && 'Seafarers',
+                (seaPick || specialPick?.group === 'treasures') && 'Seafarers',
                 specialPick?.group === 'traders' && 'Traders & Barbarians',
+                specialPick?.group === 'treasures' && 'Treasures, Dragons & Adventurers',
                 ck && 'Cities & Knights',
               ]
                 .filter(Boolean)

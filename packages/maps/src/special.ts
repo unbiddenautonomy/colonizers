@@ -3,6 +3,7 @@ import { componentsFor } from './components.ts';
 import { generateBoard } from './generate.ts';
 import { hexagon, shapeFor, SHAPES, type Coord } from './shapes.ts';
 import { generateTbBoard, TB_SCENARIOS } from './traders.ts';
+import { generateTdaBoard, TDA_SCENARIOS } from './treasures.ts';
 
 /**
  * Special maps: our own layouts that change how a game plays. Each one is a
@@ -15,8 +16,8 @@ export interface SpecialMap {
   players: { min: number; max: number };
   /** Modules the map needs on top of the base game. */
   modules: string[];
-  /** Traders & Barbarians scenarios are listed under their own heading. */
-  group?: 'traders';
+  /** Expansion scenarios are listed under their own heading. */
+  group?: 'traders' | 'treasures';
   /** The map's module can't be played with Cities & Knights. */
   noCitiesKnights?: boolean;
 }
@@ -85,6 +86,12 @@ export const SPECIAL_MAPS: SpecialMap[] = [
     ...t,
     modules: ['traders-barbarians'],
     group: 'traders',
+    noCitiesKnights: true,
+  })),
+  ...TDA_SCENARIOS.map((t): SpecialMap => ({
+    ...t,
+    modules: ['seafarers', 'treasures-dragons'],
+    group: 'treasures',
     noCitiesKnights: true,
   })),
 ];
@@ -173,6 +180,7 @@ export function generateSpecialBoard(opts: {
   const spec = specialMapById(opts.map);
   if (!spec) throw new Error(`Unknown special map "${opts.map}"`);
   if (spec.group === 'traders') return generateTbBoard({ ...opts, scenario: spec.id });
+  if (spec.group === 'treasures') return generateTdaBoard({ ...opts, scenario: spec.id });
   const { seed, players } = opts;
   const rng = Rng.fromSeed(`special:${opts.map}:${players}:${seed}`);
   const modules = ['base', ...spec.modules];
