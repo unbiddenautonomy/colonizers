@@ -38,6 +38,7 @@ export {
   type Mode,
 } from './generate.ts';
 export { validateMapFile, type MapFile } from './mapfile.ts';
+export * from './editor.ts';
 export { PRESETS, presetById } from './presets.ts';
 export {
   SEA_SCENARIOS,
