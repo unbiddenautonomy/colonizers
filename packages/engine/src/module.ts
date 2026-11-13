@@ -108,6 +108,12 @@ export interface Reducers {
   defense(ctx: Ctx, player: number, value: number): number;
   /** Is this piece safe from rivals and the barbarians: it can't be downgraded, displaced or destroyed? */
   shielded(ctx: Ctx, piece: Piece, value: boolean): boolean;
+  /** The barbarians' strength when they land (Cities & Knights starts from the cities they can reach). */
+  barbarians(ctx: Ctx, value: number): number;
+  /** Are this player's cities out of the barbarians' reach this attack (so they can't be the weakest)? */
+  barbarianSafe(ctx: Ctx, player: number, value: boolean): boolean;
+  /** The players who lose a city to this barbarian attack (C&K: the weakest, when Catan loses). */
+  barbarianLosses(ctx: Ctx, defended: boolean, value: number[]): number[];
 }
 
 export interface DiceResult {

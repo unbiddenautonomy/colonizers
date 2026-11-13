@@ -184,6 +184,8 @@ const SAFE_ORDER = [
   'civMuscovyHex',
   'civHabsburgKeep',
   'civCurse',
+  'civColony',
+  'civRaidCity',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',
@@ -209,6 +211,7 @@ export function timeoutAction(state: GameState, seat: number, rand: () => number
     if (type === 'civDemocracy') options = options.filter((a) => a.dice === 'keep');
     if (type === 'civMuscovy') options = options.filter((a) => a.use === false);
     if (type === 'civCurse') options = options.filter((a) => a.target === null);
+    if (type === 'civColony') options = options.filter((a) => a.civ !== 'redraw');
     if (options.length) return options[Math.floor(rand() * options.length)] ?? null;
   }
   return null;

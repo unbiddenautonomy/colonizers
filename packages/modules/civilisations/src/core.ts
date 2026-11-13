@@ -53,7 +53,17 @@ export type Gift =
   /** Move a harbor anywhere on the coast, or swap two (Gran Colombia). */
   | { kind: 'harbor' }
   /** A 2:1 harbor for a resource of your choice (China). */
-  | { kind: 'silk' };
+  | { kind: 'silk' }
+  /** Two resources and two commodities from a hex beside the starting city (Aztec). */
+  | { kind: 'capital'; corner: CornerId }
+  /** Upgrade a settlement to a city for free (Aztec). */
+  | { kind: 'city' }
+  /** Destroy a rival's road, ship or basic knight beside the robber's hex, and place your own (Poland). */
+  | { kind: 'hussar'; hex: HexId }
+  /** Turn a rival's city back into a settlement (Nordic, when the barbarians win). */
+  | { kind: 'raze' }
+  /** A commodity of your choice (Cuba). */
+  | { kind: 'commodity' };
 
 export interface CivData extends Record<string, unknown> {
   /** The tiles each player was dealt, until they pick. */
@@ -99,6 +109,14 @@ export interface CivData extends Record<string, unknown> {
   papua?: string[];
   /** Austria: the cards drawn for the Habsburg Marriage, until three are kept. */
   habsburg?: { seat: number; drawn: { card: string; deck: Track }[] };
+  /** Nordic: points from barbarian wins. */
+  raids?: Record<number, number>;
+  /** Nordic's Thor's Hammer or the Ottoman Bombard is being worked out. */
+  forced?: 'barbarians' | null;
+  /** Cuba: has built a settlement by the sea. */
+  cubaCoast?: Record<number, boolean>;
+  /** Poland: sharing the leader's production and progress cards until this turn number. */
+  union?: { seat: number; leader: number; until: number };
 }
 
 export function civData(ctx: Ctx): CivData {

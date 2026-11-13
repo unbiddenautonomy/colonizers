@@ -207,6 +207,7 @@ function targetsFor(
   if (ph === 'slayDragon') want.add('slayDragon');
   if (ph === 'civNeutral') want.add('civNeutral');
   if (ph === 'civMuscovyHex') want.add('civMuscovyHex');
+  if (ph === 'civRaid') want.add('civRaidCity');
   if (ph === 'moveToken') want.add('takeToken');
   if (ph === 'moveRobber') {
     want.add('moveRobber');
