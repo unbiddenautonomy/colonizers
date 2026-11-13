@@ -311,7 +311,7 @@ export const greedWealthPowerRules: RulebookModule = {
     },
     monument: {
       name: 'Monument',
-      note: 'On a gold field beside your city. Your cities on gold fields make Gold.',
+      note: 'On a gold field or a river hex beside your city. Your cities on gold fields and river hexes make Gold.',
     },
     silo: {
       name: 'Silo',
@@ -440,12 +440,28 @@ The rules are lightningserpent's (GWP 1.0); we credit the authors of the expansi
 |---|---|---|---|
 | 🏰 Citadel | 1 ore, 2 brick | a brick hex | your cities on brick make 1 brick + 1 Crystal |
 | ⛪ Diocese | 1 brick, 1 lumber, 1 grain | a grain hex | your cities on grain make 1 grain + 1 Bread |
-| 🗿 Monument | 1 ore, 1 brick | a gold field | your cities on gold fields make 1 Gold + 1 resource of your choice |
+| 🗿 Monument | 1 ore, 1 brick | a gold field or a river hex | your cities on gold fields make 1 Gold + 1 resource of your choice, and your cities on river hexes make 1 Gold + the hex's resource |
 | 🌾 Silo | 1 brick, 1 lumber | a grain hex | your cities on grain make 1 more grain |
 
 - A **Citadel** can also go in a **settlement**: it costs 3 ore, 2 grain and 2 brick, and the settlement becomes a city.
 - A city can have a Citadel or a Diocese, not both. A city can have only one building on each hex it touches.
 - When the barbarians knock a city back to a settlement, its buildings come off and can be built again beside another city.`,
+    },
+    {
+      id: 'gwp-river',
+      module: 'greed-wealth-power',
+      section: 'rules',
+      title: 'The river',
+      summary:
+        'An optional river of four hexes that gives Gold to Monument owners, with or without Seafarers.',
+      tags: ['river', 'swampland', 'swamp', 'monument', 'gold'],
+      body: `Switch on **The river** under Greed, Wealth & Power when you set up the game. It brings Gold to games without Seafarers' gold fields, and it works alongside them too.
+
+- **Setting up:** the desert becomes the 🐸 **swampland**, and one ore, one brick and one wool hex become **river hexes**. River hexes keep their terrain and number. The swampland has no number and the robber starts there. The river is laid in one line where the board allows it.
+- **Building:** roads cross the river freely. A **Monument** can stand on a river hex (not the swampland) as well as on a gold field.
+- **Production:** until you have a Monument, river hexes produce as normal. Once you have one, anywhere, each of your cities on a river hex makes **1 of the hex's resource + 1 Gold**. On the ore river that's ore and Gold instead of ore and coin, and on the brick river it's brick and Gold instead of 2 brick.
+- **Citadel on the brick river:** a city whose own Citadel stands on the brick river hex keeps making brick and Crystal there.
+- The **Scholar** and **Envoy** take Gold from a river hex once their owner has a Monument.`,
     },
     {
       id: 'gwp-abilities',
