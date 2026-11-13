@@ -9,7 +9,7 @@ import {
   type HexId,
   type Phase,
 } from '@colonizers/engine';
-import { RESOURCES, setupSeat, stealFrom } from '@colonizers/module-base';
+import { RESOURCES, setupRounds, setupSeat, stealFrom } from '@colonizers/module-base';
 import {
   canMoveShip,
   canPlaceShip,
@@ -108,7 +108,7 @@ const placeSetupShip = action<{ edge: EdgeId }>({
     ctx.emit({ type: 'built', player: a.player, piece: 'ship', at: a.edge });
     // Same hand-off as placing a setup road.
     const next = ph.index + 1;
-    if (next >= ctx.playerCount * 2) {
+    if (next >= ctx.playerCount * setupRounds(ctx)) {
       ctx.state.turn = { number: 1, player: 0, round: 0 };
       ctx.setPhase({ id: 'roll' });
       ctx.emit({ type: 'turnStarted', player: 0, turn: 1 });

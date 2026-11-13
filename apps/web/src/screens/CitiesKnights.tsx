@@ -56,6 +56,10 @@ export function ckPrompt(state: GameState, who: string, actor: number | null): s
       return owed
         ? `${who}: you tied as best defender. Pick a progress deck to draw from.`
         : 'Waiting for the best defenders to pick a progress card.';
+    case 'treasureProgress':
+      return owed
+        ? `${who}: your treasure is a progress card. Pick a deck to draw from.`
+        : 'Waiting for a treasure finder to pick a progress card.';
     case 'aqueduct':
       return owed
         ? `${who}: your aqueduct pays out. Pick any resource.`
@@ -120,6 +124,7 @@ export function optionLabel(a: Action, names: string[]): string {
     typeof c === 'string' ? `${nameOf(c).icon ?? ''} ${nameOf(c).name}`.trim() : '';
   switch (a.type) {
     case 'pickDefenderCard':
+    case 'treasureProgress':
       return `${TRACK_LABEL[a.deck as Track]} deck`;
     case 'aqueductPick':
       return card(a.card);
@@ -408,6 +413,12 @@ export function CkChoices({
         ['pickDefenderCard'],
         'Defenders tie',
         'Draw one progress card from a deck of your choice.',
+      );
+    case 'treasureProgress':
+      return list(
+        ['treasureProgress'],
+        'Treasure',
+        'Your treasure is a progress card: take the top card of a deck of your choice.',
       );
     case 'aqueduct':
       return list(

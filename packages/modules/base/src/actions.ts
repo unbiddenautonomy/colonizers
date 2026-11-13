@@ -19,6 +19,7 @@ import {
   produce,
   robber,
   robberHexes,
+  setupRounds,
   setupSeat,
   startNextTurn,
   stealCandidates,
@@ -100,7 +101,7 @@ const placeSetupRoad = action<{ edge: EdgeId }>({
     ctx.place('road', a.player, { kind: 'edge', id: a.edge });
     ctx.emit({ type: 'built', player: a.player, piece: 'road', at: a.edge });
     const next = ph.index + 1;
-    if (next >= ctx.playerCount * 2) {
+    if (next >= ctx.playerCount * setupRounds(ctx)) {
       ctx.state.turn = { number: 1, player: 0, round: 0 };
       ctx.setPhase({ id: 'roll' });
       ctx.emit({ type: 'turnStarted', player: 0, turn: 1 });

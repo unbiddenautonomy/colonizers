@@ -56,15 +56,16 @@ function rng(seed: number): () => number {
   };
 }
 
-function game(scenario: string, players = 4, seed = 'tda'): GameState {
+function game(scenario: string, players = 4, seed = 'tda', ck = false): GameState {
   const b = generateTdaBoard({ seed, players, scenario });
   return lib.createGame({
     seed,
     players: Array.from({ length: players }, (_, i) => `P${i}`),
     // The app's load order: Cities & Knights before this module when it is in the game.
-    modules: TDA_SCENARIOS.find((x) => x.id === scenario)?.citiesKnights
-      ? [...b.modules.slice(0, -1), 'variants', 'cities-knights', 'treasures-dragons']
-      : [...b.modules, 'variants'],
+    modules:
+      ck || TDA_SCENARIOS.find((x) => x.id === scenario)?.citiesKnights === 'needs'
+        ? [...b.modules.slice(0, -1), 'variants', 'cities-knights', 'treasures-dragons']
+        : [...b.modules, 'variants'],
     map: b.map,
     settings: { vpTarget: 10, ...b.settings },
     fixedSeats: true,
@@ -236,6 +237,48 @@ describe('Treasure chests', () => {
     expect(c.piecesOfType('treasure').some((t) => t.id === chest.id)).toBe(false);
     expect(tdaData(c).deck).toHaveLength(before - 1);
     expect(tdaData(c).found[seat]).toBe(1);
+  });
+
+  it('with Cities & Knights, a development card treasure is a progress card of your choice', () => {
+    const b = generateTdaBoard({ seed: 'ckchest', players: 4, scenario: 'treasure-islands' });
+    let s = lib.createGame({
+      seed: 'ckchest',
+      players: ['P0', 'P1', 'P2', 'P3'],
+      modules: [...b.modules.slice(0, -1), 'variants', 'cities-knights', 'treasures-dragons'],
+      map: b.map,
+      settings: { vpTarget: 13, ...b.settings },
+      fixedSeats: true,
+    }).state;
+    s = finishSetup(s);
+    const c0 = ctxOf(s);
+    const chest = c0
+      .piecesOfType('treasure')
+      .find((t) =>
+        (c0.geometry.cornerEdges.get((t.at as { id: CornerId }).id) ?? []).some((e) =>
+          c0.isSeaEdge(e),
+        ),
+      )!;
+    const corner = (chest.at as { id: CornerId }).id;
+    const edge = (c0.geometry.cornerEdges.get(corner) ?? []).find((e) => c0.isSeaEdge(e))!;
+    const [a, b2] = c0.geometry.edgeCorners.get(edge)!;
+    const far = a === corner ? b2 : a;
+    s = edit(s, (c) => {
+      c.state.phase = { id: 'main' };
+      c.place('settlement', c.active, { kind: 'corner', id: far });
+      c.grant(c.active, { lumber: 1, wool: 1 });
+      tdaData(c).deck.unshift('devCard');
+    });
+    const seat = s.turn.player;
+    s = act(s, { type: 'buildShip', player: seat, edge });
+    expect(s.phase.id).toBe('treasureProgress');
+    const options = lib.legalActions(s, seat).filter((x) => x.type === 'treasureProgress');
+    expect(options.map((x) => x.deck).sort()).toEqual(['politics', 'science', 'trade']);
+    s = act(s, { type: 'treasureProgress', player: seat, deck: 'trade' });
+    // (A gold field found in the fog may ask for a pick next.)
+    expect(['main', 'pickGold']).toContain(s.phase.id);
+    expect(s.players[seat]!.held.trade ?? []).toHaveLength(1);
+    // 14 + Cities & Knights' 3 with the target this game was given.
+    expect(ctxOf(s).vpTarget()).toBe(13 + 4);
   });
 
   it('keeps the treasures face down in the view', () => {
@@ -550,6 +593,31 @@ describe('Enchanted Land', () => {
   });
 });
 
+describe('Into the Unknown', () => {
+  it('gives everyone a third starting settlement, last-placer first, with resources', () => {
+    for (const n of [3, 4, 5, 6]) {
+      for (const seed of [1, 2, 3]) {
+        let s = game('into-the-unknown', n, `itu${n}-${seed}`);
+        expect(s.settings.setupRounds).toBe(3);
+        const order: number[] = [];
+        const rand = rng(seed);
+        while (s.phase.id === 'setup') {
+          const seat = lib.waitingOn(s)[0]!;
+          const o = lib.legalActions(s, seat);
+          expect(o.length).toBeGreaterThan(0);
+          const a = o[Math.floor(rand() * o.length)]!;
+          if (a.type === 'placeSetupSettlement') order.push(seat);
+          s = act(s, a);
+        }
+        const seats = Array.from({ length: n }, (_, i) => i);
+        expect(order).toEqual([...seats, ...[...seats].reverse(), ...seats]);
+        const c = ctxOf(s);
+        for (const seat of seats) expect(c.piecesOf(seat, 'settlement')).toHaveLength(3);
+      }
+    }
+  }, 60_000);
+});
+
 describe('The Great Canal', () => {
   const placeKnight = (s: GameState, seat: number, at: CornerId, props: Record<string, unknown>) =>
     edit(s, (c) => {
@@ -766,10 +834,18 @@ describe('The Great Canal', () => {
 });
 
 describe('Bots', () => {
-  for (const scenario of TDA_SCENARIOS) {
-    it(`play ${scenario.name} without getting stuck`, () => {
+  const runs = TDA_SCENARIOS.flatMap((scenario) =>
+    scenario.citiesKnights === 'optional'
+      ? [
+          { scenario, ck: false },
+          { scenario, ck: true },
+        ]
+      : [{ scenario, ck: false }],
+  );
+  for (const { scenario, ck } of runs) {
+    it(`play ${scenario.name}${ck ? ' with Cities & Knights' : ''} without getting stuck`, () => {
       const players = 3;
-      let s = game(scenario.id, players, `bot-${scenario.id}`);
+      let s = game(scenario.id, players, `bot-${scenario.id}`, ck);
       const bot: BotConfig = { level: 'medium', style: 'balanced' };
       const rand = rng(3);
       const memory: BotMemory[] = Array.from({ length: players }, () => newMemory());
