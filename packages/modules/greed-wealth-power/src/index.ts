@@ -10,7 +10,13 @@ import type {
   Piece,
 } from '@colonizers/engine';
 import { RESOURCES } from '@colonizers/module-base';
-import { commoditiesIn, hasAbility, isActive, isKnight } from '@colonizers/module-cities-knights';
+import {
+  commoditiesIn,
+  hasAbility,
+  isActive,
+  isKnight,
+  wrapIndulgenceRoll,
+} from '@colonizers/module-cities-knights';
 import {
   BEER,
   BUILDING_COMMODITY,
@@ -69,7 +75,6 @@ import {
   wrapPlayProgress,
 } from './neutrals.ts';
 import { deedHandLimit, settleDeeds } from './deed.ts';
-import { indulgenceActions, wrapRoll } from './indulgence.ts';
 import { isRiver, layRiver, riverYield } from './river.ts';
 
 /**
@@ -393,13 +398,12 @@ export const greedWealthPowerModule: GameModule = {
     ...cardActions,
     ...dragonActions,
     ...festivalActions,
-    ...indulgenceActions,
   },
   wrapActionsIfPresent: Object.fromEntries(OPTIONAL_BUILDS.map((b) => [b, guardBuild(true)])),
   wrapActions: {
     playProgress: (prev) => wrapCards(wrapPlayProgress(prev)),
     moveRobber: wrapMoveRobber,
-    roll: wrapRoll,
+    roll: wrapIndulgenceRoll,
     activateKnight: guardFestival,
     improveCity: guardFestival,
     chaseRobber: wrapChaseRobber,

@@ -31,12 +31,14 @@ import {
   progressHeld,
   spendProgress,
   type Track,
+  indulgenceTiming,
+  playIndulgence,
+  INDULGENCE_REROLLS as REROLLS,
 } from '@colonizers/module-cities-knights';
 import { MODULE_ID } from './constants.ts';
 import { dragonData, dragonGone, landDragon } from './dragon.ts';
 import { festivals, stopFestival } from './festival.ts';
 import { deedCheck, deedSpots, placeDeed } from './deed.ts';
-import { indulgenceTiming, playIndulgence, REROLLS } from './indulgence.ts';
 
 /**
  * Greed, Wealth & Power's new progress cards (besides the neutral pieces and

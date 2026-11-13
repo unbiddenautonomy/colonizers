@@ -1,0 +1,25 @@
+{
+  "name": "@colonizers/module-church",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Church, Faith & Reformation: the Religion track, the Bishopric, Bread and Beer, and festivals. Needs Cities & Knights.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-cities-knights": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}

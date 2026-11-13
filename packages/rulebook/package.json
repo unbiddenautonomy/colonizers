@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@colonizers/module-church": "workspace:*",
     "@colonizers/module-civilisations": "workspace:*",
     "@colonizers/module-world-wonders": "workspace:*"
   },

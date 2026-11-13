@@ -239,7 +239,8 @@ function Lobby({
   const gwp = ck && s.greedWealthPower && !specialPick;
   const wonders = s.worldWonders && !specialPick;
   const civs = gwp && s.civilisations;
-  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, gwp && s.civilisations);
+  const church = ck && !gwp && s.church && !specialPick;
+  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church);
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
   const seaPick =
@@ -463,6 +464,16 @@ function Lobby({
                 onChange={(e) => setGame({ greedWealthPower: e.target.checked })}
               />{' '}
               👑 Greed, Wealth &amp; Power (fan expansion on top of Cities &amp; Knights; 18 points)
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={church}
+                disabled={!ck || gwp || !!specialPick}
+                onChange={(e) => setGame({ church: e.target.checked })}
+              />{' '}
+              ⛪ Church, Faith &amp; Reformation (fan expansion on top of Cities &amp; Knights, not
+              with Greed, Wealth &amp; Power; 15 points)
             </label>
             <label className="toggle">
               <input

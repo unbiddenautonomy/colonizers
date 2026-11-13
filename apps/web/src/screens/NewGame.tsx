@@ -91,6 +91,7 @@ export function NewGame({
   const [gwpWanted, setGwp] = useState(false);
   const [wondersWanted, setWonders] = useState(false);
   const [civsWanted, setCivs] = useState(false);
+  const [churchWanted, setChurch] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -135,13 +136,15 @@ export function NewGame({
   const wonders = wondersWanted && !specialId;
   // Civilisations goes on top of Greed, Wealth & Power, and plays to 20.
   const civs = gwp && civsWanted;
-  const extraVp = civs ? 10 : gwp ? 8 : ck ? 3 : 0;
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}`;
+  // Church, Faith & Reformation goes on top of Cities & Knights in place of Greed, Wealth & Power.
+  const church = ck && churchWanted && !gwp && !specialId;
+  const extraVp = civs ? 10 : gwp ? 8 : church ? 5 : ck ? 3 : 0;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
-  const bonus = vpBonus(ck, specialId, gwp, civs);
+  const bonus = vpBonus(ck, specialId, gwp, civs, church);
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
@@ -181,7 +184,7 @@ export function NewGame({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
           players,
-          modules: moduleList(extraModules, ck, gwp, wonders, civs),
+          modules: moduleList(extraModules, ck, gwp, wonders, civs, church),
           map,
           settings: { ...opts, ...own },
           fixedSeats: true,
@@ -499,6 +502,22 @@ export function NewGame({
           </button>
           <button
             type="button"
+            className={`expansion ${church ? 'on' : ''}`}
+            aria-pressed={church}
+            disabled={!ck || gwp || !!specialId}
+            onClick={() => setChurch(!church)}
+          >
+            <strong>⛪ Church, Faith &amp; Reformation</strong>
+            <small>
+              {gwp
+                ? 'Greed, Wealth & Power has its own Religion track, so this one is off with it.'
+                : ck && !specialId
+                  ? 'Fan expansion for Cities & Knights: a Religion track, Dioceses, Bread, Beer and festivals. 15 points.'
+                  : 'Fan expansion that goes on top of Cities & Knights, on the usual maps or Seafarers.'}
+            </small>
+          </button>
+          <button
+            type="button"
             className={`expansion ${wonders ? 'on' : ''}`}
             aria-pressed={wonders}
             disabled={!!specialId}
@@ -578,7 +597,14 @@ export function NewGame({
           <p>
             First to <strong>{Number(sea.settings.vpTarget) + extraVp}</strong> points, set by the
             scenario
-            {gwp ? ' (+8 for Greed, Wealth & Power)' : ck ? ' (+3 for Cities & Knights)' : ''}.
+            {gwp
+              ? ' (+8 for Greed, Wealth & Power)'
+              : church
+                ? ' (+5 for Church, Faith & Reformation)'
+                : ck
+                  ? ' (+3 for Cities & Knights)'
+                  : ''}
+            .
           </p>
         ) : (
           <label>
@@ -598,7 +624,8 @@ export function NewGame({
               <small className="muted">
                 {' '}
                 {[
-                  ck && '+3 for Cities & Knights',
+                  ck &&
+                    `+${extraVp} for ${civs ? 'Civilisations' : gwp ? 'Greed, Wealth & Power' : church ? 'Church, Faith & Reformation' : 'Cities & Knights'}`,
                   bonus - extraVp > 0 && `+${bonus - extraVp} for the scenario`,
                   bonus - extraVp < 0 && `${bonus - extraVp} for the scenario`,
                 ]

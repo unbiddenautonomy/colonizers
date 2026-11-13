@@ -230,7 +230,40 @@ export function describe(e: GameEvent, names: string[]): string | null {
       if (e.face === 'ship') return 'Event die: the barbarian ship sails closer.';
       if (e.face === 'wild')
         return `Event die: the barbarian ship sails closer, and a wild gate with red ${e.red as number}: everyone may draw from any deck they can.`;
+      if (e.face === 'joker')
+        return `🃏 Event die: the joker, with red ${e.red as number}. ${n(e.player)} picks the gate.`;
       return `Event die: ${TRACK[e.face as string] ?? e.face} gate with red ${e.red as number}.`;
+    case 'jokerPicked':
+      return `🃏 ${n(e.player)} opened the ${TRACK[e.deck as string] ?? e.deck} gate.`;
+    // ---- Church, Faith & Reformation ----
+    case 'dioceseBuilt':
+      return `⛪ ${n(e.player)} founded a Diocese.`;
+    case 'dioceseLost':
+      return `⛪ ${n(e.player)} lost their Diocese with the city.`;
+    case 'churchFestival':
+      return `🍻 ${n(e.player)} held a festival on ${n(e.target)}'s ${e.kind as string}: it stops until ${n(e.player)}'s next turn.`;
+    case 'churchFestivalOver':
+      return `🍻 ${n(e.player)}'s festival on ${n(e.target)}'s ${e.kind as string} is over.`;
+    case 'churchExile':
+      return `${n(e.player)} sent the robber into exile.`;
+    case 'churchLent':
+      return `✝️ ${n(e.player)} called Lent: ${n(e.target)} may not build until they pay a grain and a wool.`;
+    case 'churchLentOver':
+      return `✝️ ${n(e.player)} has kept Lent and may build again.`;
+    case 'churchInquisitor':
+      return typeof e.target === 'number'
+        ? `👁️ ${n(e.player)} sent the Inquisitor to ${n(e.target)}'s city: no level 3 abilities for them.`
+        : `👁️ ${n(e.player)} moved the Inquisitor.`;
+    case 'churchAnathema':
+      return `⛔ ${n(e.player)} pronounced Anathema on ${n(e.target)}: ${TRACK[e.track as string] ?? e.track} is shut until they pay.`;
+    case 'churchAnathemaOver':
+      return `${n(e.player)} paid off the Anathema: ${TRACK[e.track as string] ?? e.track} is open again.`;
+    case 'churchReformation':
+      return e.option === 'mine'
+        ? `${n(e.player)} played Reformation and swapped their progress cards.`
+        : `${n(e.player)} played Reformation: everyone else swaps their progress cards.`;
+    case 'churchRefuge':
+      return `${n(e.player)} found Refuge: their cities are safe from the next barbarian attack.`;
     // ---- Greed, Wealth & Power ----
     case 'gwpBuilt':
       return `${n(e.player)} built a ${GWP_BUILDING[e.building as string] ?? e.building}.`;
@@ -259,7 +292,7 @@ export function describe(e: GameEvent, names: string[]): string | null {
     case 'knightRemoved':
       return `${n(e.player)} gave up a knight at the Stone Circle.`;
     case 'knightsDeactivated':
-      return `${n(e.player)} sent a Bad Omen: ${n(e.target)}'s knights stand down.`;
+      return `${n(e.player)} played ${nameOf((e.card as string | undefined) ?? 'badOmen').name}: ${n(e.target)}'s knights stand down.`;
     case 'banishment':
       return `${n(e.player)} banished the neutral pieces.`;
     case 'missionary':

@@ -10,6 +10,7 @@ import { explorersPiratesModule } from '@colonizers/module-explorers-pirates';
 import { greedWealthPowerModule } from '@colonizers/module-greed-wealth-power';
 import { worldWondersModule } from '@colonizers/module-world-wonders';
 import { civilisationsModule } from '@colonizers/module-civilisations';
+import { churchModule } from '@colonizers/module-church';
 import {
   generateBoard,
   generateSeaBoard,
@@ -31,6 +32,7 @@ export const library = new ModuleLibrary([
   variantsModule,
   worldWondersModule,
   citiesKnightsModule,
+  churchModule,
   greedWealthPowerModule,
   civilisationsModule,
 ]);
@@ -41,6 +43,8 @@ export const CK_EXTRA_VP = 3;
 export const GWP_EXTRA_VP = 8;
 /** Civilisations plays to 20 with the usual 10. */
 export const CIV_EXTRA_VP = 10;
+/** Church, Faith & Reformation plays to 15 with the usual 10. */
+export const CHURCH_EXTRA_VP = 5;
 
 /** Greed, Wealth & Power goes on top of Cities & Knights, on the usual maps and Seafarers. */
 export function gwpOn(
@@ -53,6 +57,15 @@ export function gwpOn(
 /** World Wonders goes on the usual maps and Seafarers, with or without Cities & Knights. */
 export function wondersOn(settings: Pick<RoomSettings, 'worldWonders' | 'map'>): boolean {
   return settings.worldWonders && settings.map.kind !== 'special';
+}
+
+/** Church, Faith & Reformation goes on top of Cities & Knights, in place of Greed, Wealth & Power. */
+export function churchOn(
+  settings: Pick<RoomSettings, 'church' | 'map'>,
+  ck: boolean,
+  gwp: boolean,
+): boolean {
+  return ck && !gwp && settings.church && settings.map.kind !== 'special';
 }
 
 /** Civilisations goes on top of Greed, Wealth & Power. */
@@ -69,7 +82,16 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
     (settings.citiesKnights || picked?.needsCitiesKnights === true) && !picked?.noCitiesKnights;
   const gwp = gwpOn(settings, ck);
   const civs = civsOn(settings, gwp);
-  const extraVp = civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? CK_EXTRA_VP : 0;
+  const church = churchOn(settings, ck, gwp);
+  const extraVp = civs
+    ? CIV_EXTRA_VP
+    : gwp
+      ? GWP_EXTRA_VP
+      : church
+        ? CHURCH_EXTRA_VP
+        : ck
+          ? CK_EXTRA_VP
+          : 0;
   const options = optionSettings(settings.options, n);
   const config = (
     extra: string[],
@@ -78,7 +100,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   ): GameConfig => ({
     seed,
     players: names,
-    modules: moduleList(extra, ck, gwp, wondersOn(settings), civs),
+    modules: moduleList(extra, ck, gwp, wondersOn(settings), civs, church),
     map,
     settings: { ...options, ...own },
     fixedSeats: true,
@@ -186,6 +208,9 @@ const SAFE_ORDER = [
   'civCurse',
   'civColony',
   'civRaidCity',
+  'pickJoker',
+  'churchKeep',
+  'churchTaxPay',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',

@@ -54,6 +54,12 @@ export interface CkData extends Record<string, unknown> {
   /** A wild face on the event die: players who still pick a deck to draw from, and the red die. */
   pendingWild: number[];
   wildRed: number;
+  /** Tracks whose level 3 ability a player has lost for now (Church's Anathema). */
+  lockedTracks?: Record<number, Track[]>;
+  /** Set while a roll held for an Indulgence is worked out, so it goes straight through. */
+  releasingRoll?: boolean;
+  /** The roller of a joker face, until they pick its track. */
+  pendingJoker?: number | null;
   /** Seats whose level 3 abilities are switched off for now. */
   noAbilities?: number[];
   /** A level 3 ability borrowed for one turn (Greed, Wealth & Power's Secret Society). */
@@ -127,6 +133,7 @@ export function levels(ctx: Ctx, seat: number): Levels {
 export function hasAbility(ctx: Ctx, seat: number, track: Track): boolean {
   const d = ckData(ctx);
   if (d.noAbilities?.includes(seat)) return false;
+  if (d.lockedTracks?.[seat]?.includes(track)) return false;
   const lent = d.lent;
   if (lent && lent.seat === seat && lent.track === track && lent.turn === ctx.state.turn.number)
     return true;
@@ -446,6 +453,7 @@ export function giveProgress(ctx: Ctx, seat: number, deck: Track, card: string):
  * deck is empty.
  */
 export function drawProgress(ctx: Ctx, seat: number, deck: Track): boolean {
+  if (!ctx.reduce('takesProgress', seat, deck, true)) return false;
   const card = ctx.drawCard(deck);
   if (!card) return false;
   giveProgress(ctx, seat, deck, card);
@@ -471,7 +479,7 @@ export function turnOrder(ctx: Ctx): number[] {
 /** Can this player draw from a track's deck when the red die shows `red`? */
 export function gateOpen(ctx: Ctx, seat: number, track: Track, red: number): boolean {
   const level = levels(ctx, seat)[track];
-  return level >= 1 && red <= level + 1;
+  return level >= 1 && red <= level + 1 && ctx.reduce('takesProgress', seat, track, true);
 }
 
 /** A gate on the event die: everyone whose level in that track covers the red die draws. */
@@ -623,6 +631,9 @@ export function startRoll(ctx: Ctx, player: number): void {
       d.wildRed = red;
       d.pendingWild = turnOrder(ctx).filter((s) => wildDecks(ctx, s, red).length > 0);
     }
+  } else if (event === 'joker') {
+    d.wildRed = red;
+    d.pendingJoker = player;
   } else {
     gateDraws(ctx, event, red);
   }
@@ -643,6 +654,10 @@ export function continueRoll(ctx: Ctx): void {
       id: 'defenderPick',
       owed: Object.fromEntries(d.pendingDefender.map((s) => [s, 1])),
     });
+    return;
+  }
+  if (d.pendingJoker !== null && d.pendingJoker !== undefined) {
+    ctx.setPhase({ id: 'jokerPick', owed: { [d.pendingJoker]: 1 } });
     return;
   }
   d.pendingWild = d.pendingWild.filter((s) => wildDecks(ctx, s, d.wildRed).length > 0);

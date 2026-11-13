@@ -19,6 +19,7 @@
     "@colonizers/module-base": "workspace:*",
     "@colonizers/module-cities-knights": "workspace:*",
     "@colonizers/module-greed-wealth-power": "workspace:*",
+    "@colonizers/module-church": "workspace:*",
     "@colonizers/module-civilisations": "workspace:*",
     "@colonizers/module-world-wonders": "workspace:*",
     "@colonizers/module-seafarers": "workspace:*",

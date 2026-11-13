@@ -1,12 +1,7 @@
 import type { Action, ActionDef, Ctx, Phase } from '@colonizers/engine';
-import {
-  ckData,
-  holdsProgress,
-  rewrapRoll,
-  rollEventDie,
-  type EventFace,
-} from '@colonizers/module-cities-knights';
-import { MODULE_ID } from './constants.ts';
+import type { EventFace } from './constants.ts';
+import { holdsProgress } from './progress.ts';
+import { ckData, rewrapRoll, rollEventDie } from './rules.ts';
 
 /**
  * Indulgence: whoever holds it may re-roll any of the dice just thrown, on
@@ -17,6 +12,10 @@ import { MODULE_ID } from './constants.ts';
  * held in an `indulgence` step. Each holder, in turn order from the roller,
  * plays the card or lets the roll stand. Once one plays it (or all pass), the
  * roll is worked out with those dice, through Cities & Knights' usual roll.
+ *
+ * Shared by the expansions whose Religion deck has the card (Church, Faith &
+ * Reformation, and Greed, Wealth & Power): they wrap the roll with
+ * `wrapIndulgenceRoll` and play the card with `playIndulgence`.
  */
 
 export const INDULGENCE = 'indulgence';
@@ -38,11 +37,6 @@ export interface HeldRoll {
   red: number;
   yellow: number;
   event: EventFace;
-}
-
-interface RollData extends Record<string, unknown> {
-  /** Set while the held roll is being worked out, so the roll goes straight through. */
-  releasing?: boolean;
 }
 
 /** Seats in turn order starting with `from`. */
@@ -72,12 +66,11 @@ function release(ctx: Ctx): void {
   d.alchemist = { red: r.red, yellow: r.yellow };
   d.forcedEvent = r.event;
   ctx.setPhase(ph.returnTo as Phase);
-  const data = ctx.data<RollData>(MODULE_ID);
-  data.releasing = true;
+  d.releasingRoll = true;
   try {
     ctx.registry.actions.roll!.apply(ctx, { type: 'roll', player: ph.roller as number });
   } finally {
-    delete data.releasing;
+    delete d.releasingRoll;
   }
 }
 
@@ -129,7 +122,7 @@ const passIndulgence: ActionDef = {
 export const indulgenceActions: Record<string, ActionDef> = { passIndulgence };
 
 /** Holds a fresh roll for anyone with an Indulgence. */
-export function wrapRoll(prev: ActionDef): ActionDef {
+export function wrapIndulgenceRoll(prev: ActionDef): ActionDef {
   return rewrapRoll(wrapped(prev), prev);
 }
 
@@ -137,10 +130,9 @@ function wrapped(prev: ActionDef): ActionDef {
   return {
     ...prev,
     apply(ctx, a: Action) {
-      const data = ctx.state.data[MODULE_ID] as RollData | undefined;
-      const who = data?.releasing ? [] : holders(ctx, a.player);
-      if (!who.length) return prev.apply(ctx, a);
       const d = ckData(ctx);
+      const who = d.releasingRoll ? [] : holders(ctx, a.player);
+      if (!who.length) return prev.apply(ctx, a);
       const chosen = d.alchemist;
       d.alchemist = null;
       const r: HeldRoll = {

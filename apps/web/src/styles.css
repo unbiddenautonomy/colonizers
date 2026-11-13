@@ -512,7 +512,8 @@ select {
 
 .hand-cards {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 10px 6px;
 }
 
 .rcard {
