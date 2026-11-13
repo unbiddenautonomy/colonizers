@@ -1,18 +1,23 @@
 import { useState } from 'react';
-import type { Action, Ctx, GameState, HexId } from '@colonizers/engine';
+import type { Action, CornerId, Ctx, EdgeId, GameState, HexId } from '@colonizers/engine';
 import {
+  anyPicksOf,
   calendarTrack,
   CIV_BY_ID,
   CLASS_INFO,
   civOf,
   civView,
   giftsOf,
+  habsburgDrawn,
   picksOf,
+  routeKinds,
   START_NEUTRAL,
   swapsOf,
   type Civ,
+  type Gift,
 } from '@colonizers/module-civilisations';
 import { nameOf } from '@colonizers/rulebook';
+import type { Targets } from '../board/Board.tsx';
 import { Modal } from '../ui/Modal.tsx';
 import { hexLabel } from './WorldWonders.tsx';
 
@@ -20,9 +25,112 @@ import { hexLabel } from './WorldWonders.tsx';
 
 export const civsOn = (state: GameState) => state.modules.includes('civilisations');
 
-export type CivMode = 'civRoute' | 'civKnight';
+export const CIV_MODES = [
+  'civRoute',
+  'civKnight',
+  'civSettle',
+  'civHarbor',
+  'civGallic',
+  'civRevolution',
+  'civTiticaca',
+  'civLeap',
+] as const;
+
+export type CivMode = (typeof CIV_MODES)[number];
+
+/** Modes where you pick one thing on the board, then where it goes. */
+const TWO_STEP: Partial<Record<CivMode, { first: string; then: string; kind: 'edge' | 'hex' }>> = {
+  civHarbor: { first: 'from', then: 'to', kind: 'edge' },
+  civTiticaca: { first: 'land', then: 'sea', kind: 'hex' },
+};
+
+/** Board targets for a civilisation's ability. `picked` is the first pick of a two-step one. */
+export function civTargets(legal: Action[], mode: CivMode, picked: string | null): Targets {
+  const t: Targets = { corners: new Map(), edges: new Map(), hexes: new Map() };
+  const two = TWO_STEP[mode];
+  for (const a of legal) {
+    if (a.type !== mode) continue;
+    if (two) {
+      const first = a[two.first] as string;
+      const where = picked === null ? first : (a[two.then] as string);
+      if (picked !== null && first !== picked) continue;
+      const target = picked === null ? { type: 'selectShip', player: a.player, ship: first } : a;
+      if (two.kind === 'edge') t.edges.set(where as EdgeId, target);
+      else t.hexes.set(where as HexId, target);
+      continue;
+    }
+    if (typeof a.corner === 'string') t.corners.set(a.corner as CornerId, a);
+    else if (typeof a.edge === 'string') t.edges.set(a.edge as EdgeId, a);
+    else if (typeof a.hex === 'string') t.hexes.set(a.hex as HexId, a);
+  }
+  return t;
+}
+
+/** What to tap, for each mode. */
+export function civModePrompt(who: string, mode: CivMode, picked: string | null): string {
+  switch (mode) {
+    case 'civRoute':
+      return `${who}: tap where your free road or ship goes.`;
+    case 'civKnight':
+      return `${who}: tap a corner on your roads for your strong knight.`;
+    case 'civSettle':
+      return `${who}: tap where your free settlement goes.`;
+    case 'civHarbor':
+      return picked === null
+        ? `${who}: tap the harbor to move.`
+        : `${who}: tap where on the coast it goes. Onto another harbor swaps the two.`;
+    case 'civGallic':
+      return `${who}: tap the hex whose number swaps with the robber's.`;
+    case 'civRevolution':
+      return `${who}: tap a rival's strong knight.`;
+    case 'civTiticaca':
+      return picked === null
+        ? `${who}: tap an inland hex to move.`
+        : `${who}: tap the sea hex it swaps with.`;
+    case 'civLeap':
+      return `${who}: tap the city that goes back to a settlement.`;
+  }
+}
 
 const icon = (card: string) => nameOf(card).icon ?? nameOf(card).name;
+
+/** "2 free roads and a free road or ship", from the route gifts waiting. */
+function routeText(kinds: ('road' | 'ship' | 'route')[]): string {
+  const names = {
+    road: ['road', 'roads'],
+    ship: ['ship', 'ships'],
+    route: ['road or ship', 'roads or ships'],
+  };
+  return (['road', 'ship', 'route'] as const)
+    .map((k) => {
+      const n = kinds.filter((x) => x === k).length;
+      if (!n) return '';
+      return n === 1 ? `A free ${names[k][0]}` : `${n} free ${names[k][1]}`;
+    })
+    .filter(Boolean)
+    .join(', and ');
+}
+
+const DIE_NAMES: Record<string, string> = { red: 'red', yellow: 'yellow', event: 'event' };
+
+/** "Throw red and event", or "Throw all three". */
+const rerollLabel = (dice: string) => {
+  const which = dice.split('+');
+  if (which.length === 3) return 'Throw all three again';
+  return `Throw ${which.map((d) => DIE_NAMES[d] ?? d).join(' and ')} again`;
+};
+
+const eventName = (face: string) =>
+  face === 'ship' ? 'the barbarian ship' : face === 'wild' ? 'the wild gate' : `the ${face} gate`;
+
+const title = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+const WHERE: Record<Extract<Gift, { kind: 'settlement' }>['where'], string> = {
+  any: 'by your roads',
+  inland: 'inland, by your roads',
+  coastal: 'on the coast, by your roads or ships',
+  island: 'on an island where you have no building',
+};
 
 /** One civilisation tile. */
 function Tile({ civ, unlocked }: { civ: Civ; unlocked?: boolean }) {
@@ -74,8 +182,34 @@ export function CivPanel({
   const has = (type: string) => legal.some((a) => a.type === type);
   const improve = legal.filter((a) => a.type === 'civImprove');
   const calendar = legal.filter((a) => a.type === 'civCalendar');
+  const silk = legal.filter((a) => a.type === 'civSilk');
+  const habsburg = legal.filter((a) => a.type === 'civHabsburg');
   const track = actor === null ? null : calendarTrack(ctx, actor);
-  const ready = has('civRoute') || has('civKnight') || improve.length > 0 || calendar.length > 0;
+  const routes = actor === null ? [] : routeKinds(ctx, actor);
+  const settles = gifts.filter(
+    (g): g is Extract<Gift, { kind: 'settlement' }> => g.kind === 'settlement',
+  );
+  const MODES: [CivMode, string, string][] = [
+    ['civHarbor', 'Move a harbor anywhere on the coast, or swap two', 'Pick the harbor'],
+    ['civGallic', "Once a game, swap the robber hex's number with another", 'Pick the hex'],
+    ['civRevolution', "Once a game, bring down a rival's strong knight", 'Pick the knight'],
+    ['civTiticaca', 'Once a game, swap an inland hex with the sea', 'Pick the hex'],
+    [
+      'civLeap',
+      'Once a game, a city back to a settlement for five progress cards',
+      'Pick the city',
+    ],
+  ];
+  const ready =
+    has('civRoute') ||
+    has('civKnight') ||
+    has('civSettle') ||
+    has('civKhagan') ||
+    MODES.some(([m]) => has(m)) ||
+    improve.length > 0 ||
+    calendar.length > 0 ||
+    silk.length > 0 ||
+    habsburg.length > 0;
   const doAct = (a: Action) => {
     act(a);
     setOpen(false);
@@ -100,10 +234,57 @@ export function CivPanel({
             <div className="wonder-abilities">
               {has('civRoute') && (
                 <p className="row wrap">
-                  {gifts.filter((g) => g.kind === 'route').length} free road or ship:{' '}
+                  {routeText(routes)}:{' '}
                   <button type="button" onClick={() => pick('civRoute')}>
+                    Place {routes.length > 1 ? 'one' : 'it'}
+                  </button>
+                </p>
+              )}
+              {has('civSettle') && (
+                <p className="row wrap">
+                  A free settlement {settles.map((g) => WHERE[g.where]).join(', or ')}:{' '}
+                  <button type="button" onClick={() => pick('civSettle')}>
                     Place it
                   </button>
+                </p>
+              )}
+              {MODES.filter(([m]) => has(m)).map(([m, text, button]) => (
+                <p key={m} className="row wrap">
+                  {text}:{' '}
+                  <button type="button" onClick={() => pick(m)}>
+                    {button}
+                  </button>
+                </p>
+              ))}
+              {has('civKhagan') && (
+                <p className="row wrap">
+                  You rolled a 3 or 11:{' '}
+                  <button
+                    type="button"
+                    onClick={() => doAct({ type: 'civKhagan', player: actor as number })}
+                  >
+                    Move the robber
+                  </button>
+                </p>
+              )}
+              {silk.length > 0 && (
+                <p className="row wrap">
+                  Pick the resource you trade 2:1:{' '}
+                  {silk.map((a) => (
+                    <button key={a.card as string} type="button" onClick={() => doAct(a)}>
+                      {icon(a.card as string)} {nameOf(a.card as string).name}
+                    </button>
+                  ))}
+                </p>
+              )}
+              {habsburg.length > 0 && (
+                <p className="row wrap">
+                  Once a game, a card from each deck and two more from:{' '}
+                  {habsburg.map((a) => (
+                    <button key={a.deck as string} type="button" onClick={() => doAct(a)}>
+                      {title(a.deck as string)}
+                    </button>
+                  ))}
                 </p>
               )}
               {has('civKnight') && (
@@ -206,11 +387,75 @@ export function CivChoices({
       </Modal>
     );
   }
+  if (state.phase.id === 'civDemocracy') {
+    const opts = legal.filter((a) => a.type === 'civDemocracy');
+    if (!opts.length) return null;
+    const held = state.phase.held as { red: number; yellow: number; event: string };
+    const roller = state.phase.roller as number;
+    return (
+      <Modal title="Athenian Democracy">
+        <p>
+          {roller === actor ? 'You' : (state.players[roller]?.name ?? 'A player')} rolled red{' '}
+          {held.red} and yellow {held.yellow} ({held.red + held.yellow}), with{' '}
+          {eventName(held.event)}. Throw some dice again? The new throw is final, and you can do
+          this once every two rounds.
+        </p>
+        <div className="row wrap">
+          {opts.map((a) => (
+            <button key={a.dice as string} type="button" onClick={() => act(a)}>
+              {a.dice === 'keep' ? 'Keep these dice' : rerollLabel(a.dice as string)}
+            </button>
+          ))}
+        </div>
+      </Modal>
+    );
+  }
+  if (state.phase.id === 'civMuscovy' && legal.some((a) => a.type === 'civMuscovy')) {
+    return (
+      <Modal title="Treatises of Muscovy">
+        <p>
+          {state.players[state.turn.player]?.name} rolled a 7. Throw the dice and put the robber on
+          a hex with that number for them? A 7 lets you pick any hex.
+        </p>
+        <div className="row wrap">
+          <button
+            type="button"
+            onClick={() => act({ type: 'civMuscovy', player: actor, use: true })}
+          >
+            Throw the dice
+          </button>
+          <button
+            type="button"
+            onClick={() => act({ type: 'civMuscovy', player: actor, use: false })}
+          >
+            Let them place it
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+  if (state.phase.id === 'civHabsburg' && legal.some((a) => a.type === 'civHabsburgKeep'))
+    return <HabsburgKeep state={state} ctx={ctx} actor={actor} act={act} />;
+  const progress = legal.filter((a) => a.type === 'civProgress');
+  if (progress.length) {
+    return (
+      <Modal title="A progress card of your choice">
+        <p>Pick the deck to draw from:</p>
+        <div className="row wrap">
+          {progress.map((a) => (
+            <button key={a.deck as string} type="button" onClick={() => act(a)}>
+              {title(a.deck as string)}
+            </button>
+          ))}
+        </div>
+      </Modal>
+    );
+  }
   const harvest = legal.filter((a) => a.type === 'civHarvest');
   if (harvest.length) {
     return (
-      <Modal title="Your new building">
-        <p>Your Republic takes a card from a hex beside it:</p>
+      <Modal title="A card from beside your building">
+        <p>Take a card from a hex beside it:</p>
         <div className="row wrap">
           {harvest.map((a) => (
             <button key={a.hex as string} type="button" onClick={() => act(a)}>
@@ -229,6 +474,22 @@ export function CivChoices({
         <p>Take {n === 1 ? 'a resource' : `${n} resources`} of your choice.</p>
         <div className="row wrap">
           {choose.map((a) => (
+            <button key={a.card as string} type="button" onClick={() => act(a)}>
+              {icon(a.card as string)} {nameOf(a.card as string).name}
+            </button>
+          ))}
+        </div>
+      </Modal>
+    );
+  }
+  const any = anyPicksOf(ctx, actor);
+  const chooseAny = legal.filter((a) => a.type === 'civPickAny');
+  if (any && chooseAny.length) {
+    return (
+      <Modal title="A gift from your civilisation">
+        <p>Take any resource or commodity.</p>
+        <div className="row wrap">
+          {chooseAny.map((a) => (
             <button key={a.card as string} type="button" onClick={() => act(a)}>
               {icon(a.card as string)} {nameOf(a.card as string).name}
             </button>
@@ -264,12 +525,82 @@ export function CivChoices({
   return null;
 }
 
+/** Austria's Habsburg Marriage: keep three of the cards drawn. */
+function HabsburgKeep({
+  state,
+  ctx,
+  actor,
+  act,
+}: {
+  state: GameState;
+  ctx: Ctx;
+  actor: number;
+  act: (a: Action) => void;
+}) {
+  const [keep, setKeep] = useState<number[]>([]);
+  const drawn = habsburgDrawn(ctx);
+  const toggle = (i: number) =>
+    setKeep((k) => (k.includes(i) ? k.filter((x) => x !== i) : k.length < 3 ? [...k, i] : k));
+  return (
+    <Modal title="Habsburg Marriage">
+      <p>Keep three; the rest go back under their decks.</p>
+      <div className="row wrap">
+        {drawn.map((d, i) => (
+          <button
+            key={`${state.turn.number}:${i}`}
+            type="button"
+            className={keep.includes(i) ? 'ready' : ''}
+            aria-pressed={keep.includes(i)}
+            onClick={() => toggle(i)}
+          >
+            {nameOf(d.card).name} ({title(d.deck)})
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        disabled={keep.length !== 3}
+        onClick={() => act({ type: 'civHabsburgKeep', player: actor, keep })}
+      >
+        Keep these three
+      </button>
+    </Modal>
+  );
+}
+
 export function civPrompt(state: GameState, names: string[], actor: number | null): string | null {
   if (state.phase.id === 'civPick') {
     const owed = (state.phase.owed ?? {}) as Record<number, number>;
     return actor !== null && owed[actor]
       ? 'Pick the civilisation you will lead.'
       : 'Waiting for everyone to pick a civilisation.';
+  }
+  const owedTo = () =>
+    Object.keys((state.phase.owed ?? {}) as Record<number, number>).map(Number)[0] ?? null;
+  if (state.phase.id === 'civDemocracy') {
+    const g = owedTo();
+    return g === actor
+      ? 'Keep the dice, or throw some again.'
+      : `Waiting for ${g === null ? 'Greece' : names[g]} to keep the dice or throw again.`;
+  }
+  if (state.phase.id === 'civMuscovy') {
+    const r = owedTo();
+    return r === actor
+      ? 'Throw the dice for the robber, or let them place it.'
+      : `Waiting for ${r === null ? 'Russia' : names[r]} to throw for the robber.`;
+  }
+  if (state.phase.id === 'civMuscovyHex') {
+    const r = owedTo();
+    const total = state.phase.total as number;
+    return r === actor
+      ? `You threw ${total}: tap the hex where the robber goes.`
+      : `${r === null ? 'Russia' : names[r]} threw ${total} and puts the robber on a hex.`;
+  }
+  if (state.phase.id === 'civHabsburg') {
+    const a = owedTo();
+    return a === actor
+      ? 'Keep three of the cards you drew.'
+      : `Waiting for ${a === null ? 'Austria-Hungary' : names[a]} to keep three cards.`;
   }
   if (state.phase.id === 'civNeutral') {
     const owed = Object.keys((state.phase.owed ?? {}) as Record<number, number>).map(Number);

@@ -44,6 +44,8 @@ export const civilisationsRules: RulebookModule = {
   - ${CLASS_INFO.monument.icon} **Monument:** ${CLASS_INFO.monument.bonus}
 - **Free pieces and cards** wait for you: tap **🏳️ Civilisations** on your turn to place a free road or knight, or to use a once-a-game ability.
 - **Any card:** some civilisations may swap one card a roll from a terrain for any resource or commodity. The offer shows up after the roll; keep your cards if you like.
+- **On other players' turns:** Greece, from 10 points, is asked after each roll whether to throw some dice again, until it has done so; then it waits two rounds. Russia is asked after a 7 by the player before them whether to throw for the robber.
+- **Board changes:** Gran Colombia's harbor, France's number swap and the Inca's Lago Titicaca are done on the board from the **🏳️ Civilisations** panel: tap the harbor or hex first, then where it goes.
 
 ${ready.length} of the 40 civilisations are in the game so far; the rest come in later updates.`,
     },
@@ -53,7 +55,18 @@ ${ready.length} of the 40 civilisations are in the game so far; the rest come in
       section: 'rules',
       title: 'The civilisations',
       summary: 'Each civilisation in the game, with its two abilities.',
-      tags: ['civilisation', 'kongo', 'egypt', 'korea', 'morocco', 'mali'],
+      tags: [
+        'civilisation',
+        'kongo',
+        'egypt',
+        'korea',
+        'morocco',
+        'mali',
+        'greece',
+        'russia',
+        'china',
+        'inca',
+      ],
       body: list,
     },
   ],

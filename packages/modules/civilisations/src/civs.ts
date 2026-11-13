@@ -93,6 +93,7 @@ export const CIVS: Civ[] = [
       'Habsburg Marriage',
       'Once a game, draw a progress card from each deck and two more from one; keep three.',
     ],
+    true,
   ),
   civ(
     'aztec',
@@ -153,6 +154,7 @@ export const CIVS: Civ[] = [
       'Polynesian Migration',
       'With a city and a settlement on two islands, build 3 roads free and take three progress cards.',
     ],
+    true,
   ),
   civ(
     'zulu',
@@ -173,6 +175,7 @@ export const CIVS: Civ[] = [
       'Also move the robber on a 3 or 11, and take a card and a progress card from the player you rob.',
     ],
     ["Genghis Khan's Realm", 'Place 4 roads and an inland settlement beside them, for free.'],
+    true,
   ),
   civ(
     'nordic',
@@ -234,16 +237,21 @@ export const CIVS: Civ[] = [
       'French Revolution',
       "Once a game, destroy a rival's strong knight and build a free settlement.",
     ],
+    true,
   ),
   civ(
     'granColombia',
     'Gran Colombia',
     'republic',
-    ['Cartagena de Indias', 'Move or swap a harbor, and take two free ships.'],
+    [
+      'Cartagena de Indias',
+      'Move a harbor anywhere on the coast, or swap two, and take two free ships.',
+    ],
     [
       'Treasures of El Dorado',
       'Take a gold. On your turns, throw the red and event dice again for an extra progress card.',
     ],
+    true,
   ),
   civ(
     'judea',
@@ -294,6 +302,7 @@ export const CIVS: Civ[] = [
       'When the player before you rolls a 7, throw the dice and put the robber on that number for them.',
     ],
     ["KGB's Foreign Intelligence", swap('Politics')],
+    true,
   ),
   // ---- Monument ----
   civ(
@@ -332,12 +341,12 @@ export const CIVS: Civ[] = [
     'china',
     'China',
     'monument',
-    ['Silk Road', 'Start with a 2:1 harbor of your choice.'],
+    ['Silk Road', 'Trade a resource of your choice 2:1, as if you had its harbor.'],
     [
       'Great Leap Forward',
       'Once a game, turn a city back into a settlement for five progress cards, one of each colour.',
     ],
-    false,
+    true,
     {
       id: 'greatWall',
       needs: 'a closed ring of 7 or more roads',
@@ -369,7 +378,7 @@ export const CIVS: Civ[] = [
       'Athenian Democracy',
       "Once every two rounds, on anyone's turn, throw one, two or all dice again.",
     ],
-    false,
+    true,
     {
       id: 'zeus',
       needs: 'a city by a gold field',
@@ -382,10 +391,10 @@ export const CIVS: Civ[] = [
     'monument',
     [
       'Kingdom of Cuzco',
-      'Beside mountains and pasture, two roads for the price of one and settlements for a resource less.',
+      'By mountains or pasture, each road you pay for brings a second free, and settlements cost a resource less.',
     ],
     ['Lago Titicaca', 'Once a game, swap an inland hex, with its number, for a sea hex.'],
-    false,
+    true,
     {
       id: 'machuPicchu',
       needs: '3 settlements or cities by pasture',
@@ -494,6 +503,7 @@ export const CIVS: Civ[] = [
     'innovator',
     ['The Mystery of Uluru', anyCard('hills')],
     ['Aboriginal People', 'Place a free settlement on an island apart from all your buildings.'],
+    true,
   ),
   civ(
     'cuba',
@@ -517,6 +527,7 @@ export const CIVS: Civ[] = [
       'Start with 2 more brick and 2 coin, and a wall under your starting city.',
     ],
     ['Great Nusantara', 'Place 4 ships and a coastal settlement beside them, for free.'],
+    true,
   ),
   civ(
     'inuit',
@@ -550,8 +561,9 @@ export const CIVS: Civ[] = [
     ],
     [
       'The Spirit of Kilimanjaro',
-      'Your cities by mountains take an extra card from another hex beside them.',
+      'When mountains pay one of your cities, it also takes a resource from another hex beside it.',
     ],
+    true,
   ),
   civ(
     'mali',

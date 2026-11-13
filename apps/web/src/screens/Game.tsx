@@ -99,11 +99,14 @@ import {
   wondersOn,
 } from './WorldWonders.tsx';
 import {
+  CIV_MODES,
   CivChoices,
+  civModePrompt,
   CivPanel,
   civPrompt,
   CivStats,
   civsOn,
+  civTargets,
   type CivMode,
 } from './Civilisations.tsx';
 
@@ -178,6 +181,8 @@ function targetsFor(
   if (mode && EP_MODES.includes(mode)) return epTargets(state, legal, mode as EpMode, selectedShip);
   if (mode && GWP_MODES.includes(mode))
     return gwpTargets(legal, mode as GwpMode, selectedShip, state);
+  if (mode && state.phase.id === 'main' && (CIV_MODES as readonly string[]).includes(mode))
+    return civTargets(legal, mode as CivMode, selectedShip);
   const want = new Set<string>();
   const ph = state.phase.id;
   const pair = edgeChoices(state);
@@ -201,8 +206,7 @@ function targetsFor(
   }
   if (ph === 'slayDragon') want.add('slayDragon');
   if (ph === 'civNeutral') want.add('civNeutral');
-  if (ph === 'main' && mode === 'civRoute') want.add('civRoute');
-  if (ph === 'main' && mode === 'civKnight') want.add('civKnight');
+  if (ph === 'civMuscovyHex') want.add('civMuscovyHex');
   if (ph === 'moveToken') want.add('takeToken');
   if (ph === 'moveRobber') {
     want.add('moveRobber');
@@ -321,7 +325,13 @@ function setupNote(index: number, players: number): string {
   return index >= players ? ' (your second, which collects resources)' : '';
 }
 
-function prompt(state: GameState, actor: number | null, names: string[], mode: Mode): string {
+function prompt(
+  state: GameState,
+  actor: number | null,
+  names: string[],
+  mode: Mode,
+  picked: string | null = null,
+): string {
   const who = actor === null ? '' : names[actor];
   if (state.modules.includes('explorers-pirates')) {
     const ep = epPrompt(state, who ?? '', mode);
@@ -329,8 +339,8 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
   }
   const duel = duelPrompt(state, who ?? '');
   if (duel) return duel;
-  if (mode === 'civRoute') return `${who}: tap where your free road or ship goes.`;
-  if (mode === 'civKnight') return `${who}: tap a corner on your roads for your strong knight.`;
+  if (mode && (CIV_MODES as readonly string[]).includes(mode))
+    return civModePrompt(who ?? '', mode as CivMode, picked);
   const civ = civPrompt(state, names, actor);
   if (civ) return civ;
   switch (state.phase.id) {
@@ -527,7 +537,11 @@ export function Game({
   const bothEdgeKinds =
     !!pair && legal.some((a) => a.type === pair[0]) && legal.some((a) => a.type === pair[1]);
   const shipPick =
-    mode === 'moveShip' || mode === 'sail' || (mode !== null && GWP_MODES.includes(mode))
+    mode === 'moveShip' ||
+    mode === 'sail' ||
+    (mode !== null && GWP_MODES.includes(mode)) ||
+    mode === 'civHarbor' ||
+    mode === 'civTiticaca'
       ? selectedShip
       : null;
   const targets = useMemo(
@@ -639,7 +653,7 @@ export function Game({
               shape={theme.players[promptSeat]!.shape}
             />
           )}{' '}
-          {prompt(state, promptSeat, promptNames, mode)}
+          {prompt(state, promptSeat, promptNames, mode, shipPick)}
           {online?.deadline && state.winner === null && <TurnTimer deadline={online.deadline} />}
         </p>
         <button
