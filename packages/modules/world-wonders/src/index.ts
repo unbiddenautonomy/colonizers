@@ -4,6 +4,17 @@ import { wonderSites } from './requirements.ts';
 import { diceActions, wrapRoll } from './dice.ts';
 import { afterEffects, effectActions } from './effects.ts';
 import {
+  buildingActions,
+  buildingEffects,
+  BUYS,
+  paradiseRefund,
+  wonderPrice,
+  wrapBuy,
+  wrapCableRoad,
+} from './building.ts';
+import { knightActions, onTheWall, updateWall, wonderDefense } from './knights.ts';
+import { endHunt, huntActions, redactHunt, startHunt } from './hunt.ts';
+import {
   action,
   builtWonders,
   finishedWonders,
@@ -43,7 +54,10 @@ import { WONDER_IDS, WONDERS, type WonderId } from './wonders.ts';
 export * from './wonders.ts';
 export * from './core.ts';
 export { bayHexes, desertsBy, picksOf, roamingPieces, ROAMING } from './effects.ts';
-export { numberDice, rerollChoices, type HeldDice } from './dice.ts';
+export { numberDice, rerollChoices, wallChoices, type HeldDice } from './dice.ts';
+export { cableCorners, refundOf, BUYS } from './building.ts';
+export { OFFERING, offeringPrice } from './knights.ts';
+export { huntOf } from './hunt.ts';
 export { closedLoop, isTerrain, wonderSites } from './requirements.ts';
 
 // ---- Building ----
@@ -266,23 +280,44 @@ export const worldWondersModule: GameModule = {
     wonderToWin: true,
   },
   costs: STAGE_COSTS,
-  actions: { buildWonder, wonderTrade, wonderHarvest, ...diceActions, ...effectActions },
-  wrapActions: { roll: wrapRoll },
+  actions: {
+    buildWonder,
+    wonderTrade,
+    wonderHarvest,
+    ...diceActions,
+    ...effectActions,
+    ...buildingActions,
+    ...knightActions,
+    ...huntActions,
+  },
+  wrapActions: { roll: wrapRoll, buildRoad: wrapCableRoad, placeFreeRoad: wrapCableRoad },
+  wrapActionsIfPresent: Object.fromEntries(BUYS.map((t) => [t, wrapBuy])),
   hooks: {
     init(ctx) {
       wonderData(ctx);
     },
-    afterAction(ctx) {
+    afterAction(ctx, a) {
       petraPrayer(ctx);
       afterEffects(ctx);
+      buildingEffects(ctx, a);
+      updateWall(ctx);
+      startHunt(ctx);
+    },
+    turnEnded(ctx) {
+      paradiseRefund(ctx);
+      endHunt(ctx);
     },
   },
+  redact: redactHunt,
   reducers: {
     vp: (ctx, seat, value) => value + wonderPoints(ctx, seat),
     canWin: (ctx, seat, value) =>
       value &&
       (ctx.setting<boolean>('wonderToWin') === false || finishedWonders(ctx, seat).length > 0),
     hexBlocked: isisShield,
+    cost: (ctx, item, seat, value) => wonderPrice(ctx, item, seat, value),
+    defense: wonderDefense,
+    shielded: onTheWall,
     tradeRatio: (ctx, seat, card, value) =>
       isResource(card) && hasStage(ctx, seat, 'lighthouse', 3) ? Math.min(value, 2) : value,
     swapRatio: (ctx, seat, give, get, value) =>

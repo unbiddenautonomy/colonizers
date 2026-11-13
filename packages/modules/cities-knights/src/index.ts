@@ -197,6 +197,7 @@ export {
   ckData,
   citiesOf,
   cityAtRisk,
+  shielded,
   isSheltered,
   commoditiesIn,
   drawProgress,
