@@ -7,7 +7,7 @@ import { tilePatterns, type Palette } from './motifs.tsx';
  * herringbone brick, wheat sprigs, sheep and scalloped sea.
  */
 
-const PALETTE: Record<string, Palette> = {
+export const PALETTE: Record<string, Palette> = {
   forest: { base: '#3f8a3a', dark: '#24572a', light: '#57a248' },
   pasture: { base: '#86c04f', dark: '#2b2b2b', light: '#fbf6e9', accent: '#5f9c37' },
   fields: { base: '#f2952b', dark: '#a8501a', light: '#f7ad4c' },
