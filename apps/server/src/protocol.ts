@@ -94,6 +94,7 @@ export function moduleList(extra: readonly string[], citiesKnights: boolean): st
     'seafarers',
     'special-maps',
     'traders-barbarians',
+    'explorers-pirates',
     'variants',
     'cities-knights',
     // After Cities & Knights, so its scenarios can adjust knight moves.

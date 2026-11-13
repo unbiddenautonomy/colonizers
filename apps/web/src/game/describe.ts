@@ -69,7 +69,19 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return lines.length ? lines.join('; ') + '.' + short : `Nobody collected anything.${short}`;
     }
     case 'built':
-      return `${n(e.player)} built a ${e.piece === 'wall' ? 'city wall' : (e.piece as string)}${e.free ? ' (free)' : ''}.`;
+      return `${n(e.player)} built a ${e.piece === 'wall' ? 'city wall' : e.piece === 'harbor' ? 'harbor settlement' : (e.piece as string)}${e.free ? ' (free)' : ''}.`;
+    case 'shipSailed':
+      return `${n(e.player)} sailed a ship ${e.moves as number} edge${e.moves === 1 ? '' : 's'}.`;
+    case 'shipBoosted':
+      return `${n(e.player)} put up extra sails.`;
+    case 'cargoSwapped':
+      return `${n(e.player)} swapped a ship's cargo at the harbor.`;
+    case 'founded':
+      return `${n(e.player)} founded a settlement from a ship.`;
+    case 'boughtWithGold':
+      return `${n(e.player)} paid ${e.gold as number} gold for ${cards({ [e.resource as string]: 1 })}.`;
+    case 'goldForNothing':
+      return `${(e.players as number[]).map(n).join(', ')} got nothing from the roll and took 1 gold.`;
     case 'shipMoved':
       return `${n(e.player)} moved a ship.`;
     case 'pirateMoved':

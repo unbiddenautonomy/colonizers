@@ -6,6 +6,7 @@ import { variantsModule } from '@colonizers/module-variants';
 import { citiesKnightsModule } from '@colonizers/module-cities-knights';
 import { tradersBarbariansModule } from '@colonizers/module-traders-barbarians';
 import { treasuresDragonsModule } from '@colonizers/module-treasures-dragons';
+import { explorersPiratesModule } from '@colonizers/module-explorers-pirates';
 
 /** Every rules module the web app knows. Expansions are added here as they ship. */
 export const library = new ModuleLibrary([
@@ -14,6 +15,7 @@ export const library = new ModuleLibrary([
   specialMapsModule,
   tradersBarbariansModule,
   treasuresDragonsModule,
+  explorersPiratesModule,
   variantsModule,
   citiesKnightsModule,
 ]);
