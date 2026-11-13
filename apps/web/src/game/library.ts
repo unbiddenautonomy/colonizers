@@ -8,6 +8,7 @@ import { tradersBarbariansModule } from '@colonizers/module-traders-barbarians';
 import { treasuresDragonsModule } from '@colonizers/module-treasures-dragons';
 import { explorersPiratesModule } from '@colonizers/module-explorers-pirates';
 import { greedWealthPowerModule } from '@colonizers/module-greed-wealth-power';
+import { worldWondersModule } from '@colonizers/module-world-wonders';
 
 /** Every rules module the web app knows. Expansions are added here as they ship. */
 export const library = new ModuleLibrary([
@@ -18,6 +19,7 @@ export const library = new ModuleLibrary([
   treasuresDragonsModule,
   explorersPiratesModule,
   variantsModule,
+  worldWondersModule,
   citiesKnightsModule,
   greedWealthPowerModule,
 ]);

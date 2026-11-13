@@ -91,6 +91,7 @@ import {
   gwpTargets,
   type GwpMode,
 } from './GreedWealthPower.tsx';
+import { WonderPanel, WonderStats, wondersOn } from './WorldWonders.tsx';
 
 type Mode =
   | null
@@ -446,6 +447,7 @@ export function Game({
   const owedPhase = !!state.phase.owed;
   const ck = state.modules.includes('cities-knights');
   const gwp = state.modules.includes('greed-wealth-power');
+  const wonders = wondersOn(state);
   const cardKinds = handCards(state.modules);
   const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
@@ -714,6 +716,7 @@ export function Game({
               </div>
               <div className="player-stats">
                 <span title="Cards in hand">🂠 {ctx.handSize(p.seat, false)}</span>
+                {wonders && <WonderStats ctx={ctx} seat={p.seat} />}
                 {ck ? (
                   <>
                     <CkPlayerStats ctx={ctx} seat={p.seat} />
@@ -940,6 +943,7 @@ export function Game({
                 setNeutral={setNeutral}
               />
             )}
+          {wonders && !myTurnMain && <WonderPanel ctx={ctx} actor={null} legal={[]} act={act} />}
           {ep && state.phase.id === 'sail' && actor === state.turn.player && (
             <EpActions
               ctx={ctx}
@@ -1000,6 +1004,9 @@ export function Game({
                   }}
                   onImprove={(track) => act({ type: 'improveCity', player: actor, track })}
                 />
+              )}
+              {wonders && myTurnMain && (
+                <WonderPanel ctx={ctx} actor={actor} legal={legal} act={act} />
               )}
               {gwp && myTurnMain && (
                 <GwpActions

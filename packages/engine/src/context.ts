@@ -120,7 +120,7 @@ export class Ctx {
   checkWin(): boolean {
     if (this.state.winner !== null) return true;
     const seat = this.active;
-    if (this.vp(seat) >= this.vpTarget()) {
+    if (this.vp(seat) >= this.vpTarget() && this.reduce('canWin', seat, true)) {
       this.state.winner = seat;
       this.setPhase({ id: 'gameOver' });
       this.emit({
