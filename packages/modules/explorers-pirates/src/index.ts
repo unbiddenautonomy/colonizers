@@ -6,10 +6,50 @@ import {
   type EdgeId,
   type GameModule,
   type HexId,
-  type HexState,
   type Piece,
 } from '@colonizers/engine';
 import { distanceRuleOk, RESOURCES, setupRounds, setupSeat } from '@colonizers/module-base';
+import {
+  MODULE_ID,
+  EP_VP_BONUS,
+  GOLD,
+  SHIP_MOVES,
+  BOOST_MOVES,
+  CARGO_SIZE,
+  SETTLERS,
+  GOLD_PRICE,
+  GOLD_BUYS,
+  STARTING_GOLD,
+  epData,
+  action,
+  onlyActive,
+  canAfford,
+  hidden,
+  nearFog,
+  edgeNearFog,
+  navigable,
+  coastal,
+  shipAt,
+  cargoOf,
+  cargoRoom,
+  settlersOut,
+  harborBeside,
+  movesLeft,
+  sailRange,
+  discover,
+  sailPlan,
+  scenarioOf,
+  hasPirate,
+  toSail,
+  ownShip,
+} from './rules.ts';
+
+import { CAPTURED_FIELD_GOLD, lairActions, lairWraps, missionSteps } from './lairs.ts';
+import { catchFish, goodsActions, goodsOf } from './goods.ts';
+
+export * from './rules.ts';
+export * from './lairs.ts';
+export * from './goods.ts';
 
 /**
  * Explorers & Pirates, starting with Land Ho!
@@ -26,184 +66,6 @@ import { distanceRuleOk, RESOURCES, setupRounds, setupSeat } from '@colonizers/m
  * - A turn goes roll, then trade and build, then sail. Once a ship sails,
  *   only sailing, unloading and founding settlements are left.
  */
-
-export const MODULE_ID = 'explorers-pirates';
-
-export type EpScenario = 'land-ho';
-
-/** Points each scenario adds to the chosen target (10 by default). */
-export const EP_VP_BONUS: Record<EpScenario, number> = {
-  'land-ho': -2,
-};
-
-export const GOLD = 'gold';
-/** Movement points of a ship each turn, and the extra a wool buys. */
-export const SHIP_MOVES = 4;
-export const BOOST_MOVES = 2;
-/** Room in a ship's hold or a harbor's dock: a settler fills it, a crew takes half. */
-export const HOLD = 2;
-export const CARGO_SIZE: Record<string, number> = { settler: 2, crew: 1 };
-/** Settlers each player can have out at once. */
-export const SETTLERS = 2;
-/** Gold buys a resource for this much, this many times a turn. */
-export const GOLD_PRICE = 2;
-export const GOLD_BUYS = 2;
-export const STARTING_GOLD = 2;
-
-export interface EpData extends Record<string, unknown> {
-  /** Resources bought with gold this turn. */
-  bought: number;
-  boughtTurn: number;
-}
-
-export function epData(ctx: Ctx): EpData {
-  const d = ctx.data<EpData>(MODULE_ID);
-  d.bought ??= 0;
-  d.boughtTurn ??= -1;
-  return d;
-}
-
-type A<T> = Action & T;
-
-function action<T>(def: ActionDef<A<T>>): ActionDef {
-  return def as unknown as ActionDef;
-}
-
-const onlyActive = (ctx: Ctx, a: Action): string | null =>
-  a.player === ctx.active ? null : 'Not your turn';
-
-const canAfford = (ctx: Ctx, seat: number, item: string, what = `a ${item}`): string | null =>
-  ctx.has(seat, ctx.cost(item, seat)) ? null : `You can not afford ${what}`;
-
-// ---- The board ----
-
-function hidden(ctx: Ctx, hex: HexId): boolean {
-  const h = ctx.state.hexes[hex];
-  return !!h && (h.hidden === true || h.type === 'hidden');
-}
-
-/** A corner touching a hex nobody has turned over yet. */
-export function nearFog(ctx: Ctx, corner: CornerId): boolean {
-  return (ctx.geometry.cornerHexes.get(corner) ?? []).some((h) => hidden(ctx, h));
-}
-
-/** An edge with either end touching the fog. */
-export function edgeNearFog(ctx: Ctx, edge: EdgeId): boolean {
-  return (ctx.geometry.edgeCorners.get(edge) ?? []).some((c) => nearFog(ctx, c));
-}
-
-/** Ships sail along edges with open sea on at least one side. */
-export function navigable(ctx: Ctx, edge: EdgeId): boolean {
-  return (ctx.geometry.edgeHexes.get(edge) ?? []).some((h) => ctx.isSea(h));
-}
-
-/** A corner where land meets the open sea. */
-export function coastal(ctx: Ctx, corner: CornerId): boolean {
-  const hexes = ctx.geometry.cornerHexes.get(corner) ?? [];
-  return hexes.some((h) => ctx.isLand(h)) && hexes.some((h) => ctx.isSea(h));
-}
-
-export function isShip(p: Piece | undefined): p is Piece {
-  return !!p && p.type === 'ship' && p.at.kind === 'edge';
-}
-
-export function shipAt(ctx: Ctx, edge: EdgeId): Piece | undefined {
-  return ctx.piecesAt({ kind: 'edge', id: edge }).find((p) => p.type === 'ship');
-}
-
-export function cargoOf(p: Piece): string[] {
-  return Array.isArray(p.props.cargo) ? (p.props.cargo as string[]) : [];
-}
-
-export function cargoRoom(p: Piece): number {
-  return HOLD - cargoOf(p).reduce((s, c) => s + (CARGO_SIZE[c] ?? 1), 0);
-}
-
-/** Settlers this player has on ships and docks. */
-export function settlersOut(ctx: Ctx, seat: number): number {
-  let n = 0;
-  for (const p of ctx.piecesOf(seat))
-    if (p.type === 'ship' || p.type === 'harbor')
-      n += cargoOf(p).filter((c) => c === 'settler').length;
-  return n;
-}
-
-/** The player's harbor settlement on one end of this edge, if any. */
-export function harborBeside(ctx: Ctx, seat: number, edge: EdgeId): Piece | undefined {
-  for (const c of ctx.geometry.edgeCorners.get(edge) ?? []) {
-    const b = ctx.buildingAt(c);
-    if (b?.type === 'harbor' && b.owner === seat) return b;
-  }
-  return undefined;
-}
-
-export function movesLeft(ship: Piece): number {
-  const used = Number(ship.props.used ?? 0);
-  return SHIP_MOVES + (ship.props.boost === true ? BOOST_MOVES : 0) - used;
-}
-
-/**
- * Where a ship can sail this turn, with the moves each spot costs. Ships pass
- * each other but can't stop on another ship; reaching the fog ends the trip.
- */
-export function sailRange(ctx: Ctx, ship: Piece): Map<EdgeId, number> {
-  const out = new Map<EdgeId, number>();
-  if (ship.at.kind !== 'edge') return out;
-  const left = movesLeft(ship);
-  const start = ship.at.id;
-  const seen = new Map<EdgeId, number>([[start, 0]]);
-  let frontier: EdgeId[] = [start];
-  for (let step = 1; step <= left && frontier.length; step++) {
-    const next: EdgeId[] = [];
-    for (const e of frontier) {
-      for (const c of ctx.geometry.edgeCorners.get(e) ?? []) {
-        for (const n of ctx.geometry.cornerEdges.get(c) ?? []) {
-          if (seen.has(n) || !navigable(ctx, n)) continue;
-          seen.set(n, step);
-          if (!shipAt(ctx, n)) out.set(n, step);
-          // The fog stops a ship where it first touches it.
-          if (!edgeNearFog(ctx, n)) next.push(n);
-        }
-      }
-    }
-    frontier = next;
-  }
-  return out;
-}
-
-// ---- Discovery ----
-
-function reveal(ctx: Ctx, hex: HexState, finder: number): void {
-  delete hex.hidden;
-  ctx.emit({
-    type: 'revealed',
-    hex: hex.id,
-    terrain: hex.type,
-    ...(hex.token !== undefined && { token: hex.token }),
-    player: finder,
-  });
-  ctx.hook('hexChanged', hex);
-  const produces = ctx.registry.hexTypes[hex.type]?.produces;
-  const cards = produces && (ctx.state.bank[produces] ?? 0) > 0 ? { [produces]: 1 } : { [GOLD]: 2 };
-  if (!ctx.bankHas(cards)) return;
-  ctx.grant(finder, cards);
-  ctx.emit({ type: 'discovered', player: finder, cards });
-}
-
-/** Turns over the fog a ship touches. Returns whether anything was found. */
-export function discover(ctx: Ctx, ship: Piece): boolean {
-  if (ship.at.kind !== 'edge' || ship.owner === null) return false;
-  let found = false;
-  for (const c of ctx.geometry.edgeCorners.get(ship.at.id) ?? [])
-    for (const h of ctx.geometry.cornerHexes.get(c) ?? []) {
-      const hex = ctx.state.hexes[h];
-      if (hex && hidden(ctx, h)) {
-        reveal(ctx, hex, ship.owner);
-        found = true;
-      }
-    }
-  return found;
-}
 
 // ---- Setup ----
 
@@ -353,16 +215,6 @@ const buildSettler = action<{ at: string }>({
 
 // ---- Sailing ----
 
-const toSail = (ctx: Ctx) => {
-  if (ctx.state.phase.id !== 'sail') ctx.setPhase({ id: 'sail' });
-};
-
-function ownShip(ctx: Ctx, seat: number, id: unknown): Piece | string {
-  const ship = typeof id === 'string' ? ctx.state.pieces[id] : undefined;
-  if (!isShip(ship) || ship.owner !== seat) return 'That is not your ship';
-  return ship;
-}
-
 const sailShip = action<{ ship: string; to: EdgeId }>({
   phases: ['main', 'sail'],
   check(ctx, a) {
@@ -376,9 +228,13 @@ const sailShip = action<{ ship: string; to: EdgeId }>({
   },
   apply(ctx, a) {
     const ship = ctx.state.pieces[a.ship]!;
-    const cost = sailRange(ctx, ship).get(a.to)!;
+    const { moves: cost, tribute } = sailPlan(ctx, ship).get(a.to)!;
     const from = (ship.at as { id: EdgeId }).id;
     toSail(ctx);
+    if (tribute) {
+      ctx.pay(a.player, { [GOLD]: tribute });
+      ctx.emit({ type: 'tributePaid', player: a.player, gold: tribute });
+    }
     ship.props.used = Number(ship.props.used ?? 0) + cost;
     ctx.move(ship, { kind: 'edge', id: a.to });
     ctx.emit({ type: 'shipSailed', player: a.player, from, to: a.to, moves: cost });
@@ -429,6 +285,7 @@ const swapCargo = action<{ ship: string }>({
     if (typeof ship === 'string') return ship;
     const harbor = harborBeside(ctx, a.player, (ship.at as { id: EdgeId }).id);
     if (!harbor) return 'The ship must be beside one of your harbor settlements';
+    if (goodsOf(ship).length) return 'Deliver the fish and spice first';
     if (!cargoOf(ship).length && !cargoOf(harbor).length) return 'There is nothing to load';
     return null;
   },
@@ -528,11 +385,6 @@ const buyWithGold = action<{ resource: string }>({
 
 // ---- The module ----
 
-const scenario = (ctx: Ctx) => ctx.setting<EpScenario | undefined>('epScenario') ?? 'land-ho';
-
-/** Does this scenario have a pirate ship to chase? Land Ho! does not. */
-const hasPirate = (_ctx: Ctx) => false;
-
 export const explorersPiratesModule: GameModule = {
   id: MODULE_ID,
   name: 'Explorers & Pirates',
@@ -546,7 +398,14 @@ export const explorersPiratesModule: GameModule = {
   cardTypes: {
     [GOLD]: { category: 'gold', countsForHandLimit: false, bank: () => 200 },
   },
+  hexTypes: {
+    // Gold fields hold pirate lairs; once captured they pay gold.
+    gold: { terrain: 'land', robber: false },
+    // Fishing grounds: open sea with a number, fished by the ships beside them.
+    shoal: { terrain: 'sea', robber: false },
+  },
   pieceTypes: {
+    pirate: { on: 'hex' },
     ship: { on: 'edge', perPlayer: () => 3 },
     harbor: { on: 'corner', perPlayer: () => 4, building: true, vp: 2, production: 1 },
   },
@@ -555,6 +414,7 @@ export const explorersPiratesModule: GameModule = {
     harbor: { grain: 2, ore: 2 },
     settler: { brick: 1, lumber: 1, wool: 1, grain: 1 },
     boost: { wool: 1 },
+    crew: { ore: 1, wool: 1 },
   },
   actions: {
     placeSetupShip,
@@ -566,8 +426,11 @@ export const explorersPiratesModule: GameModule = {
     swapCargo,
     foundSettlement,
     buyWithGold,
+    ...lairActions,
+    ...goodsActions,
   },
   wrapActions: {
+    ...lairWraps,
     placeSetupSettlement: (prev): ActionDef => ({
       ...prev,
       check(ctx, a) {
@@ -645,8 +508,11 @@ export const explorersPiratesModule: GameModule = {
   },
   hooks: {
     init(ctx) {
-      epData(ctx);
+      const d = epData(ctx);
       for (const r of ctx.piecesOfType('robber')) ctx.remove(r);
+      // Every gold field holds a pirate lair.
+      if (hasPirate(ctx))
+        for (const h of Object.values(ctx.state.hexes)) if (h.type === 'gold') d.lairs[h.id] = {};
       // No development cards, Longest Road or Largest Army.
       ctx.state.decks.dev = [];
       ctx.state.settings.longestRoadMin = 99;
@@ -668,11 +534,13 @@ export const explorersPiratesModule: GameModule = {
       if (a.type !== 'roll') return;
       const prod = ctx.events.find((e) => e.type === 'production');
       if (!prod) return;
+      const fish = catchFish(ctx, prod.total as number);
       // A roll that brings you nothing pays 1 gold.
       const received = (prod.received ?? {}) as Record<number, Record<string, number>>;
       const paid: number[] = [];
       for (const p of ctx.state.players) {
-        const got = Object.values(received[p.seat] ?? {}).reduce((s, n) => s + n, 0);
+        const got =
+          Object.values(received[p.seat] ?? {}).reduce((s, n) => s + n, 0) + (fish[p.seat] ?? 0);
         if (got > 0 || !ctx.bankHas({ [GOLD]: 1 })) continue;
         ctx.grant(p.seat, { [GOLD]: 1 });
         paid.push(p.seat);
@@ -682,7 +550,15 @@ export const explorersPiratesModule: GameModule = {
   },
   reducers: {
     tradeRatio: (_ctx, _seat, _card, value) => Math.min(value, 3),
-    vpTarget: (ctx, value) => value + (EP_VP_BONUS[scenario(ctx)] ?? 0),
+    vpTarget: (ctx, value) => value + (EP_VP_BONUS[scenarioOf(ctx)] ?? 0),
     supply: (_ctx, _seat, type, value) => (type === 'city' ? 0 : value),
+    vp: (ctx, seat, value) => value + missionSteps(ctx, seat),
+    hexYield(ctx, hex, piece, value) {
+      if (hex.type !== 'gold') return value;
+      const n = ctx.registry.pieceTypes[piece.type]?.production ?? 0;
+      return epData(ctx).captured.includes(hex.id) && n > 0
+        ? { [GOLD]: CAPTURED_FIELD_GOLD * n }
+        : {};
+    },
   },
 };

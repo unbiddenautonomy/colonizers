@@ -133,6 +133,19 @@ export function OptionsPanel({
           "⚓ Harbormaster: 2 points for the most buildings on harbors (3 points' worth or more)",
         )}
       </div>
+      {players === 2 && (
+        <div className="option-group">
+          <h3 className="subhead">Two players</h3>
+          {citiesKnights ? (
+            <p className="muted small">Duel rules don't mix with Cities &amp; Knights.</p>
+          ) : (
+            toggle(
+              'twoPlayer',
+              '⚔️ Duel rules: two neutral builders, two rolls a turn, and trade tokens',
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -205,6 +218,10 @@ export const SPECIAL_ICON: Record<string, string> = {
   'enchanted-land': '🔮',
   'great-canal': '⛏️',
   'land-ho': '🔭',
+  'pirate-lairs': '🏴‍☠️',
+  'fishing-grounds': '🐟',
+  'spice-islands': '🌶️',
+  'full-voyage': '🗺️',
 };
 
 /** Icons for the Seafarers scenarios. */
@@ -233,6 +250,7 @@ export function describeOptions(o: GameOptions, players: number): string[] {
   if (o.firstSettlementPays) out.push('Both starting settlements pay');
   if (o.harbormaster) out.push('Harbormaster');
   if (o.eventCards) out.push('Event cards');
+  if (o.twoPlayer && players === 2) out.push('Duel rules');
   if (o.robberFreeRounds) out.push(`7s do nothing for ${o.robberFreeRounds} round(s)`);
   if (o.discardLimit !== 7) out.push(`Discard above ${o.discardLimit} cards`);
   return out;

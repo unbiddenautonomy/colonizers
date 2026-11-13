@@ -11,6 +11,7 @@ import {
   SignInDialog,
 } from './screens/Account.tsx';
 import { LocalGame } from './screens/Game.tsx';
+import { MapEditor } from './screens/MapEditor.tsx';
 import { NewGame } from './screens/NewGame.tsx';
 import { OnlineRoom } from './screens/OnlineRoom.tsx';
 import { ReplayPage } from './screens/Replay.tsx';
@@ -169,6 +170,15 @@ export function App() {
       </>
     );
 
+  const editor = path.match(/^\/editor(?:\/([a-z0-9-]{1,40}))?\/?$/);
+  if (editor)
+    return (
+      <>
+        <MapEditor key={path} editId={editor[1] ?? null} onHome={() => go('/')} />
+        {popups}
+      </>
+    );
+
   if (game) {
     return (
       <LocalGame
@@ -195,6 +205,7 @@ export function App() {
         }}
         onRules={() => setRules(true)}
         onOnline={(code) => go(`/r/${code}`)}
+        onEditor={(id) => go(id ? `/editor/${id}` : '/editor')}
       />
       {rules && <Rulebook state={null} viewer={null} onClose={() => setRules(false)} />}
       {popups}
