@@ -78,6 +78,7 @@ import {
   GWP_BOARD_PHASES,
   GWP_CARD_BOARD_PHASES,
   GwpChoices,
+  GwpDragonChoice,
   gwpCardPrompt,
   GWP_HAND,
   GWP_MODES,
@@ -232,6 +233,7 @@ function targetsFor(
           'crossKnight',
           'roamKnight',
           'fightDragon',
+          'chaseDragon',
         ].includes(a.type)
       )
         continue;
@@ -242,6 +244,9 @@ function targetsFor(
         if (a.type === 'chaseRobber') {
           const r = Object.values(state.pieces).find((p) => p.type === 'robber');
           if (r?.at.kind === 'hex') t.hexes.set(r.at.id, a);
+        } else if (a.type === 'chaseDragon') {
+          const dr = Object.values(state.pieces).find((p) => p.type === 'gwpDragon');
+          if (dr?.at.kind === 'hex') t.hexes.set(dr.at.id, a);
         } else if (a.type === 'fightDragon') {
           // Tap the knight's own corner again to fight the dragon there.
           const c = knightCorner(a.knight);
@@ -897,6 +902,18 @@ export function Game({
             >
               🎲 Roll
             </button>
+          )}
+          {gwp && state.phase.id === 'moveRobber' && actor === state.turn.player && (
+            <GwpDragonChoice
+              actor={actor}
+              legal={legal}
+              act={act}
+              mode={mode}
+              setMode={(m) => {
+                setSelectedShip(null);
+                setMode(m);
+              }}
+            />
           )}
           {ep && state.phase.id === 'sail' && actor === state.turn.player && (
             <EpActions

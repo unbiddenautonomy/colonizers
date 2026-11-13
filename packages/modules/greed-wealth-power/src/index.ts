@@ -35,6 +35,23 @@ import {
   wrapCards,
 } from './cards.ts';
 import {
+  BUILD_ACTIONS,
+  DAMSEL,
+  DRAGON,
+  dragonActions,
+  dragonAfter,
+  dragonBlocks,
+  guardBuild,
+  LENT_ONLY,
+  lentBlock,
+  lentTurnEnded,
+  lentTurnStarted,
+  OPTIONAL_BUILDS,
+  slayerVp,
+  wrapChaseRobber,
+  wrapMoveRobber,
+} from './dragon.ts';
+import {
   crownHeroes,
   dukeStrength,
   neutralActions,
@@ -181,7 +198,11 @@ export function buildBlock(
 const buildGwp = action<{ building: Building; corner: CornerId; hex: HexId }>({
   phases: ['main'],
   check(ctx, a) {
-    return onlyActive(ctx, a) ?? buildBlock(ctx, a.player, a.building, a.corner, a.hex);
+    return (
+      onlyActive(ctx, a) ??
+      lentBlock(ctx, a) ??
+      buildBlock(ctx, a.player, a.building, a.corner, a.hex)
+    );
   },
   apply(ctx, a) {
     ctx.pay(a.player, buildingCost(ctx, a.player, a.building, a.corner));
@@ -342,7 +363,9 @@ export const greedWealthPowerModule: GameModule = {
       cards: () => ({ envoy: NEUTRAL_CARDS.envoy, belovedPrince: 1, ...deckCards('wealth') }),
     },
   },
-  pieceTypes: Object.fromEntries(NEUTRALS.map((n) => [n, { on: 'hex' as const }])),
+  pieceTypes: Object.fromEntries(
+    [...NEUTRALS, DRAGON, DAMSEL].map((n) => [n, { on: 'hex' as const }]),
+  ),
   costs: {
     citadel: { ore: 1, brick: 2 },
     citadelSettlement: { ore: 3, grain: 2, brick: 2 },
@@ -350,9 +373,21 @@ export const greedWealthPowerModule: GameModule = {
     monument: { ore: 1, brick: 1 },
     silo: { brick: 1, lumber: 1 },
   },
-  actions: { buildGwp, beerTrade, beerKnight, ...neutralActions, ...cardActions },
+  actions: {
+    buildGwp,
+    beerTrade,
+    beerKnight,
+    ...neutralActions,
+    ...cardActions,
+    ...dragonActions,
+  },
+  wrapActionsIfPresent: Object.fromEntries(OPTIONAL_BUILDS.map((b) => [b, guardBuild(true)])),
   wrapActions: {
     playProgress: (prev) => wrapCards(wrapPlayProgress(prev)),
+    moveRobber: wrapMoveRobber,
+    chaseRobber: wrapChaseRobber,
+    ...Object.fromEntries(BUILD_ACTIONS.map((b) => [b, guardBuild(true)])),
+    ...Object.fromEntries(LENT_ONLY.map((b) => [b, guardBuild(false)])),
     // Science and Religion level 3 together: the Aqueduct pick can be a Beer instead.
     aqueductPick: (prev): ActionDef => ({
       ...prev,
@@ -402,13 +437,17 @@ export const greedWealthPowerModule: GameModule = {
       brewBeer(ctx, paid);
       syncInquisitor(ctx);
       crownHeroes(ctx);
+      dragonAfter(ctx);
     },
+    turnStarted: lentTurnStarted,
+    turnEnded: lentTurnEnded,
   },
   reducers: {
     knightStrength: dukeStrength,
-    hexBlocked: wizardUnblocks,
+    hexBlocked: (ctx, hex, piece, value) =>
+      dragonBlocks(ctx, hex, piece, wizardUnblocks(ctx, hex, piece, value)),
     vp(ctx, seat, value) {
-      return value + neutralVp(ctx, seat);
+      return value + neutralVp(ctx, seat) + slayerVp(ctx, seat);
     },
     hexYield(ctx, hex, piece, value) {
       if (piece.type !== 'city' || piece.owner === null) return wispYield(ctx, hex, piece, value);

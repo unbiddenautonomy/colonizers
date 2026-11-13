@@ -26,8 +26,8 @@ import { CostLine, ResourceCard } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
 
 /** Board modes for Greed, Wealth & Power: one per building, and Beer for a knight. */
-export type GwpMode = Building | 'beerKnight';
-export const GWP_MODES: readonly string[] = [...BUILDINGS, 'beerKnight'];
+export type GwpMode = Building | 'beerKnight' | 'dragon';
+export const GWP_MODES: readonly string[] = [...BUILDINGS, 'beerKnight', 'dragon'];
 
 export const GWP_ICON: Record<Building, string> = {
   citadel: '🏰',
@@ -68,6 +68,8 @@ export function GwpPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const built = BUILDINGS.filter((b) => mine[b]);
   const held = NEUTRALS.filter((n) => neutralPiece(ctx, n)?.owner === seat);
   const hero = heroes(ctx).includes(seat);
+  const slayer =
+    (ctx.state.data['greed-wealth-power']?.slayer as number | null | undefined) === seat;
   return (
     <>
       <span title="Beer">🍺 {beerOf(ctx, seat)}</span>
@@ -82,12 +84,15 @@ export function GwpPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
         </span>
       )}
       {hero && <span title="Hero of Catan: 1 point">🦸</span>}
+      {slayer && <span title="Dragon Slayer: 2 points">🗡️</span>}
     </>
   );
 }
 
 /** Where each neutral piece sits on its hex, as a share of the hex size. */
-const NEUTRAL_SPOT: Record<Neutral, [number, number]> = {
+const NEUTRAL_SPOT: Record<Neutral | 'gwpDragon' | 'damsel', [number, number]> = {
+  gwpDragon: [-0.52, -0.3],
+  damsel: [0.52, -0.3],
   duke: [-0.28, -0.5],
   scholar: [0, -0.56],
   wizard: [0.28, -0.5],
@@ -107,7 +112,26 @@ export function neutralMarkers(state: GameState): {
 }[] {
   const out = [];
   for (const p of Object.values(state.pieces)) {
-    if (p.at.kind !== 'hex' || !(NEUTRALS as readonly string[]).includes(p.type)) continue;
+    if (p.at.kind !== 'hex') continue;
+    if (p.type === 'gwpDragon' || p.type === 'damsel') {
+      const dragon = p.type === 'gwpDragon';
+      const [dx, dy] = dragon && p.props.lair ? [0, 0] : NEUTRAL_SPOT[p.type];
+      out.push({
+        id: p.id,
+        hex: p.at.id,
+        owner: null,
+        icon: dragon ? '🐉' : '👸',
+        label: dragon
+          ? p.props.lair
+            ? 'The dragon, in its lair: only a mighty knight can drive it out'
+            : 'The dragon: this hex makes nothing'
+          : 'The Damsel: no building beside her; cities here are safe from the barbarians',
+        dx,
+        dy,
+      });
+      continue;
+    }
+    if (!(NEUTRALS as readonly string[]).includes(p.type)) continue;
     const n = p.type as Neutral;
     const [dx, dy] = NEUTRAL_SPOT[n];
     let label = NEUTRAL_NAMES[n];
@@ -119,9 +143,10 @@ export function neutralMarkers(state: GameState): {
 }
 
 /** Placing a neutral piece: tap its hex. */
-export const GWP_BOARD_PHASES = ['placeNeutral'];
+export const GWP_BOARD_PHASES = ['placeNeutral', 'placeDamsel'];
 
 export function gwpPhasePrompt(state: GameState, who: string): string | null {
+  if (state.phase.id === 'placeDamsel') return `${who}: doubles! Put the Damsel on any land hex.`;
   if (state.phase.id !== 'placeNeutral') return null;
   const n = state.phase.piece as Neutral;
   const where: Record<Neutral, string> = {
@@ -145,6 +170,11 @@ export function gwpTargets(
   state: GameState,
 ): Targets {
   const t: Targets = { corners: new Map(), edges: new Map(), hexes: new Map() };
+  if (mode === 'dragon') {
+    for (const a of legal)
+      if (a.type === 'moveDragon' && typeof a.hex === 'string') t.hexes.set(a.hex as HexId, a);
+    return t;
+  }
   if (mode === 'beerKnight') {
     for (const a of legal) {
       if (a.type !== 'beerKnight') continue;
@@ -176,6 +206,8 @@ export function gwpTargets(
 }
 
 export function gwpPrompt(who: string, mode: string | null, picked: string | null): string | null {
+  if (mode === 'dragon')
+    return `${who}: tap a hex beside a knight for the dragon. Tap the button again to move the robber.`;
   if (mode === 'beerKnight')
     return `${who}: tap any inactive knight to switch it on for 1 Beer. Tap the button again to cancel.`;
   if (mode && (BUILDINGS as readonly string[]).includes(mode)) {
@@ -233,6 +265,11 @@ export function GwpActions({
       >
         🍺 Knight
       </button>
+      {legal.some((a) => a.type === 'payLent') && (
+        <button type="button" onClick={() => act({ type: 'payLent', player: actor })}>
+          ✝️ Pay Lent (1 wool, 1 grain) to build
+        </button>
+      )}
       <button type="button" disabled={!trades.length} onClick={() => setBeerOpen(true)}>
         🍺 Beer for commodities ({beer})
       </button>
@@ -459,4 +496,41 @@ export function gwpCardPrompt(state: GameState, who: string, names: string[]): s
     default:
       return null;
   }
+}
+
+/** On a 7 after the first attack: move the dragon instead of the robber, or take it off. */
+export function GwpDragonChoice({
+  actor,
+  legal,
+  act,
+  mode,
+  setMode,
+}: {
+  actor: number;
+  legal: Action[];
+  act: (a: Action) => void;
+  mode: string | null;
+  setMode: (m: GwpMode | null) => void;
+}) {
+  const moves = legal.filter((a) => a.type === 'moveDragon');
+  if (!moves.length) return null;
+  const off = moves.find((a) => a.hex === null);
+  return (
+    <>
+      <button
+        type="button"
+        className={mode === 'dragon' ? 'on' : ''}
+        aria-pressed={mode === 'dragon'}
+        disabled={!moves.some((a) => a.hex !== null)}
+        onClick={() => setMode(mode === 'dragon' ? null : 'dragon')}
+      >
+        🐉 Move the dragon instead
+      </button>
+      {off && (
+        <button type="button" onClick={() => act({ type: 'moveDragon', player: actor, hex: null })}>
+          🐉 Take the dragon off the board
+        </button>
+      )}
+    </>
+  );
 }

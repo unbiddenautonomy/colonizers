@@ -78,8 +78,8 @@ function settle(s: GameState, seed = 5): GameState {
 describe('New progress cards', () => {
   it('fills each deck to 26 cards, less the ones still to come', () => {
     const decks = game().decks;
-    // Alliance, Dragon Lair, Indulgence, Lent and Land Deed come with the dragon.
-    const later: Record<string, number> = { politics: 1, magic: 1, religion: 3, wealth: 1 };
+    // Indulgence and Land Deed come later.
+    const later: Record<string, number> = { religion: 2, wealth: 1 };
     for (const deck of ['science', 'trade', 'politics', 'magic', 'religion', 'wealth'])
       expect(decks[deck]?.length, deck).toBe(26 - (later[deck] ?? 0));
     expect(Object.keys(deckCards('magic')).length).toBeGreaterThan(5);
