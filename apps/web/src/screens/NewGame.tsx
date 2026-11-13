@@ -579,6 +579,7 @@ export function NewGame({
           options={options}
           players={count}
           citiesKnights={ck}
+          gwp={gwp}
           robber={hasRobber(specialId)}
           onChange={setOptions}
         />
@@ -588,7 +589,7 @@ export function NewGame({
               Changed from the standard rules:{' '}
               {[
                 vpTarget !== DEFAULT_VP_BASE && !sea && `${vpTarget + bonus} points to win`,
-                ...describeOptions(options, count),
+                ...describeOptions(options, count, gwp),
               ]
                 .filter(Boolean)
                 .join(', ') || 'turn style'}
