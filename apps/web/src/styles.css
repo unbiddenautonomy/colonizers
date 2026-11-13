@@ -2074,3 +2074,12 @@ button.ready {
   gap: 0.4rem;
   align-items: center;
 }
+
+/* Civilisations */
+.civ-tile header {
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.civ-tile p {
+  margin: 0.3rem 0;
+}

@@ -203,6 +203,7 @@ describe('Lobby', () => {
       citiesKnights: false,
       greedWealthPower: false,
       worldWonders: false,
+      civilisations: false,
       turnTimer: 90,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,
