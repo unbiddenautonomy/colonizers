@@ -21,6 +21,7 @@ import {
   GoldRiver,
 } from './CanalArt.tsx';
 import { buildingMarkers, GWP_ICON, neutralMarkers } from '../screens/GreedWealthPower.tsx';
+import { LairMarkers } from './EpArt.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -92,8 +93,16 @@ function HouseShape({
   );
 }
 
-const CARGO_ICON: Record<string, string> = { settler: '🧑‍🌾', crew: '🏴‍☠️' };
-const CARGO_NAME: Record<string, string> = { settler: 'a settler', crew: 'a crew' };
+/** The neutral builders in two-player duel games: white and black. */
+const NEUTRAL_COLORS = ['#f4f1ea', '#2f2f35'];
+
+const CARGO_ICON: Record<string, string> = { settler: '🧑‍🌾', crew: '⚔️', fish: '🐟', spice: '🌶️' };
+const CARGO_NAME: Record<string, string> = {
+  settler: 'a settler',
+  crew: 'a crew',
+  fish: 'a fish',
+  spice: 'a sack of spice',
+};
 
 /** What a ship or harbor settlement carries (Explorers & Pirates). */
 function Cargo({ x, y, props }: { x: number; y: number; props: Record<string, unknown> }) {
@@ -260,6 +269,11 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const pieces = Object.values(state.pieces);
   const color = (seat: number | null) =>
     seat === null ? '#444' : (theme.players[seat]?.color ?? '#999');
+  // Two-player duel rules: the neutral builders' pieces are white and black.
+  const pieceColor = (p: { owner: number | null; props: Record<string, unknown> }) =>
+    p.owner === null && typeof p.props.neutral === 'number'
+      ? (NEUTRAL_COLORS[p.props.neutral] ?? '#444')
+      : color(p.owner);
   const robberHex = pieces.find((p) => p.type === 'robber')?.at;
   const tb = state.data['traders-barbarians'] as
     | {
@@ -305,6 +319,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const fog = !!h.hidden || h.type === 'hidden';
         const type = fog ? 'hidden' : h.type;
         const shoal = type === 'shoal';
+        const robbed = robberHex?.kind === 'hex' && robberHex.id === h.id;
         const isSea = type === 'sea' || shoal;
         const lakeNumbers = type === 'fishingLake' ? ((h.props?.tokens as number[]) ?? []) : [];
         const c = hexToPixel(h.q, h.r, S);
@@ -414,6 +429,18 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 </text>
               </g>
             )}
+            {!isSea && !fog && (
+              <polygon
+                points={hexPoints(h.q, h.r)}
+                className="robber-dim"
+                fill="#14110f"
+                opacity={robbed ? 0.42 : 0}
+                pointerEvents="none"
+                aria-hidden={robbed ? undefined : true}
+              >
+                {robbed && <title>The robber is here: this hex produces nothing</title>}
+              </polygon>
+            )}
             {(barbarians[h.id] ?? 0) >= 3 && (
               <polygon
                 points={hexPoints(h.q, h.r)}
@@ -432,8 +459,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             {canal.has(h.id) && <CanalStretch hex={h} link={canal.get(h.id)!} S={S} />}
             {h.token && !fog && (barbarians[h.id] ?? 0) < 3 && (
               <g
-                className={rolled === h.token ? 'token hot' : 'token'}
-                opacity={dry && h.props?.farmland === true ? 0.55 : undefined}
+                className={`${rolled === h.token ? 'token hot' : 'token'}${robbed ? ' robbed' : ''}`}
+                opacity={(dry && h.props?.farmland === true) || robbed ? 0.55 : undefined}
               >
                 <circle
                   cx={c.x}
@@ -516,6 +543,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           </g>
         );
       })}
+
+      <LairMarkers state={state} S={S} color={color} />
 
       {pieces
         .filter((p) => p.at.kind === 'edge')
@@ -611,7 +640,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 y1={a.y + (b.y - a.y) * k}
                 x2={b.x - (b.x - a.x) * k}
                 y2={b.y - (b.y - a.y) * k}
-                stroke={color(p.owner)}
+                stroke={pieceColor(p)}
                 strokeWidth={S * 0.13}
                 strokeLinecap="round"
                 filter={fx}
@@ -998,12 +1027,15 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs('robber', `hex:${robberHex.id}`, x, y)}
             >
-              <ellipse cx={x} cy={y + S * 0.2} rx={S * 0.16} ry={S * 0.07} fill={theme.robber} />
-              <path
-                d={`M${x - S * 0.13},${y + S * 0.2} Q${x - S * 0.15},${y - S * 0.1} ${x},${y - S * 0.12} Q${x + S * 0.15},${y - S * 0.1} ${x + S * 0.13},${y + S * 0.2} z`}
-                fill={theme.robber}
-              />
-              <circle cx={x} cy={y - S * 0.2} r={S * 0.1} fill={theme.robber} />
+              {/* A pale rim keeps the robber visible on the dimmed hex. */}
+              <g stroke={theme.landStroke} strokeWidth={1.5} strokeOpacity={0.85}>
+                <ellipse cx={x} cy={y + S * 0.2} rx={S * 0.16} ry={S * 0.07} fill={theme.robber} />
+                <path
+                  d={`M${x - S * 0.13},${y + S * 0.2} Q${x - S * 0.15},${y - S * 0.1} ${x},${y - S * 0.12} Q${x + S * 0.15},${y - S * 0.1} ${x + S * 0.13},${y + S * 0.2} z`}
+                  fill={theme.robber}
+                />
+                <circle cx={x} cy={y - S * 0.2} r={S * 0.1} fill={theme.robber} />
+              </g>
               <title>Robber</title>
             </g>
           );
@@ -1145,7 +1177,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 <HouseShape
                   x={c.x}
                   y={c.y}
-                  color={color(p.owner)}
+                  color={pieceColor(p)}
                   city={p.type === 'city'}
                   theme={theme}
                 />
