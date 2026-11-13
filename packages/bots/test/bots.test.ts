@@ -43,6 +43,20 @@ describe('Bots', () => {
     expect(r.winner).not.toBeNull();
   }, 180_000);
 
+  it('plays Greed, Wealth & Power, river and all', () => {
+    const r = play(
+      game('g2', 4, 'gwp', { gwpRiver: true }),
+      [medium, medium, medium, medium],
+      7,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+    const built = (r.state.data['greed-wealth-power'] as { buildings?: Record<number, object> })
+      .buildings;
+    // Somebody put up a special building on the way.
+    expect(Object.values(built ?? {}).some((b) => Object.keys(b).length > 0)).toBe(true);
+  }, 180_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');
