@@ -398,6 +398,25 @@ const KNIGHT_NAME: Record<string, string> = {
   knight3: 'Mighty knight',
 };
 
+/** "Spot near 6, 9": a corner named by the numbers beside it. */
+function spotLabel(state: GameState | undefined, corner: unknown): string {
+  if (!state || typeof corner !== 'string') return 'A spot';
+  const near = cornerHexes(corner as CornerId)
+    .map((h) => state.hexes[h]?.token)
+    .filter((t): t is number => typeof t === 'number');
+  return near.length
+    ? `Spot near ${[...new Set(near)].sort((a, b) => a - b).join(', ')}`
+    : 'A spot';
+}
+
+const DIE_NAME: Record<string, string> = { red: 'red', yellow: 'yellow', event: 'event die' };
+
+/** Land Deeds on the board: a wall standing on an empty settlement spot. */
+export function deedMarkers(state: GameState): { corner: CornerId; owner: number }[] {
+  const d = state.data['greed-wealth-power'] as { deeds?: Record<number, CornerId> } | undefined;
+  return Object.entries(d?.deeds ?? {}).map(([seat, corner]) => ({ corner, owner: Number(seat) }));
+}
+
 /** "Strong knight by 6, 9": a knight named by the numbers beside it. */
 function knightLabel(state: GameState | undefined, id: unknown): string {
   const k = typeof id === 'string' ? state?.pieces[id] : undefined;
@@ -430,6 +449,8 @@ export function gwpOptionLabel(a: Action, names: string[], state?: GameState): s
     case 'ritualGive':
     case 'espionageTake':
       return card(a.card);
+    case 'passIndulgence':
+      return 'Let the roll stand';
     case 'keepProgress': {
       const pool = (state?.phase.pool as { card: string }[] | undefined) ?? [];
       return card(pool[a.index as number]?.card);
@@ -470,6 +491,13 @@ export function gwpOptionLabel(a: Action, names: string[], state?: GameState): s
       return `${n(a.target)}: give ${card(a.resource)}`;
     case 'tournament':
       return knightLabel(state, a.knight);
+    case 'indulgence':
+      return `Throw ${String(a.option)
+        .split('+')
+        .map((d) => DIE_NAME[d] ?? d)
+        .join(' + ')} again`;
+    case 'landDeed':
+      return spotLabel(state, a.option);
     case 'unicornMagic':
       return a.face === 'ship'
         ? 'Ship'
@@ -527,10 +555,29 @@ export function GwpChoices({
       );
     case 'espionage':
       return list(['espionageTake'], 'Espionage', 'The top card of each deck. Take one.');
+    case 'indulgence': {
+      const r = state.phase.roll as { red: number; yellow: number; event: string };
+      return list(
+        ['playProgress', 'passIndulgence'],
+        'Indulgence',
+        `${names[state.phase.roller as number] ?? 'A player'} rolled red ${r.red}, yellow ${r.yellow} and ${EVENT_NAME[r.event] ?? r.event} on the event die. Play your Indulgence to throw some of the dice again (the new throw is final), or let the roll stand.`,
+      );
+    }
     default:
       return null;
   }
 }
+
+const EVENT_NAME: Record<string, string> = {
+  ship: 'the ship',
+  wild: 'the ship and wild gate',
+  science: 'the Science gate',
+  trade: 'the Trade gate',
+  politics: 'the Politics gate',
+  magic: 'the Magic gate',
+  religion: 'the Religion gate',
+  wealth: 'the Wealth gate',
+};
 
 /** Board phases from the new cards: Summoning (a road, ship or knight) and River Naiad (two hexes). */
 export const GWP_CARD_BOARD_PHASES = ['summoning', 'riverNaiad'];
@@ -552,6 +599,8 @@ export function gwpCardPrompt(state: GameState, who: string, names: string[]): s
       return `${by} is keeping one card.`;
     case 'espionage':
       return `${who}: take the top card of one deck.`;
+    case 'indulgence':
+      return `${names[state.phase.roller as number] ?? 'A player'} rolled. Waiting on anyone who wants to play an Indulgence.`;
     default:
       return null;
   }

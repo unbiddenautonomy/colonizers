@@ -76,12 +76,10 @@ function settle(s: GameState, seed = 5): GameState {
 }
 
 describe('New progress cards', () => {
-  it('fills each deck to 26 cards, less the ones still to come', () => {
+  it('fills each deck to 26 cards', () => {
     const decks = game().decks;
-    // Indulgence and Land Deed come later.
-    const later: Record<string, number> = { religion: 2, wealth: 1 };
     for (const deck of ['science', 'trade', 'politics', 'magic', 'religion', 'wealth'])
-      expect(decks[deck]?.length, deck).toBe(26 - (later[deck] ?? 0));
+      expect(decks[deck]?.length, deck).toBe(26);
     expect(Object.keys(deckCards('magic')).length).toBeGreaterThan(5);
   });
 
@@ -106,8 +104,9 @@ describe('New progress cards', () => {
       expect(['main', 'roll', 'moveRobber'], card).toContain(s.phase.id);
       expect(progressCount(ctxOf(s), 0), card).toBeLessThanOrEqual(5);
     }
-    // Ghost Ship needs ships (Seafarers).
-    expect(skipped).toEqual(['ghostShip']);
+    // Ghost Ship needs ships (Seafarers). Indulgence waits for a roll, and Land Deed for a
+    // spot two roads out; both are in indulgence.test.ts.
+    expect(skipped).toEqual(['ghostShip', 'indulgence', 'landDeed']);
   });
 
   it('Witch’s Night takes a card from everyone else', () => {

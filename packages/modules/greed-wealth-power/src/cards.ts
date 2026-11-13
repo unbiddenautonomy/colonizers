@@ -35,6 +35,8 @@ import {
 import { MODULE_ID } from './constants.ts';
 import { dragonData, dragonGone, landDragon } from './dragon.ts';
 import { festivals, stopFestival } from './festival.ts';
+import { deedCheck, deedSpots, placeDeed } from './deed.ts';
+import { indulgenceTiming, playIndulgence, REROLLS } from './indulgence.ts';
 
 /**
  * Greed, Wealth & Power's new progress cards (besides the neutral pieces and
@@ -76,7 +78,7 @@ type Play = Action & {
   face?: string;
 };
 
-type When = 'main' | 'roll' | 'beforeOrAfter' | 'discard';
+type When = 'main' | 'roll' | 'beforeOrAfter' | 'discard' | 'indulgence';
 
 interface CardDef {
   deck: Track;
@@ -799,6 +801,16 @@ export const CARDS: Record<string, CardDef> = {
       ctx.emit({ type: 'banishment', player: a.player });
     },
   },
+  indulgence: {
+    deck: 'religion',
+    count: 2,
+    when: 'indulgence',
+    options: () => REROLLS.map((option) => ({ option })),
+    check: (_ctx, a) => (REROLLS.includes(a.option ?? '') ? null : 'Pick the dice to throw again'),
+    apply(ctx, a) {
+      playIndulgence(ctx, a.player, a.option as string);
+    },
+  },
   refuge: {
     deck: 'religion',
     count: 2,
@@ -811,6 +823,15 @@ export const CARDS: Record<string, CardDef> = {
   },
 
   // ---- Wealth ----
+  landDeed: {
+    deck: 'wealth',
+    count: 1,
+    options: (ctx, seat) => deedSpots(ctx, seat).map((option) => ({ option })),
+    check: (ctx, a) => deedCheck(ctx, a.player, a.option),
+    apply(ctx, a) {
+      placeDeed(ctx, a.player, a.option as CornerId);
+    },
+  },
   goldSmith: {
     deck: 'wealth',
     count: 1,
@@ -1018,6 +1039,8 @@ export function deckCards(deck: string): Record<string, number> {
 
 function timing(ctx: Ctx, a: Play, def: CardDef): string | null {
   const ph = ctx.state.phase;
+  if (def.when === 'indulgence') return indulgenceTiming(ctx, a.player);
+  if (ph.id === 'indulgence') return 'Not while a roll waits for an Indulgence';
   if (def.when === 'discard') {
     const owed = (ph.owed as Record<number, number> | undefined)?.[a.player];
     if (ph.id !== 'discard' || !owed || ph.skipRobber)
@@ -1042,9 +1065,11 @@ function checkCard(ctx: Ctx, a: Play): string | null {
 export function wrapCards(prev: ActionDef): ActionDef {
   return {
     ...prev,
-    phases: [...(prev.phases ?? []), 'discard'],
+    phases: [...(prev.phases ?? []), 'discard', 'indulgence'],
     check(ctx, a) {
-      return isGwpCard(a.card) ? checkCard(ctx, a as Play) : prev.check(ctx, a);
+      if (isGwpCard(a.card)) return checkCard(ctx, a as Play);
+      if (ctx.state.phase.id === 'indulgence') return 'Not while a roll waits for an Indulgence';
+      return prev.check(ctx, a);
     },
     apply(ctx, a) {
       if (!isGwpCard(a.card)) return prev.apply(ctx, a);
@@ -1055,7 +1080,7 @@ export function wrapCards(prev: ActionDef): ActionDef {
     enumerate(ctx, player) {
       const ph = ctx.state.phase.id;
       const out =
-        ph === 'discard'
+        ph === 'discard' || ph === 'indulgence'
           ? []
           : (prev.enumerate?.(ctx, player) ?? []).filter((a) => !isGwpCard(a.card));
       const seen = new Set<string>();

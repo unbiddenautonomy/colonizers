@@ -554,6 +554,13 @@ export function attack(ctx: Ctx): void {
 /** The roll action under ours (base, or base wrapped by Seafarers), by the wrapper we built. */
 export const rollBelow = new WeakMap<ActionDef, ActionDef>();
 
+/** For a module that wraps the roll again: keeps the link to the roll below Cities & Knights. */
+export function rewrapRoll(outer: ActionDef, inner: ActionDef): ActionDef {
+  const below = rollBelow.get(inner);
+  if (below) rollBelow.set(outer, below);
+  return outer;
+}
+
 /** The event die's faces: six by default, or an expansion's own die (`ckEventFaces`). */
 export function eventFaces(ctx: Ctx): readonly EventFace[] {
   return ctx.setting<EventFace[] | undefined>('ckEventFaces') ?? EVENT_FACES;
