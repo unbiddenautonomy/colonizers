@@ -249,6 +249,30 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `The ${nameOf(e.by as string).name} chased the ${nameOf(e.piece as string).name} away.`;
     case 'neutralYield':
       return `${n(e.player)}'s ${nameOf(e.piece as string).name} brought ${cards(e.got as Record<string, number>)}.`;
+    case 'tradingPost':
+      return `${n(e.player)}'s Trading Post gave back ${cards(e.got as Record<string, number>)}.`;
+    case 'knightRemoved':
+      return `${n(e.player)} gave up a knight at the Stone Circle.`;
+    case 'knightsDeactivated':
+      return `${n(e.player)} sent a Bad Omen: ${n(e.target)}'s knights stand down.`;
+    case 'banishment':
+      return `${n(e.player)} banished the neutral pieces.`;
+    case 'missionary':
+      return `${n(e.player)} sent a Missionary to ${n(e.target)}, who lost ${e.lost as number} card(s).`;
+    case 'summoned':
+      return `${n(e.player)} summoned away ${n(e.owner)}'s ${String(e.piece).startsWith('knight') ? 'knight' : (e.piece as string)}.`;
+    case 'brothel':
+      return e.paid
+        ? `${n(e.player)} paid ${n(e.to)} 1 ${nameOf(e.paid as string).name}.`
+        : `${n(e.player)} refused ${n(e.to)}, and their knights stand down.`;
+    case 'intimidation':
+      return `${n(e.player)} played Intimidation and keeps their cards.`;
+    case 'progressTaken':
+      return `${n(e.player)} took a progress card from ${n(e.from)}.`;
+    case 'progressGiven':
+      return `${n(e.player)} gave ${n(e.to)} a progress card.`;
+    case 'honorParade':
+      return `🎺 ${n(e.player)} held an Honor Parade: every knight is active.`;
     case 'heroOfCatan':
       return `🦸 ${n(e.player)} has a level 4 knight: Hero of Catan, +1 point!`;
     case 'barbariansAdvance':

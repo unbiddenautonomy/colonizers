@@ -25,6 +25,16 @@ import {
   type Building,
 } from './constants.ts';
 import {
+  astrolabeCost,
+  cardActions,
+  deckCards,
+  exchangeRatio,
+  kontorRatio,
+  settleCardEffects,
+  wispYield,
+  wrapCards,
+} from './cards.ts';
+import {
   crownHeroes,
   dukeStrength,
   neutralActions,
@@ -324,9 +334,13 @@ export const greedWealthPowerModule: GameModule = {
   settings: SETTINGS,
   cardTypes: Object.fromEntries(GWP_COMMODITIES.map((c) => [c, commodity])),
   decks: {
-    magic: { cards: () => ({ wizard: NEUTRAL_CARDS.wizard }) },
-    religion: { cards: () => ({ inquisitor: NEUTRAL_CARDS.inquisitor }) },
-    wealth: { cards: () => ({ envoy: NEUTRAL_CARDS.envoy }) },
+    magic: { cards: () => ({ wizard: NEUTRAL_CARDS.wizard, airship: 1, ...deckCards('magic') }) },
+    religion: {
+      cards: () => ({ inquisitor: NEUTRAL_CARDS.inquisitor, relic: 1, ...deckCards('religion') }),
+    },
+    wealth: {
+      cards: () => ({ envoy: NEUTRAL_CARDS.envoy, belovedPrince: 1, ...deckCards('wealth') }),
+    },
   },
   pieceTypes: Object.fromEntries(NEUTRALS.map((n) => [n, { on: 'hex' as const }])),
   costs: {
@@ -336,9 +350,9 @@ export const greedWealthPowerModule: GameModule = {
     monument: { ore: 1, brick: 1 },
     silo: { brick: 1, lumber: 1 },
   },
-  actions: { buildGwp, beerTrade, beerKnight, ...neutralActions },
+  actions: { buildGwp, beerTrade, beerKnight, ...neutralActions, ...cardActions },
   wrapActions: {
-    playProgress: wrapPlayProgress,
+    playProgress: (prev) => wrapCards(wrapPlayProgress(prev)),
     // Science and Religion level 3 together: the Aqueduct pick can be a Beer instead.
     aqueductPick: (prev): ActionDef => ({
       ...prev,
@@ -368,21 +382,22 @@ export const greedWealthPowerModule: GameModule = {
   hooks: {
     init(ctx) {
       gwpData(ctx);
-      // The Duke and Scholar join the Cities & Knights decks.
-      for (const [deck, card] of [
-        ['politics', 'duke'],
-        ['science', 'scholar'],
-      ] as const) {
+      // New cards join the Cities & Knights decks.
+      const added: Record<string, Record<string, number>> = {
+        politics: { duke: NEUTRAL_CARDS.duke, ...deckCards('politics') },
+        science: { scholar: NEUTRAL_CARDS.scholar, ...deckCards('science') },
+        trade: { hansaLeague: 1, ...deckCards('trade') },
+      };
+      for (const [deck, extra] of Object.entries(added)) {
         const cards = ctx.state.decks[deck];
         if (!cards) continue;
-        ctx.state.decks[deck] = ctx.rng.shuffle([
-          ...cards,
-          ...Array<string>(NEUTRAL_CARDS[card]).fill(card),
-        ]);
+        const more = Object.entries(extra).flatMap(([c, n]) => Array<string>(n).fill(c));
+        ctx.state.decks[deck] = ctx.rng.shuffle([...cards, ...more]);
       }
     },
     afterAction(ctx) {
       dropLostBuildings(ctx);
+      settleCardEffects(ctx);
       const paid = neutralYield(ctx);
       brewBeer(ctx, paid);
       syncInquisitor(ctx);
@@ -396,7 +411,7 @@ export const greedWealthPowerModule: GameModule = {
       return value + neutralVp(ctx, seat);
     },
     hexYield(ctx, hex, piece, value) {
-      if (piece.type !== 'city' || piece.owner === null) return value;
+      if (piece.type !== 'city' || piece.owner === null) return wispYield(ctx, hex, piece, value);
       const mine = buildingsOf(ctx, piece.owner);
       const produces = ctx.registry.hexTypes[hex.type]?.produces;
       const v: Cards = { ...value };
@@ -421,11 +436,13 @@ export const greedWealthPowerModule: GameModule = {
         }
       }
       for (const k of Object.keys(v)) if (!v[k]) delete v[k];
-      return v;
+      return wispYield(ctx, hex, piece, v);
     },
+    tradeRatio: kontorRatio,
+    cost: astrolabeCost,
     swapRatio(ctx, seat, give, get, value) {
-      if (!isResource(give) || !isResource(get)) return value;
-      let best = value;
+      let best = exchangeRatio(ctx, seat, give, get, value);
+      if (!isResource(give) || !isResource(get)) return best;
       // Magic Kitchen: brick for any other resource, 1:1.
       if (give === 'brick' && hasAbility(ctx, seat, 'magic')) best = Math.min(best, 1);
       // Marketplace: any resource for another, 2:1.

@@ -78,6 +78,9 @@ import {
 } from './ExplorersPirates.tsx';
 import {
   GWP_BOARD_PHASES,
+  GWP_CARD_BOARD_PHASES,
+  GwpChoices,
+  gwpCardPrompt,
   GWP_HAND,
   GWP_MODES,
   GwpActions,
@@ -197,7 +200,11 @@ function targetsFor(
     const k = typeof id === 'string' ? state.pieces[id] : undefined;
     return k?.at.kind === 'corner' ? k.at.id : null;
   };
-  if (CK_BOARD_PHASES.includes(ph) || GWP_BOARD_PHASES.includes(ph)) {
+  if (
+    CK_BOARD_PHASES.includes(ph) ||
+    GWP_BOARD_PHASES.includes(ph) ||
+    GWP_CARD_BOARD_PHASES.includes(ph)
+  ) {
     for (const a of legal) {
       if (typeof a.corner === 'string') t.corners.set(a.corner as CornerId, a);
       else if (typeof a.edge === 'string') t.edges.set(a.edge as EdgeId, a);
@@ -359,6 +366,7 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
         tbPrompt(state, who ?? '', actor) ??
         ckPrompt(state, who ?? '', actor) ??
         gwpPhasePrompt(state, who ?? '') ??
+        gwpCardPrompt(state, who ?? '', names) ??
         ''
       );
   }
@@ -1281,6 +1289,9 @@ export function Game({
 
       {ck && actor !== null && (
         <CkChoices state={state} actor={actor} legal={legal} act={act} names={promptNames} />
+      )}
+      {ck && actor !== null && (
+        <GwpChoices state={state} legal={legal} act={act} names={promptNames} />
       )}
 
       {state.phase.id === 'steal' && legal.some((a) => a.type === 'steal') && (
