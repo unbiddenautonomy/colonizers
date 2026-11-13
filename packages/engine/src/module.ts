@@ -114,6 +114,8 @@ export interface Reducers {
   barbarianSafe(ctx: Ctx, player: number, value: boolean): boolean;
   /** The players who lose a city to this barbarian attack (C&K: the weakest, when Catan loses). */
   barbarianLosses(ctx: Ctx, defended: boolean, value: number[]): number[];
+  /** May this player receive progress cards from this deck? (Church: Religion needs a Diocese.) */
+  takesProgress(ctx: Ctx, player: number, deck: string, value: boolean): boolean;
 }
 
 export interface DiceResult {

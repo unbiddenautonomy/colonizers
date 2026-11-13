@@ -204,6 +204,7 @@ describe('Lobby', () => {
       greedWealthPower: false,
       worldWonders: false,
       civilisations: false,
+      church: false,
       turnTimer: 90,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,

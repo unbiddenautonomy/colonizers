@@ -109,6 +109,18 @@ import {
   civTargets,
   type CivMode,
 } from './Civilisations.tsx';
+import {
+  CHURCH_HAND,
+  ChurchActions,
+  ChurchChoices,
+  churchModePrompt,
+  churchOn,
+  churchPrompt,
+  ChurchStats,
+  churchTargets,
+  isChurchMode,
+  type ChurchMode,
+} from './Church.tsx';
 
 type Mode =
   | null
@@ -124,7 +136,8 @@ type Mode =
   | EpMode
   | GwpMode
   | CkMode
-  | CivMode;
+  | CivMode
+  | ChurchMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
@@ -137,6 +150,7 @@ const EVENT_ICON: Record<string, string> = {
   magic: '🟣',
   religion: '🔴',
   wealth: '🟠',
+  joker: '🃏',
 };
 
 /** Road or ship action types for the current step, when the step places one of them. */
@@ -183,6 +197,7 @@ function targetsFor(
     return gwpTargets(legal, mode as GwpMode, selectedShip, state);
   if (mode && state.phase.id === 'main' && (CIV_MODES as readonly string[]).includes(mode))
     return civTargets(legal, mode as CivMode, selectedShip);
+  if (state.phase.id === 'main' && isChurchMode(mode)) return churchTargets(legal, mode);
   const want = new Set<string>();
   const ph = state.phase.id;
   const pair = edgeChoices(state);
@@ -374,6 +389,7 @@ function prompt(
       return `${who}: place a free ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} (${state.phase.remaining as number} left).`;
     case 'main':
       if (mode && GWP_MODES.includes(mode)) return gwpPrompt(who ?? '', mode, null) ?? '';
+      if (isChurchMode(mode)) return churchModePrompt(who ?? '', mode);
       if (mode === 'tbMove') return `${who}: ${TB_MOVE_PROMPT}`;
       if (mode === 'wagon') return `${who}: ${WAGON_PROMPT}`;
       if (mode === 'moveShip')
@@ -407,6 +423,7 @@ function prompt(
         gwpPhasePrompt(state, who ?? '') ??
         wonderPrompt(state, names) ??
         gwpCardPrompt(state, who ?? '', names) ??
+        churchPrompt(state, who ?? '', actor) ??
         ''
       );
   }
@@ -483,6 +500,7 @@ export function Game({
   const gwp = state.modules.includes('greed-wealth-power');
   const wonders = wondersOn(state);
   const civs = civsOn(state);
+  const church = churchOn(state);
   const cardKinds = handCards(state.modules);
   const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
@@ -605,7 +623,7 @@ export function Game({
     };
   }, [myMove, online]);
 
-  const errorPage = g.error ? pageForError(g.error) : null;
+  const errorPage = g.error ? pageForError(g.error, state.modules) : null;
 
   // Keyboard shortcuts on desktop: each button names its key in data-shortcut.
   useEffect(() => {
@@ -762,6 +780,7 @@ export function Game({
                   <>
                     <CkPlayerStats ctx={ctx} seat={p.seat} />
                     {gwp && <GwpPlayerStats ctx={ctx} seat={p.seat} />}
+                    {church && <ChurchStats ctx={ctx} seat={p.seat} />}
                   </>
                 ) : ep ? (
                   <EpPlayerStats ctx={ctx} seat={p.seat} />
@@ -874,7 +893,10 @@ export function Game({
                     />
                   ))}
                   {ck && (
-                    <CommodityCards hand={state.players[actor]!.hand} extra={gwp ? GWP_HAND : []} />
+                    <CommodityCards
+                      hand={state.players[actor]!.hand}
+                      extra={gwp ? GWP_HAND : church ? CHURCH_HAND : []}
+                    />
                   )}
                   {ep && (
                     <ResourceCard
@@ -1056,6 +1078,19 @@ export function Game({
                   actor={actor}
                   legal={legal}
                   act={act}
+                  setMode={(m) => {
+                    setSelectedShip(null);
+                    setMode(m);
+                  }}
+                />
+              )}
+              {church && myTurnMain && (
+                <ChurchActions
+                  ctx={ctx}
+                  actor={actor}
+                  legal={legal}
+                  act={act}
+                  mode={mode}
                   setMode={(m) => {
                     setSelectedShip(null);
                     setMode(m);
@@ -1376,6 +1411,9 @@ export function Game({
       )}
       {ck && actor !== null && (
         <GwpChoices state={state} legal={legal} act={act} names={promptNames} />
+      )}
+      {church && actor !== null && (
+        <ChurchChoices state={state} legal={legal} act={act} names={promptNames} />
       )}
 
       {state.phase.id === 'steal' && legal.some((a) => a.type === 'steal') && (

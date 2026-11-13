@@ -14,6 +14,7 @@ import {
   canPlaceKnight,
   ckData,
   continueRoll,
+  gateDraws,
   displaceTargets,
   drawProgress,
   cityAtRisk,
@@ -467,6 +468,26 @@ const pickWildCard = action<{ deck: Track }>({
   },
 });
 
+/** A joker on the event die: the roller picks the track, then that gate opens for everyone. */
+const pickJoker = action<{ deck: Track }>({
+  phases: ['jokerPick'],
+  check(ctx, a) {
+    if (!owes(ctx, a.player)) return 'Not your pick';
+    return activeTracks(ctx).includes(a.deck) ? null : 'Pick a track';
+  },
+  apply(ctx, a) {
+    const d = ckData(ctx);
+    d.pendingJoker = null;
+    ctx.emit({ type: 'jokerPicked', player: a.player, deck: a.deck });
+    gateDraws(ctx, a.deck, d.wildRed);
+    continueRoll(ctx);
+  },
+  enumerate(ctx, player) {
+    if (!owes(ctx, player)) return [];
+    return activeTracks(ctx).map((deck) => ({ type: 'pickJoker', player, deck }));
+  },
+});
+
 interface ProgressDiscardPhase extends OwedPhase {
   returnTo: Phase;
 }
@@ -552,6 +573,7 @@ export const knightActions: Record<string, ActionDef> = {
   pillageCity,
   pickDefenderCard,
   pickWildCard,
+  pickJoker,
   returnProgress,
   aqueductPick,
 };

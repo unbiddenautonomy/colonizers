@@ -96,6 +96,18 @@ describe('Bots', () => {
     expect(Object.keys(d.civ)).toHaveLength(4);
   }, 240_000);
 
+  it('plays Church, Faith & Reformation', () => {
+    const r = play(
+      game('kg1', 4, 'ck', { vpTarget: 15 }, ['church']),
+      [medium, medium, medium, medium],
+      7,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+    const d = r.state.data.church as { diocese: Record<number, string> };
+    expect(Object.keys(d.diocese).length).toBeGreaterThan(0);
+  }, 240_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');
