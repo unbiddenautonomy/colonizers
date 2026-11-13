@@ -141,6 +141,7 @@ const SAFE_ORDER = [
   'inventorPick',
   'medicineCity',
   'merchantHex',
+  'passIndulgence',
   'placeNeutral',
   'placeDamsel',
   'brothelAnswer',

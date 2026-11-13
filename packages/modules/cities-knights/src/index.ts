@@ -201,6 +201,8 @@ export {
   commoditiesIn,
   drawProgress,
   eventFaces,
+  rollEventDie,
+  rewrapRoll,
   gateOpen,
   defenseStrength,
   displaceTargets,

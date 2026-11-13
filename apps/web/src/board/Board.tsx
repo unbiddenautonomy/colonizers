@@ -20,7 +20,12 @@ import {
   farmlandDry,
   GoldRiver,
 } from './CanalArt.tsx';
-import { buildingMarkers, GWP_ICON, neutralMarkers } from '../screens/GreedWealthPower.tsx';
+import {
+  buildingMarkers,
+  deedMarkers,
+  GWP_ICON,
+  neutralMarkers,
+} from '../screens/GreedWealthPower.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 
@@ -1071,6 +1076,30 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               {GWP_ICON[m.building]}
             </text>
             <title>{m.label}</title>
+          </g>
+        );
+      })}
+
+      {deedMarkers(state).map((m) => {
+        const k = cornerToPixel(m.corner, S);
+        const w = S * 0.3;
+        const h = S * 0.14;
+        const notch = w / 5;
+        // A short wall with three merlons, in the owner's colour.
+        const d = `M${k.x - w / 2},${k.y + h / 2} v${-h} h${notch} v${-h * 0.6} h${notch} v${h * 0.6} h${notch} v${-h * 0.6} h${notch} v${h * 0.6} h${notch} v${h} z`;
+        return (
+          <g key={`deed-${m.owner}`} className="gwp-deed" filter="url(#lift)">
+            <circle
+              cx={k.x}
+              cy={k.y}
+              r={S * 0.24}
+              fill="none"
+              stroke={color(m.owner)}
+              strokeWidth={2}
+              strokeDasharray="3 3"
+            />
+            <path d={d} fill={color(m.owner)} stroke={theme.outline} strokeWidth={1.2} />
+            <title>Land Deed: this spot is held for its owner</title>
           </g>
         );
       })}

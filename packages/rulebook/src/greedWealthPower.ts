@@ -196,10 +196,22 @@ const CARDS: CardGlossaryEntry[] = [
     'Take every neutral piece off the board and send the robber to the desert.',
   ),
   card(
+    'indulgence',
+    'religion',
+    'Indulgence',
+    'Right after any roll, yours or another player’s, before anything is worked out: throw any of the dice again. The new throw is final.',
+  ),
+  card(
     'refuge',
     'religion',
     'Refuge',
     'Before or after rolling: your cities can’t be lost in the next barbarian attack.',
+  ),
+  card(
+    'landDeed',
+    'wealth',
+    'Land Deed',
+    'Put one of your city walls on an empty settlement spot beside your road. Nobody else can settle on or next to it, and it still adds to your hand limit. The wall comes back when you next build a settlement, anywhere.',
   ),
   card(
     'goldSmith',
@@ -374,7 +386,9 @@ export const greedWealthPowerRules: RulebookModule = {
     reformation: { name: 'Reformation', icon: '📜' },
     badOmen: { name: 'Bad Omen', icon: '🌑' },
     banishment: { name: 'Banishment', icon: '🚫' },
+    indulgence: { name: 'Indulgence', icon: '📿' },
     refuge: { name: 'Refuge', icon: '⛪' },
+    landDeed: { name: 'Land Deed', icon: '📜' },
     goldSmith: { name: 'Gold Smith', icon: '💍' },
     honorParade: { name: 'Honor Parade', icon: '🎺' },
     brickworks: { name: 'Brickworks', icon: '🧱' },
@@ -413,7 +427,7 @@ export const greedWealthPowerRules: RulebookModule = {
 - You can own only **one** of the Science, Magic and Religion metropolises. Once you own one, the other two of those tracks stop at level 3.
 - The event die has **12 faces**: 4 ships, 2 ships with a **wild gate**, and a gate for each of the six tracks. On a wild gate the barbarians move first, then everyone in turn draws one card from **any deck** their levels open for the red die.
 
-The new commodities only come from cities next to a special building (see Special buildings), but you can always trade for them and build any track with them. Each deck has **26 progress cards**: the five new **neutral pieces** (see Neutral pieces) and the other new cards are listed in the card glossary. A few cards are played at a different moment than printed: **Refuge** is played on your turn ahead of the attack, and **Magic Current** can't push the ship onto Catan. **Alliance** and **Lent** are also played on your own turn, ahead of time. Indulgence and Land Deed come in a later update.
+The new commodities only come from cities next to a special building (see Special buildings), but you can always trade for them and build any track with them. Each deck has **26 progress cards**: the five new **neutral pieces** (see Neutral pieces) and the other new cards are listed in the card glossary. A few cards are played at a different moment than printed: **Refuge** is played on your turn ahead of the attack, and **Magic Current** can't push the ship onto Catan. **Alliance** and **Lent** are also played on your own turn, ahead of time. When a roll is made and someone holds an **Indulgence**, the dice wait until they play it or let the roll stand. So the wait does show that someone holds one.
 
 The rules are lightningserpent's (GWP 1.0); we credit the authors of the expansions it builds on in the manual.`,
     },

@@ -299,6 +299,14 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return typeof e.stopped === 'number'
         ? `🐦‍⬛ ${n(e.stopped)} broke up ${n(e.player)}'s Beer festival.`
         : `🍻 ${n(e.player)}'s Beer festival is over.`;
+    case 'rollHeld':
+      return `🎲 ${n(e.player)} rolled ${Number(e.red) + Number(e.yellow)}: waiting on any Indulgence.`;
+    case 'indulgence':
+      return `📿 ${n(e.player)} played an Indulgence and threw ${(e.dice as string[]).join(' + ')} again.`;
+    case 'landDeed':
+      return `📜 ${n(e.player)} holds a settlement spot with a Land Deed.`;
+    case 'landDeedUsed':
+      return `📜 ${n(e.player)} built a settlement: the Land Deed's wall comes back.`;
     case 'heroOfCatan':
       return `🦸 ${n(e.player)} has a level 4 knight: Hero of Catan, +1 point!`;
     case 'barbariansAdvance':
