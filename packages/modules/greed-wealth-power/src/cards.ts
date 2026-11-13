@@ -34,6 +34,7 @@ import {
 } from '@colonizers/module-cities-knights';
 import { MODULE_ID } from './constants.ts';
 import { dragonData, dragonGone, landDragon } from './dragon.ts';
+import { festivals, stopFestival } from './festival.ts';
 
 /**
  * Greed, Wealth & Power's new progress cards (besides the neutral pieces and
@@ -495,8 +496,10 @@ export const CARDS: Record<string, CardDef> = {
   ravenFlight: {
     deck: 'magic',
     count: 3,
-    options: () => [{ option: 'desert' }, { option: 'grain' }],
+    options: () => [{ option: 'desert' }, { option: 'grain' }, { option: 'festival' }],
     check(ctx, a) {
+      if (a.option === 'festival')
+        return festivals(ctx).length ? null : 'There is no Beer festival going';
       if (a.option === 'desert') {
         const at = robber(ctx)?.at;
         const d = deserts(ctx);
@@ -511,6 +514,10 @@ export const CARDS: Record<string, CardDef> = {
       return 'Pick one';
     },
     apply(ctx, a) {
+      if (a.option === 'festival') {
+        stopFestival(ctx, a.player);
+        return;
+      }
       if (a.option === 'desert') {
         const r = robber(ctx);
         const to = deserts(ctx)[0] as HexId;
