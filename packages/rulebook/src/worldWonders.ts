@@ -45,6 +45,8 @@ export const worldWondersRules: RulebookModule = {
 - **Stages:** a wonder goes up in four stages, in order. You can build **one stage a turn**, across all your wonders. Each stage costs resources, shown in the Wonders list and on the cost card.
 - **What you get:** each stage gives an ability or points. A finished wonder is worth **3 points** in all.
 - **The robber:** while the robber, the pirate or a dragon stands on a wonder's hex, nobody can build it further. Its abilities still work.
+- **Throwing again:** with the Colosseum's or Machu Picchu's third stage, your roll waits before anything is worked out, so you can throw again or keep it. The second throw is final. With Cities & Knights only the red and yellow dice are thrown again.
+- **Resources of your choice** (the Pyramids' Nile Delta, Chichen Itza's Mayan Geometry) wait for you: take them whenever you like.
 - **Winning:** you need a **finished wonder** to win, as well as the points. The host can switch this off under World Wonders when setting up the game.
 
 Tap **🏛️ Wonders** to see every wonder, who is building it, and what it needs.`,

@@ -91,7 +91,13 @@ import {
   gwpTargets,
   type GwpMode,
 } from './GreedWealthPower.tsx';
-import { WonderPanel, WonderStats, wondersOn } from './WorldWonders.tsx';
+import {
+  WonderChoices,
+  WonderPanel,
+  wonderPrompt,
+  WonderStats,
+  wondersOn,
+} from './WorldWonders.tsx';
 
 type Mode =
   | null
@@ -372,6 +378,7 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
         tbPrompt(state, who ?? '', actor) ??
         ckPrompt(state, who ?? '', actor) ??
         gwpPhasePrompt(state, who ?? '') ??
+        wonderPrompt(state, names) ??
         gwpCardPrompt(state, who ?? '', names) ??
         ''
       );
@@ -1313,6 +1320,9 @@ export function Game({
 
       {ck && actor !== null && (
         <CkChoices state={state} actor={actor} legal={legal} act={act} names={promptNames} />
+      )}
+      {wonders && actor !== null && (
+        <WonderChoices state={state} ctx={ctx} actor={actor} legal={legal} act={act} />
       )}
       {ck && actor !== null && (
         <GwpChoices state={state} legal={legal} act={act} names={promptNames} />

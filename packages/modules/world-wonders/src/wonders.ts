@@ -98,6 +98,7 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Nile Delta',
         { grain: 1, lumber: 2, wool: 1 },
         'On a 7, each desert beside one of your buildings gives you a resource of your choice.',
+        true,
       ),
       ability(
         'Isis, Goddess of Fertility',
@@ -173,6 +174,7 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Mesopotamian Lion',
         { brick: 1, lumber: 1, ore: 1, wool: 2 },
         'When you move the robber or pirate, also draw a progress or development card.',
+        true,
       ),
       vp('King Nebuchadnezzar', { grain: 2, lumber: 1, ore: 2 }, 2),
     ],
@@ -210,7 +212,8 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         'The Amazons of Ephesus',
         { grain: 1, lumber: 1, ore: 1 },
-        'When you roll a 7, you may take every roaming piece, like the merchant, off the board.',
+        'When you roll a 7, you may take the merchant and the other roaming pieces off the board.',
+        true,
       ),
       vp('Great Theater', { grain: 1, brick: 2, wool: 1 }, 1),
       ability(
@@ -233,12 +236,14 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Stronghold of the Persian Empire',
         { brick: 2, ore: 1, wool: 1 },
         'On a 7, you discard only half of what you would.',
+        true,
       ),
       vp('Herodotus, the Father of History', { grain: 2, lumber: 2 }, 1),
       ability(
         'Siege of Halicarnassus',
         { grain: 1, brick: 1, lumber: 1, ore: 2 },
-        'When you roll a 6 or 8, you may also move the robber, pirate or dragon.',
+        'When you roll a 6 or 8, you may also move the robber or pirate.',
+        true,
       ),
       vp("Artemisia's Grief for Mausolus", { grain: 1, brick: 1, lumber: 1, wool: 2 }, 2),
     ],
@@ -261,6 +266,7 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Praias de Ipanema e Copacabana',
         { grain: 2, ore: 2, wool: 1 },
         'On a 7, the land hexes of your bay produce for you.',
+        true,
       ),
       vp('Carnaval do Rio', { grain: 1, brick: 1, ore: 1, wool: 2 }, 2),
     ],
@@ -304,7 +310,8 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         "Emperor Titus' Dictate",
         { grain: 2, brick: 1, lumber: 1, wool: 1 },
-        'Once on each of your turns, roll the dice again.',
+        'Once on each of your turns, throw the two number dice again.',
+        true,
       ),
       vp('Gladiator Games', { grain: 1, ore: 2, wool: 2 }, 2),
     ],
@@ -367,6 +374,7 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Mayan Geometry',
         { brick: 1, ore: 1, wool: 1 },
         'When a 1 and 2 or a 1 and 3 is rolled, take a resource of your choice.',
+        true,
       ),
       vp('Temple to Kukulkan', { brick: 1, lumber: 2, ore: 1 }, 1),
       ability(
@@ -395,7 +403,8 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         'Piedra Intihuatana',
         { brick: 1, lumber: 1, ore: 2, wool: 1 },
-        'When you roll doubles, you may roll one, two or all of the dice again.',
+        'When you roll doubles, you may throw one or both number dice again.',
+        true,
       ),
       vp('Montaña de Siete Colores', { grain: 1, brick: 2, ore: 1, wool: 1 }, 2),
     ],

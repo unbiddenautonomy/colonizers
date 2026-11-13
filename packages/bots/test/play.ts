@@ -52,9 +52,9 @@ export function game(
     players: names,
     modules: [
       'base',
-      ...extra,
       ...(ck ? ['cities-knights'] : []),
       ...(gwp ? ['greed-wealth-power'] : []),
+      ...extra,
     ],
     map: b.map,
     settings: { vpTarget: gwp ? 18 : ck ? 13 : 10, ...settings },

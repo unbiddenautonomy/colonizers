@@ -317,6 +317,24 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `${WONDERS[e.wonder as WonderId]?.icon ?? '🏛️'} ${n(e.player)} swapped ${cards(e.gave as Record<string, number>)} for ${cards(e.got as Record<string, number>)}.`;
     case 'wonderHarvest':
       return `🛕 ${n(e.player)} made an offering to Chaac, and a hex produced.`;
+    case 'wonderDiceHeld':
+      return null;
+    case 'wonderReroll':
+      return `${WONDERS[e.wonder as WonderId]?.icon ?? '🎲'} ${n(e.player)} threw again: ${e.a} and ${e.b}.`;
+    case 'wonderPicks':
+      return `${WONDERS[e.wonder as WonderId]?.icon ?? '🏛️'} ${n(e.player)} may take ${e.count === 1 ? 'a resource' : `${e.count} resources`} of their choice.`;
+    case 'wonderPick':
+      return `${n(e.player)} took ${cards({ [e.card as string]: 1 })}.`;
+    case 'wonderBay':
+      return `✝️ The bay produced for ${n(e.player)}: ${cards(e.got as Record<string, number>)}.`;
+    case 'wonderDiscard':
+      return `🏛️ The Mausoleum: ${n(e.player)} discards ${e.to} instead of ${e.from}.`;
+    case 'wonderSiege':
+      return `🏛️ ${n(e.player)} rolled a 6 or 8 and moves the robber.`;
+    case 'wonderSweep':
+      return `🏹 ${n(e.player)} swept the roaming pieces off the board.`;
+    case 'wonderDraw':
+      return `🌿 ${n(e.player)} drew a card for moving the robber.`;
     case 'wonderEcho':
       return `🏜️ Petra: ${n(e.player)} also collected ${cards(e.got as Record<string, number>)} from their ${e.echo}s.`;
     case 'landDeed':
