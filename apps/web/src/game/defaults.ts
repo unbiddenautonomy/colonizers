@@ -11,7 +11,16 @@ const TB_VP_BONUS: Record<string, number> = {
 };
 
 /** Maps with no robber at all, where robber options mean nothing. */
-const NO_ROBBER = new Set(['barbarians', 'traders', 'desert-dragons', 'land-ho']);
+const NO_ROBBER = new Set([
+  'barbarians',
+  'traders',
+  'desert-dragons',
+  'land-ho',
+  'pirate-lairs',
+  'fishing-grounds',
+  'spice-islands',
+  'full-voyage',
+]);
 
 /** Points added on top of the chosen target by Cities & Knights and the map. */
 export function vpBonus(citiesKnights: boolean, specialId: string | null): number {

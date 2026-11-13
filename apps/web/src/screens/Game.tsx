@@ -66,10 +66,12 @@ import {
   WAGON_PROMPT,
 } from './TradersBarbarians.tsx';
 import { TdaPlayerStats, TdaStatus } from './TreasuresDragons.tsx';
+import { DuelActions, duelPrompt, DuelStats, duelTargets, GiveBackDialog } from './Duel.tsx';
 import {
   EP_MODES,
   EpActions,
   EpPlayerStats,
+  EpStatus,
   epPrompt,
   epTargets,
   type EpMode,
@@ -125,7 +127,9 @@ function targetsFor(
   edgeKind: EdgeKind,
   selectedShip: string | null,
   bid: { wool: number; grain: number } = { wool: 0, grain: 0 },
+  neutral = 0,
 ): Targets {
+  if (state.phase.id === 'neutralBuild') return duelTargets(legal, neutral);
   const t: Targets = { corners: new Map(), edges: new Map(), hexes: new Map() };
   if (state.phase.id === 'eventPick' || state.phase.id === 'camelVote') {
     for (const a of legal) {
@@ -274,6 +278,8 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
     const ep = epPrompt(state, who ?? '', mode);
     if (ep) return ep;
   }
+  const duel = duelPrompt(state, who ?? '');
+  if (duel) return duel;
   switch (state.phase.id) {
     case 'setup':
       return (state.phase.step as string) === 'road'
@@ -425,6 +431,8 @@ export function Game({
   );
   const setCamelBid = (b: { wool: number; grain: number }) => setBidFor({ key: voteKey, ...b });
   const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
+  // Duel rules: which neutral builder gets the free piece.
+  const [neutral, setNeutral] = useState(0);
   const [privateHands, setPrivateHands] = useState(false);
   const [revealedFor, setRevealedFor] = useState<number | null>(null);
 
@@ -457,8 +465,10 @@ export function Game({
   const shipPick = mode === 'moveShip' || mode === 'sail' ? selectedShip : null;
   const targets = useMemo(
     () =>
-      actor === null ? noTargets : targetsFor(state, legal, mode, edgeKind, shipPick, camelBid),
-    [state, legal, mode, actor, edgeKind, shipPick, camelBid],
+      actor === null
+        ? noTargets
+        : targetsFor(state, legal, mode, edgeKind, shipPick, camelBid, neutral),
+    [state, legal, mode, actor, edgeKind, shipPick, camelBid, neutral],
   );
   const eventCard = (state.data.variants?.lastEvent ?? null) as {
     event: EventId;
@@ -475,8 +485,9 @@ export function Game({
       return;
     }
     if (g.act(a)) {
-      // A wagon moves one path at a time, and ships sail one after another, so those modes stay on.
-      if (a.type !== 'moveWagon' && a.type !== 'sailShip' && a.type !== 'boostShip') setMode(null);
+      // A wagon moves one path at a time, ships sail one after another and spice comes a
+      // sack at a time, so those modes stay on.
+      if (!['moveWagon', 'sailShip', 'boostShip', 'buySpice'].includes(a.type)) setMode(null);
       setSelectedShip(null);
     }
   };
@@ -674,6 +685,7 @@ export function Game({
                 )}
                 {tb && <TbPlayerStats ctx={ctx} seat={p.seat} viewer={seat ?? actor} />}
                 {tda && <TdaPlayerStats ctx={ctx} seat={p.seat} />}
+                <DuelStats ctx={ctx} seat={p.seat} />
                 <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
                 {data.longestRoad === p.seat && (
                   <span className="award">
@@ -697,6 +709,7 @@ export function Game({
         })}
         {ck && <BarbarianTrack ctx={ctx} />}
         {tda && <TdaStatus ctx={ctx} />}
+        {ep && <EpStatus ctx={ctx} />}
       </aside>
 
       <main className="board-wrap">
@@ -856,6 +869,18 @@ export function Game({
               🎲 Roll
             </button>
           )}
+          {actor !== null &&
+            actor === state.turn.player &&
+            (state.phase.id === 'neutralBuild' || myTurnMain) && (
+              <DuelActions
+                ctx={ctx}
+                actor={actor}
+                legal={legal}
+                act={act}
+                neutral={neutral}
+                setNeutral={setNeutral}
+              />
+            )}
           {ep && state.phase.id === 'sail' && actor === state.turn.player && (
             <EpActions
               ctx={ctx}
@@ -1177,6 +1202,16 @@ export function Game({
           owed={(state.phase.owed as Record<number, number>)[actor]!}
           cards={cardKinds}
           onDiscard={(cards) => act({ type: 'discard', player: actor, cards })}
+        />
+      )}
+
+      {state.phase.id === 'giveBack' && actor !== null && state.phase.player === actor && (
+        <GiveBackDialog
+          key={`${actor}-${state.seq}`}
+          name={online || humans === 1 ? 'You' : names[actor]!}
+          hand={state.players[actor]!.hand}
+          count={state.phase.count as number}
+          onGive={(cards) => act({ type: 'giveBack', player: actor, cards })}
         />
       )}
 

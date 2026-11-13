@@ -391,6 +391,29 @@ select {
   stroke-width: 5;
 }
 
+/* The hex under the robber fades out: it produces nothing while it is there. */
+.robber-dim,
+.token {
+  transition: opacity 0.35s ease;
+}
+
+/* A rolled number the robber sits on doesn't glow: nothing comes of it. */
+.token.hot.robbed circle:first-child {
+  stroke: #8d8d8d;
+}
+
+[data-motion='off'] .robber-dim,
+[data-motion='off'] .token {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robber-dim,
+  .token {
+    transition: none;
+  }
+}
+
 .target {
   cursor: pointer;
 }
