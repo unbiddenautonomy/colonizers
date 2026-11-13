@@ -29,6 +29,7 @@ import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { ThemePicker, useTheme } from '../theme/themes.tsx';
 import { DicePicker, DiceTray } from '../ui/Dice.tsx';
+import { ZoomPane } from '../ui/ZoomPane.tsx';
 import { CardFlights } from '../ui/Flights.tsx';
 import { MotionPicker } from '../ui/motion.tsx';
 import {
@@ -370,6 +371,9 @@ export function Game({
   const canControl = (s: number) => (!online && !bots[s]) || s === seat;
   const [chosenMode, setMode] = useState<Mode>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
+  // Phone layout: the controls sheet pulled up, and the header menu open.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   // The bid belongs to one vote; a fresh vote starts with no cards bid.
   const voteKey = `${state.turn.number}-${state.phase.id}`;
   const [bidFor, setBidFor] = useState({ key: '', wool: 0, grain: 0 });
@@ -465,6 +469,32 @@ export function Game({
 
   const errorPage = g.error ? pageForError(g.error) : null;
 
+  // Keyboard shortcuts on desktop: each button names its key in data-shortcut.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (e.key === 'Escape') {
+        setMode(null);
+        setSelectedShip(null);
+        setSheetOpen(false);
+        return;
+      }
+      const key = e.key.toLowerCase();
+      const btn = document.querySelector<HTMLButtonElement>(
+        `.game [data-shortcut="${CSS.escape(key)}"]:not(:disabled)`,
+      );
+      if (btn) {
+        e.preventDefault();
+        btn.click();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // "Your turn" when the turn passes to someone holding this screen.
   const turnCue = (s: number): string | null => {
     if (online) return s === seat ? 'Your turn' : null;
@@ -490,7 +520,16 @@ export function Game({
           {prompt(state, promptSeat, promptNames, mode)}
           {online?.deadline && state.winner === null && <TurnTimer deadline={online.deadline} />}
         </p>
-        <div className="head-actions">
+        <button
+          type="button"
+          className="icon menu-toggle"
+          aria-expanded={menuOpen}
+          aria-label="Menu"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          ☰
+        </button>
+        <div className={`head-actions${menuOpen ? ' open' : ''}`}>
           {online ? (
             <span className={`conn conn-${online.conn}`} title={`Room ${online.code}`}>
               {online.conn === 'open' ? `Room ${online.code}` : 'Reconnecting…'}
@@ -613,12 +652,14 @@ export function Game({
       </aside>
 
       <main className="board-wrap">
-        <Board
-          state={state}
-          targets={targets}
-          onAction={act}
-          rolled={state.phase.id === 'main' ? lastRoll?.total : null}
-        />
+        <ZoomPane>
+          <Board
+            state={state}
+            targets={targets}
+            onAction={act}
+            rolled={state.phase.id === 'main' ? lastRoll?.total : null}
+          />
+        </ZoomPane>
         {lastRoll && (
           <DiceTray
             dice={lastRoll.dice}
@@ -634,7 +675,15 @@ export function Game({
         )}
       </main>
 
-      <section className="controls" aria-label="Your turn">
+      <section className={`controls${sheetOpen ? ' open' : ''}`} aria-label="Your turn">
+        <button
+          type="button"
+          className="sheet-handle"
+          aria-expanded={sheetOpen}
+          onClick={() => setSheetOpen(!sheetOpen)}
+        >
+          {sheetOpen ? '▼ Less' : '▲ Hand, log and more'}
+        </button>
         {g.error && (
           <div className="error" role="alert">
             {g.error}
@@ -746,6 +795,8 @@ export function Game({
               type="button"
               className="primary"
               onClick={() => act({ type: 'roll', player: actor! })}
+              data-shortcut="r"
+              title="Roll (R)"
             >
               🎲 Roll
             </button>
@@ -768,6 +819,8 @@ export function Game({
                     disabled={!has(type)}
                     onClick={() => setMode(mode === m ? null : m)}
                     aria-pressed={mode === m}
+                    data-shortcut={m === 'road' ? 'd' : m === 'settlement' ? 's' : 'c'}
+                    title={`${m === 'road' ? 'Road (D)' : m === 'settlement' ? 'Settlement (S)' : 'City (C)'}`}
                   >
                     {m === 'road' ? 'Road' : m === 'settlement' ? 'Settlement' : 'City'}{' '}
                     <CostLine cost={ctx.cost(m, actor)} />
@@ -860,12 +913,20 @@ export function Game({
                   type="button"
                   disabled={!has('bankTrade')}
                   onClick={() => setDialog('bank')}
+                  data-shortcut="b"
+                  title="Bank trade (B)"
                 >
                   Bank trade
                 </button>
               )}
               {myTurnMain && (
-                <button type="button" disabled={!!offer} onClick={() => setDialog('offer')}>
+                <button
+                  type="button"
+                  disabled={!!offer}
+                  onClick={() => setDialog('offer')}
+                  data-shortcut="t"
+                  title="Offer trade (T)"
+                >
                   Offer trade
                 </button>
               )}
@@ -880,6 +941,8 @@ export function Game({
                   className="primary"
                   disabled={!has('endTurn')}
                   onClick={() => act({ type: 'endTurn', player: actor })}
+                  data-shortcut="e"
+                  title="End turn (E)"
                 >
                   End turn
                 </button>
