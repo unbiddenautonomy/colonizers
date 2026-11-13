@@ -27,12 +27,15 @@ export function OptionsPanel({
   options,
   players,
   citiesKnights,
+  gwp = false,
   robber = true,
   onChange,
 }: {
   options: GameOptions;
   players: number;
   citiesKnights: boolean;
+  /** Greed, Wealth & Power is on: show its options. */
+  gwp?: boolean;
   /** False on maps with no robber: robber options are hidden. */
   robber?: boolean;
   onChange: (o: GameOptions) => void;
@@ -146,6 +149,15 @@ export function OptionsPanel({
           )}
         </div>
       )}
+      {gwp && (
+        <div className="option-group">
+          <h3 className="subhead">Greed, Wealth &amp; Power</h3>
+          {toggle(
+            'gwpRiver',
+            '🏞️ The river: swampland and three river hexes take the place of the desert, an ore, a brick and a wool hex. Monuments can stand on the river.',
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -240,7 +252,7 @@ export const PRESET_ICON: Record<string, string> = {
 };
 
 /** The options that differ from the standard rules, in words, for players who aren't the host. */
-export function describeOptions(o: GameOptions, players: number): string[] {
+export function describeOptions(o: GameOptions, players: number, gwp = false): string[] {
   const out: string[] = [];
   const mode = resolvedTurnMode(o, players);
   if (mode !== 'normal') out.push(TURN_MODE_NAME[mode]);
@@ -250,6 +262,7 @@ export function describeOptions(o: GameOptions, players: number): string[] {
   if (o.firstSettlementPays) out.push('Both starting settlements pay');
   if (o.harbormaster) out.push('Harbormaster');
   if (o.eventCards) out.push('Event cards');
+  if (gwp && o.gwpRiver) out.push('The river (Greed, Wealth & Power)');
   if (o.twoPlayer && players === 2) out.push('Duel rules');
   if (o.robberFreeRounds) out.push(`7s do nothing for ${o.robberFreeRounds} round(s)`);
   if (o.discardLimit !== 7) out.push(`Discard above ${o.discardLimit} cards`);

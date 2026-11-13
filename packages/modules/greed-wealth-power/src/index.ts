@@ -68,6 +68,7 @@ import {
   wizardUnblocks,
   wrapPlayProgress,
 } from './neutrals.ts';
+import { isRiver, layRiver, riverYield } from './river.ts';
 
 /**
  * Greed, Wealth & Power (lightningserpent's fan expansion for Cities & Knights),
@@ -90,6 +91,7 @@ import {
  */
 
 export * from './constants.ts';
+export { isRiver, isSwampland, riverGold, riverHexes } from './river.ts';
 export { FESTIVALS, festivals, type Festival, type FestivalKind } from './festival.ts';
 export {
   bonusCard,
@@ -153,7 +155,7 @@ const NAMES: Record<Building, string> = {
 export function hexFits(ctx: Ctx, building: Building, hex: HexId): boolean {
   const h = ctx.state.hexes[hex];
   if (!h || h.hidden) return false;
-  if (building === 'monument') return h.type === 'gold';
+  if (building === 'monument') return h.type === 'gold' || isRiver(h);
   return ctx.registry.hexTypes[h.type]?.produces === BUILDING_HEX[building];
 }
 
@@ -187,7 +189,7 @@ export function buildBlock(
     const where = {
       citadel: 'a brick hex',
       diocese: 'a grain hex',
-      monument: 'a gold field',
+      monument: ctx.setting<boolean>('gwpRiver') ? 'a gold field or a river hex' : 'a gold field',
       silo: 'a grain hex',
     };
     return `A ${name} goes on ${where[building]}`;
@@ -428,6 +430,7 @@ export const greedWealthPowerModule: GameModule = {
   hooks: {
     init(ctx) {
       gwpData(ctx);
+      layRiver(ctx);
       // New cards join the Cities & Knights decks.
       const added: Record<string, Record<string, number>> = {
         politics: { duke: NEUTRAL_CARDS.duke, ...deckCards('politics') },
@@ -492,7 +495,7 @@ export const greedWealthPowerModule: GameModule = {
         }
       }
       for (const k of Object.keys(v)) if (!v[k]) delete v[k];
-      return wispYield(ctx, hex, piece, v);
+      return wispYield(ctx, hex, piece, riverYield(ctx, piece.owner, hex, v));
     },
     tradeRatio: kontorRatio,
     cost: astrolabeCost,

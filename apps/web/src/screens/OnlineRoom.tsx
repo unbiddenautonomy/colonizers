@@ -238,7 +238,7 @@ function Lobby({
   const ck = (s.citiesKnights || needsCk) && !noCk;
   const gwp = ck && s.greedWealthPower && !specialPick;
   const bonus = vpBonus(ck, specialPick?.id ?? null, gwp);
-  const optionList = describeOptions(s.options, players.length);
+  const optionList = describeOptions(s.options, players.length, gwp);
   const map = s.map;
   const seaPick =
     map.kind === 'scenario' ? (SEA_SCENARIOS.find((x) => x.id === map.id) ?? null) : null;
@@ -547,6 +547,7 @@ function Lobby({
             options={s.options}
             players={Math.max(players.length, s.maxPlayers)}
             citiesKnights={ck}
+            gwp={gwp}
             robber={hasRobber(specialPick?.id ?? null)}
             onChange={(options) => set({ options })}
           />
