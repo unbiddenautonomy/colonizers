@@ -397,6 +397,40 @@ const ART: Record<string, Art> = {
       <path d="M47,40 v-10 a5,5 0 0 1 10,0 v10" fill={p.dark} />
     </>
   ),
+  quarry: (p) => (
+    <>
+      {rect(p.base)}
+      {/* Stepped terraces cut into the stone. */}
+      {[0, 1, 2, 3].map((i) => (
+        <path
+          key={i}
+          d={`M0,${8 + i * 30} H${30 + i * 8} V${20 + i * 30} H${W}`}
+          fill="none"
+          stroke={p.dark}
+          strokeWidth={2.4}
+        />
+      ))}
+      <rect x={60} y={14} width={20} height={12} fill={p.light} stroke={p.dark} strokeWidth={2} />
+      <rect x={70} y={26} width={22} height={12} fill={p.light} stroke={p.dark} strokeWidth={2} />
+      <rect x={14} y={92} width={18} height={11} fill={p.light} stroke={p.dark} strokeWidth={2} />
+    </>
+  ),
+  glassworks: (p) => (
+    <>
+      {rect(p.base)}
+      {/* A round furnace with a glowing mouth, and a bottle beside it. */}
+      <path d="M30,44 V24 a22,18 0 0 1 44,0 V44 z" fill={p.dark} />
+      <path d="M44,44 v-10 a8,8 0 0 1 16,0 v10 z" fill={p.accent ?? p.light} />
+      <rect x={56} y={2} width={8} height={10} fill={p.dark} />
+      <path
+        d="M84,30 v-8 h4 v8 q6,4 6,12 v4 h-16 v-4 q0,-8 6,-12 z"
+        fill={p.light}
+        stroke={p.dark}
+        strokeWidth={2}
+      />
+      <path d="M8,96 q10,-8 20,0 M76,100 q10,-8 20,0" stroke={p.light} strokeWidth={3} fill="none" />
+    </>
+  ),
   hidden: (p) => (
     <>
       {rect(p.base)}

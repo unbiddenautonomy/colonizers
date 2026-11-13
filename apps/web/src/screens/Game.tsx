@@ -28,6 +28,7 @@ import { partnerOf, type EventId } from '@colonizers/module-variants';
 import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { ThemePicker, useTheme } from '../theme/themes.tsx';
+import { DicePicker, DiceTray } from '../ui/Dice.tsx';
 import {
   CardPicker,
   clean,
@@ -59,6 +60,7 @@ import {
   TbPlayerStats,
   tbPrompt,
   TB_MOVE_PROMPT,
+  WAGON_PROMPT,
 } from './TradersBarbarians.tsx';
 
 type Mode =
@@ -71,6 +73,7 @@ type Mode =
   | 'bridge'
   | 'repair'
   | 'tbMove'
+  | 'wagon'
   | CkMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
@@ -125,6 +128,21 @@ function targetsFor(
   if (pair) want.add(edgeKind === 'ship' ? pair[1] : pair[0]);
   if (ph === 'setup' && (state.phase.step as string) !== 'road') want.add('placeSetupSettlement');
   if (ph === 'tbKnight') want.add('placeTbKnight');
+  if (ph === 'tbBarbarian') {
+    // Pick a barbarian (unless one was just driven off), then where it goes.
+    const pick = (state.phase.from as EdgeId | null) ?? selectedShip;
+    for (const a of legal) {
+      if (a.type !== 'moveEdgeBarbarian') continue;
+      if (pick === null)
+        t.edges.set(a.from as EdgeId, { type: 'selectKnight', player: a.player, knight: a.from });
+      else if (a.from === pick) t.edges.set(a.edge as EdgeId, a);
+    }
+    return t;
+  }
+  if (ph === 'main' && mode === 'wagon') {
+    want.add('moveWagon');
+    want.add('driveBarbarian');
+  }
   if (ph === 'moveRobber') {
     want.add('moveRobber');
     want.add('movePirate');
@@ -243,6 +261,7 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
       return `${who}: place a free ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} (${state.phase.remaining as number} left).`;
     case 'main':
       if (mode === 'tbMove') return `${who}: ${TB_MOVE_PROMPT}`;
+      if (mode === 'wagon') return `${who}: ${WAGON_PROMPT}`;
       if (mode === 'moveShip')
         return `${who}: tap the ship to move, then where it should sail. Tap the button again to cancel.`;
       if (mode === 'knightAct')
@@ -406,7 +425,8 @@ export function Game({
       return;
     }
     if (g.act(a)) {
-      setMode(null);
+      // A wagon moves one path at a time, so its mode stays on.
+      if (a.type !== 'moveWagon') setMode(null);
       setSelectedShip(null);
     }
   };
@@ -446,7 +466,10 @@ export function Game({
   return (
     <div className="game">
       <header className="game-head">
-        <h1 className="game-title">Colonizers</h1>
+        <h1 className="game-title brand">
+          <img className="brand-mark" src="/logo.svg" alt="" width="28" height="28" />
+          Colonizers
+        </h1>
         <p className="prompt" aria-live="polite">
           {promptSeat !== null && (
             <PlayerBadge
@@ -474,6 +497,7 @@ export function Game({
           )}
           <SoundToggle />
           <ThemePicker compact />
+          <DicePicker compact />
           <button
             type="button"
             className="icon help"
@@ -584,22 +608,17 @@ export function Game({
           rolled={state.phase.id === 'main' ? lastRoll?.total : null}
         />
         {lastRoll && (
-          <div className="dice" aria-label={`Last roll ${lastRoll.total}`}>
-            {Object.entries(lastRoll.dice).map(([name, d]) => (
-              <span
-                key={`${name}-${state.turn.number}-${lastRoll.total}`}
-                className={`die die-${name}`}
-                title={name}
-              >
-                {typeof d === 'number' ? d : (EVENT_ICON[d] ?? d)}
-              </span>
-            ))}
+          <DiceTray
+            dice={lastRoll.dice}
+            rollKey={`${state.turn.number}-${lastRoll.total}-${JSON.stringify(lastRoll.dice)}`}
+            icons={EVENT_ICON}
+          >
             {state.settings.eventCards === true && eventCard && (
               <span className="event-card" title="Event card">
                 {EVENT_NAME[eventCard.event]}
               </span>
             )}
-          </div>
+          </DiceTray>
         )}
       </main>
 
@@ -807,10 +826,11 @@ export function Game({
                   names={promptNames}
                   bridgeMode={mode === 'bridge'}
                   toggleBridge={() => setMode(mode === 'bridge' ? null : 'bridge')}
-                  knightMode={mode === 'tbMove'}
+                  knightMode={mode === 'tbMove' || mode === 'wagon'}
                   toggleKnight={() => {
+                    const m = state.settings.tbScenario === 'traders' ? 'wagon' : 'tbMove';
                     setSelectedShip(null);
-                    setMode(mode === 'tbMove' ? null : 'tbMove');
+                    setMode(mode === m ? null : m);
                   }}
                 />
               )}

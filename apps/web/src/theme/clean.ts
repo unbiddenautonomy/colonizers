@@ -75,6 +75,8 @@ export const cleanTheme: Theme = {
     swamp: '#7d8a5a',
     oasis: '#e6cf8b',
     castle: '#b7a99a',
+    quarry: '#c9b8a3',
+    glassworks: '#a9c7c9',
   },
   terrainIcon: {
     forest: '🌲',
@@ -90,6 +92,8 @@ export const cleanTheme: Theme = {
     swamp: '🪷',
     oasis: '🌴',
     castle: '🏰',
+    quarry: '⛏️',
+    glassworks: '🏭',
     hidden: '🌫️',
   },
   sea: '#4f9bd1',

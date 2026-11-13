@@ -78,6 +78,7 @@ In the Cloudflare dashboard, open **Workers & Pages → colonizers → Settings 
 | `GOOGLE_CLIENT_SECRET` | Client secret from Google                      |
 | `RESEND_API_KEY`       | API key from Resend                            |
 | `EMAIL_FROM`           | For example `Colonizers <play@yourdomain.com>` |
+| `ADMIN_EMAILS`         | Optional. Comma-separated emails of admins     |
 
 They take effect straight away; no redeploy is needed.
 

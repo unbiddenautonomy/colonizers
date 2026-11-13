@@ -22,6 +22,8 @@ const PALETTE: Record<string, Palette> = {
   oasis: { base: '#6b5a2e', dark: '#3ddc97', light: '#8a7840', accent: '#45b3ff' },
   castle: { base: '#4b4652', dark: '#c7a6ff', light: '#6a6475' },
   hidden: { base: '#2a2f3d', dark: '#141a2b', light: '#4a5268' },
+  quarry: { base: '#56504a', dark: '#ffd23f', light: '#7a726a' },
+  glassworks: { base: '#3c5658', dark: '#141a2b', light: '#9bf0ff', accent: '#ff7a3d' },
 };
 
 const SEA: Palette = { base: '#0b1630', dark: '#1a2a52', light: '#13234a', accent: '#2f6fb3' };
