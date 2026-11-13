@@ -66,3 +66,4 @@ export {
   generateTdaBoard,
   type TdaScenarioInfo,
 } from './treasures.ts';
+export { EP_SCENARIOS, epScenarioById, generateEpBoard, type EpScenarioInfo } from './explorers.ts';

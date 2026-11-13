@@ -1,0 +1,25 @@
+{
+  "name": "@colonizers/module-explorers-pirates",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Explorers & Pirates: harbor settlements, ships that carry settlers and crews, exploring the fog, and gold.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/bots": "workspace:*",
+    "@colonizers/maps": "workspace:*",
+    "@colonizers/module-variants": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}

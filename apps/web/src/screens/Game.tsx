@@ -66,6 +66,14 @@ import {
   WAGON_PROMPT,
 } from './TradersBarbarians.tsx';
 import { TdaPlayerStats, TdaStatus } from './TreasuresDragons.tsx';
+import {
+  EP_MODES,
+  EpActions,
+  EpPlayerStats,
+  epPrompt,
+  epTargets,
+  type EpMode,
+} from './ExplorersPirates.tsx';
 
 type Mode =
   | null
@@ -78,6 +86,7 @@ type Mode =
   | 'repair'
   | 'tbMove'
   | 'wagon'
+  | EpMode
   | CkMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
@@ -126,6 +135,7 @@ function targetsFor(
     }
     return t;
   }
+  if (mode && EP_MODES.includes(mode)) return epTargets(state, legal, mode as EpMode, selectedShip);
   const want = new Set<string>();
   const ph = state.phase.id;
   const pair = edgeChoices(state);
@@ -260,6 +270,10 @@ function setupNote(index: number, players: number): string {
 
 function prompt(state: GameState, actor: number | null, names: string[], mode: Mode): string {
   const who = actor === null ? '' : names[actor];
+  if (state.modules.includes('explorers-pirates')) {
+    const ep = epPrompt(state, who ?? '', mode);
+    if (ep) return ep;
+  }
   switch (state.phase.id) {
     case 'setup':
       return (state.phase.step as string) === 'road'
@@ -393,6 +407,7 @@ export function Game({
   const seafarers = state.modules.includes('seafarers');
   const tb = state.modules.includes('traders-barbarians') || state.settings.harbormaster === true;
   const tda = state.modules.includes('treasures-dragons');
+  const ep = state.modules.includes('explorers-pirates');
   const [chosenEdgeKind, setEdgeKind] = useState<EdgeKind>('road');
   const [selectedShip, setSelectedShip] = useState<string | null>(null);
   const canControl = (s: number) => (!online && !bots[s]) || s === seat;
@@ -425,7 +440,9 @@ export function Game({
   const outOfTurn =
     actor !== null && !myTurnMain && (sbpBuilder === actor || pairedPartner === actor);
   const mode: Mode =
-    state.phase.id === 'main' || state.phase.id === 'specialBuild' ? chosenMode : null;
+    state.phase.id === 'main' || state.phase.id === 'specialBuild' || state.phase.id === 'sail'
+      ? chosenMode
+      : null;
   const legal = useMemo(
     () => (actor === null ? [] : library.legalActions(state, actor)),
     [state, actor],
@@ -437,7 +454,7 @@ export function Game({
   const pair = edgeChoices(state);
   const bothEdgeKinds =
     !!pair && legal.some((a) => a.type === pair[0]) && legal.some((a) => a.type === pair[1]);
-  const shipPick = mode === 'moveShip' ? selectedShip : null;
+  const shipPick = mode === 'moveShip' || mode === 'sail' ? selectedShip : null;
   const targets = useMemo(
     () =>
       actor === null ? noTargets : targetsFor(state, legal, mode, edgeKind, shipPick, camelBid),
@@ -458,8 +475,8 @@ export function Game({
       return;
     }
     if (g.act(a)) {
-      // A wagon moves one path at a time, so its mode stays on.
-      if (a.type !== 'moveWagon') setMode(null);
+      // A wagon moves one path at a time, and ships sail one after another, so those modes stay on.
+      if (a.type !== 'moveWagon' && a.type !== 'sailShip' && a.type !== 'boostShip') setMode(null);
       setSelectedShip(null);
     }
   };
@@ -647,6 +664,8 @@ export function Game({
                 <span title="Cards in hand">🂠 {ctx.handSize(p.seat, false)}</span>
                 {ck ? (
                   <CkPlayerStats ctx={ctx} seat={p.seat} />
+                ) : ep ? (
+                  <EpPlayerStats ctx={ctx} seat={p.seat} />
                 ) : (
                   <>
                     <span title="Development cards">📜 {p.held.dev?.length ?? 0}</span>
@@ -753,6 +772,13 @@ export function Game({
                     />
                   ))}
                   {ck && <CommodityCards hand={state.players[actor]!.hand} />}
+                  {ep && (
+                    <ResourceCard
+                      card="gold"
+                      count={state.players[actor]!.hand.gold ?? 0}
+                      dim={!state.players[actor]!.hand.gold}
+                    />
+                  )}
                 </div>
                 {ck && (
                   <ProgressHand
@@ -830,6 +856,20 @@ export function Game({
               🎲 Roll
             </button>
           )}
+          {ep && state.phase.id === 'sail' && actor === state.turn.player && (
+            <EpActions
+              ctx={ctx}
+              actor={actor}
+              legal={legal}
+              act={act}
+              mode={mode}
+              setMode={(m) => {
+                setSelectedShip(null);
+                setMode(m);
+              }}
+              selectedShip={mode === 'sail' ? selectedShip : null}
+            />
+          )}
           {(myTurnMain || outOfTurn) && actor !== null && (
             <>
               {outOfTurn && (
@@ -837,7 +877,10 @@ export function Game({
                   {sbpBuilder === actor ? 'Special build:' : 'Partner build:'}
                 </span>
               )}
-              {(['road', 'settlement', 'city'] as const).map((m) => {
+              {(ep
+                ? (['road', 'settlement'] as const)
+                : (['road', 'settlement', 'city'] as const)
+              ).map((m) => {
                 const type =
                   m === 'road' ? 'buildRoad' : m === 'settlement' ? 'buildSettlement' : 'buildCity';
                 return (
@@ -928,7 +971,21 @@ export function Game({
                   }}
                 />
               )}
-              {!ck && (
+              {ep && myTurnMain && (
+                <EpActions
+                  ctx={ctx}
+                  actor={actor}
+                  legal={legal}
+                  act={act}
+                  mode={mode}
+                  setMode={(m) => {
+                    setSelectedShip(null);
+                    setMode(m);
+                  }}
+                  selectedShip={mode === 'sail' ? selectedShip : null}
+                />
+              )}
+              {!ck && !ep && (
                 <button
                   type="button"
                   disabled={!has('buyDevCard')}
