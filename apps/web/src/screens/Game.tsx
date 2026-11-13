@@ -70,6 +70,7 @@ import {
   EP_MODES,
   EpActions,
   EpPlayerStats,
+  EpStatus,
   epPrompt,
   epTargets,
   type EpMode,
@@ -697,6 +698,7 @@ export function Game({
         })}
         {ck && <BarbarianTrack ctx={ctx} />}
         {tda && <TdaStatus ctx={ctx} />}
+        {ep && <EpStatus ctx={ctx} />}
       </aside>
 
       <main className="board-wrap">
