@@ -202,6 +202,7 @@ describe('Lobby', () => {
       vpTarget: 12,
       citiesKnights: false,
       greedWealthPower: false,
+      worldWonders: false,
       turnTimer: 90,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,

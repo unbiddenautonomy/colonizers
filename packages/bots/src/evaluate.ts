@@ -110,6 +110,9 @@ function targets(ctx: Ctx, seat: number): { item: string; cost: Record<string, n
   const ep = !!ctx.registry.pieceTypes.harbor;
   add('harbor', ep && ctx.piecesOf(seat, 'settlement').length > 0);
   add('settler', ep);
+  // World Wonders: the next stage of each wonder we are building.
+  for (const [id, wonder] of Object.entries(wondersIn(ctx)))
+    if (wonder?.owner === seat && wonder.stages < 4) add(`wonder:${id}:${wonder.stages + 1}`);
   add(
     'crew',
     ep && Object.keys((ctx.state.data['explorers-pirates']?.lairs as object) ?? {}).length > 0,
@@ -179,6 +182,7 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
   // Module hints.
   if (state.modules.includes('cities-knights')) score += ckHints(state, ctx, seat);
   if (state.modules.includes('explorers-pirates')) score += epHints(state, ctx, seat, blocked);
+  if (state.modules.includes('world-wonders')) score += wonderHints(ctx, seat, vp, target);
   if (ctx.registry.pieceTypes.ship) score += ctx.piecesOf(seat, 'ship').length * 0.15;
 
   // Other players: their production and points count against us, the leader most.
@@ -192,6 +196,34 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
     worst = Math.max(worst, theirVp);
   }
   score -= worst * 1.2;
+  return score;
+}
+
+// ---- World Wonders ----
+
+type WondersView = Record<string, { owner: number; stages: number } | undefined>;
+
+function wondersIn(ctx: Ctx): WondersView {
+  return ((ctx.state.data['world-wonders'] as { wonders?: WondersView } | undefined)?.wonders ??
+    {}) as WondersView;
+}
+
+/**
+ * Stages already count through their points; abilities and the way to a
+ * finished wonder (which you need to win, unless that is switched off) add a
+ * push, most of all once the points are nearly there.
+ */
+function wonderHints(ctx: Ctx, seat: number, vp: number, target: number): number {
+  const needed = ctx.setting<boolean>('wonderToWin') !== false;
+  let score = 0;
+  let finished = false;
+  for (const w of Object.values(wondersIn(ctx))) {
+    if (w?.owner !== seat) continue;
+    score += w.stages * 4;
+    if (w.stages >= 4) finished = true;
+  }
+  if (needed && finished) score += 8;
+  if (needed && !finished && vp >= target - 3) score *= 1.8;
   return score;
 }
 

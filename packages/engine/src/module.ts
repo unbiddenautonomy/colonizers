@@ -102,6 +102,8 @@ export interface Reducers {
   hexBlocked(ctx: Ctx, hex: HexState, piece: Piece, value: boolean): boolean;
   /** A knight's strength (Cities & Knights starts from its printed level). */
   knightStrength(ctx: Ctx, knight: Piece, value: number): number;
+  /** May this player win now that they have the points? A module can add a condition. */
+  canWin(ctx: Ctx, player: number, value: boolean): boolean;
 }
 
 export interface DiceResult {

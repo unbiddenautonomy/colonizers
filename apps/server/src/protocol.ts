@@ -36,6 +36,8 @@ export interface GameOptions {
   twoPlayer: boolean;
   /** Greed, Wealth & Power: the river and swampland take the place of the desert and three hexes. */
   gwpRiver: boolean;
+  /** World Wonders: you can win without a finished wonder. */
+  wonderOptional: boolean;
 }
 
 export const TURN_MODES: readonly TurnModeChoice[] = ['auto', 'normal', 'specialBuild', 'paired'];
@@ -54,6 +56,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   eventCards: false,
   twoPlayer: false,
   gwpRiver: false,
+  wonderOptional: false,
 };
 
 export function cleanOptions(raw: unknown): GameOptions {
@@ -72,6 +75,7 @@ export function cleanOptions(raw: unknown): GameOptions {
     eventCards: o.eventCards === true,
     twoPlayer: o.twoPlayer === true,
     gwpRiver: o.gwpRiver === true,
+    wonderOptional: o.wonderOptional === true,
   };
 }
 
@@ -97,6 +101,7 @@ export function optionSettings(o: GameOptions, players: number): Record<string, 
     eventCards: o.eventCards,
     twoPlayer: o.twoPlayer && players === 2,
     gwpRiver: o.gwpRiver,
+    wonderToWin: !o.wonderOptional,
   };
 }
 
@@ -105,6 +110,7 @@ export function moduleList(
   extra: readonly string[],
   citiesKnights: boolean,
   greedWealthPower = false,
+  worldWonders = false,
 ): string[] {
   const order = [
     'base',
@@ -113,6 +119,8 @@ export function moduleList(
     'traders-barbarians',
     'explorers-pirates',
     'variants',
+    // Before Cities & Knights, so the Pyramids' robber shield sees only the robber.
+    'world-wonders',
     'cities-knights',
     // After Cities & Knights (and Seafarers), so its production changes come last.
     'greed-wealth-power',
@@ -125,6 +133,7 @@ export function moduleList(
     ...extra,
     ...(citiesKnights ? ['cities-knights'] : []),
     ...(citiesKnights && greedWealthPower ? ['greed-wealth-power'] : []),
+    ...(worldWonders ? ['world-wonders'] : []),
   ]);
   return order.filter((m) => want.has(m));
 }
@@ -148,6 +157,8 @@ export interface RoomSettings {
   citiesKnights: boolean;
   /** Add the Greed, Wealth & Power fan expansion on top of Cities & Knights. */
   greedWealthPower: boolean;
+  /** Add World Wonders (any map but the special ones). */
+  worldWonders: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -163,6 +174,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   vpTarget: 10,
   citiesKnights: false,
   greedWealthPower: false,
+  worldWonders: false,
   turnTimer: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
@@ -294,6 +306,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     vpTarget: int(s.vpTarget, VP_TARGETS, DEFAULT_SETTINGS.vpTarget),
     citiesKnights: s.citiesKnights === true,
     greedWealthPower: s.greedWealthPower === true,
+    worldWonders: s.worldWonders === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),

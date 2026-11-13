@@ -57,6 +57,22 @@ describe('Bots', () => {
     expect(Object.values(built ?? {}).some((b) => Object.keys(b).length > 0)).toBe(true);
   }, 180_000);
 
+  it('plays World Wonders, and wins with a finished wonder', () => {
+    const r = play(
+      game('w1', 4, 'base', {}, ['world-wonders']),
+      [medium, medium, medium, medium],
+      3,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+    const wonders = (
+      r.state.data['world-wonders'] as {
+        wonders: Record<string, { owner: number; stages: number }>;
+      }
+    ).wonders;
+    expect(Object.values(wonders).some((w) => w.owner === r.winner && w.stages === 4)).toBe(true);
+  }, 120_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');

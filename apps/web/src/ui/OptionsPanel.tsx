@@ -28,6 +28,7 @@ export function OptionsPanel({
   players,
   citiesKnights,
   gwp = false,
+  wonders = false,
   robber = true,
   onChange,
 }: {
@@ -36,6 +37,8 @@ export function OptionsPanel({
   citiesKnights: boolean;
   /** Greed, Wealth & Power is on: show its options. */
   gwp?: boolean;
+  /** World Wonders is on: show its options. */
+  wonders?: boolean;
   /** False on maps with no robber: robber options are hidden. */
   robber?: boolean;
   onChange: (o: GameOptions) => void;
@@ -158,6 +161,12 @@ export function OptionsPanel({
           )}
         </div>
       )}
+      {wonders && (
+        <div className="option-group">
+          <h3 className="subhead">World Wonders</h3>
+          {toggle('wonderOptional', '🏛️ Win on points alone, without a finished wonder')}
+        </div>
+      )}
     </div>
   );
 }
@@ -252,7 +261,12 @@ export const PRESET_ICON: Record<string, string> = {
 };
 
 /** The options that differ from the standard rules, in words, for players who aren't the host. */
-export function describeOptions(o: GameOptions, players: number, gwp = false): string[] {
+export function describeOptions(
+  o: GameOptions,
+  players: number,
+  gwp = false,
+  wonders = false,
+): string[] {
   const out: string[] = [];
   const mode = resolvedTurnMode(o, players);
   if (mode !== 'normal') out.push(TURN_MODE_NAME[mode]);
@@ -263,6 +277,7 @@ export function describeOptions(o: GameOptions, players: number, gwp = false): s
   if (o.harbormaster) out.push('Harbormaster');
   if (o.eventCards) out.push('Event cards');
   if (gwp && o.gwpRiver) out.push('The river (Greed, Wealth & Power)');
+  if (wonders && o.wonderOptional) out.push('No wonder needed to win');
   if (o.twoPlayer && players === 2) out.push('Duel rules');
   if (o.robberFreeRounds) out.push(`7s do nothing for ${o.robberFreeRounds} round(s)`);
   if (o.discardLimit !== 7) out.push(`Discard above ${o.discardLimit} cards`);

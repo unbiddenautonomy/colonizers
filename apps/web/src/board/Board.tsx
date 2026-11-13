@@ -28,6 +28,7 @@ import {
 } from '../screens/GreedWealthPower.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
+import { WonderMarkers } from './WonderArt.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -555,6 +556,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
       })}
 
       <LairMarkers state={state} S={S} color={color} />
+      <WonderMarkers state={state} S={S} color={color} outline={theme.outline} />
 
       {pieces
         .filter((p) => p.at.kind === 'edge')

@@ -8,6 +8,7 @@ import { tradersBarbariansModule } from '@colonizers/module-traders-barbarians';
 import { treasuresDragonsModule } from '@colonizers/module-treasures-dragons';
 import { explorersPiratesModule } from '@colonizers/module-explorers-pirates';
 import { greedWealthPowerModule } from '@colonizers/module-greed-wealth-power';
+import { worldWondersModule } from '@colonizers/module-world-wonders';
 import {
   generateBoard,
   generateSeaBoard,
@@ -27,6 +28,7 @@ export const library = new ModuleLibrary([
   treasuresDragonsModule,
   explorersPiratesModule,
   variantsModule,
+  worldWondersModule,
   citiesKnightsModule,
   greedWealthPowerModule,
 ]);
@@ -42,6 +44,11 @@ export function gwpOn(
   ck: boolean,
 ): boolean {
   return ck && settings.greedWealthPower && settings.map.kind !== 'special';
+}
+
+/** World Wonders goes on the usual maps and Seafarers, with or without Cities & Knights. */
+export function wondersOn(settings: Pick<RoomSettings, 'worldWonders' | 'map'>): boolean {
+  return settings.worldWonders && settings.map.kind !== 'special';
 }
 
 /** Builds the game for a room or a game on one device. Names are already in seat order. */
@@ -61,7 +68,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   ): GameConfig => ({
     seed,
     players: names,
-    modules: moduleList(extra, ck, gwp),
+    modules: moduleList(extra, ck, gwp, wondersOn(settings)),
     map,
     settings: { ...options, ...own },
     fixedSeats: true,
