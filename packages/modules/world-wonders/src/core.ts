@@ -28,6 +28,20 @@ export interface WonderData extends Record<string, unknown> {
   siege?: number;
   /** Turn on which the Temple of Artemis' owner rolled a 7. */
   amazons?: number;
+  /** Pyramids I: where the Pyramids' owner last put each blocker, by piece type. */
+  osiris?: Record<string, HexId>;
+  /** Lighthouse I: turn on which a player's next ship is free. */
+  freeShip?: Record<number, number>;
+  /** Taj Mahal III: resources a player spent buying things this turn. */
+  spent?: Record<number, { turn: number; cards: Cards }>;
+  /** Taj Mahal III: resources a player may take one of back. */
+  refund?: Record<number, string[]>;
+  /** Great Wall I: the corners of the wall, and the roads they were worked out from. */
+  wall?: { owner: number; key: string; corners: string[] };
+  /** Temple of Artemis III: a drawn card and the next one, waiting for the owner to keep one. */
+  hunt?: { seat: number; deck: string; card: string; alt: string; turn: number } | null;
+  /** Temple of Artemis III: the round each player last used it. */
+  huntRound?: Record<number, number>;
 }
 
 export function wonderData(ctx: Ctx): WonderData {
@@ -52,7 +66,20 @@ export function stagesOf(ctx: Ctx, seat: number, id: WonderId): number {
 
 /** Does the player have this stage's ability? */
 export function hasStage(ctx: Ctx, seat: number, id: WonderId, stage: number): boolean {
-  return stagesOf(ctx, seat, id) >= stage;
+  return stagesOf(ctx, seat, id) >= stage && !silenced(ctx, id);
+}
+
+/**
+ * Pyramids I (Osiris): a blocker the Pyramids' owner put on a wonder's hex
+ * stops that wonder's abilities. Its points still count.
+ */
+export function silenced(ctx: Ctx, id: WonderId): boolean {
+  const d = ctx.state.data[MODULE_ID] as WonderData | undefined;
+  const w = d?.wonders?.[id];
+  if (!w || !d?.osiris || id === 'pyramids') return false;
+  return ctx
+    .piecesAt({ kind: 'hex', id: w.hex })
+    .some((p) => d.osiris?.[p.type] === w.hex && BLOCKERS.includes(p.type));
 }
 
 export function wonderPoints(ctx: Ctx, seat: number): number {

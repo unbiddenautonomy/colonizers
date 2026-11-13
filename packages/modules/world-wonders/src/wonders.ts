@@ -48,8 +48,6 @@ export interface Stage {
   vp: number;
   /** What the stage does, for the rulebook and the wonder panel. */
   text: string;
-  /** False while the ability is still to come in a later update. */
-  works: boolean;
 }
 
 export interface Wonder {
@@ -69,15 +67,13 @@ const vp = (name: string, cost: Cards, n: number): Stage => ({
   cost,
   vp: n,
   text: `+${n} point${n === 1 ? '' : 's'}`,
-  works: true,
 });
 
-const ability = (name: string, cost: Cards, text: string, works = false): Stage => ({
+const ability = (name: string, cost: Cards, text: string): Stage => ({
   name,
   cost,
   vp: 0,
   text,
-  works,
 });
 
 export const WONDERS: Record<WonderId, Wonder> = {
@@ -92,19 +88,17 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         'Osiris, God of the Underworld',
         { wool: 2 },
-        'When you move the robber, pirate or dragon, it also stops the wonder on that hex from working.',
+        'A robber, pirate or dragon you move onto a wonder stops its abilities until someone else moves it.',
       ),
       ability(
         'Nile Delta',
         { grain: 1, lumber: 2, wool: 1 },
         'On a 7, each desert beside one of your buildings gives you a resource of your choice.',
-        true,
       ),
       ability(
         'Isis, Goddess of Fertility',
         { grain: 1, brick: 1, lumber: 1, wool: 2 },
         'The robber no longer stops your buildings from producing.',
-        true,
       ),
       vp('Temple to Ra', { grain: 1, brick: 2, ore: 2 }, 3),
     ],
@@ -120,14 +114,13 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         'Navigational Fire',
         { grain: 1, lumber: 2 },
-        'Once a turn, build 2 ships for the price of one.',
+        'Once a turn, the ship after one you pay for is free.',
       ),
       vp('Royal Library of Alexandria', { brick: 2, lumber: 1, ore: 1 }, 1),
       ability(
         'Merchant Guidance',
         { grain: 2, lumber: 1, wool: 2 },
         'Trade any resource with the bank 2:1.',
-        true,
       ),
       vp('Alexander the Great', { grain: 1, lumber: 1, ore: 2, wool: 1 }, 2),
     ],
@@ -143,14 +136,13 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         "Defense against Demetrius' Siege",
         { ore: 3 },
-        'Your knights beside the sea count one more against the barbarians.',
+        'Your active knights beside the sea count one more against the barbarians.',
       ),
       vp('Temple of Athena Lindia', { grain: 1, brick: 2, ore: 1 }, 1),
       ability(
         'Rhodo-Egyptian Alliance',
         { grain: 1, lumber: 2, wool: 2 },
         'Trade ore with the bank 1:1.',
-        true,
       ),
       vp('Helios, Titan of the Sun', { grain: 1, lumber: 2, ore: 2 }, 2),
     ],
@@ -167,14 +159,12 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Blossoming Variety',
         { grain: 1, lumber: 1, wool: 1 },
         'Once a turn, swap a lumber for any resource from the bank.',
-        true,
       ),
       vp('Ishtar Gate', { brick: 2, ore: 2 }, 1),
       ability(
         'Mesopotamian Lion',
         { brick: 1, lumber: 1, ore: 1, wool: 2 },
         'When you move the robber or pirate, also draw a progress or development card.',
-        true,
       ),
       vp('King Nebuchadnezzar', { grain: 2, lumber: 1, ore: 2 }, 2),
     ],
@@ -196,7 +186,7 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         'Peloponnesian Offering',
         { grain: 1, wool: 2, ore: 2 },
-        'Buy a progress card for one resource and the matching commodity.',
+        'Buy a progress card for lumber and paper, wool and cloth, or ore and coin.',
       ),
       vp('Olympic Games', { grain: 1, brick: 1, lumber: 1, ore: 1, wool: 1 }, 2),
     ],
@@ -213,13 +203,12 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'The Amazons of Ephesus',
         { grain: 1, lumber: 1, ore: 1 },
         'When you roll a 7, you may take the merchant and the other roaming pieces off the board.',
-        true,
       ),
       vp('Great Theater', { grain: 1, brick: 2, wool: 1 }, 1),
       ability(
         'Artemis, Goddess of the Hunt',
         { lumber: 2, ore: 1, wool: 2 },
-        'Once a round, when you draw a progress or development card, look at the top two and keep one.',
+        'Once a round, when you draw a progress or development card, see the next one too and keep one of them.',
       ),
       vp('Capital of Asiana', { grain: 2, brick: 1, lumber: 1, ore: 1 }, 2),
     ],
@@ -236,14 +225,12 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Stronghold of the Persian Empire',
         { brick: 2, ore: 1, wool: 1 },
         'On a 7, you discard only half of what you would.',
-        true,
       ),
       vp('Herodotus, the Father of History', { grain: 2, lumber: 2 }, 1),
       ability(
         'Siege of Halicarnassus',
         { grain: 1, brick: 1, lumber: 1, ore: 2 },
         'When you roll a 6 or 8, you may also move the robber or pirate.',
-        true,
       ),
       vp("Artemisia's Grief for Mausolus", { grain: 1, brick: 1, lumber: 1, wool: 2 }, 2),
     ],
@@ -259,14 +246,13 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         'Teleférico',
         { ore: 1, lumber: 2 },
-        'You may build roads straight across mountains.',
+        'Your roads reach straight across mountains, to the far corner.',
       ),
       vp('Pão de Açúcar', { grain: 1, brick: 1, wool: 2 }, 1),
       ability(
         'Praias de Ipanema e Copacabana',
         { grain: 2, ore: 2, wool: 1 },
         'On a 7, the land hexes of your bay produce for you.',
-        true,
       ),
       vp('Carnaval do Rio', { grain: 1, brick: 1, ore: 1, wool: 2 }, 2),
     ],
@@ -282,13 +268,13 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         'Yamuna River',
         { lumber: 2, wool: 1 },
-        'Build ships for the price of a road, and roads for the price of a ship.',
+        "Pay for a ship with a road's price, or for a road with a ship's.",
       ),
       vp('Darwaza Gate', { grain: 1, brick: 2, ore: 1 }, 1),
       ability(
         'Eight Levels of Paradise',
         { grain: 1, brick: 1, lumber: 1, ore: 2 },
-        'At the end of your turn, take back one resource you spent on building that turn.',
+        'At the end of your turn, take back one resource you spent buying something that turn.',
       ),
       vp('Eternal Love of Shah & Mumtaz', { grain: 1, lumber: 1, ore: 1, wool: 2 }, 2),
     ],
@@ -311,7 +297,6 @@ export const WONDERS: Record<WonderId, Wonder> = {
         "Emperor Titus' Dictate",
         { grain: 2, brick: 1, lumber: 1, wool: 1 },
         'Once on each of your turns, throw the two number dice again.',
-        true,
       ),
       vp('Gladiator Games', { grain: 1, ore: 2, wool: 2 }, 2),
     ],
@@ -327,13 +312,13 @@ export const WONDERS: Record<WonderId, Wonder> = {
       ability(
         'Fortification',
         { lumber: 1, ore: 2 },
-        'Your knights and buildings on the ring can not be knocked down, moved or destroyed.',
+        'Your knights and cities on the wall can not be displaced, taken or lost to the barbarians.',
       ),
       vp('Stronghold of Juyongguan', { grain: 1, brick: 1, ore: 1, wool: 1 }, 1),
       ability(
         'The Cry of Meng Jiangnu',
         { grain: 1, brick: 1, lumber: 1, wool: 2 },
-        'When you roll the barbarian ship, move it two spaces or none.',
+        'When you roll the barbarian ship, move it two spaces or none (Cities & Knights).',
       ),
       vp('Ming Dynasty', { grain: 2, brick: 1, lumber: 1, wool: 1 }, 2),
     ],
@@ -350,14 +335,12 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Nabataean Prayer',
         { grain: 1, brick: 1, wool: 1 },
         'Your 2s also produce when a 3 is rolled, and your 12s when an 11 is rolled.',
-        true,
       ),
       vp('Theatre at the Tombs', { lumber: 1, ore: 2, wool: 1 }, 1),
       ability(
         'Silk Road Hub',
         { grain: 2, lumber: 2, wool: 1 },
         'Once a turn, swap any number of one resource for as many of another with the bank.',
-        true,
       ),
       vp('Temple Khaznat al-Faroun', { brick: 2, ore: 2, wool: 1 }, 2),
     ],
@@ -374,14 +357,12 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Mayan Geometry',
         { brick: 1, ore: 1, wool: 1 },
         'When a 1 and 2 or a 1 and 3 is rolled, take a resource of your choice.',
-        true,
       ),
       vp('Temple to Kukulkan', { brick: 1, lumber: 2, ore: 1 }, 1),
       ability(
         'Sacrifice to Chaac',
         { grain: 2, wool: 3 },
         'Once on each of your turns, pay 2 wool to make one hex (not gold) produce as if its number was rolled.',
-        true,
       ),
       vp('Monument to Itzamna', { grain: 1, brick: 1, lumber: 1, ore: 2 }, 2),
     ],
@@ -404,7 +385,6 @@ export const WONDERS: Record<WonderId, Wonder> = {
         'Piedra Intihuatana',
         { brick: 1, lumber: 1, ore: 2, wool: 1 },
         'When you roll doubles, you may throw one or both number dice again.',
-        true,
       ),
       vp('Montaña de Siete Colores', { grain: 1, brick: 2, ore: 1, wool: 1 }, 2),
     ],

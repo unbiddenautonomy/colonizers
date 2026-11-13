@@ -48,6 +48,7 @@ import {
   promoteBlock,
   startRoll,
   isAway,
+  shielded,
 } from './rules.ts';
 
 const MAIN: Phase = { id: 'main' };
@@ -146,7 +147,7 @@ function intrigueTargets(ctx: Ctx, seat: number): Piece[] {
   return ctx.state.players
     .filter((p) => p.seat !== seat)
     .flatMap((p) => knightsOf(ctx, p.seat))
-    .filter((k) => !isAway(k))
+    .filter((k) => !isAway(k) && !shielded(ctx, k))
     .filter((k) =>
       (ctx.geometry.cornerEdges.get(cornerOf(k)) ?? []).some((e) =>
         ctx
@@ -268,7 +269,7 @@ function checkPlay(ctx: Ctx, a: Action & Play): string | null {
     case 'deserter': {
       const e = pickTarget();
       if (e) return e;
-      return knightsOf(ctx, target as number).some((k) => !isAway(k))
+      return knightsOf(ctx, target as number).some((k) => !isAway(k) && !shielded(ctx, k))
         ? null
         : 'That player has no knights at home';
     }
@@ -913,6 +914,7 @@ const desertKnight = action<{ knight: string }>({
     if (!k || !isKnight(k) || k.owner !== a.player || k.at.kind !== 'corner')
       return 'Pick one of your knights';
     if (isAway(k)) return 'That knight is far away and can not desert';
+    if (shielded(ctx, k)) return 'That knight can not be taken';
     return null;
   },
   apply(ctx, a) {
@@ -930,7 +932,7 @@ const desertKnight = action<{ knight: string }>({
   enumerate(ctx, player) {
     if (!owes(ctx, player)) return [];
     return knightsOf(ctx, player)
-      .filter((k) => !isAway(k))
+      .filter((k) => !isAway(k) && !shielded(ctx, k))
       .map((k) => ({ type: 'desertKnight', player, knight: k.id }));
   },
 });
