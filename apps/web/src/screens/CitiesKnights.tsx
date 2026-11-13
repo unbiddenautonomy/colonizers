@@ -21,6 +21,7 @@ import { nameOf } from '@colonizers/rulebook';
 import { TRACK_COLOR } from '../theme/clean.ts';
 import { CardPicker, clean, CostLine, handCards, ResourceCard, total } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
+import { gwpOptionLabel } from './GreedWealthPower.tsx';
 
 export type CkMode = 'knight' | 'activate' | 'promote' | 'knightAct' | 'wall';
 
@@ -101,6 +102,10 @@ export function ckPrompt(state: GameState, who: string, actor: number | null): s
           : 'Waiting for them to pick a commodity to give back.';
       return `${who}: offer resources for commodities.`;
     case 'progressDiscard':
+      if (state.phase.reason)
+        return owed
+          ? `${who}: ${nameOf(state.phase.reason as string).name}! Put one progress card back under its deck.`
+          : 'Waiting for players to put back a progress card.';
       return owed
         ? `${who}: you hold too many progress cards. Put one back under its deck.`
         : 'Waiting for a player to put back a progress card.';
@@ -122,17 +127,21 @@ export function ckPrompt(state: GameState, who: string, actor: number | null): s
       return `${who}: place the deserting knight on one of your roads.`;
     case 'spy':
       return `${who}: take one progress card, or none.`;
-    case 'wedding':
-      return owed
-        ? `${who}: give ${owed} card(s) as a wedding gift.`
-        : 'Waiting for wedding gifts.';
+    case 'wedding': {
+      const why = state.phase.reason
+        ? `for the ${nameOf(state.phase.reason as string).name}`
+        : 'as a wedding gift';
+      return owed ? `${who}: give ${owed} card(s) ${why}.` : 'Waiting for players to give cards.';
+    }
     default:
       return null;
   }
 }
 
 /** One line for an action in a list of choices. */
-export function optionLabel(a: Action, names: string[]): string {
+export function optionLabel(a: Action, names: string[], state?: GameState): string {
+  const gwp = gwpOptionLabel(a, names, state);
+  if (gwp !== null) return gwp;
   const n = (s: unknown) => (typeof s === 'number' ? (names[s] ?? `Player ${s + 1}`) : '');
   const card = (c: unknown) =>
     typeof c === 'string' ? `${nameOf(c).icon ?? ''} ${nameOf(c).name}`.trim() : '';
@@ -343,7 +352,7 @@ export function ProgressHand({
                   setPicking(null);
                 }}
               >
-                {optionLabel(a, names)}
+                {optionLabel(a, names, state)}
               </button>
             ))}
           </div>
@@ -415,7 +424,7 @@ export function CkChoices({
         <div className="row">
           {opts.map((a, i) => (
             <button key={i} type="button" onClick={() => act(a)}>
-              {optionLabel(a, names)}
+              {optionLabel(a, names, state)}
             </button>
           ))}
         </div>
@@ -462,6 +471,12 @@ export function CkChoices({
         'Give a player one resource; they pick one of their commodities to give you.',
       );
     case 'progressDiscard':
+      if (state.phase.reason)
+        return list(
+          ['returnProgress'],
+          nameOf(state.phase.reason as string).name,
+          'Pick one of your progress cards to put back under its deck.',
+        );
       return list(
         ['returnProgress'],
         'Too many progress cards',
