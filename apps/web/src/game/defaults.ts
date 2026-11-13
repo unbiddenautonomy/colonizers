@@ -23,10 +23,12 @@ const NO_ROBBER = new Set([
 ]);
 
 /** Points added on top of the chosen target by Cities & Knights and the map. */
-export function vpBonus(citiesKnights: boolean, specialId: string | null): number {
+export function vpBonus(citiesKnights: boolean, specialId: string | null, gwp = false): number {
   const ckAdjust =
     citiesKnights && specialId ? (TDA_CK_ADJUST[specialId as keyof typeof TDA_CK_ADJUST] ?? 0) : 0;
-  return (citiesKnights ? 3 : 0) + (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) + ckAdjust;
+  // Greed, Wealth & Power plays to 18 with the usual 10.
+  const expansion = citiesKnights ? (gwp ? 8 : 3) : 0;
+  return expansion + (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) + ckAdjust;
 }
 
 export function hasRobber(specialId: string | null): boolean {

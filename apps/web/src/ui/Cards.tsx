@@ -4,10 +4,15 @@ import { nameOf } from '@colonizers/rulebook';
 
 export const RESOURCES = ['brick', 'lumber', 'wool', 'grain', 'ore'] as const;
 export const COMMODITY_CARDS = ['paper', 'cloth', 'coin'] as const;
+/** Greed, Wealth & Power's commodities. */
+export const GWP_CARDS = ['crystal', 'bread', 'gold'] as const;
 
 /** Card types players trade and hold in this game. */
 export function handCards(modules: readonly string[]): readonly string[] {
-  return modules.includes('cities-knights') ? [...RESOURCES, ...COMMODITY_CARDS] : RESOURCES;
+  if (!modules.includes('cities-knights')) return RESOURCES;
+  return modules.includes('greed-wealth-power')
+    ? [...RESOURCES, ...COMMODITY_CARDS, ...GWP_CARDS]
+    : [...RESOURCES, ...COMMODITY_CARDS];
 }
 
 export function ResourceCard({

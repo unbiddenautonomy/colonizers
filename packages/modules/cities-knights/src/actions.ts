@@ -7,8 +7,9 @@ import {
   type Piece,
 } from '@colonizers/engine';
 import { RESOURCES } from '@colonizers/module-base';
-import { KNIGHT_TYPES, MAX_WALLS, TRACKS, isTrack, type Track } from './constants.ts';
+import { KNIGHT_TYPES, MAX_WALLS, type Track } from './constants.ts';
 import {
+  activeTracks,
   canAct,
   canPlaceKnight,
   ckData,
@@ -20,6 +21,7 @@ import {
   improveBlock,
   improveCost,
   isActive,
+  isActiveTrack,
   isKnight,
   knightAt,
   knightLevel,
@@ -32,6 +34,7 @@ import {
   relocateTargets,
   setMetropolis,
   wallsOf,
+  wildDecks,
   winsMetropolis,
 } from './rules.ts';
 
@@ -327,7 +330,7 @@ const improveCity = action<{ track: Track }>({
   check(ctx, a) {
     const err = onlyActive(ctx, a);
     if (err) return err;
-    if (!isTrack(a.track)) return 'Pick science, trade or politics';
+    if (!isActiveTrack(ctx, a.track)) return `Pick ${activeTracks(ctx).join(', ')}`;
     return improveBlock(ctx, a.player, a.track);
   },
   apply(ctx, a) {
@@ -343,7 +346,7 @@ const improveCity = action<{ track: Track }>({
   },
   enumerate(ctx, player) {
     if (player !== ctx.active) return [];
-    return TRACKS.map((track) => ({ type: 'improveCity', player, track }));
+    return activeTracks(ctx).map((track) => ({ type: 'improveCity', player, track }));
   },
 });
 
@@ -417,7 +420,7 @@ const pickDefenderCard = action<{ deck: Track }>({
   phases: ['defenderPick'],
   check(ctx, a) {
     if (!owes(ctx, a.player)) return 'You have no card to pick';
-    if (!isTrack(a.deck)) return 'Pick a deck';
+    if (!isActiveTrack(ctx, a.deck)) return 'Pick a deck';
     if (!ctx.state.decks[a.deck]?.length) return 'That deck is empty';
     return null;
   },
@@ -426,7 +429,7 @@ const pickDefenderCard = action<{ deck: Track }>({
     drawProgress(ctx, a.player, a.deck);
     d.pendingDefender = d.pendingDefender.filter((s) => s !== a.player);
     const done = settle(ctx, a.player);
-    const anyDeck = TRACKS.some((t) => (ctx.state.decks[t]?.length ?? 0) > 0);
+    const anyDeck = activeTracks(ctx).some((t) => (ctx.state.decks[t]?.length ?? 0) > 0);
     if (done || !anyDeck) {
       d.pendingDefender = [];
       continueRoll(ctx);
@@ -434,7 +437,32 @@ const pickDefenderCard = action<{ deck: Track }>({
   },
   enumerate(ctx, player) {
     if (!owes(ctx, player)) return [];
-    return TRACKS.map((deck) => ({ type: 'pickDefenderCard', player, deck }));
+    return activeTracks(ctx).map((deck) => ({ type: 'pickDefenderCard', player, deck }));
+  },
+});
+
+/** A wild face on the event die: draw one card from any deck your levels allow. */
+const pickWildCard = action<{ deck: Track }>({
+  phases: ['wildPick'],
+  check(ctx, a) {
+    if (!owes(ctx, a.player)) return 'You have no card to pick';
+    if (!wildDecks(ctx, a.player, ckData(ctx).wildRed).includes(a.deck))
+      return 'Your improvements do not open that deck for this roll';
+    return null;
+  },
+  apply(ctx, a) {
+    const d = ckData(ctx);
+    drawProgress(ctx, a.player, a.deck);
+    d.pendingWild = d.pendingWild.filter((s) => s !== a.player);
+    continueRoll(ctx);
+  },
+  enumerate(ctx, player) {
+    if (!owes(ctx, player)) return [];
+    return wildDecks(ctx, player, ckData(ctx).wildRed).map((deck) => ({
+      type: 'pickWildCard',
+      player,
+      deck,
+    }));
   },
 });
 
@@ -442,12 +470,12 @@ interface ProgressDiscardPhase extends OwedPhase {
   returnTo: Phase;
 }
 
-/** Over the limit of 4 progress cards: put one back under its deck. */
+/** Over the progress card limit: put one back under its deck. */
 const returnProgress = action<{ deck: Track; card: string }>({
   phases: ['progressDiscard'],
   check(ctx, a) {
     if (!owes(ctx, a.player)) return 'You have nothing to put back';
-    if (!isTrack(a.deck)) return 'Pick a card';
+    if (!isActiveTrack(ctx, a.deck)) return 'Pick a card';
     const held = ctx.player(a.player).held[a.deck] ?? [];
     if (!held.some((h) => h.card === a.card)) return 'You do not hold that card';
     return null;
@@ -522,6 +550,7 @@ export const knightActions: Record<string, ActionDef> = {
   placeMetropolis,
   pillageCity,
   pickDefenderCard,
+  pickWildCard,
   returnProgress,
   aqueductPick,
 };

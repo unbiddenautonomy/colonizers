@@ -11,6 +11,7 @@ import type {
 import { baseData, RESOURCES, routesAt } from '@colonizers/module-base';
 import {
   ABILITY_LEVEL,
+  ALL_TRACKS,
   COMMODITIES,
   DEFENDER_CARDS,
   EVENT_FACES,
@@ -50,6 +51,11 @@ export interface CkData extends Record<string, unknown> {
   pendingLoss: number[];
   /** Players who tied as best defender and still pick a progress card. */
   pendingDefender: number[];
+  /** A wild face on the event die: players who still pick a deck to draw from, and the red die. */
+  pendingWild: number[];
+  wildRed: number;
+  /** Seats whose level 3 abilities are switched off for now. */
+  noAbilities?: number[];
   /** Cards one player may look at (Master Merchant, Spy). Hidden from everyone else. */
   peek: { seat: number; target: number; hand?: Cards; progress?: string[] } | null;
 }
@@ -68,17 +74,64 @@ export function ckData(ctx: Ctx): CkData {
   d.fleet ??= null;
   d.pendingLoss ??= [];
   d.pendingDefender ??= [];
+  d.pendingWild ??= [];
+  d.wildRed ??= 0;
   d.peek ??= null;
   return d;
 }
 
-export function levels(ctx: Ctx, seat: number): Levels {
-  const d = ckData(ctx);
-  return (d.levels[seat] ??= { science: 0, trade: 0, politics: 0 });
+/** The tracks in this game: the usual three, or more when an expansion adds them. */
+export function activeTracks(ctx: Ctx): readonly Track[] {
+  return ctx.setting<Track[] | undefined>('ckTracks') ?? TRACKS;
 }
 
+export function isActiveTrack(ctx: Ctx, t: unknown): t is Track {
+  return typeof t === 'string' && (activeTracks(ctx) as readonly string[]).includes(t);
+}
+
+/** Commodities in this game: every card type an expansion files as a commodity. */
+export function commoditiesIn(ctx: Ctx): string[] {
+  return Object.entries(ctx.registry.cardTypes)
+    .filter(([, def]) => def.category === 'commodity')
+    .map(([c]) => c);
+}
+
+export function levels(ctx: Ctx, seat: number): Levels {
+  const d = ckData(ctx);
+  const lv = (d.levels[seat] ??= { science: 0, trade: 0, politics: 0 } as Levels);
+  for (const t of ALL_TRACKS) lv[t] ??= 0;
+  return lv;
+}
+
+/**
+ * Has this player's level 3 ability in a track? Another module can take
+ * abilities away (Greed, Wealth & Power's Inquisitor) by listing the seat in
+ * `noAbilities`.
+ */
 export function hasAbility(ctx: Ctx, seat: number, track: Track): boolean {
+  if (ckData(ctx).noAbilities?.includes(seat)) return false;
   return levels(ctx, seat)[track] >= ABILITY_LEVEL;
+}
+
+/** Progress cards a player can hold (4, or more with an expansion). */
+export function progressLimit(ctx: Ctx): number {
+  return ctx.setting<number | undefined>('progressLimit') ?? PROGRESS_HAND_LIMIT;
+}
+
+/**
+ * Tracks whose metropolises shut each other out: owning one stops the others
+ * at level 3 (Greed, Wealth & Power: science, magic and religion).
+ */
+function exclusiveTracks(ctx: Ctx): readonly Track[] {
+  return ctx.setting<Track[] | undefined>('exclusiveMetropolis') ?? [];
+}
+
+/** The metropolis of another shut-out track this player owns, if any. */
+export function rivalMetropolis(ctx: Ctx, seat: number, track: Track): Track | null {
+  const ex = exclusiveTracks(ctx);
+  if (!ex.includes(track)) return null;
+  const d = ckData(ctx);
+  return ex.find((t) => t !== track && d.metropolis[t]?.seat === seat) ?? null;
 }
 
 // ---- Knights ----
@@ -243,6 +296,7 @@ export function improveCost(ctx: Ctx, seat: number, track: Track): Cards {
 /** Reaching this level would win the track's metropolis. */
 export function winsMetropolis(ctx: Ctx, seat: number, track: Track, level: number): boolean {
   if (level < METROPOLIS_LEVEL) return false;
+  if (rivalMetropolis(ctx, seat, track)) return false;
   const holder = ckData(ctx).metropolis[track];
   if (!holder) return true;
   if (holder.seat === seat) return false;
@@ -253,6 +307,9 @@ export function improveBlock(ctx: Ctx, seat: number, track: Track): string | nul
   const level = levels(ctx, seat)[track];
   if (level >= MAX_LEVEL) return 'That track is complete';
   if (!citiesOf(ctx, seat).length) return 'You need a city to build city improvements';
+  const rival = rivalMetropolis(ctx, seat, track);
+  if (rival && level >= ABILITY_LEVEL)
+    return `You own the ${rival} metropolis, so ${track} stops at level ${ABILITY_LEVEL}`;
   if (winsMetropolis(ctx, seat, track, level + 1) && !freeCities(ctx, seat).length)
     return 'You need a city without a metropolis';
   if (!ctx.has(seat, improveCost(ctx, seat, track)))
@@ -297,11 +354,13 @@ export function pillage(ctx: Ctx, city: Piece): void {
 
 export function progressHeld(ctx: Ctx, seat: number): { card: string; deck: Track }[] {
   const p = ctx.player(seat);
-  return TRACKS.flatMap((t) => (p.held[t] ?? []).map((h) => ({ card: h.card, deck: t })));
+  return activeTracks(ctx).flatMap((t) =>
+    (p.held[t] ?? []).map((h) => ({ card: h.card, deck: t })),
+  );
 }
 
 export function progressCount(ctx: Ctx, seat: number): number {
-  return TRACKS.reduce((s, t) => s + (ctx.player(seat).held[t]?.length ?? 0), 0);
+  return activeTracks(ctx).reduce((s, t) => s + (ctx.player(seat).held[t]?.length ?? 0), 0);
 }
 
 /** Gives a progress card to a player. Victory point cards go face up at once. */
@@ -339,7 +398,7 @@ export function drawProgress(ctx: Ctx, seat: number, deck: Track): boolean {
 export function progressOverLimit(ctx: Ctx): Record<number, number> {
   const out: Record<number, number> = {};
   for (const p of ctx.state.players) {
-    const extra = progressCount(ctx, p.seat) - PROGRESS_HAND_LIMIT;
+    const extra = progressCount(ctx, p.seat) - progressLimit(ctx);
     if (extra > 0) out[p.seat] = extra;
   }
   return out;
@@ -351,13 +410,25 @@ export function turnOrder(ctx: Ctx): number[] {
   return Array.from({ length: n }, (_, i) => (ctx.active + i) % n);
 }
 
+/** Can this player draw from a track's deck when the red die shows `red`? */
+export function gateOpen(ctx: Ctx, seat: number, track: Track, red: number): boolean {
+  const level = levels(ctx, seat)[track];
+  return level >= 1 && red <= level + 1;
+}
+
 /** A gate on the event die: everyone whose level in that track covers the red die draws. */
 export function gateDraws(ctx: Ctx, track: Track, red: number): void {
   for (const seat of turnOrder(ctx)) {
-    const level = levels(ctx, seat)[track];
-    if (level < 1 || red > level + 1) continue;
+    if (!gateOpen(ctx, seat, track, red)) continue;
     drawProgress(ctx, seat, track);
   }
+}
+
+/** Decks a player may pick from on a wild face. */
+export function wildDecks(ctx: Ctx, seat: number, red: number): Track[] {
+  return activeTracks(ctx).filter(
+    (t) => gateOpen(ctx, seat, t, red) && (ctx.state.decks[t]?.length ?? 0) > 0,
+  );
 }
 
 // ---- Barbarians ----
@@ -425,8 +496,14 @@ export function attack(ctx: Ctx): void {
 /** The roll action under ours (base, or base wrapped by Seafarers), by the wrapper we built. */
 export const rollBelow = new WeakMap<ActionDef, ActionDef>();
 
+/** The event die's faces: six by default, or an expansion's own die (`ckEventFaces`). */
+export function eventFaces(ctx: Ctx): readonly EventFace[] {
+  return ctx.setting<EventFace[] | undefined>('ckEventFaces') ?? EVENT_FACES;
+}
+
 export function rollEventDie(ctx: Ctx): EventFace {
-  return EVENT_FACES[ctx.rng.int(0, EVENT_FACES.length - 1)] as EventFace;
+  const faces = eventFaces(ctx);
+  return faces[ctx.rng.int(0, faces.length - 1)] as EventFace;
 }
 
 export function ckDice(ctx: Ctx): DiceResult {
@@ -450,10 +527,15 @@ export function startRoll(ctx: Ctx, player: number): void {
   d.forcedRoll = roll;
   ctx.state.data.base = { ...baseData(ctx), lastRoll: roll };
   ctx.emit({ type: 'eventDie', player, face: event, red });
-  if (event === 'ship') {
+  if (event === 'ship' || event === 'wild') {
     d.barbarian += 1;
     ctx.emit({ type: 'barbariansAdvance', at: d.barbarian, of: barbarianTrack(ctx) });
     if (d.barbarian >= barbarianTrack(ctx)) attack(ctx);
+    // The ship is worked out first, then everyone picks a deck their levels allow.
+    if (event === 'wild') {
+      d.wildRed = red;
+      d.pendingWild = turnOrder(ctx).filter((s) => wildDecks(ctx, s, red).length > 0);
+    }
   } else {
     gateDraws(ctx, event, red);
   }
@@ -467,13 +549,20 @@ export function continueRoll(ctx: Ctx): void {
     ctx.setPhase({ id: 'loseCity', owed: Object.fromEntries(d.pendingLoss.map((s) => [s, 1])) });
     return;
   }
-  const anyDeck = TRACKS.some((t) => (ctx.state.decks[t]?.length ?? 0) > 0);
+  const anyDeck = activeTracks(ctx).some((t) => (ctx.state.decks[t]?.length ?? 0) > 0);
   if (!anyDeck) d.pendingDefender = [];
   if (d.pendingDefender.length) {
     ctx.setPhase({
       id: 'defenderPick',
       owed: Object.fromEntries(d.pendingDefender.map((s) => [s, 1])),
     });
+    return;
+  }
+  d.pendingWild = d.pendingWild.filter((s) => wildDecks(ctx, s, d.wildRed).length > 0);
+  const next = d.pendingWild[0];
+  if (next !== undefined) {
+    // One at a time, in turn order, so each player sees what is left.
+    ctx.setPhase({ id: 'wildPick', owed: { [next]: 1 } });
     return;
   }
   finishRoll(ctx);
