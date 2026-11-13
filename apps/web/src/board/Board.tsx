@@ -91,6 +91,42 @@ function HouseShape({
   );
 }
 
+const CARGO_ICON: Record<string, string> = { settler: '🧑‍🌾', crew: '🏴‍☠️' };
+const CARGO_NAME: Record<string, string> = { settler: 'a settler', crew: 'a crew' };
+
+/** What a ship or harbor settlement carries (Explorers & Pirates). */
+function Cargo({ x, y, props }: { x: number; y: number; props: Record<string, unknown> }) {
+  const cargo = Array.isArray(props.cargo) ? (props.cargo as string[]) : [];
+  if (!cargo.length) return null;
+  const w = S * 0.26 * cargo.length;
+  return (
+    <g pointerEvents="none" className="cargo">
+      <rect
+        x={x - w / 2 - S * 0.04}
+        y={y - S * 0.16}
+        width={w + S * 0.08}
+        height={S * 0.3}
+        rx={S * 0.1}
+        fill="#fff8e6"
+        stroke="#5a3d1e"
+        strokeWidth={1.5}
+      />
+      {cargo.map((c, i) => (
+        <text
+          key={i}
+          x={x - w / 2 + S * 0.13 + i * S * 0.26}
+          y={y + S * 0.07}
+          textAnchor="middle"
+          fontSize={S * 0.2}
+        >
+          {CARGO_ICON[c] ?? '📦'}
+        </text>
+      ))}
+      <title>{`Carrying ${cargo.map((c) => CARGO_NAME[c] ?? c).join(' and ')}`}</title>
+    </g>
+  );
+}
+
 const KNIGHT_LEVEL: Record<string, number> = { knight1: 1, knight2: 2, knight3: 3 };
 
 /** A shield: filled when active, pale when not, with one bar per strength level. */
@@ -561,7 +597,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 </line>
               );
             if (p.type === 'ship')
-              return <Ship key={p.id} a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />;
+              return (
+                <g key={p.id}>
+                  <Ship a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />
+                  <Cargo x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - S * 0.3} props={p.props} />
+                </g>
+              );
             return (
               <line
                 key={p.id}
@@ -1048,6 +1089,26 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   city={p.type === 'city'}
                   theme={theme}
                 />
+                {p.type === 'harbor' && (
+                  <g pointerEvents="none">
+                    <text
+                      x={c.x}
+                      y={c.y + S * 0.08}
+                      textAnchor="middle"
+                      fontSize={S * 0.22}
+                      fontWeight={700}
+                      fill="#fff"
+                      stroke={theme.outline}
+                      strokeWidth={0.8}
+                    >
+                      ⚓
+                    </text>
+                    <title>Harbor settlement (2 points)</title>
+                  </g>
+                )}
+                {p.type === 'harbor' && (
+                  <Cargo x={c.x + S * 0.3} y={c.y - S * 0.25} props={p.props} />
+                )}
                 {typeof p.props.metropolis === 'string' && (
                   <g>
                     <rect

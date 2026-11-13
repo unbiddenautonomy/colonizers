@@ -1,0 +1,327 @@
+import { describe, expect, it } from 'vitest';
+import {
+  Ctx,
+  ModuleLibrary,
+  type Action,
+  type CornerId,
+  type EdgeId,
+  type GameState,
+  type HexId,
+} from '@colonizers/engine';
+import { baseModule } from '@colonizers/module-base';
+import { variantsModule } from '@colonizers/module-variants';
+import { generateEpBoard } from '@colonizers/maps';
+import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
+import {
+  cargoOf,
+  coastal,
+  explorersPiratesModule,
+  GOLD,
+  movesLeft,
+  nearFog,
+  sailRange,
+} from '../src/index.ts';
+
+const lib = new ModuleLibrary([baseModule, explorersPiratesModule, variantsModule]);
+
+function rng(seed: number): () => number {
+  let x = seed >>> 0 || 1;
+  return () => {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    return (x >>> 0) / 4294967296;
+  };
+}
+
+function game(players = 3, seed = 'ep'): GameState {
+  const b = generateEpBoard({ seed, players, scenario: 'land-ho' });
+  return lib.createGame({
+    seed,
+    players: Array.from({ length: players }, (_, i) => `P${i}`),
+    modules: [...b.modules, 'variants'],
+    map: b.map,
+    settings: { vpTarget: 10, ...b.settings },
+    fixedSeats: true,
+  }).state;
+}
+
+const ctxOf = (s: GameState) => new Ctx(s, lib.registry(s.modules));
+const act = (s: GameState, a: Action) => lib.apply(s, a).state;
+
+function edit(s: GameState, fn: (c: Ctx) => void): GameState {
+  const t = structuredClone(s);
+  const c = ctxOf(t);
+  fn(c);
+  c.commit();
+  return t;
+}
+
+function finishSetup(s: GameState, seed = 1): GameState {
+  const rand = rng(seed);
+  while (s.phase.id === 'setup') {
+    const seat = lib.waitingOn(s)[0]!;
+    const o = lib.legalActions(s, seat);
+    s = act(s, o[Math.floor(rand() * o.length)]!);
+  }
+  return s;
+}
+
+/** Rolls until the main phase, skipping 7s' discards. */
+function toMain(s: GameState): GameState {
+  for (let i = 0; i < 20 && s.phase.id !== 'main'; i++) {
+    const seat = lib.waitingOn(s)[0]!;
+    const o = lib.legalActions(s, seat);
+    s = act(s, o[0]!);
+  }
+  return s;
+}
+
+const shipOf = (s: GameState, seat: number) =>
+  Object.values(s.pieces).find((p) => p.type === 'ship' && p.owner === seat)!;
+
+describe('Land Ho! boards', () => {
+  it('put a visible home island in a sea of fog, with no harbors or robber', () => {
+    for (const players of [2, 3, 4]) {
+      for (let i = 0; i < 12; i++) {
+        const b = generateEpBoard({ seed: `b${i}`, players, scenario: 'land-ho' });
+        expect(b.map.harbors).toEqual([]);
+        expect(b.map.pieces ?? []).toEqual([]);
+        const home = b.settings.setupHexes as HexId[];
+        expect(home.length).toBeGreaterThanOrEqual(10);
+        expect(b.map.hexes.filter((h) => h.hidden).length).toBeGreaterThan(20);
+        expect(b.map.hexes.filter((h) => h.hidden && h.type !== 'sea').length).toBeGreaterThan(8);
+      }
+    }
+  });
+});
+
+describe('Setup', () => {
+  it('starts with a harbor settlement and a ship carrying a settler, then a settlement and road', () => {
+    let s = game(3);
+    const c = ctxOf(s);
+    const seat = lib.waitingOn(s)[0]!;
+    // An inland corner is refused for the harbor settlement.
+    const home = s.settings.setupHexes as HexId[];
+    const inland = c.geometry.corners.find((x) => {
+      const hs = c.geometry.cornerHexes.get(x) ?? [];
+      return hs.length === 3 && hs.every((h) => home.includes(h));
+    })!;
+    expect(lib.check(s, { type: 'placeSetupSettlement', player: seat, corner: inland })).toMatch(
+      /coast/,
+    );
+    const coast = lib.legalActions(s, seat).find((a) => a.type === 'placeSetupSettlement')!
+      .corner as CornerId;
+    expect(coastal(c, coast)).toBe(true);
+    s = act(s, { type: 'placeSetupSettlement', player: seat, corner: coast });
+    expect(Object.values(s.pieces).some((p) => p.type === 'harbor' && p.owner === seat)).toBe(true);
+    const legal = lib.legalActions(s, seat);
+    expect(legal.some((a) => a.type === 'placeSetupRoad')).toBe(false);
+    s = act(
+      s,
+      legal.find((a) => a.type === 'placeSetupShip')!,
+    );
+    expect(cargoOf(shipOf(s, seat))).toEqual(['settler']);
+
+    s = finishSetup(s);
+    const cs = ctxOf(s);
+    for (const p of s.players) {
+      expect(cs.piecesOf(p.seat, 'harbor')).toHaveLength(1);
+      expect(cs.piecesOf(p.seat, 'settlement')).toHaveLength(1);
+      expect(cs.piecesOf(p.seat, 'road')).toHaveLength(1);
+      expect(cs.piecesOf(p.seat, 'ship')).toHaveLength(1);
+      expect(p.hand[GOLD]).toBe(2);
+      expect(cs.vp(p.seat)).toBe(3);
+    }
+    expect(cs.vpTarget()).toBe(8);
+    expect(Object.values(s.pieces).some((p) => p.type === 'robber')).toBe(false);
+  });
+});
+
+describe('Turns', () => {
+  it('have no cities or development cards, trade 3:1, and sell three of a kind for gold', () => {
+    let s = toMain(finishSetup(game(3)));
+    const seat = s.turn.player;
+    s = edit(s, (c) => c.grant(seat, { grain: 4, ore: 4, wool: 3 }));
+    const corner = (
+      Object.values(s.pieces).find((p) => p.type === 'settlement' && p.owner === seat)!.at as {
+        id: CornerId;
+      }
+    ).id;
+    expect(lib.check(s, { type: 'buildCity', player: seat, corner })).toMatch(/no cities/);
+    expect(lib.check(s, { type: 'buyDevCard', player: seat })).toMatch(/no development/);
+    const gold = s.players[seat]!.hand[GOLD] ?? 0;
+    const wool = s.players[seat]!.hand.wool ?? 0;
+    s = act(s, { type: 'bankTrade', player: seat, give: 'wool', get: GOLD });
+    expect(s.players[seat]!.hand[GOLD]).toBe(gold + 1);
+    expect(s.players[seat]!.hand.wool ?? 0).toBe(wool - 3);
+    expect(lib.check(s, { type: 'bankTrade', player: seat, give: GOLD, get: 'wool' })).not.toBe(
+      null,
+    );
+  });
+
+  it('let gold buy two resources a turn', () => {
+    let s = toMain(finishSetup(game(3)));
+    const seat = s.turn.player;
+    s = edit(s, (c) => c.grant(seat, { [GOLD]: 10 }));
+    s = act(s, { type: 'buyWithGold', player: seat, resource: 'ore' });
+    s = act(s, { type: 'buyWithGold', player: seat, resource: 'ore' });
+    expect(lib.check(s, { type: 'buyWithGold', player: seat, resource: 'ore' })).toMatch(
+      /at most 2/,
+    );
+  });
+
+  it('pay 1 gold to everyone a roll gives nothing, and skip the robber on a 7', () => {
+    let s = finishSetup(game(3));
+    for (let i = 0; i < 30; i++) {
+      const before = s.players.map((p) => p.hand[GOLD] ?? 0);
+      const seat = s.turn.player;
+      const r = lib.apply(s, { type: 'roll', player: seat });
+      s = r.state;
+      const total = (s.data.base as { lastRoll: { total: number } }).lastRoll.total;
+      const prod = r.events.find((e) => e.type === 'production');
+      if (total === 7) {
+        expect(['main', 'discard']).toContain(s.phase.id);
+      } else {
+        const received = prod!.received as Record<number, Record<string, number>>;
+        for (const p of s.players) {
+          const got = Object.values(received[p.seat] ?? {}).reduce((a, n) => a + n, 0);
+          expect(s.players[p.seat]!.hand[GOLD] ?? 0).toBe(before[p.seat]! + (got ? 0 : 1));
+        }
+      }
+      while (s.phase.id === 'discard') {
+        const w = lib.waitingOn(s)[0]!;
+        s = act(s, lib.legalActions(s, w)[0]!);
+      }
+      expect(s.phase.id).toBe('main');
+      s = act(s, { type: 'endTurn', player: seat });
+    }
+  });
+});
+
+describe('Ships', () => {
+  it('sail 4 edges, 6 with extra sails, and stop at the fog', () => {
+    let s = toMain(finishSetup(game(3)));
+    const seat = s.turn.player;
+    let ship = shipOf(s, seat);
+    let c = ctxOf(s);
+    const range = sailRange(c, ship);
+    expect(Math.max(...range.values())).toBeLessThanOrEqual(4);
+    expect(range.size).toBeGreaterThan(0);
+    s = edit(s, (x) => x.grant(seat, { wool: 1 }));
+    s = act(s, { type: 'boostShip', player: seat, ship: ship.id });
+    expect(s.phase.id).toBe('sail');
+    // No building once the ships are out.
+    expect(lib.legalActions(s, seat).some((a) => a.type.startsWith('build'))).toBe(false);
+    ship = shipOf(s, seat);
+    c = ctxOf(s);
+    expect(movesLeft(ship)).toBe(6);
+    const far = sailRange(c, ship);
+    expect(Math.max(...far.values())).toBeGreaterThan(Math.max(...range.values()) - 1);
+
+    // Sail to the fog: it turns over, pays, and the ship stops.
+    const fogEdge = [...far.keys()].find((e) =>
+      (c.geometry.edgeCorners.get(e) ?? []).some((x) => nearFog(c, x)),
+    );
+    expect(fogEdge).toBeDefined();
+    const hand = { ...s.players[seat]!.hand };
+    const r = lib.apply(s, { type: 'sailShip', player: seat, ship: ship.id, to: fogEdge! });
+    s = r.state;
+    expect(r.events.some((e) => e.type === 'revealed')).toBe(true);
+    const found = r.events.filter((e) => e.type === 'discovered');
+    expect(found.length).toBeGreaterThan(0);
+    const cardsAfter = Object.values(s.players[seat]!.hand).reduce((a, n) => a + n, 0);
+    const cardsBefore = Object.values(hand).reduce((a, n) => a + n, 0);
+    expect(cardsAfter).toBeGreaterThan(cardsBefore);
+    expect(movesLeft(shipOf(s, seat))).toBeLessThanOrEqual(0);
+    expect(lib.legalActions(s, seat).some((a) => a.type === 'sailShip' && a.ship === ship.id)).toBe(
+      false,
+    );
+    // Its moves come back next turn.
+    s = act(s, { type: 'endTurn', player: seat });
+    expect(shipOf(s, seat).props.used).toBe(0);
+  });
+
+  it('found a settlement from a ship with a settler, and both go back to the supply', () => {
+    let s = toMain(finishSetup(game(3)));
+    const seat = s.turn.player;
+    const ship = shipOf(s, seat);
+    let c = ctxOf(s);
+    // Find a free corner on land: move the ship beside it by hand.
+    let target: { edge: EdgeId; corner: CornerId } | null = null;
+    for (const e of c.geometry.edges) {
+      if (c.piecesAt({ kind: 'edge', id: e }).length) continue;
+      if (!(c.geometry.edgeHexes.get(e) ?? []).some((h) => c.isSea(h))) continue;
+      for (const corner of c.geometry.edgeCorners.get(e) ?? []) {
+        if (!c.isLandCorner(corner) || nearFog(c, corner)) continue;
+        if (c.piecesAt({ kind: 'corner', id: corner }).length) continue;
+        const near = [corner, ...(c.geometry.cornerNeighbours.get(corner) ?? [])];
+        if (near.some((x) => c.buildingAt(x))) continue;
+        target = { edge: e, corner };
+      }
+      if (target) break;
+    }
+    expect(target).not.toBeNull();
+    s = edit(s, (x) => x.move(x.state.pieces[ship.id]!, { kind: 'edge', id: target!.edge }));
+    const vp = ctxOf(s).vp(seat);
+    s = act(s, { type: 'foundSettlement', player: seat, ship: ship.id, corner: target!.corner });
+    c = ctxOf(s);
+    expect(c.vp(seat)).toBe(vp + 1);
+    expect(c.piecesOf(seat, 'ship')).toHaveLength(0);
+    expect(c.buildingAt(target!.corner)?.type).toBe('settlement');
+  });
+
+  it('are built beside a harbor settlement and take settlers aboard', () => {
+    let s = toMain(finishSetup(game(3)));
+    const seat = s.turn.player;
+    s = edit(s, (c) => c.grant(seat, { lumber: 3, wool: 3, brick: 2, grain: 2 }));
+    const builds = lib.legalActions(s, seat).filter((a) => a.type === 'buildShip');
+    expect(builds.length).toBeGreaterThan(0);
+    s = act(s, builds[0]!);
+    const fresh = Object.values(s.pieces).find(
+      (p) => p.type === 'ship' && p.owner === seat && cargoOf(p).length === 0,
+    )!;
+    // The starting ship already holds a settler, and only two settlers are out at a time.
+    s = act(s, { type: 'buildSettler', player: seat, at: fresh.id });
+    expect(cargoOf(s.pieces[fresh.id]!)).toEqual(['settler']);
+    const harbor = Object.values(s.pieces).find((p) => p.type === 'harbor' && p.owner === seat)!;
+    expect(lib.check(s, { type: 'buildSettler', player: seat, at: harbor.id })).toMatch(
+      /No settlers left|afford/,
+    );
+    // A ship beside the harbor swaps its cargo with the dock.
+    s = act(s, { type: 'swapCargo', player: seat, ship: fresh.id });
+    expect(cargoOf(s.pieces[harbor.id]!)).toEqual(['settler']);
+    expect(cargoOf(s.pieces[fresh.id]!)).toEqual([]);
+  });
+});
+
+describe('Bots', () => {
+  for (const players of [3, 4]) {
+    it(`play Land Ho! with ${players} players to a winner`, () => {
+      let s = game(players, `bot-${players}`);
+      const bot: BotConfig = { level: 'medium', style: 'balanced' };
+      const rand = rng(5);
+      const memory: BotMemory[] = Array.from({ length: players }, () => newMemory());
+      let clock = 0;
+      for (let i = 0; i < 4000 && s.winner === null; i++) {
+        clock += 1000;
+        const waiting = lib.waitingOn(s);
+        expect(waiting.length).toBeGreaterThan(0);
+        let acted = false;
+        for (const seat of waiting) {
+          const a = chooseAction(lib, s, seat, bot, memory[seat]!, { rand, now: clock });
+          if (!a) continue;
+          s = act(s, a);
+          acted = true;
+          break;
+        }
+        if (!acted) clock += 20_000;
+      }
+      expect(s.winner).not.toBe(null);
+      const c = ctxOf(s);
+      // Someone sailed out and founded a settlement on new land.
+      const settled = Object.values(s.pieces).filter((p) => p.type === 'settlement').length;
+      expect(settled + c.piecesOfType('harbor').length).toBeGreaterThan(players * 2);
+    }, 120_000);
+  }
+});

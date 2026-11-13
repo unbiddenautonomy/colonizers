@@ -483,6 +483,7 @@ function Lobby({
                 (seaPick || specialPick?.group === 'treasures') && 'Seafarers',
                 specialPick?.group === 'traders' && 'Traders & Barbarians',
                 specialPick?.group === 'treasures' && 'Treasures, Dragons & Adventurers',
+                specialPick?.group === 'explorers' && 'Explorers & Pirates',
                 ck && 'Cities & Knights',
               ]
                 .filter(Boolean)
