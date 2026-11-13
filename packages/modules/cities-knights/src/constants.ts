@@ -1,16 +1,23 @@
 export const MODULE_ID = 'cities-knights';
 
 export const COMMODITIES = ['paper', 'cloth', 'coin'] as const;
-export type Commodity = (typeof COMMODITIES)[number];
+/** Every commodity an expansion of Cities & Knights can add (Greed, Wealth & Power adds the last three). */
+export const ALL_COMMODITIES = ['paper', 'cloth', 'coin', 'crystal', 'bread', 'gold'] as const;
+export type Commodity = (typeof ALL_COMMODITIES)[number];
 
 /** The three improvement tracks, each paid for with one commodity. */
 export const TRACKS = ['science', 'trade', 'politics'] as const;
-export type Track = (typeof TRACKS)[number];
+/** Every track an expansion can switch on with the `ckTracks` setting. */
+export const ALL_TRACKS = ['science', 'trade', 'politics', 'magic', 'religion', 'wealth'] as const;
+export type Track = (typeof ALL_TRACKS)[number];
 
 export const TRACK_COMMODITY: Record<Track, Commodity> = {
   science: 'paper',
   trade: 'cloth',
   politics: 'coin',
+  magic: 'crystal',
+  religion: 'bread',
+  wealth: 'gold',
 };
 
 /** A city on these hexes takes one resource and one commodity. */
@@ -38,7 +45,11 @@ export const DEFENDER_CARDS = 6;
 
 /** Event die faces: three ship faces and one gate per track. */
 export const EVENT_FACES = ['ship', 'ship', 'ship', 'science', 'trade', 'politics'] as const;
-export type EventFace = (typeof EVENT_FACES)[number];
+/**
+ * A face is a ship, a gate (a track), or 'wild': a ship that also lets every
+ * player draw from any deck their levels allow (Greed, Wealth & Power).
+ */
+export type EventFace = 'ship' | 'wild' | Track;
 
 export const SCIENCE_CARDS = {
   alchemist: 2,
@@ -74,14 +85,22 @@ export const POLITICS_CARDS = {
   wedding: 2,
 } as const;
 
-export const DECK_CARDS: Record<Track, Record<string, number>> = {
+export const DECK_CARDS: Record<(typeof TRACKS)[number], Record<string, number>> = {
   science: SCIENCE_CARDS,
   trade: TRADE_CARDS,
   politics: POLITICS_CARDS,
 };
 
 /** Victory point cards are shown and scored as soon as they are drawn. */
-export const VP_PROGRESS = ['printer', 'constitution'] as const;
+export const VP_PROGRESS = [
+  'printer',
+  'constitution',
+  // Greed, Wealth & Power adds one to every deck.
+  'hansaLeague',
+  'airship',
+  'relic',
+  'belovedPrince',
+] as const;
 
 export function deckOf(card: string): Track | null {
   for (const t of TRACKS) if (card in DECK_CARDS[t]) return t;
@@ -95,9 +114,9 @@ export function commodityBank(players: number): number {
 }
 
 export function isCommodity(card: string): card is Commodity {
-  return (COMMODITIES as readonly string[]).includes(card);
+  return (ALL_COMMODITIES as readonly string[]).includes(card);
 }
 
 export function isTrack(t: unknown): t is Track {
-  return typeof t === 'string' && (TRACKS as readonly string[]).includes(t);
+  return typeof t === 'string' && (ALL_TRACKS as readonly string[]).includes(t);
 }

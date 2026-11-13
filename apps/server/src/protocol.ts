@@ -88,7 +88,11 @@ export function optionSettings(o: GameOptions, players: number): Record<string, 
 }
 
 /** Modules in the order they must load: options before Cities & Knights so its dice win. */
-export function moduleList(extra: readonly string[], citiesKnights: boolean): string[] {
+export function moduleList(
+  extra: readonly string[],
+  citiesKnights: boolean,
+  greedWealthPower = false,
+): string[] {
   const order = [
     'base',
     'seafarers',
@@ -97,6 +101,8 @@ export function moduleList(extra: readonly string[], citiesKnights: boolean): st
     'explorers-pirates',
     'variants',
     'cities-knights',
+    // After Cities & Knights (and Seafarers), so its production changes come last.
+    'greed-wealth-power',
     // After Cities & Knights, so its scenarios can adjust knight moves.
     'treasures-dragons',
   ];
@@ -105,6 +111,7 @@ export function moduleList(extra: readonly string[], citiesKnights: boolean): st
     'variants',
     ...extra,
     ...(citiesKnights ? ['cities-knights'] : []),
+    ...(citiesKnights && greedWealthPower ? ['greed-wealth-power'] : []),
   ]);
   return order.filter((m) => want.has(m));
 }
@@ -124,6 +131,8 @@ export interface RoomSettings {
   vpTarget: number;
   /** Play with the Cities & Knights expansion. */
   citiesKnights: boolean;
+  /** Add the Greed, Wealth & Power fan expansion on top of Cities & Knights. */
+  greedWealthPower: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -138,6 +147,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   map: { kind: 'random', mode: 'classic' },
   vpTarget: 10,
   citiesKnights: false,
+  greedWealthPower: false,
   turnTimer: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
@@ -263,6 +273,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     map,
     vpTarget: int(s.vpTarget, VP_TARGETS, DEFAULT_SETTINGS.vpTarget),
     citiesKnights: s.citiesKnights === true,
+    greedWealthPower: s.greedWealthPower === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),

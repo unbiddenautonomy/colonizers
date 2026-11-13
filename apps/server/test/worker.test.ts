@@ -201,6 +201,7 @@ describe('Lobby', () => {
       map: { kind: 'random', mode: 'balanced' },
       vpTarget: 12,
       citiesKnights: false,
+      greedWealthPower: false,
       turnTimer: 90,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,

@@ -1,0 +1,25 @@
+{
+  "name": "@colonizers/module-greed-wealth-power",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Greed, Wealth & Power: a fan expansion for Cities & Knights with Magic, Religion and Wealth tracks, special buildings and Beer.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-cities-knights": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}

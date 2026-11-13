@@ -74,6 +74,15 @@ import {
   epTargets,
   type EpMode,
 } from './ExplorersPirates.tsx';
+import {
+  GWP_HAND,
+  GWP_MODES,
+  GwpActions,
+  GwpPlayerStats,
+  gwpPrompt,
+  gwpTargets,
+  type GwpMode,
+} from './GreedWealthPower.tsx';
 
 type Mode =
   | null
@@ -87,15 +96,20 @@ type Mode =
   | 'tbMove'
   | 'wagon'
   | EpMode
+  | GwpMode
   | CkMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
 const EVENT_ICON: Record<string, string> = {
   ship: '⛵',
+  wild: '⛵✨',
   science: '🟢',
   trade: '🟡',
   politics: '🔵',
+  magic: '🟣',
+  religion: '🔴',
+  wealth: '🟠',
 };
 
 /** Road or ship action types for the current step, when the step places one of them. */
@@ -136,6 +150,8 @@ function targetsFor(
     return t;
   }
   if (mode && EP_MODES.includes(mode)) return epTargets(state, legal, mode as EpMode, selectedShip);
+  if (mode && GWP_MODES.includes(mode))
+    return gwpTargets(legal, mode as GwpMode, selectedShip, state);
   const want = new Set<string>();
   const ph = state.phase.id;
   const pair = edgeChoices(state);
@@ -303,6 +319,7 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
     case 'roadBuilding':
       return `${who}: place a free ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} (${state.phase.remaining as number} left).`;
     case 'main':
+      if (mode && GWP_MODES.includes(mode)) return gwpPrompt(who ?? '', mode, null) ?? '';
       if (mode === 'tbMove') return `${who}: ${TB_MOVE_PROMPT}`;
       if (mode === 'wagon') return `${who}: ${WAGON_PROMPT}`;
       if (mode === 'moveShip')
@@ -402,6 +419,7 @@ export function Game({
       : 0;
   const owedPhase = !!state.phase.owed;
   const ck = state.modules.includes('cities-knights');
+  const gwp = state.modules.includes('greed-wealth-power');
   const cardKinds = handCards(state.modules);
   const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
@@ -454,7 +472,10 @@ export function Game({
   const pair = edgeChoices(state);
   const bothEdgeKinds =
     !!pair && legal.some((a) => a.type === pair[0]) && legal.some((a) => a.type === pair[1]);
-  const shipPick = mode === 'moveShip' || mode === 'sail' ? selectedShip : null;
+  const shipPick =
+    mode === 'moveShip' || mode === 'sail' || (mode !== null && GWP_MODES.includes(mode))
+      ? selectedShip
+      : null;
   const targets = useMemo(
     () =>
       actor === null ? noTargets : targetsFor(state, legal, mode, edgeKind, shipPick, camelBid),
@@ -663,7 +684,10 @@ export function Game({
               <div className="player-stats">
                 <span title="Cards in hand">🂠 {ctx.handSize(p.seat, false)}</span>
                 {ck ? (
-                  <CkPlayerStats ctx={ctx} seat={p.seat} />
+                  <>
+                    <CkPlayerStats ctx={ctx} seat={p.seat} />
+                    {gwp && <GwpPlayerStats ctx={ctx} seat={p.seat} />}
+                  </>
                 ) : ep ? (
                   <EpPlayerStats ctx={ctx} seat={p.seat} />
                 ) : (
@@ -713,6 +737,7 @@ export function Game({
             dice={lastRoll.dice}
             rollKey={`${state.turn.number}-${lastRoll.total}-${JSON.stringify(lastRoll.dice)}`}
             icons={EVENT_ICON}
+            faces={state.settings.ckEventFaces as string[] | undefined}
           >
             {state.settings.eventCards === true && eventCard && (
               <span className="event-card" title="Event card">
@@ -771,7 +796,9 @@ export function Game({
                       dim={!state.players[actor]!.hand[r]}
                     />
                   ))}
-                  {ck && <CommodityCards hand={state.players[actor]!.hand} />}
+                  {ck && (
+                    <CommodityCards hand={state.players[actor]!.hand} extra={gwp ? GWP_HAND : []} />
+                  )}
                   {ep && (
                     <ResourceCard
                       card="gold"
@@ -915,6 +942,19 @@ export function Game({
                     setMode(m);
                   }}
                   onImprove={(track) => act({ type: 'improveCity', player: actor, track })}
+                />
+              )}
+              {gwp && myTurnMain && (
+                <GwpActions
+                  ctx={ctx}
+                  actor={actor}
+                  legal={legal}
+                  act={act}
+                  mode={mode}
+                  setMode={(m) => {
+                    setSelectedShip(null);
+                    setMode(m);
+                  }}
                 />
               )}
               {seafarers && (

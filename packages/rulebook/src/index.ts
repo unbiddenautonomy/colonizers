@@ -6,6 +6,7 @@ import { variantsRules } from './variants.ts';
 import { tradersBarbariansRules } from './tradersBarbarians.ts';
 import { treasuresDragonsRules } from './treasuresDragons.ts';
 import { explorersPiratesRules } from './explorersPirates.ts';
+import { greedWealthPowerRules } from './greedWealthPower.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -19,6 +20,7 @@ export const RULEBOOKS: RulebookModule[] = [
   tradersBarbariansRules,
   treasuresDragonsRules,
   explorersPiratesRules,
+  greedWealthPowerRules,
   variantsRules,
 ];
 
@@ -72,6 +74,9 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
  * move can link straight to the rule.
  */
 export const ERROR_PAGES: [RegExp, string][] = [
+  [/citadel|diocese|monument|silo|brick hex|grain hex|gold field/i, 'gwp-buildings'],
+  [/beer/i, 'gwp-abilities'],
+  [/metropolis, so/i, 'gwp'],
   [
     /harbor settlement|settler|extra sails|no moves left|can not reach there|ashore|gold buys/i,
     'ep-ships',

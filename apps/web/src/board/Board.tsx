@@ -20,6 +20,7 @@ import {
   farmlandDry,
   GoldRiver,
 } from './CanalArt.tsx';
+import { buildingMarkers, GWP_ICON } from '../screens/GreedWealthPower.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -1007,6 +1008,35 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             </g>
           );
         })()}
+
+      {buildingMarkers(state).map((m) => {
+        const h = state.hexes[m.hex];
+        if (!h) return null;
+        // Between the city and the middle of the hex it stands on.
+        const c = hexToPixel(h.q, h.r, S);
+        const k = cornerToPixel(m.corner, S);
+        const x = k.x + (c.x - k.x) * 0.42;
+        const y = k.y + (c.y - k.y) * 0.42;
+        const r = S * 0.13;
+        return (
+          <g key={m.key} className="gwp-building" filter="url(#lift)">
+            <rect
+              x={x - r}
+              y={y - r}
+              width={r * 2}
+              height={r * 2}
+              rx={r * 0.35}
+              fill={color(m.owner)}
+              stroke={theme.outline}
+              strokeWidth={1.5}
+            />
+            <text x={x} y={y + r * 0.42} textAnchor="middle" fontSize={r * 1.2}>
+              {GWP_ICON[m.building]}
+            </text>
+            <title>{m.label}</title>
+          </g>
+        );
+      })}
 
       {pieces
         .filter((p) => p.type === 'merchant' && p.at.kind === 'hex')

@@ -84,6 +84,11 @@ export interface Reducers {
   hexYield(ctx: Ctx, hex: HexState, piece: Piece, value: Cards): Cards;
   /** Best bank trade ratio for giving a card type. */
   tradeRatio(ctx: Ctx, player: number, card: string, value: number): number;
+  /**
+   * Bank trade ratio for one exact swap. Starts from tradeRatio for the card
+   * given; lets a module offer a better rate only for some cards received.
+   */
+  swapRatio(ctx: Ctx, player: number, give: string, get: string, value: number): number;
   /** Victory points needed to win. */
   vpTarget(ctx: Ctx, value: number): number;
   /** How much one route piece counts toward the longest route (normally 1). */

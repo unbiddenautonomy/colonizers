@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Action, Ctx, GameState } from '@colonizers/engine';
 import {
+  activeTracks,
   barbarianStrength,
   barbarianTrack,
   ckData,
@@ -12,6 +13,7 @@ import {
   strength,
   TRACK_COMMODITY,
   TRACKS,
+  VP_PROGRESS,
   wallsOf,
   type Track,
 } from '@colonizers/module-cities-knights';
@@ -26,7 +28,15 @@ export const TRACK_LABEL: Record<Track, string> = {
   science: 'Science',
   trade: 'Trade',
   politics: 'Politics',
+  magic: 'Magic',
+  religion: 'Religion',
+  wealth: 'Wealth',
 };
+
+/** The tracks in a game (more than three with Greed, Wealth & Power). */
+export function tracksOf(state: GameState): readonly Track[] {
+  return (state.settings.ckTracks as Track[] | undefined) ?? TRACKS;
+}
 
 /** Phases where the player picks a spot on the board. */
 export const CK_BOARD_PHASES = [
@@ -56,13 +66,17 @@ export function ckPrompt(state: GameState, who: string, actor: number | null): s
       return owed
         ? `${who}: you tied as best defender. Pick a progress deck to draw from.`
         : 'Waiting for the best defenders to pick a progress card.';
+    case 'wildPick':
+      return owed
+        ? `${who}: wild gate! Pick a progress deck your improvements open.`
+        : 'Wild gate: waiting for a player to pick a progress deck.';
     case 'treasureProgress':
       return owed
         ? `${who}: your treasure is a progress card. Pick a deck to draw from.`
         : 'Waiting for a treasure finder to pick a progress card.';
     case 'aqueduct':
       return owed
-        ? `${who}: your aqueduct pays out. Pick any resource.`
+        ? `${who}: your aqueduct pays out. Pick any resource${state.modules.includes('greed-wealth-power') ? ' (or a Beer, with Religion level 3)' : ''}.`
         : 'Waiting for players with an aqueduct to pick a resource.';
     case 'placeMetropolis':
       return owed ? `${who}: pick the city for your new metropolis.` : 'Placing a metropolis…';
@@ -124,6 +138,7 @@ export function optionLabel(a: Action, names: string[]): string {
     typeof c === 'string' ? `${nameOf(c).icon ?? ''} ${nameOf(c).name}`.trim() : '';
   switch (a.type) {
     case 'pickDefenderCard':
+    case 'pickWildCard':
     case 'treasureProgress':
       return `${TRACK_LABEL[a.deck as Track]} deck`;
     case 'aqueductPick':
@@ -178,7 +193,7 @@ export function CkPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const d = ckData(ctx);
   return (
     <>
-      {TRACKS.map((t) => (
+      {activeTracks(ctx).map((t) => (
         <span key={t} title={`${TRACK_LABEL[t]} level`} className="track-chip">
           <span className="track-dot" style={{ background: TRACK_COLOR[t] }} />
           {lv[t]}
@@ -244,7 +259,7 @@ export function CkBuild({
       ])}
       {btn('wall', 'City wall', 'buildWall', ctx.cost('wall', actor))}
       <div className="improve" role="group" aria-label="City improvements">
-        {TRACKS.map((t) => (
+        {activeTracks(ctx).map((t) => (
           <button
             key={t}
             type="button"
@@ -277,11 +292,11 @@ export function ProgressHand({
   names: string[];
 }) {
   const [picking, setPicking] = useState<string | null>(null);
-  const held = TRACKS.flatMap((t) =>
+  const held = tracksOf(state).flatMap((t) =>
     (state.players[actor]?.held[t] ?? []).map((h) => ({ card: h.card, deck: t })),
   );
   const played = state.players[actor]?.played ?? {};
-  const vpCards = (played.printer ?? 0) + (played.constitution ?? 0);
+  const vpCards = VP_PROGRESS.reduce((s, c) => s + (played[c] ?? 0), 0);
   if (!held.length && !vpCards) return null;
   const options = (card: string) =>
     legal.filter((a) => a.type === 'playProgress' && a.card === card);
@@ -414,6 +429,12 @@ export function CkChoices({
         'Defenders tie',
         'Draw one progress card from a deck of your choice.',
       );
+    case 'wildPick':
+      return list(
+        ['pickWildCard'],
+        'Wild gate',
+        `Draw one progress card from any deck your improvements open for a red ${(state.data['cities-knights']?.wildRed as number | undefined) ?? ''}.`,
+      );
     case 'treasureProgress':
       return list(
         ['treasureProgress'],
@@ -424,7 +445,9 @@ export function CkChoices({
       return list(
         ['aqueductPick'],
         'Aqueduct',
-        'You got nothing this roll. Take any one resource.',
+        state.modules.includes('greed-wealth-power')
+          ? 'You got nothing this roll. Take any one resource, or a Beer if you have Religion level 3.'
+          : 'You got nothing this roll. Take any one resource.',
       );
     case 'commercialHarbor':
       if (state.phase.pending !== undefined)
@@ -442,7 +465,7 @@ export function CkChoices({
       return list(
         ['returnProgress'],
         'Too many progress cards',
-        'You may hold 4 progress cards (points cards do not count). Pick one to put back under its deck.',
+        `You may hold ${(state.settings.progressLimit as number | undefined) ?? 4} progress cards (points cards do not count). Pick one to put back under its deck.`,
       );
     case 'spy':
       return list(['takeProgress', 'ckDone'], 'Spy', 'Their progress cards. Take one, or none.');
@@ -511,10 +534,17 @@ function PickCards({
   );
 }
 
-export function CommodityCards({ hand }: { hand: Record<string, number> }) {
+export function CommodityCards({
+  hand,
+  extra = [],
+}: {
+  hand: Record<string, number>;
+  /** Commodities an expansion adds. */
+  extra?: readonly string[];
+}) {
   return (
     <>
-      {(['paper', 'cloth', 'coin'] as const).map((c) => (
+      {['paper', 'cloth', 'coin', ...extra].map((c) => (
         <ResourceCard key={c} card={c} count={hand[c] ?? 0} dim={!hand[c]} />
       ))}
     </>

@@ -7,6 +7,7 @@ import { specialMapsModule } from '@colonizers/module-special-maps';
 import { tradersBarbariansModule } from '@colonizers/module-traders-barbarians';
 import { treasuresDragonsModule } from '@colonizers/module-treasures-dragons';
 import { explorersPiratesModule } from '@colonizers/module-explorers-pirates';
+import { greedWealthPowerModule } from '@colonizers/module-greed-wealth-power';
 import {
   generateBoard,
   generateSeaBoard,
@@ -27,10 +28,21 @@ export const library = new ModuleLibrary([
   explorersPiratesModule,
   variantsModule,
   citiesKnightsModule,
+  greedWealthPowerModule,
 ]);
 
 /** Cities & Knights adds metropolises and defender points, so games go 3 points longer. */
 export const CK_EXTRA_VP = 3;
+/** Greed, Wealth & Power plays to 18 with the usual 10. */
+export const GWP_EXTRA_VP = 8;
+
+/** Greed, Wealth & Power goes on top of Cities & Knights, on the usual maps and Seafarers. */
+export function gwpOn(
+  settings: Pick<RoomSettings, 'greedWealthPower' | 'map'>,
+  ck: boolean,
+): boolean {
+  return ck && settings.greedWealthPower && settings.map.kind !== 'special';
+}
 
 /** Builds the game for a room or a game on one device. Names are already in seat order. */
 export function buildConfig(settings: RoomSettings, names: string[], seed: string): GameConfig {
@@ -39,7 +51,8 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   // Traders & Barbarians scenarios are base-game only.
   const ck =
     (settings.citiesKnights || picked?.needsCitiesKnights === true) && !picked?.noCitiesKnights;
-  const extraVp = ck ? CK_EXTRA_VP : 0;
+  const gwp = gwpOn(settings, ck);
+  const extraVp = gwp ? GWP_EXTRA_VP : ck ? CK_EXTRA_VP : 0;
   const options = optionSettings(settings.options, n);
   const config = (
     extra: string[],
@@ -48,7 +61,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   ): GameConfig => ({
     seed,
     players: names,
-    modules: moduleList(extra, ck),
+    modules: moduleList(extra, ck, gwp),
     map,
     settings: { ...options, ...own },
     fixedSeats: true,
