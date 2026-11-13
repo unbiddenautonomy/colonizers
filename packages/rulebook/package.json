@@ -11,6 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@colonizers/module-world-wonders": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "~6.0.3",
     "vitest": "~4.1.12"

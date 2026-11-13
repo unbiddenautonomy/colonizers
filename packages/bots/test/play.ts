@@ -3,12 +3,14 @@ import { baseModule } from '@colonizers/module-base';
 import { seafarersModule } from '@colonizers/module-seafarers';
 import { citiesKnightsModule } from '@colonizers/module-cities-knights';
 import { greedWealthPowerModule } from '@colonizers/module-greed-wealth-power';
+import { worldWondersModule } from '@colonizers/module-world-wonders';
 import { generateBoard, generateSeaBoard } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '../src/index.ts';
 
 export const lib = new ModuleLibrary([
   baseModule,
   seafarersModule,
+  worldWondersModule,
   citiesKnightsModule,
   greedWealthPowerModule,
 ]);
@@ -28,6 +30,7 @@ export function game(
   players: number,
   kind: 'base' | 'sea' | 'ck' | 'sea-ck' | 'gwp',
   settings: Record<string, unknown> = {},
+  extra: string[] = [],
 ): GameState {
   const names = Array.from({ length: players }, (_, i) => `P${i}`);
   const ck = kind === 'ck' || kind === 'sea-ck' || kind === 'gwp';
@@ -47,7 +50,12 @@ export function game(
   return lib.createGame({
     seed,
     players: names,
-    modules: ['base', ...(ck ? ['cities-knights'] : []), ...(gwp ? ['greed-wealth-power'] : [])],
+    modules: [
+      'base',
+      ...extra,
+      ...(ck ? ['cities-knights'] : []),
+      ...(gwp ? ['greed-wealth-power'] : []),
+    ],
     map: b.map,
     settings: { vpTarget: gwp ? 18 : ck ? 13 : 10, ...settings },
     fixedSeats: true,

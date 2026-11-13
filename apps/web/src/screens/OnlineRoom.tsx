@@ -237,8 +237,9 @@ function Lobby({
   const needsCk = specialPick?.needsCitiesKnights === true;
   const ck = (s.citiesKnights || needsCk) && !noCk;
   const gwp = ck && s.greedWealthPower && !specialPick;
+  const wonders = s.worldWonders && !specialPick;
   const bonus = vpBonus(ck, specialPick?.id ?? null, gwp);
-  const optionList = describeOptions(s.options, players.length, gwp);
+  const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
   const seaPick =
     map.kind === 'scenario' ? (SEA_SCENARIOS.find((x) => x.id === map.id) ?? null) : null;
@@ -462,6 +463,16 @@ function Lobby({
               />{' '}
               👑 Greed, Wealth &amp; Power (fan expansion on top of Cities &amp; Knights; 18 points)
             </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={wonders}
+                disabled={!!specialPick}
+                onChange={(e) => setGame({ worldWonders: e.target.checked })}
+              />{' '}
+              🏛️ World Wonders (fan expansion: wonders in four stages; a finished one is needed to
+              win)
+            </label>
             {noCk && (
               <p className="muted small">
                 Traders &amp; Barbarians scenarios use the base game only.
@@ -526,6 +537,7 @@ function Lobby({
                 specialPick?.group === 'explorers' && 'Explorers & Pirates',
                 ck && 'Cities & Knights',
                 gwp && 'Greed, Wealth & Power',
+                wonders && 'World Wonders',
               ]
                 .filter(Boolean)
                 .join(' + ') || 'none'}
@@ -548,6 +560,7 @@ function Lobby({
             players={Math.max(players.length, s.maxPlayers)}
             citiesKnights={ck}
             gwp={gwp}
+            wonders={wonders}
             robber={hasRobber(specialPick?.id ?? null)}
             onChange={(options) => set({ options })}
           />
