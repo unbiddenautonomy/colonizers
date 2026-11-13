@@ -9,6 +9,7 @@ import {
   knightStrength,
 } from '@colonizers/module-cities-knights';
 import { MODULE_ID } from './constants.ts';
+import { deedBlock } from './deed.ts';
 import { festivalBlock } from './festival.ts';
 
 /**
@@ -277,6 +278,7 @@ export function guardBuild(damsel: boolean) {
     check: (ctx, a) =>
       lentBlock(ctx, a) ??
       festivalBlock(ctx, a) ??
+      deedBlock(ctx, a) ??
       (damsel ? damselBlock(ctx, a) : null) ??
       prev.check(ctx, a),
   });
