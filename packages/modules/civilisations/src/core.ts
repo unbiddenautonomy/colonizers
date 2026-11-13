@@ -1,10 +1,11 @@
-import type { Action, ActionDef, CornerId, Ctx, Piece } from '@colonizers/engine';
+import type { Action, ActionDef, CornerId, Ctx, HexId, Piece } from '@colonizers/engine';
 import {
   ckData,
   claimMetropolis,
   levels,
   MAX_LEVEL,
   METROPOLIS_LEVEL,
+  progressOverLimit,
   winsMetropolis,
   type Track,
 } from '@colonizers/module-cities-knights';
@@ -14,16 +15,39 @@ import { CIV_BY_ID, type Civ, type CivClass } from './civs.ts';
 
 export const MODULE_ID = 'civilisations';
 
+/** Where a free settlement may go. */
+export type SettleWhere =
+  /** Anywhere a settlement could be built, by your roads or ships. */
+  | 'any'
+  /** By your roads, with land all round (Mongolia). */
+  | 'inland'
+  /** By your roads or ships, on the coast (Indonesia). */
+  | 'coastal'
+  /** On an island where you have no building yet, no road needed (Australia). */
+  | 'island';
+
 /** Something a civilisation's ability owes a player, to take when they like. */
 export type Gift =
-  /** A free road (or ship, with Seafarers). */
-  | { kind: 'route' }
+  /** A free road (or ship, with Seafarers), or only one of the two. */
+  | { kind: 'route'; only?: 'road' | 'ship' }
   /** A free active strong knight (Warlord). */
   | { kind: 'knight' }
-  /** A card from a hex beside a new settlement or city (Republic). */
-  | { kind: 'harvest'; corner: CornerId; city: boolean }
+  /**
+   * A card from a hex beside a building: a new settlement's resource or a new
+   * city's commodity (Republic), or a resource from another hex beside a city
+   * (Maasai, `skip` being the hex that paid).
+   */
+  | { kind: 'harvest'; corner: CornerId; city: boolean; skip?: HexId }
   /** A free city improvement level (Egypt). */
-  | { kind: 'improve' };
+  | { kind: 'improve' }
+  /** A free settlement (Mongolia, France, Australia, Indonesia). */
+  | { kind: 'settlement'; where: SettleWhere }
+  /** A progress card from a deck of your choice (Maori). */
+  | { kind: 'progress' }
+  /** Move a harbor anywhere on the coast, or swap two (Gran Colombia). */
+  | { kind: 'harbor' }
+  /** A 2:1 harbor for a resource of your choice (China). */
+  | { kind: 'silk' };
 
 export interface CivData extends Record<string, unknown> {
   /** The tiles each player was dealt, until they pick. */
@@ -47,6 +71,20 @@ export interface CivData extends Record<string, unknown> {
   firstSeven?: boolean;
   /** Korea: the round each track's last card came in, by "seat:track". */
   korea?: Record<string, number>;
+  /** Any resource or commodity of their choice owed to players (Maori). */
+  anyPicks?: Record<number, number>;
+  /** China: the resource each player trades 2:1. */
+  silk?: Record<number, string>;
+  /** Maasai: the resource each player trades 1:1 for other resources. */
+  lake?: Record<number, string>;
+  /** Greece: the round each player last threw the dice again. */
+  democracy?: Record<number, number>;
+  /** Mongolia: the turn a 3 or 11 let them move the robber. */
+  khagan?: number;
+  /** Russia: the turn they last had the chance to place the robber. */
+  muscovy?: number;
+  /** Austria: the cards drawn for the Habsburg Marriage, until three are kept. */
+  habsburg?: { seat: number; drawn: { card: string; deck: Track }[] };
 }
 
 export function civData(ctx: Ctx): CivData {
@@ -163,3 +201,42 @@ export const onlyActive = (ctx: Ctx, a: Action): string | null =>
 
 export const notOver = (ctx: Ctx): string | null =>
   ctx.state.phase.id === 'gameOver' ? 'The game is over' : null;
+
+/** Puts back progress cards over the limit before going on. */
+export function progressCheck(ctx: Ctx): void {
+  if (ctx.state.phase.id === 'progressDiscard' || ctx.state.phase.id === 'gameOver') return;
+  const owed = progressOverLimit(ctx);
+  if (Object.keys(owed).length)
+    ctx.setPhase({ id: 'progressDiscard', owed, returnTo: ctx.state.phase });
+}
+
+/** The phase's owed seats. */
+export const owes = (ctx: Ctx, seat: number): boolean =>
+  ((ctx.state.phase.owed as Record<number, number> | undefined)?.[seat] ?? 0) > 0;
+
+export const isSeaHex = (ctx: Ctx, h: HexId): boolean => {
+  const x = ctx.state.hexes[h];
+  return !!x && ctx.registry.hexTypes[x.type]?.terrain === 'sea';
+};
+
+export const isLandHex = (ctx: Ctx, h: HexId): boolean => {
+  const x = ctx.state.hexes[h];
+  return !!x && ctx.registry.hexTypes[x.type]?.terrain === 'land';
+};
+
+/** A corner with land on all three sides. */
+export function isInlandCorner(ctx: Ctx, corner: CornerId): boolean {
+  const hexes = ctx.geometry.cornerHexes.get(corner) ?? [];
+  return hexes.length === 3 && hexes.every((h) => isLandHex(ctx, h));
+}
+
+/** A corner touching both land and sea. */
+export function isCoastalCorner(ctx: Ctx, corner: CornerId): boolean {
+  const hexes = ctx.geometry.cornerHexes.get(corner) ?? [];
+  return hexes.some((h) => isLandHex(ctx, h)) && hexes.some((h) => isSeaHex(ctx, h));
+}
+
+/** Does this corner or edge touch a hex of one of these types? */
+export function touchesTerrain(ctx: Ctx, hexes: readonly HexId[], types: readonly string[]) {
+  return hexes.some((h) => types.includes(ctx.state.hexes[h]?.type ?? ''));
+}

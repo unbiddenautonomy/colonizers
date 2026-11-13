@@ -1,107 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import {
-  Ctx,
-  ModuleLibrary,
-  type Action,
-  type CornerId,
-  type GameState,
-  type HexId,
-} from '@colonizers/engine';
-import { baseModule } from '@colonizers/module-base';
-import { seafarersModule } from '@colonizers/module-seafarers';
-import { citiesKnightsModule, ckData, levels } from '@colonizers/module-cities-knights';
-import { greedWealthPowerModule } from '@colonizers/module-greed-wealth-power';
-import { builtWonders, worldWondersModule } from '@colonizers/module-world-wonders';
-import { generateBoard } from '@colonizers/maps';
-import {
-  CIVS,
-  civilisationsModule,
-  civOf,
-  giftsOf,
-  picksOf,
-  polarHexes,
-  READY_CIVS,
-  swapsOf,
-} from '../src/index.ts';
-
-const lib = new ModuleLibrary([
-  baseModule,
-  seafarersModule,
-  citiesKnightsModule,
-  greedWealthPowerModule,
-  worldWondersModule,
-  civilisationsModule,
-]);
-
-function game(seed = 'civ', wonders = false): GameState {
-  const board = generateBoard({ seed, players: 4, mode: 'classic' });
-  return lib.createGame({
-    seed,
-    players: ['A', 'B', 'C', 'D'],
-    modules: [
-      'base',
-      'cities-knights',
-      'greed-wealth-power',
-      ...(wonders ? ['world-wonders'] : []),
-      'civilisations',
-    ],
-    map: board.map,
-    settings: { wonderToWin: false },
-    fixedSeats: true,
-  }).state;
-}
-
-const ctxOf = (s: GameState) => new Ctx(s, lib.registry(s.modules));
-const act = (s: GameState, a: Action) => lib.apply(s, a).state;
-
-function edit(state: GameState, fn: (ctx: Ctx) => void): GameState {
-  const next = structuredClone(state);
-  const ctx = ctxOf(next);
-  fn(ctx);
-  ctx.commit();
-  return next;
-}
-
-function rng(seed: number): () => number {
-  let x = seed >>> 0 || 1;
-  return () => {
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    return (x >>> 0) / 4294967296;
-  };
-}
-
-/** Deals these civilisations and picks them. */
-function pick(state: GameState, civs: string[]): GameState {
-  let s = edit(state, (ctx) => {
-    const d = ctx.state.data.civilisations as { dealt: Record<number, string[]> };
-    civs.forEach((c, seat) => (d.dealt[seat] = [c]));
-  });
-  civs.forEach((civ, seat) => (s = act(s, { type: 'pickCiv', player: seat, civ })));
-  return s;
-}
-
-/** Plays the starting placements (and any start choices) at random. */
-function finishSetup(state: GameState): GameState {
-  let s = state;
-  const rand = rng(3);
-  const early = ['setup', 'pickGold', 'civNeutral', 'progressDiscard'];
-  while (early.includes(s.phase.id)) {
-    const options = lib
-      .waitingOn(s)
-      .flatMap((seat) => lib.legalActions(s, seat))
-      .filter((a) => a.type !== 'civPick');
-    s = act(s, options[Math.floor(rand() * options.length)]!);
-  }
-  return s;
-}
-
-const main = (s: GameState, seat = 0) =>
-  edit(s, (ctx) => {
-    ctx.state.turn.player = seat;
-    ctx.setPhase({ id: 'main' });
-  });
+import { type CornerId, type HexId } from '@colonizers/engine';
+import { ckData, levels } from '@colonizers/module-cities-knights';
+import { builtWonders } from '@colonizers/module-world-wonders';
+import { act, ctxOf, edit, finishSetup, game, lib, main, pick } from './helpers.ts';
+import { CIVS, civOf, giftsOf, picksOf, polarHexes, READY_CIVS, swapsOf } from '../src/index.ts';
 
 const START = ['kongo', 'morocco', 'mali', 'judea'];
 
@@ -111,8 +13,8 @@ describe('Picking civilisations', () => {
     expect(s.phase.id).toBe('civPick');
     const d = s.data.civilisations as { dealt: Record<number, string[]> };
     const all = Object.values(d.dealt).flat();
-    expect(all).toHaveLength(8);
-    expect(new Set(all).size).toBe(8);
+    expect(all).toHaveLength(12);
+    expect(new Set(all).size).toBe(12);
     for (const c of all) expect(READY_CIVS).toContain(c);
     // Nobody sees another player's tiles.
     const view = lib.view(s, 1).data.civilisations as { dealt: Record<number, string[]> };
