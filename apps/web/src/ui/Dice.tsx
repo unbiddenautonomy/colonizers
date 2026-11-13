@@ -1,4 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { motionScale } from './motion.tsx';
 
 // ---- The chosen dice skin, per device ----
 
@@ -107,14 +108,6 @@ function Face({ n, label, numbers }: { n: number; label?: string; numbers: boole
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)]!;
 
-function reducedMotion(): boolean {
-  try {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * A die as a small cube. When `rollKey` changes it is thrown in from a
  * random side, tumbling, and lands showing `value`. Faces can carry labels
@@ -151,7 +144,8 @@ export function Die({
     seen.current = rollKey;
     const w = wrap.current;
     const c = cube.current;
-    if (!w || !c || reducedMotion() || typeof w.animate !== 'function') return;
+    const k = motionScale();
+    if (!w || !c || k === 0) return;
     const dir = pick(['left', 'right', 'top', 'bottom'] as const);
     const dist = rand(160, 300);
     const side = rand(-90, 90);
@@ -163,8 +157,8 @@ export function Die({
           : dir === 'top'
             ? [side, -dist]
             : [side, dist];
-    const duration = rand(650, 950);
-    const delay = index * rand(40, 110);
+    const duration = rand(650, 950) * k;
+    const delay = index * rand(40, 110) * k;
     // Two bounces on the way in, smaller each time.
     const hop = rand(18, 34);
     w.animate(
