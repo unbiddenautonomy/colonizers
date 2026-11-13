@@ -550,6 +550,31 @@ describe('Enchanted Land', () => {
   });
 });
 
+describe('Into the Unknown', () => {
+  it('gives everyone a third starting settlement, last-placer first, with resources', () => {
+    for (const n of [3, 4, 5, 6]) {
+      for (const seed of [1, 2, 3]) {
+        let s = game('into-the-unknown', n, `itu${n}-${seed}`);
+        expect(s.settings.setupRounds).toBe(3);
+        const order: number[] = [];
+        const rand = rng(seed);
+        while (s.phase.id === 'setup') {
+          const seat = lib.waitingOn(s)[0]!;
+          const o = lib.legalActions(s, seat);
+          expect(o.length).toBeGreaterThan(0);
+          const a = o[Math.floor(rand() * o.length)]!;
+          if (a.type === 'placeSetupSettlement') order.push(seat);
+          s = act(s, a);
+        }
+        const seats = Array.from({ length: n }, (_, i) => i);
+        expect(order).toEqual([...seats, ...[...seats].reverse(), ...seats]);
+        const c = ctxOf(s);
+        for (const seat of seats) expect(c.piecesOf(seat, 'settlement')).toHaveLength(3);
+      }
+    }
+  }, 60_000);
+});
+
 describe('The Great Canal', () => {
   const placeKnight = (s: GameState, seat: number, at: CornerId, props: Record<string, unknown>) =>
     edit(s, (c) => {

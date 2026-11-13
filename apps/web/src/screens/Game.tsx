@@ -253,13 +253,18 @@ function targetsFor(
   return t;
 }
 
+function setupNote(index: number, players: number): string {
+  if (index >= 2 * players) return ' (your third, which also collects resources)';
+  return index >= players ? ' (your second, which collects resources)' : '';
+}
+
 function prompt(state: GameState, actor: number | null, names: string[], mode: Mode): string {
   const who = actor === null ? '' : names[actor];
   switch (state.phase.id) {
     case 'setup':
       return (state.phase.step as string) === 'road'
         ? `${who}: place a ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} next to your new settlement.`
-        : `${who}: place a settlement${(state.phase.index as number) >= state.players.length ? ' (your second, which collects resources)' : ''}.`;
+        : `${who}: place a settlement${setupNote(state.phase.index as number, state.players.length)}.`;
     case 'roll':
       return `${who}: roll the dice${hasKnight(state, actor) ? ', or play a Knight first' : ''}.`;
     case 'discard':

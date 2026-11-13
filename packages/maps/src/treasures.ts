@@ -98,6 +98,10 @@ const SEA: Record<TdaScenarioInfo['id'], Omit<SeaScenario, 'id' | 'name' | 'desc
     islandBonus: 0,
     fog: true,
     outerDeserts: 2,
+    // Everyone starts with a third settlement, so the home island is a little bigger.
+    setupRounds: 3,
+    homeSize: (n) => (n > 4 ? 22 : 15),
+    outerSizes: (n) => (n > 4 ? [3, 3, 3, 3, 2, 2, 2, 2, 2] : [3, 3, 2, 2, 2, 2, 2]),
   },
   'greater-catan': {
     layout: 'newShores',

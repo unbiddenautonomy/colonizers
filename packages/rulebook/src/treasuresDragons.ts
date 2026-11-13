@@ -19,7 +19,7 @@ export const treasuresDragonsRules: RulebookModule = {
       body: `These scenarios are played on Seafarers boards, so ships, gold fields and fog all work as usual. Pick one under **Treasures, Dragons & Adventurers** when you choose the map.
 
 - **Treasure Islands**: fog hides the islands around your home, and treasure chests wait out at sea. 1 point for your first settlement on each new island. You need 4 more points than the target you picked (14 with the usual 10).
-- **Into the Unknown**: a small home island and many tiny islands in the fog, with chests everywhere and no pirate. You need 2 more points than your target (12 with the usual 10).
+- **Into the Unknown**: a small home island and many tiny islands in the fog, with chests everywhere and no pirate. Everyone starts with a **third settlement** and road or ship: after the usual two rounds, a third round goes in the first round's order, and it also collects starting resources. You need 2 more points than your target (12 with the usual 10).
 - **Greater Catan**: the new islands have no numbers until someone reaches them. A long game: you need 8 more points than your target (18 with the usual 10), and everyone has 4 extra cities.
 - **Desert Dragons**: dragons gather in three deserts and then spread across your island. You need 3 more points than your target (13 with the usual 10).
 
