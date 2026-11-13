@@ -212,6 +212,18 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return e.owner === e.player
         ? `🍺 ${n(e.player)} activated a knight with Beer.`
         : `🍺 ${n(e.player)} activated ${n(e.owner)}'s knight with Beer.`;
+    case 'neutralPlaced': {
+      const piece = nameOf(e.piece as string).name;
+      return e.from === null || e.from === e.player
+        ? `${n(e.player)} placed the ${piece}.`
+        : `${n(e.player)} took the ${piece} from ${n(e.from)}.`;
+    }
+    case 'neutralChased':
+      return `The ${nameOf(e.by as string).name} chased the ${nameOf(e.piece as string).name} away.`;
+    case 'neutralYield':
+      return `${n(e.player)}'s ${nameOf(e.piece as string).name} brought ${cards(e.got as Record<string, number>)}.`;
+    case 'heroOfCatan':
+      return `🦸 ${n(e.player)} has a level 4 knight: Hero of Catan, +1 point!`;
     case 'barbariansAdvance':
       return null;
     case 'barbarianAttack':

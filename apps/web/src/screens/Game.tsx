@@ -75,10 +75,12 @@ import {
   type EpMode,
 } from './ExplorersPirates.tsx';
 import {
+  GWP_BOARD_PHASES,
   GWP_HAND,
   GWP_MODES,
   GwpActions,
   GwpPlayerStats,
+  gwpPhasePrompt,
   gwpPrompt,
   gwpTargets,
   type GwpMode,
@@ -191,7 +193,7 @@ function targetsFor(
     const k = typeof id === 'string' ? state.pieces[id] : undefined;
     return k?.at.kind === 'corner' ? k.at.id : null;
   };
-  if (CK_BOARD_PHASES.includes(ph)) {
+  if (CK_BOARD_PHASES.includes(ph) || GWP_BOARD_PHASES.includes(ph)) {
     for (const a of legal) {
       if (typeof a.corner === 'string') t.corners.set(a.corner as CornerId, a);
       else if (typeof a.edge === 'string') t.edges.set(a.edge as EdgeId, a);
@@ -347,7 +349,12 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
     case 'gameOver':
       return `${names[state.winner ?? 0]} wins!`;
     default:
-      return tbPrompt(state, who ?? '', actor) ?? ckPrompt(state, who ?? '', actor) ?? '';
+      return (
+        tbPrompt(state, who ?? '', actor) ??
+        ckPrompt(state, who ?? '', actor) ??
+        gwpPhasePrompt(state, who ?? '') ??
+        ''
+      );
   }
 }
 

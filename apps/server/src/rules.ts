@@ -138,6 +138,8 @@ const SAFE_ORDER = [
   'inventorPick',
   'medicineCity',
   'merchantHex',
+  'placeNeutral',
+  'pickWildCard',
   'bishopMove',
   'diplomatRemove',
   'intrigueKnight',
