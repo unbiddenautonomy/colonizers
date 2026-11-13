@@ -119,7 +119,12 @@ function merchantHexes(ctx: Ctx, seat: number): HexId[] {
 
 /** Roads with one end that touches nothing else of their owner's. */
 function openRoads(ctx: Ctx): Piece[] {
-  return ctx.piecesOfType('road').filter((r) => {
+  return openRoutes(ctx, 'road');
+}
+
+/** Route pieces of a type (roads, ships) with one end that touches nothing else of their owner's. */
+export function openRoutes(ctx: Ctx, type: string): Piece[] {
+  return ctx.piecesOfType(type).filter((r) => {
     if (r.at.kind !== 'edge' || r.owner === null) return false;
     const owner = r.owner;
     const edge = r.at.id;

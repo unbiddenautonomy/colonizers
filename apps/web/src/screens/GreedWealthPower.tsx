@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import type { Action, CornerId, Ctx, GameState, HexId } from '@colonizers/engine';
+import {
+  cornerHexes,
+  type Action,
+  type CornerId,
+  type Ctx,
+  type GameState,
+  type HexId,
+} from '@colonizers/engine';
 import {
   beerOf,
   beerRatio,
@@ -291,4 +298,165 @@ export function buildingMarkers(state: GameState): {
         });
     }
   return out;
+}
+
+const KNIGHT_NAME: Record<string, string> = {
+  knight1: 'Basic knight',
+  knight2: 'Strong knight',
+  knight3: 'Mighty knight',
+};
+
+/** "Strong knight by 6, 9": a knight named by the numbers beside it. */
+function knightLabel(state: GameState | undefined, id: unknown): string {
+  const k = typeof id === 'string' ? state?.pieces[id] : undefined;
+  if (!state || !k || k.at.kind !== 'corner') return 'A knight';
+  const near = cornerHexes(k.at.id)
+    .map((h) => state.hexes[h]?.token)
+    .filter((t): t is number => typeof t === 'number');
+  const name = KNIGHT_NAME[k.type] ?? 'Knight';
+  return near.length ? `${name} near ${[...new Set(near)].sort((a, b) => a - b).join(', ')}` : name;
+}
+
+const TRACK_NAME: Record<string, string> = {
+  science: 'Science',
+  trade: 'Trade',
+  politics: 'Politics',
+  magic: 'Magic',
+  religion: 'Religion',
+  wealth: 'Wealth',
+};
+
+const card = (c: unknown) =>
+  typeof c === 'string' ? `${nameOf(c).icon ?? ''} ${nameOf(c).name}`.trim() : '';
+
+/** Labels for Greed, Wealth & Power choices, or null for anything else. */
+export function gwpOptionLabel(a: Action, names: string[], state?: GameState): string | null {
+  const n = (s: unknown) => (typeof s === 'number' ? (names[s] ?? `Player ${s + 1}`) : '');
+  switch (a.type) {
+    case 'brothelAnswer':
+      return a.pay ? `Pay 1 ${card(a.pay)}` : 'Refuse: my knights stand down';
+    case 'ritualGive':
+    case 'espionageTake':
+      return card(a.card);
+    case 'keepProgress': {
+      const pool = (state?.phase.pool as { card: string }[] | undefined) ?? [];
+      return card(pool[a.index as number]?.card);
+    }
+    case 'playProgress':
+      break;
+    default:
+      return null;
+  }
+  switch (a.card) {
+    case 'kontor': {
+      const [res, ratio] = String(a.option).split(':');
+      return res === 'any' ? `${ratio}:1 harbor` : `${card(res)} ${ratio ?? 2}:1 harbor`;
+    }
+    case 'secretSociety':
+      return `${n(a.target)}: ${TRACK_NAME[a.option as string] ?? String(a.option)}`;
+    case 'astrolabe':
+      return a.option === 'build' ? 'A Citadel or Diocese for 1 brick' : `Take ${card('paper')}`;
+    case 'magicCurrent':
+      return a.option === 'back' ? 'Barbarians 2 back' : 'Barbarians 2 forward';
+    case 'ravenFlight':
+      return a.option === 'desert' ? 'Robber to the desert' : 'Everyone else discards 1 grain';
+    case 'stoneCircle':
+      return a.option === 'ore'
+        ? `Give ${card(a.resource)}, take 3 ore`
+        : `Remove ${knightLabel(state, a.knight).toLowerCase()}: ${card(a.resource)} + ${card('bread')}`;
+    case 'magicForest':
+      return a.option === 'collect'
+        ? 'Lumber for each settlement by a forest'
+        : `2 lumber for ${card('crystal')}`;
+    case 'reformation':
+      return a.option === 'mine' ? 'Swap my own cards' : 'Everyone else swaps theirs';
+    case 'missionary':
+      return `${n(a.target)}: give ${card(a.resource)}`;
+    case 'tournament':
+      return knightLabel(state, a.knight);
+    case 'unicornMagic':
+      return a.face === 'ship'
+        ? 'Ship'
+        : a.face === 'wild'
+          ? 'Ship and wild gate'
+          : `${TRACK_NAME[a.face as string] ?? String(a.face)} gate`;
+    default:
+      return null;
+  }
+}
+
+/** Choices that Greed, Wealth & Power's cards ask for, in a dialog. */
+export function GwpChoices({
+  state,
+  legal,
+  act,
+  names,
+}: {
+  state: GameState;
+  legal: Action[];
+  act: (a: Action) => void;
+  names: string[];
+}) {
+  const list = (types: string[], title: string, text: string) => {
+    const opts = legal.filter((a) => types.includes(a.type));
+    if (!opts.length) return null;
+    return (
+      <Modal title={title}>
+        <p>{text}</p>
+        <div className="row">
+          {opts.map((a, i) => (
+            <button key={i} type="button" onClick={() => act(a)}>
+              {gwpOptionLabel(a, names, state) ?? a.type}
+            </button>
+          ))}
+        </div>
+      </Modal>
+    );
+  };
+  const by = names[state.phase.by as number] ?? 'A player';
+  switch (state.phase.id) {
+    case 'brothel':
+      return list(
+        ['brothelAnswer'],
+        'Brothel',
+        `${by} wants 1 grain, bread or Beer. If you refuse, all your knights stand down.`,
+      );
+    case 'magicRitual':
+      return list(['ritualGive'], 'Magic Ritual', `Give ${by} one of your progress cards.`);
+    case 'keepProgress':
+      return list(
+        ['keepProgress'],
+        'Keep one',
+        'Keep one of these cards. The rest go under their decks.',
+      );
+    case 'espionage':
+      return list(['espionageTake'], 'Espionage', 'The top card of each deck. Take one.');
+    default:
+      return null;
+  }
+}
+
+/** Board phases from the new cards: Summoning (a road, ship or knight) and River Naiad (two hexes). */
+export const GWP_CARD_BOARD_PHASES = ['summoning', 'riverNaiad'];
+
+export function gwpCardPrompt(state: GameState, who: string, names: string[]): string | null {
+  const by = names[state.phase.by as number] ?? 'A player';
+  switch (state.phase.id) {
+    case 'summoning':
+      return `${who}: pick an open road or ship, or an inactive knight, of ${names[state.phase.target as number] ?? 'theirs'} to remove.`;
+    case 'riverNaiad':
+      return state.phase.first
+        ? `${who}: now pick any other hex with a number to swap with.`
+        : `${who}: pick a grain hex whose number you want to swap.`;
+    case 'brothel':
+      return `${by} played the Brothel: waiting for an answer.`;
+    case 'magicRitual':
+      return `${by} played Magic Ritual: waiting for progress cards.`;
+    case 'keepProgress':
+      return `${by} is keeping one card.`;
+    case 'espionage':
+      return `${who}: take the top card of one deck.`;
+    default:
+      return null;
+  }
 }
