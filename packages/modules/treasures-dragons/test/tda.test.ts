@@ -12,6 +12,7 @@ import {
 import { baseModule } from '@colonizers/module-base';
 import { seafarersModule } from '@colonizers/module-seafarers';
 import { variantsModule } from '@colonizers/module-variants';
+import { citiesKnightsModule } from '@colonizers/module-cities-knights';
 import { generateTdaBoard, TDA_SCENARIOS } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
 import {
@@ -25,6 +26,10 @@ import {
   treasureDeck,
   TREASURE_SET,
   treasuresDragonsModule,
+  crossTargets,
+  enchantedCorner,
+  roamTargets,
+  DRAGONS_TO_WIN,
 } from '../src/index.ts';
 
 const lib = new ModuleLibrary([
@@ -32,6 +37,7 @@ const lib = new ModuleLibrary([
   seafarersModule,
   treasuresDragonsModule,
   variantsModule,
+  citiesKnightsModule,
 ]);
 
 function rng(seed: number): () => number {
@@ -49,7 +55,11 @@ function game(scenario: string, players = 4, seed = 'tda'): GameState {
   return lib.createGame({
     seed,
     players: Array.from({ length: players }, (_, i) => `P${i}`),
-    modules: [...b.modules, 'variants'],
+    // The app's load order: Cities & Knights before this module when it is in the game.
+    modules:
+      scenario === 'enchanted-land'
+        ? ['base', 'seafarers', 'variants', 'cities-knights', 'treasures-dragons']
+        : [...b.modules, 'variants'],
     map: b.map,
     settings: { vpTarget: 10, ...b.settings },
     fixedSeats: true,
@@ -146,6 +156,14 @@ describe('Treasures, Dragons & Adventurers boards', () => {
           expect(chests).toHaveLength(0);
           expect(Object.values(s.hexes).filter((h) => h.type === 'desert')).toHaveLength(3);
           expect(c.piecesOfType('robber')).toHaveLength(0);
+          expect(c.piecesOfType('pirate')).toHaveLength(0);
+        } else if (scenario.id === 'enchanted-land') {
+          expect(chests).toHaveLength(0);
+          const dragons = c.piecesOfType('dragon');
+          expect(dragons.length).toBeGreaterThanOrEqual(8);
+          expect(Object.values(s.hexes).some((h) => h.props?.enchanted)).toBe(true);
+          for (const d of dragons)
+            expect(enchantedCorner(c, (d.at as { id: CornerId }).id)).toBe(true);
           expect(c.piecesOfType('pirate')).toHaveLength(0);
         } else if (scenario.id === 'greater-catan') {
           expect(chests).toHaveLength(0);
@@ -408,6 +426,119 @@ describe('Desert dragons', () => {
     const { events, state } = simulate(finishSetup(game('desert-dragons', 3, 'dsim')), 5);
     expect(events.has('dragonsWake')).toBe(true);
     expect(state.phase.id).not.toBe('moveRobber');
+  });
+});
+
+describe('Enchanted Land', () => {
+  const setupKnight = (s: GameState, at: CornerId, props: Record<string, unknown>) =>
+    edit(s, (c) => {
+      c.state.phase = { id: 'main' };
+      c.place('knight1', c.active, { kind: 'corner', id: at }, { activatedTurn: -1, ...props });
+    });
+
+  it('beats a weak dragon with any knight, and loses to a mighty one', () => {
+    const s = finishSetup(game('enchanted-land', 4, 'el'));
+    const c = ctxOf(s);
+    const weak = c.piecesOfType('dragon').find((d) => d.props.tier === 1)!;
+    const strong = c.piecesOfType('dragon').find((d) => d.props.tier === 3)!;
+    let t = setupKnight(s, (weak.at as { id: CornerId }).id, { active: true, away: true });
+    const seat = t.turn.player;
+    const before = ctxOf(t).vp(seat);
+    const k = ctxOf(t).piecesOf(seat, 'knight1')[0]!;
+    t = act(t, { type: 'fightDragon', player: seat, knight: k.id });
+    expect(
+      ctxOf(t)
+        .piecesOfType('dragon')
+        .some((d) => d.id === weak.id),
+    ).toBe(false);
+    expect(tdaData(ctxOf(t)).slain[seat]).toBe(1);
+    expect(ctxOf(t).vp(seat)).toBe(before + 1);
+
+    let u = setupKnight(s, (strong.at as { id: CornerId }).id, { active: true, away: true });
+    const k2 = ctxOf(u).piecesOf(u.turn.player, 'knight1')[0]!;
+    u = act(u, { type: 'fightDragon', player: u.turn.player, knight: k2.id });
+    expect(
+      ctxOf(u)
+        .piecesOfType('dragon')
+        .some((d) => d.id === strong.id),
+    ).toBe(true);
+    expect(u.pieces[k2.id]!.props.active).toBe(false);
+  });
+
+  it('wins the game with the sixth dragon', () => {
+    const s = finishSetup(game('enchanted-land', 4, 'el6'));
+    const weak = ctxOf(s).piecesOfType('dragon')[0]!;
+    let t = setupKnight(s, (weak.at as { id: CornerId }).id, { active: true, away: true });
+    const seat = t.turn.player;
+    t = edit(t, (c) => {
+      tdaData(c).slain[seat] = DRAGONS_TO_WIN - 1;
+      c.state.pieces[weak.id]!.props.tier = 1;
+    });
+    const k = ctxOf(t).piecesOf(seat, 'knight1')[0]!;
+    t = act(t, { type: 'fightDragon', player: seat, knight: k.id });
+    expect(t.winner).toBe(seat);
+  });
+
+  it('roams up to 3 corners inland, and crosses where ships reach the coast', () => {
+    const s = finishSetup(game('enchanted-land', 4, 'elr'));
+    const c = ctxOf(s);
+    const inland = c.geometry.corners.find(
+      (k) =>
+        enchantedCorner(c, k) &&
+        (c.geometry.cornerHexes.get(k) ?? []).length === 3 &&
+        (c.geometry.cornerHexes.get(k) ?? []).every((h) => c.isLand(h)) &&
+        c.piecesAt({ kind: 'corner', id: k }).length === 0,
+    )!;
+    const t = setupKnight(s, inland, { active: true, away: true });
+    const k = ctxOf(t).piecesOf(t.turn.player, 'knight1')[0]!;
+    const targets = roamTargets(ctxOf(t), k);
+    expect(targets.length).toBeGreaterThan(0);
+    const ct = ctxOf(t);
+    for (const x of targets)
+      expect((ct.geometry.cornerHexes.get(x) ?? []).every((h) => ct.isLand(h))).toBe(true);
+
+    // Crossing: a knight at one end of a ship that touches a free coastal corner.
+    const coast = c.geometry.corners.find(
+      (k) =>
+        enchantedCorner(c, k) &&
+        (c.geometry.cornerHexes.get(k) ?? []).some((h) => c.isSea(h)) &&
+        c.piecesAt({ kind: 'corner', id: k }).length === 0 &&
+        (c.geometry.cornerEdges.get(k) ?? []).some((e) => c.isSeaEdge(e)),
+    )!;
+    const edge = (c.geometry.cornerEdges.get(coast) ?? []).find((e) => c.isSeaEdge(e))!;
+    const [a, b] = c.geometry.edgeCorners.get(edge)!;
+    const other = a === coast ? b : a;
+    let x = edit(s, (cc) => {
+      cc.state.phase = { id: 'main' };
+      for (const p of cc.piecesAt({ kind: 'corner', id: other })) cc.remove(p);
+      cc.place('ship', cc.active, { kind: 'edge', id: edge });
+      cc.place(
+        'knight1',
+        cc.active,
+        { kind: 'corner', id: other },
+        { active: true, activatedTurn: -1 },
+      );
+    });
+    const seat = x.turn.player;
+    const kn = ctxOf(x).piecesOf(seat, 'knight1')[0]!;
+    expect(crossTargets(ctxOf(x), kn)).toContain(coast);
+    x = act(x, { type: 'crossKnight', player: seat, knight: kn.id, to: coast });
+    expect(x.pieces[kn.id]!.props.away).toBe(true);
+    expect(tdaData(ctxOf(x)).crossed[seat]).toBe(true);
+  });
+
+  it('keeps roads off the enchanted land', () => {
+    const s = edit(finishSetup(game('enchanted-land', 4, 'elb')), (c) => {
+      c.state.phase = { id: 'main' };
+    });
+    const c = ctxOf(s);
+    const seat = s.turn.player;
+    const edge = c.geometry.edges.find(
+      (e) =>
+        c.isLandEdge(e) &&
+        (c.geometry.edgeHexes.get(e) ?? []).some((h) => s.hexes[h]?.props?.enchanted),
+    )!;
+    expect(lib.check(s, { type: 'buildRoad', player: seat, edge })).toMatch(/no roads/i);
   });
 });
 

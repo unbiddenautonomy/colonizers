@@ -94,9 +94,10 @@ export function moduleList(extra: readonly string[], citiesKnights: boolean): st
     'seafarers',
     'special-maps',
     'traders-barbarians',
-    'treasures-dragons',
     'variants',
     'cities-knights',
+    // After Cities & Knights, so its scenarios can adjust knight moves.
+    'treasures-dragons',
   ];
   const want = new Set([
     'base',

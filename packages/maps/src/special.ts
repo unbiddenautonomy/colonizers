@@ -20,6 +20,8 @@ export interface SpecialMap {
   group?: 'traders' | 'treasures';
   /** The map's module can't be played with Cities & Knights. */
   noCitiesKnights?: boolean;
+  /** The map is only played with Cities & Knights. */
+  needsCitiesKnights?: boolean;
 }
 
 export const SPECIAL_MAPS: SpecialMap[] = [
@@ -88,11 +90,11 @@ export const SPECIAL_MAPS: SpecialMap[] = [
     group: 'traders',
     noCitiesKnights: true,
   })),
-  ...TDA_SCENARIOS.map((t): SpecialMap => ({
+  ...TDA_SCENARIOS.map(({ citiesKnights, ...t }): SpecialMap => ({
     ...t,
     modules: ['seafarers', 'treasures-dragons'],
     group: 'treasures',
-    noCitiesKnights: true,
+    ...(citiesKnights ? { needsCitiesKnights: true } : { noCitiesKnights: true }),
   })),
 ];
 
