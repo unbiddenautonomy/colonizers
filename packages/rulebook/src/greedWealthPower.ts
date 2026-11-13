@@ -267,6 +267,24 @@ const CARDS: CardGlossaryEntry[] = [
     'Intimidation',
     'When a 7 makes you discard, play this instead and keep your cards.',
   ),
+  card(
+    'alliance',
+    'politics',
+    'Alliance',
+    'Before or after rolling: pick another player’s active knight. In the next attack it defends for you.',
+  ),
+  card(
+    'dragonLair',
+    'magic',
+    'Dragon Lair',
+    'Put the dragon on an ore hex and take its number away, until a mighty knight drives the dragon out.',
+  ),
+  card(
+    'lent',
+    'religion',
+    'Lent',
+    'Pick a player. On their next turn they can’t build until they pay 1 wool and 1 grain.',
+  ),
   card('hansaLeague', 'trade', 'Hansa League', '1 victory point, scored as soon as you draw it.'),
   card('airship', 'magic', 'Airship', '1 victory point, scored as soon as you draw it.'),
   card('relic', 'religion', 'Relic', '1 victory point, scored as soon as you draw it.'),
@@ -322,6 +340,12 @@ export const greedWealthPowerRules: RulebookModule = {
     inquisitor: { name: 'Inquisitor', icon: '⚖️' },
     envoy: { name: 'Envoy', icon: '💼' },
     heroOfCatan: { name: 'Hero of Catan', icon: '🦸' },
+    alliance: { name: 'Alliance', icon: '🤝' },
+    dragonLair: { name: 'Dragon Lair', icon: '🐲' },
+    lent: { name: 'Lent', icon: '🐟' },
+    damsel: { name: 'Damsel', icon: '👸' },
+    gwpDragon: { name: 'Dragon', icon: '🐉' },
+    dragonSlayer: { name: 'Dragon Slayer', icon: '🗡️' },
     kontor: { name: 'Kontor', icon: '🏪' },
     tradingPost: { name: 'Trading Post', icon: '🏷️' },
     brothel: { name: 'Brothel', icon: '🏮' },
@@ -389,7 +413,7 @@ export const greedWealthPowerRules: RulebookModule = {
 - You can own only **one** of the Science, Magic and Religion metropolises. Once you own one, the other two of those tracks stop at level 3.
 - The event die has **12 faces**: 4 ships, 2 ships with a **wild gate**, and a gate for each of the six tracks. On a wild gate the barbarians move first, then everyone in turn draws one card from **any deck** their levels open for the red die.
 
-The new commodities only come from cities next to a special building (see Special buildings), but you can always trade for them and build any track with them. Each deck has **26 progress cards**: the five new **neutral pieces** (see Neutral pieces) and the other new cards are listed in the card glossary. A few cards are played at a different moment than printed: **Refuge** is played on your turn ahead of the attack, and **Magic Current** can't push the ship onto Catan. Alliance, Indulgence, Lent, Land Deed and Dragon Lair come with the dragon in a later update.
+The new commodities only come from cities next to a special building (see Special buildings), but you can always trade for them and build any track with them. Each deck has **26 progress cards**: the five new **neutral pieces** (see Neutral pieces) and the other new cards are listed in the card glossary. A few cards are played at a different moment than printed: **Refuge** is played on your turn ahead of the attack, and **Magic Current** can't push the ship onto Catan. **Alliance** and **Lent** are also played on your own turn, ahead of time. Indulgence and Land Deed come in a later update.
 
 The rules are lightningserpent's (GWP 1.0); we credit the authors of the expansions it builds on in the manual.`,
     },
@@ -455,6 +479,33 @@ These trades are for resources only, not commodities.
 - Beer festivals come in a later update.`,
     },
     {
+      id: 'gwp-dragon',
+      module: 'greed-wealth-power',
+      section: 'rules',
+      title: 'The Damsel and the dragon',
+      summary: 'Doubles bring the Damsel; after the first attack a 7 can move the dragon.',
+      tags: ['damsel', 'dragon', 'dragon slayer', 'lair', 'doubles', 'seven', 'wizard'],
+      body: `**The Damsel** 👸
+
+When the two number dice show the same face, the player who rolled puts the Damsel on any land hex (or moves her there), once the roll is worked out.
+
+- Cities beside her don't count for the barbarians and can't be lost to them.
+- Knights beside her can be activated, but can't act or defend, and they stay active after an attack.
+- Nobody can build a road, ship, settlement or city beside her. Progress cards still can.
+- The robber can't steal on her hex.
+- She leaves after every barbarian attack, and when the dragon or a neutral piece (merchant included) lands on her hex.
+
+**The dragon** 🐉
+
+The dragon starts off the board. After the first barbarian attack, whoever rolls a 7 may move the dragon instead of the robber, or take it off the board.
+
+- It goes on a land hex beside at least one knight, and switches off the basic and strong knights next to it.
+- Its hex makes nothing, except for the player whose Wizard stands there too.
+- A **strong** knight beside it (active, like any knight action) chases it off the board, and so does the Wizard landing on its hex.
+- A **mighty** knight (or a hero) slays it: it's gone for good, and that player takes **Dragon Slayer** 🗡️, worth **2 points**.
+- **Dragon Lair** puts it on an ore hex and takes the number away. Only a mighty knight can drive it out, and the number comes back.`,
+    },
+    {
       id: 'gwp-neutrals',
       module: 'greed-wealth-power',
       section: 'rules',
@@ -485,6 +536,7 @@ These trades are for resources only, not commodities.
 - The **Inquisitor** can't go beside a city with a Citadel. You choose the player when you play the card.
 - The **Scholar** and **Envoy** card is the hex's commodity when you can take it (Crystal, Bread and Gold need your Citadel, Diocese or Monument), otherwise its resource. The robber stops it, unless the Wizard protects you there.
 - **Duke**: a knight next to a rival's Duke can drop to strength 0. It can still act, but adds nothing against the barbarians and any knight can push it away.
+- The **Damsel** and the **dragon** are neutral too, but score nothing: see The Damsel and the dragon.
 - **Hero of Catan** 🦸: the first time one of your knights reaches strength **4** (a mighty knight beside your Duke), you take a Hero of Catan card worth **1 point**. You keep it even when the Duke moves on. There are five, one per player.`,
     },
   ],

@@ -196,6 +196,8 @@ export {
   canAct,
   ckData,
   citiesOf,
+  cityAtRisk,
+  isSheltered,
   commoditiesIn,
   drawProgress,
   eventFaces,

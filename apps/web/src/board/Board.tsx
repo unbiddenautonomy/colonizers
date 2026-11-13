@@ -1076,7 +1076,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const c = hexToPixel(h.q, h.r, S);
         const x = c.x + S * m.dx;
         const y = c.y + S * m.dy;
-        const r = S * 0.15;
+        const r = S * (m.owner === null ? 0.2 : 0.15);
         return (
           <g
             key={m.id}
@@ -1088,7 +1088,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               cx={x}
               cy={y}
               r={r}
-              fill={color(m.owner)}
+              fill={m.owner === null ? '#fbf3e2' : color(m.owner)}
               stroke={theme.outline}
               strokeWidth={2}
             />
