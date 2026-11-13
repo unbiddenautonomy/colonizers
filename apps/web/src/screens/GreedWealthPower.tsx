@@ -12,6 +12,8 @@ import {
   beerRatio,
   BUILDINGS,
   buildingsOf,
+  FESTIVALS,
+  festivals,
   GWP_COMMODITIES,
   heroes,
   NEUTRAL_NAMES,
@@ -68,6 +70,7 @@ export function GwpPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const built = BUILDINGS.filter((b) => mine[b]);
   const held = NEUTRALS.filter((n) => neutralPiece(ctx, n)?.owner === seat);
   const hero = heroes(ctx).includes(seat);
+  const party = festivals(ctx).filter((f) => f.target === seat);
   const slayer =
     (ctx.state.data['greed-wealth-power']?.slayer as number | null | undefined) === seat;
   return (
@@ -85,6 +88,14 @@ export function GwpPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
       )}
       {hero && <span title="Hero of Catan: 1 point">🦸</span>}
       {slayer && <span title="Dragon Slayer: 2 points">🗡️</span>}
+      {party.map((f, i) => (
+        <span
+          key={i}
+          title={`${FESTIVALS[f.kind].name} from ${ctx.state.players[f.by]?.name ?? ''}: ${FESTIVAL_TEXT[f.kind].toLowerCase()}`}
+        >
+          🍻
+        </span>
+      ))}
     </>
   );
 }
@@ -219,6 +230,15 @@ export function gwpPrompt(who: string, mode: string | null, picked: string | nul
   return null;
 }
 
+const FESTIVAL_TEXT: Record<keyof typeof FESTIVALS, string> = {
+  roads: 'No roads',
+  ships: 'No ships',
+  knights: 'No new knights',
+  activation: 'No activating knights',
+  settlements: 'Settlements make nothing',
+  cities: 'No city improvements',
+};
+
 /** Buttons for the buildings and Beer, on your turn. */
 export function GwpActions({
   ctx,
@@ -236,6 +256,8 @@ export function GwpActions({
   setMode: (m: GwpMode | null) => void;
 }) {
   const [beerOpen, setBeerOpen] = useState(false);
+  const [festivalOpen, setFestivalOpen] = useState(false);
+  const parties = legal.filter((a) => a.type === 'startFestival');
   const mine = buildingsOf(ctx, actor);
   const beer = beerOf(ctx, actor);
   const can = (b: Building) => legal.some((a) => a.type === 'buildGwp' && a.building === b);
@@ -269,6 +291,39 @@ export function GwpActions({
         <button type="button" onClick={() => act({ type: 'payLent', player: actor })}>
           ✝️ Pay Lent (1 wool, 1 grain) to build
         </button>
+      )}
+      <button type="button" disabled={!parties.length} onClick={() => setFestivalOpen(true)}>
+        🍻 Beer festival
+      </button>
+      {festivalOpen && (
+        <Modal title="Beer festival" onClose={() => setFestivalOpen(false)}>
+          <p>
+            You have {beer} Beer. A festival ties up one player until your next roll is worked out.
+          </p>
+          {(Object.keys(FESTIVALS) as (keyof typeof FESTIVALS)[]).map((kind) => {
+            const opts = parties.filter((a) => a.kind === kind);
+            if (!opts.length) return null;
+            return (
+              <div key={kind} className="row">
+                <span>
+                  {FESTIVAL_TEXT[kind]} ({FESTIVALS[kind].cost} 🍺):
+                </span>
+                {opts.map((a) => (
+                  <button
+                    key={a.target as number}
+                    type="button"
+                    onClick={() => {
+                      act(a);
+                      setFestivalOpen(false);
+                    }}
+                  >
+                    {ctx.state.players[a.target as number]?.name}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </Modal>
       )}
       <button type="button" disabled={!trades.length} onClick={() => setBeerOpen(true)}>
         🍺 Beer for commodities ({beer})
@@ -396,7 +451,11 @@ export function gwpOptionLabel(a: Action, names: string[], state?: GameState): s
     case 'magicCurrent':
       return a.option === 'back' ? 'Barbarians 2 back' : 'Barbarians 2 forward';
     case 'ravenFlight':
-      return a.option === 'desert' ? 'Robber to the desert' : 'Everyone else discards 1 grain';
+      return a.option === 'desert'
+        ? 'Robber to the desert'
+        : a.option === 'festival'
+          ? 'Stop a Beer festival'
+          : 'Everyone else discards 1 grain';
     case 'stoneCircle':
       return a.option === 'ore'
         ? `Give ${card(a.resource)}, take 3 ore`
