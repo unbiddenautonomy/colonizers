@@ -428,7 +428,12 @@ const ART: Record<string, Art> = {
         stroke={p.dark}
         strokeWidth={2}
       />
-      <path d="M8,96 q10,-8 20,0 M76,100 q10,-8 20,0" stroke={p.light} strokeWidth={3} fill="none" />
+      <path
+        d="M8,96 q10,-8 20,0 M76,100 q10,-8 20,0"
+        stroke={p.light}
+        strokeWidth={3}
+        fill="none"
+      />
     </>
   ),
   hidden: (p) => (
