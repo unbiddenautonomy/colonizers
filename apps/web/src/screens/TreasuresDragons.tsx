@@ -5,6 +5,8 @@ import {
   TOTAL_DRAGONS,
   dragonsAttacking,
   DRAGONS_TO_WIN,
+  canalHexes,
+  canalLeft,
 } from '@colonizers/module-treasures-dragons';
 
 /** Treasures opened and dragons driven out, for one player's row. */
@@ -19,6 +21,8 @@ export function TdaPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
       </span>
     );
   if (scenarioOf(ctx) === 'greater-catan') return null;
+  if (scenarioOf(ctx) === 'great-canal')
+    return <span title="Canal chips (1 point each)">⛏️ {d.chips[seat] ?? 0}</span>;
   return <span title="Treasures opened">🧰 {d.found[seat] ?? 0}</span>;
 }
 
@@ -65,6 +69,40 @@ export function TdaStatus({ ctx }: { ctx: Ctx }) {
             · beat {DRAGONS_TO_WIN} to win. Dots under a dragon: the knight strength it takes.
           </small>
         </p>
+      </div>
+    );
+  }
+  if (scenarioOf(ctx) === 'great-canal') {
+    const total = canalHexes(ctx).length;
+    // The canal is finished with one stretch still to dig.
+    const needed = Math.max(1, total - 1);
+    const dug = total - canalLeft(ctx);
+    return (
+      <div className="tda-status" aria-label="The Great Canal">
+        {d.flooded ? (
+          <p>
+            💧 <strong>The canal is finished.</strong> The basin has flooded and the farmland grows
+            grain again.
+          </p>
+        ) : (
+          <p>
+            ⛏️ Canal dug: <strong>{Math.min(dug, needed)}</strong> of {needed}
+            <small className="muted">
+              {' '}
+              · two active knights beside a marked hex dig it for 2 points. Farmland stays dry until
+              it's done.
+            </small>
+          </p>
+        )}
+        <div
+          className="tda-meter canal"
+          role="meter"
+          aria-valuemin={0}
+          aria-valuemax={needed}
+          aria-valuenow={Math.min(dug, needed)}
+        >
+          <span style={{ width: `${(100 * Math.min(dug, needed)) / needed}%` }} />
+        </div>
       </div>
     );
   }

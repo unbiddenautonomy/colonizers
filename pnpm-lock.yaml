@@ -330,6 +330,9 @@ importers:
       '@colonizers/maps':
         specifier: workspace:*
         version: link:../../maps
+      '@colonizers/module-special-maps':
+        specifier: workspace:*
+        version: link:../special-maps
       '@colonizers/module-variants':
         specifier: workspace:*
         version: link:../variants

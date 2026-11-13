@@ -92,7 +92,11 @@ export const SPECIAL_MAPS: SpecialMap[] = [
   })),
   ...TDA_SCENARIOS.map(({ citiesKnights, ...t }): SpecialMap => ({
     ...t,
-    modules: ['seafarers', 'treasures-dragons'],
+    // The Great Canal's mountain lake is the special maps' lake hex.
+    modules:
+      t.id === 'great-canal'
+        ? ['seafarers', 'special-maps', 'treasures-dragons']
+        : ['seafarers', 'treasures-dragons'],
     group: 'treasures',
     ...(citiesKnights ? { needsCitiesKnights: true } : { noCitiesKnights: true }),
   })),

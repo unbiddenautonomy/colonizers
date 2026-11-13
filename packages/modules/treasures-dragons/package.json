@@ -20,6 +20,7 @@
   "devDependencies": {
     "@colonizers/bots": "workspace:*",
     "@colonizers/maps": "workspace:*",
+    "@colonizers/module-special-maps": "workspace:*",
     "@colonizers/module-variants": "workspace:*",
     "typescript": "~6.0.3",
     "vitest": "~4.1.12"

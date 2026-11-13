@@ -202,6 +202,7 @@ export const SPECIAL_ICON: Record<string, string> = {
   'greater-catan': '🔢',
   'desert-dragons': '🐉',
   'enchanted-land': '🔮',
+  'great-canal': '⛏️',
 };
 
 /** Icons for the Seafarers scenarios. */

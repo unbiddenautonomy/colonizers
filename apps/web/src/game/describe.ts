@@ -161,6 +161,16 @@ export function describe(e: GameEvent, names: string[]): string | null {
         : `🐉 The dragon was too strong for ${n(e.player)}'s knight.`;
     case 'dragonSlain':
       return `⚔️ ${n(e.player)} drove out a dragon.`;
+    case 'canalDug': {
+      const who = e.players as number[];
+      return who[0] === who[1]
+        ? `⛏️ ${n(who[0])} dug a stretch of the canal: +2 points.`
+        : `⛏️ ${n(who[0])} and ${n(who[1])} dug a stretch of the canal: +1 point each.`;
+    }
+    case 'canalFlooded':
+      return '💧 The Great Canal is finished! The basin floods and the farmland grows grain again.';
+    case 'goldPanned':
+      return `⛏️ An 8: knights by the gold rivers pan for gold.`;
     // ---- Cities & Knights ----
     case 'eventDie':
       return e.face === 'ship'

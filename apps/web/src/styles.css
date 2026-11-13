@@ -1809,3 +1809,7 @@ button.danger {
   background: #b3261e;
   transition: width 0.4s ease;
 }
+
+.tda-meter.canal span {
+  background: #2f74b5;
+}
