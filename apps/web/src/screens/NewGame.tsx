@@ -42,6 +42,7 @@ import {
   type GameOptions,
 } from '../../../server/src/protocol.ts';
 import { useAccount } from '../online/account.ts';
+import { loadCustomMaps } from '../game/customMaps.ts';
 import {
   changedOptions,
   DEFAULT_VP_BASE,
@@ -58,6 +59,7 @@ function randomSeed(): string {
 
 type MapChoice =
   | { kind: 'preset'; id: string }
+  | { kind: 'custom'; id: string }
   | { kind: 'random'; mode: Mode }
   | { kind: 'scenario'; id: string }
   | { kind: 'special'; id: string };
@@ -68,9 +70,12 @@ export function NewGame({
   canResume,
   onRules,
   onOnline,
+  onEditor,
   account,
 }: {
   account?: ReactNode;
+  /** Opens the map editor, on a saved map or a new one. */
+  onEditor: (id: string | null) => void;
   onOnline: (code: string) => void;
   onStart: (g: SavedGame) => void;
   onResume: () => void;
@@ -104,9 +109,12 @@ export function NewGame({
   };
 
   const presets = PRESETS.filter((p) => count >= p.players.min && count <= p.players.max);
+  const [allCustom] = useState(loadCustomMaps);
+  const customMaps = allCustom.filter((m) => count >= m.players.min && count <= m.players.max);
   const scenarios = SEA_SCENARIOS.filter((x) => count >= x.players.min && count <= x.players.max);
   const effective: MapChoice =
     (choice.kind === 'preset' && !presets.some((p) => p.id === choice.id)) ||
+    (choice.kind === 'custom' && !customMaps.some((p) => p.id === choice.id)) ||
     (choice.kind === 'scenario' && !scenarios.some((x) => x.id === choice.id)) ||
     (choice.kind === 'special' &&
       !SPECIAL_MAPS.some(
@@ -147,8 +155,9 @@ export function NewGame({
       const b = generateBoard({ seed, players: count, mode: 'classic' });
       return { map: b.map, report: b.report };
     }
-    if (effective.kind === 'preset') {
-      const p = PRESETS.find((x) => x.id === effective.id)!;
+    if (effective.kind === 'preset' || effective.kind === 'custom') {
+      const list = effective.kind === 'preset' ? PRESETS : customMaps;
+      const p = list.find((x) => x.id === effective.id)!;
       return { map: p, report: analyzeMap(p, count) };
     }
     const b = generateBoard({ seed, players: count, mode: effective.mode });
@@ -337,6 +346,33 @@ export function NewGame({
             </div>
           </>
         )}
+        <h3 className="subhead">Your maps</h3>
+        <div className="row wrap">
+          {customMaps.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              className={effective.kind === 'custom' && effective.id === m.id ? 'on' : ''}
+              onClick={() => setChoice({ kind: 'custom', id: m.id })}
+              title={m.description || m.name}
+            >
+              ✏️ {m.name}
+            </button>
+          ))}
+          {effective.kind === 'custom' && (
+            <button type="button" className="ghost" onClick={() => onEditor(effective.id)}>
+              Edit this map
+            </button>
+          )}
+          <button type="button" className="ghost" onClick={() => onEditor(null)}>
+            ＋ Make a map
+          </button>
+        </div>
+        {allCustom.length > customMaps.length && (
+          <p className="muted small">
+            {allCustom.length - customMaps.length} of your maps don't fit {count} players.
+          </p>
+        )}
         <SpecialMapButtons
           players={count}
           selected={specialId}
@@ -349,9 +385,12 @@ export function NewGame({
               ? SEA_SCENARIOS.find((x) => x.id === effective.id)?.description
               : effective.kind === 'special'
                 ? SPECIAL_MAPS.find((x) => x.id === effective.id)?.description
-                : PRESETS.find((p) => p.id === effective.id)?.description}
+                : effective.kind === 'custom'
+                  ? customMaps.find((p) => p.id === effective.id)?.description ||
+                    'A map you drew in the map editor.'
+                  : PRESETS.find((p) => p.id === effective.id)?.description}
         </p>
-        {effective.kind !== 'preset' && (
+        {effective.kind !== 'preset' && effective.kind !== 'custom' && (
           <div className="row">
             <label>
               Seed{' '}

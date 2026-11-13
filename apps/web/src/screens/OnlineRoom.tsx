@@ -32,6 +32,7 @@ import {
   SpecialMapButtons,
 } from '../ui/OptionsPanel.tsx';
 import { DEFAULT_VP_BASE, defaultOptionsFor, hasRobber, vpBonus } from '../game/defaults.ts';
+import { loadCustomMaps } from '../game/customMaps.ts';
 import { currentUser } from '../online/account.ts';
 import { LEVEL_INFO, LEVELS, STYLE_INFO, STYLES, type Level, type Style } from '@colonizers/bots';
 
@@ -213,6 +214,7 @@ function Lobby({
     );
   };
 
+  const [customMaps] = useState(loadCustomMaps);
   const presets = PRESETS.filter(
     (p) => players.length >= p.players.min && players.length <= p.players.max,
   );
@@ -224,7 +226,9 @@ function Lobby({
         ? `Seafarers: ${SEA_SCENARIOS.find((x) => x.id === m.id)?.name ?? m.id}`
         : m.kind === 'special'
           ? (SPECIAL_MAPS.find((x) => x.id === m.id)?.name ?? m.id)
-          : (PRESETS.find((p) => p.id === m.id)?.name ?? m.id);
+          : m.kind === 'custom'
+            ? `${m.map.name} (custom, ${m.map.players.min}–${m.map.players.max} players)`
+            : (PRESETS.find((p) => p.id === m.id)?.name ?? m.id);
   const specialPick =
     s.map.kind === 'special'
       ? (SPECIAL_MAPS.find((x) => x.id === (s.map as { id: string }).id) ?? null)
@@ -388,6 +392,32 @@ function Lobby({
                 ))}
               </div>
             </div>
+            {customMaps.length > 0 && (
+              <div className="field">
+                <span>Your maps</span>
+                <div className="row wrap">
+                  {customMaps.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      className={s.map.kind === 'custom' && s.map.map.id === m.id ? 'on' : ''}
+                      title={`${m.description || m.name} (${m.players.min}–${m.players.max} players)`}
+                      onClick={() => setGame({ map: { kind: 'custom', map: m } })}
+                    >
+                      ✏️ {m.name}
+                    </button>
+                  ))}
+                </div>
+                {s.map.kind === 'custom' &&
+                  (players.length < s.map.map.players.min ||
+                    players.length > s.map.map.players.max) && (
+                    <p className="muted">
+                      This map is for {s.map.map.players.min}–{s.map.map.players.max} players. With{' '}
+                      {players.length}, the game starts on a random board instead.
+                    </p>
+                  )}
+              </div>
+            )}
             {scenarios.length > 0 && (
               <div className="field">
                 <span>Seafarers</span>
