@@ -206,6 +206,9 @@ export const SPECIAL_ICON: Record<string, string> = {
   'great-canal': '⛏️',
   'land-ho': '🔭',
   'pirate-lairs': '🏴‍☠️',
+  'fishing-grounds': '🐟',
+  'spice-islands': '🌶️',
+  'full-voyage': '🗺️',
 };
 
 /** Icons for the Seafarers scenarios. */

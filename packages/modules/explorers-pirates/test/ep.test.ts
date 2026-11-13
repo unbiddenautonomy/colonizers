@@ -13,6 +13,7 @@ import { variantsModule } from '@colonizers/module-variants';
 import { generateEpBoard } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
 import {
+  catchFish,
   cargoOf,
   epData,
   lairCrews,
@@ -505,4 +506,144 @@ describe('Pirate Lairs bots', () => {
     }
     expect(s.winner).not.toBe(null);
   }, 180_000);
+});
+
+describe('Fishing Grounds and Spice Islands', () => {
+  const play = (scenario: string, players = 3, seed = 'goods') =>
+    toMain(finishSetup(game(players, seed, scenario)));
+
+  /** Turns over a hex and its neighbours and puts one of our empty ships beside it. */
+  function beside(s: GameState, seat: number, hex: HexId, cargo: string[] = []) {
+    let ship = '';
+    s = edit(s, (c) => {
+      delete c.state.hexes[hex]!.hidden;
+      for (const n of c.geometry.hexNeighbours.get(hex) ?? []) delete c.state.hexes[n]!.hidden;
+      const edge = (c.geometry.hexEdges.get(hex) ?? []).find(
+        (e) =>
+          !c.piecesAt({ kind: 'edge', id: e }).length &&
+          (c.geometry.edgeHexes.get(e) ?? []).some((h) => c.isSea(h)),
+      )!;
+      for (const p of c.piecesOf(seat, 'ship')) c.remove(p);
+      ship = c.place('ship', seat, { kind: 'edge', id: edge }, { cargo, used: 0 }).id;
+    });
+    return { s, ship };
+  }
+
+  it('hide fishing grounds and spice villages in the fog', () => {
+    for (const players of [2, 3, 4]) {
+      const fish = game(players, `f${players}`, 'fishing-grounds');
+      const shoals = Object.values(fish.hexes).filter((h) => h.type === 'shoal');
+      expect(shoals).toHaveLength(players + 2);
+      expect(shoals.every((h) => h.hidden && h.token && h.token !== 6 && h.token !== 8)).toBe(true);
+      expect(ctxOf(fish).vpTarget()).toBe(10);
+      expect(pirateShip(ctxOf(fish))).toBeUndefined();
+
+      const spice = game(players, `s${players}`, 'spice-islands');
+      const villages = Object.values(spice.hexes).filter((h) => h.props?.village);
+      expect(villages).toHaveLength(players + 1);
+      expect(villages.every((h) => h.hidden && h.type !== 'sea')).toBe(true);
+
+      const full = game(players, `v${players}`, 'full-voyage');
+      const kinds = Object.values(full.hexes);
+      expect(kinds.filter((h) => h.type === 'gold')).toHaveLength(players + 1);
+      expect(kinds.filter((h) => h.type === 'shoal')).toHaveLength(players + 1);
+      expect(kinds.filter((h) => h.props?.village)).toHaveLength(players + 1);
+      expect(ctxOf(full).vpTarget()).toBe(13);
+    }
+  });
+
+  it('put a fish aboard each ship beside a fishing ground when its number is rolled', () => {
+    let s = play('fishing-grounds');
+    const me = s.turn.player;
+    const shoal = Object.values(s.hexes).find((h) => h.type === 'shoal')!;
+    const at = beside(s, me, shoal.id, ['fish']);
+    s = at.s;
+    s = edit(s, (c) => {
+      expect(catchFish(c, shoal.token! === 3 ? 4 : 3)).toEqual({});
+      expect(catchFish(c, shoal.token!)).toEqual({ [me]: 1 });
+      // A full hold takes no more.
+      expect(catchFish(c, shoal.token!)).toEqual({});
+    });
+    expect(cargoOf(s.pieces[at.ship]!)).toEqual(['fish', 'fish']);
+  });
+
+  it('turn every 2 fish or spice brought home into a point', () => {
+    let s = play('fishing-grounds');
+    const me = s.turn.player;
+    const harbor = Object.values(s.pieces).find((p) => p.type === 'harbor' && p.owner === me)!;
+    const ship = shipOf(s, me);
+    // The setup ship sits beside the harbor; fill it with fish.
+    s = edit(s, (c) => {
+      const p = c.state.pieces[ship.id]!;
+      p.props.cargo = ['fish', 'fish'];
+      c.state.pieces[harbor.id]!.props.cargo = ['settler'];
+    });
+    expect(lib.check(s, { type: 'swapCargo', player: me, ship: ship.id })).toMatch(/Deliver/);
+    const vp = ctxOf(s).vp(me);
+    s = act(s, { type: 'deliverGoods', player: me, ship: ship.id });
+    const c = ctxOf(s);
+    expect(cargoOf(s.pieces[ship.id]!)).toEqual([]);
+    expect(missionSteps(c, me, 'fish')).toBe(1);
+    expect(c.vp(me)).toBe(vp + 1);
+    // One sack of spice is half a step.
+    s = edit(s, (x) => {
+      x.state.pieces[ship.id]!.props.cargo = ['spice'];
+    });
+    s = act(s, { type: 'deliverGoods', player: me, ship: ship.id });
+    expect(missionSteps(ctxOf(s), me, 'spices')).toBe(0);
+    expect(epData(ctxOf(s)).delivered[me]).toEqual({ fish: 2, spice: 1 });
+  });
+
+  it('sell spice for 2 gold to a ship beside a village', () => {
+    let s = play('spice-islands');
+    const me = s.turn.player;
+    const village = Object.values(s.hexes).find((h) => h.props?.village)!;
+    const hidden = beside(s, me, village.id);
+    // Still in the fog: nothing to buy.
+    s = edit(hidden.s, (c) => {
+      c.state.hexes[village.id]!.hidden = true;
+      c.player(me).hand[GOLD] = 5;
+    });
+    expect(lib.check(s, { type: 'buySpice', player: me, ship: hidden.ship })).toMatch(/village/);
+    s = edit(s, (c) => {
+      delete c.state.hexes[village.id]!.hidden;
+    });
+    s = act(s, { type: 'buySpice', player: me, ship: hidden.ship });
+    s = act(s, { type: 'buySpice', player: me, ship: hidden.ship });
+    expect(cargoOf(s.pieces[hidden.ship]!)).toEqual(['spice', 'spice']);
+    expect(s.players[me]!.hand[GOLD]).toBe(1);
+    expect(lib.check(s, { type: 'buySpice', player: me, ship: hidden.ship })).not.toBe(null);
+  });
+
+  for (const scenario of ['fishing-grounds', 'spice-islands']) {
+    it(`bots play ${scenario} to a winner and bring goods home`, () => {
+      const players = 3;
+      let s = game(players, `bot-${scenario}`, scenario);
+      const bot: BotConfig = { level: 'medium', style: 'balanced' };
+      const rand = rng(11);
+      const memory: BotMemory[] = Array.from({ length: players }, () => newMemory());
+      let clock = 0;
+      for (let i = 0; i < 6000 && s.winner === null; i++) {
+        clock += 1000;
+        const waiting = lib.waitingOn(s);
+        expect(waiting.length).toBeGreaterThan(0);
+        let acted = false;
+        for (const seat of waiting) {
+          const a = chooseAction(lib, s, seat, bot, memory[seat]!, { rand, now: clock });
+          if (!a) continue;
+          s = act(s, a);
+          acted = true;
+          break;
+        }
+        if (!acted) clock += 20_000;
+      }
+      expect(s.winner).not.toBe(null);
+      const d = epData(ctxOf(s));
+      const brought = Object.values(d.delivered).reduce(
+        (n, x) => n + (x.fish ?? 0) + (x.spice ?? 0),
+        0,
+      );
+      expect(brought).toBeGreaterThan(0);
+    }, 180_000);
+  }
 });

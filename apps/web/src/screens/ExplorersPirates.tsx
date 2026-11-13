@@ -11,9 +11,12 @@ import {
   missionSteps,
   GOLD_BUYS,
   GOLD_PRICE,
+  hasFish,
+  hasSpice,
   movesLeft,
   SETTLERS,
   settlersOut,
+  SPICE_PRICE,
 } from '@colonizers/module-explorers-pirates';
 import type { Targets } from '../board/Board.tsx';
 import { RESOURCE_ICON } from '../theme/clean.ts';
@@ -21,7 +24,17 @@ import { CostLine, RESOURCES } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
 
 /** Board modes for Explorers & Pirates. 'ship' (building one) is shared with Seafarers. */
-export type EpMode = 'harbor' | 'settler' | 'crew' | 'sail' | 'cargo' | 'found' | 'lair' | 'chase';
+export type EpMode =
+  | 'harbor'
+  | 'settler'
+  | 'crew'
+  | 'sail'
+  | 'cargo'
+  | 'found'
+  | 'lair'
+  | 'chase'
+  | 'spice'
+  | 'deliver';
 
 export const EP_MODES: readonly string[] = [
   'harbor',
@@ -32,6 +45,8 @@ export const EP_MODES: readonly string[] = [
   'found',
   'lair',
   'chase',
+  'spice',
+  'deliver',
 ];
 
 /** Gold and ships, for one player's row. */
@@ -53,24 +68,56 @@ export function EpPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
           </span>
         </>
       )}
+      {hasFish(ctx) && (
+        <span title="Fish mission: 1 point for every 2 fish brought home">
+          🐟 {missionSteps(ctx, seat, 'fish')}
+        </span>
+      )}
+      {hasSpice(ctx) && (
+        <span title="Spice mission: 1 point for every 2 sacks of spice brought home">
+          🌶️ {missionSteps(ctx, seat, 'spices')}
+        </span>
+      )}
     </>
   );
 }
 
-/** How many lairs are left, for the side panel. */
+/** The missions in play, for the side panel. */
 export function EpStatus({ ctx }: { ctx: Ctx }) {
-  if (!hasPirate(ctx)) return null;
+  const lairs = hasPirate(ctx);
+  const fish = hasFish(ctx);
+  const spice = hasSpice(ctx);
+  if (!lairs && !fish && !spice) return null;
   const d = epData(ctx);
-  const open = Object.keys(d.lairs).length;
-  const total = open + d.captured.length;
+  const total = Object.keys(d.lairs).length + d.captured.length;
   return (
-    <div className="tda-status" aria-label="Pirate lairs">
+    <div className="tda-status" aria-label="Missions">
+      {lairs && (
+        <p>
+          🏴‍☠️ Pirate lairs captured: <strong>{d.captured.length}</strong> of {total}
+          <small className="muted"> · {LAIR_CREWS} crews take a lair</small>
+        </p>
+      )}
+      {fish && (
+        <p>
+          🐟 Fishing grounds
+          <small className="muted">
+            {' '}
+            · ships beside one take a fish on its number; 2 fish brought home are a step
+          </small>
+        </p>
+      )}
+      {spice && (
+        <p>
+          🌶️ Spice villages
+          <small className="muted">
+            {' '}
+            · {SPICE_PRICE} gold a sack; 2 sacks brought home are a step
+          </small>
+        </p>
+      )}
       <p>
-        🏴‍☠️ Pirate lairs captured: <strong>{d.captured.length}</strong> of {total}
-        <small className="muted">
-          {' '}
-          · {LAIR_CREWS} crews take a lair; each step on the mission track is 1 point
-        </small>
+        <small className="muted">Each step on a mission track is 1 point.</small>
       </p>
     </div>
   );
@@ -103,6 +150,13 @@ export function epTargets(
       if (loc?.kind === 'edge') t.edges.set(loc.id, a);
     }
     if (mode === 'lair' && a.type === 'landCrew') t.hexes.set(a.hex as HexId, a);
+    if (
+      (mode === 'spice' && a.type === 'buySpice') ||
+      (mode === 'deliver' && a.type === 'deliverGoods')
+    ) {
+      const loc = at(a.ship);
+      if (loc?.kind === 'edge') t.edges.set(loc.id, a);
+    }
     if (mode === 'chase' && a.type === 'chasePirate') {
       const loc = at(a.ship);
       if (loc?.kind === 'edge') t.edges.set(loc.id, a);
@@ -152,6 +206,10 @@ export function epPrompt(state: GameState, who: string, mode: string | null): st
       return `${who}: tap your ship beside the pirate. On a 6 the pirate is driven off.`;
     case 'ship':
       return `${who}: tap a glowing edge beside your harbor settlement for the new ship.`;
+    case 'spice':
+      return `${who}: tap your ship beside a spice village to buy a sack for ${SPICE_PRICE} gold.`;
+    case 'deliver':
+      return `${who}: tap your ship beside your harbor settlement to bring its fish and spice ashore.`;
   }
   if (state.phase.id === 'sail')
     return `${who}: sail on, swap cargo or found a settlement, then end your turn.`;
@@ -253,6 +311,16 @@ export function EpActions({
       {modeButton('found', '🏠 Found settlement', 'foundSettlement')}
       {lairs && modeButton('lair', '🏴‍☠️ Land crews', 'landCrew')}
       {lairs && has('chasePirate') && modeButton('chase', '💥 Chase pirate', 'chasePirate')}
+      {hasSpice(ctx) &&
+        modeButton(
+          'spice',
+          <>
+            🌶️ Buy spice <span className="muted small">{SPICE_PRICE} 🪙</span>
+          </>,
+          'buySpice',
+        )}
+      {(hasFish(ctx) || hasSpice(ctx)) &&
+        modeButton('deliver', '📦 Bring goods home', 'deliverGoods')}
       {sailing && (
         <button
           type="button"

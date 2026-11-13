@@ -476,8 +476,9 @@ export function Game({
       return;
     }
     if (g.act(a)) {
-      // A wagon moves one path at a time, and ships sail one after another, so those modes stay on.
-      if (a.type !== 'moveWagon' && a.type !== 'sailShip' && a.type !== 'boostShip') setMode(null);
+      // A wagon moves one path at a time, ships sail one after another and spice comes a
+      // sack at a time, so those modes stay on.
+      if (!['moveWagon', 'sailShip', 'boostShip', 'buySpice'].includes(a.type)) setMode(null);
       setSelectedShip(null);
     }
   };
