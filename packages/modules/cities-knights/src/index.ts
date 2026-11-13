@@ -212,6 +212,7 @@ export {
   isKnight,
   knightAt,
   knightLevel,
+  knightStrength,
   knightsOf,
   levels,
   merchant,
@@ -230,3 +231,4 @@ export {
   type Levels,
 } from './rules.ts';
 export { wallBlock } from './actions.ts';
+export { holdsProgress, spendProgress } from './progress.ts';

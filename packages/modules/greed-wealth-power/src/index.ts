@@ -19,14 +19,27 @@ import {
   commodityBank,
   GWP_COMMODITIES,
   MODULE_ID,
+  NEUTRAL_CARDS,
+  NEUTRALS,
   SETTINGS,
   type Building,
 } from './constants.ts';
+import {
+  crownHeroes,
+  dukeStrength,
+  neutralActions,
+  neutralVp,
+  neutralYield,
+  syncInquisitor,
+  wizardUnblocks,
+  wrapPlayProgress,
+} from './neutrals.ts';
 
 /**
  * Greed, Wealth & Power (lightningserpent's fan expansion for Cities & Knights),
- * part 1: the Magic, Religion and Wealth tracks with their commodities and
- * metropolises, the 12-sided event die, the four special buildings and Beer.
+ * so far: the Magic, Religion and Wealth tracks with their commodities and
+ * metropolises, the 12-sided event die, the four special buildings, Beer, and
+ * the five neutral pieces with Hero of Catan (see neutrals.ts).
  *
  * - **Citadel** (brick hex), **Diocese** (grain hex) and **Monument** (gold
  *   field) beside one of your cities let all your cities on that terrain make
@@ -43,6 +56,14 @@ import {
  */
 
 export * from './constants.ts';
+export {
+  bonusCard,
+  heroes,
+  isNeutral,
+  NEUTRAL_NAMES,
+  neutralHexes,
+  neutralPiece,
+} from './neutrals.ts';
 
 interface Placed {
   corner: CornerId;
@@ -275,7 +296,7 @@ function owedIn(phase: Phase | undefined, seat: number): boolean {
 }
 
 /** Religion level 3: a roll (not a 7) that brings you nothing brews 1 Beer. */
-function brewBeer(ctx: Ctx): void {
+function brewBeer(ctx: Ctx, alsoPaid: number[]): void {
   const prod = ctx.events.find((e) => e.type === 'production');
   if (!prod || prod.total === 7) return;
   const received = (prod.received ?? {}) as Record<number, Cards>;
@@ -283,6 +304,7 @@ function brewBeer(ctx: Ctx): void {
   for (const p of ctx.state.players) {
     if (!hasAbility(ctx, p.seat, 'religion')) continue;
     if (Object.values(received[p.seat] ?? {}).some((n) => n > 0)) continue;
+    if (alsoPaid.includes(p.seat)) continue;
     // Gold to pick, or an Aqueduct pick (where Beer is one of the choices), comes first.
     if (owedIn(ctx.state.phase, p.seat)) continue;
     addBeer(ctx, p.seat, 1);
@@ -302,10 +324,11 @@ export const greedWealthPowerModule: GameModule = {
   settings: SETTINGS,
   cardTypes: Object.fromEntries(GWP_COMMODITIES.map((c) => [c, commodity])),
   decks: {
-    magic: { cards: () => ({}) },
-    religion: { cards: () => ({}) },
-    wealth: { cards: () => ({}) },
+    magic: { cards: () => ({ wizard: NEUTRAL_CARDS.wizard }) },
+    religion: { cards: () => ({ inquisitor: NEUTRAL_CARDS.inquisitor }) },
+    wealth: { cards: () => ({ envoy: NEUTRAL_CARDS.envoy }) },
   },
+  pieceTypes: Object.fromEntries(NEUTRALS.map((n) => [n, { on: 'hex' as const }])),
   costs: {
     citadel: { ore: 1, brick: 2 },
     citadelSettlement: { ore: 3, grain: 2, brick: 2 },
@@ -313,8 +336,9 @@ export const greedWealthPowerModule: GameModule = {
     monument: { ore: 1, brick: 1 },
     silo: { brick: 1, lumber: 1 },
   },
-  actions: { buildGwp, beerTrade, beerKnight },
+  actions: { buildGwp, beerTrade, beerKnight, ...neutralActions },
   wrapActions: {
+    playProgress: wrapPlayProgress,
     // Science and Religion level 3 together: the Aqueduct pick can be a Beer instead.
     aqueductPick: (prev): ActionDef => ({
       ...prev,
@@ -344,13 +368,33 @@ export const greedWealthPowerModule: GameModule = {
   hooks: {
     init(ctx) {
       gwpData(ctx);
+      // The Duke and Scholar join the Cities & Knights decks.
+      for (const [deck, card] of [
+        ['politics', 'duke'],
+        ['science', 'scholar'],
+      ] as const) {
+        const cards = ctx.state.decks[deck];
+        if (!cards) continue;
+        ctx.state.decks[deck] = ctx.rng.shuffle([
+          ...cards,
+          ...Array<string>(NEUTRAL_CARDS[card]).fill(card),
+        ]);
+      }
     },
     afterAction(ctx) {
       dropLostBuildings(ctx);
-      brewBeer(ctx);
+      const paid = neutralYield(ctx);
+      brewBeer(ctx, paid);
+      syncInquisitor(ctx);
+      crownHeroes(ctx);
     },
   },
   reducers: {
+    knightStrength: dukeStrength,
+    hexBlocked: wizardUnblocks,
+    vp(ctx, seat, value) {
+      return value + neutralVp(ctx, seat);
+    },
     hexYield(ctx, hex, piece, value) {
       if (piece.type !== 'city' || piece.owner === null) return value;
       const mine = buildingsOf(ctx, piece.owner);

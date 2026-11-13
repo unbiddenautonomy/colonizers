@@ -67,6 +67,16 @@ function findCard(ctx: Ctx, seat: number, card: string): { deck: Track; index: n
   return null;
 }
 
+/** Does the player hold a copy of this progress card? */
+export function holdsProgress(ctx: Ctx, seat: number, card: string): boolean {
+  return findCard(ctx, seat, card) !== null;
+}
+
+/** Plays a progress card from the player's hand: it goes back under its deck. */
+export function spendProgress(ctx: Ctx, seat: number, card: string): void {
+  useCard(ctx, seat, card);
+}
+
 function useCard(ctx: Ctx, seat: number, card: string): void {
   const found = findCard(ctx, seat, card);
   if (!found) return;

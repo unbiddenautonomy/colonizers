@@ -144,6 +144,14 @@ export function knightLevel(p: Piece): number {
   return (KNIGHT_TYPES as readonly string[]).indexOf(p.type) + 1;
 }
 
+/**
+ * A knight's strength: its printed level, which another module can raise or
+ * lower (Greed, Wealth & Power's Duke). Never below 0.
+ */
+export function knightStrength(ctx: Ctx, k: Piece): number {
+  return Math.max(0, ctx.reduce('knightStrength', k, knightLevel(k)));
+}
+
 export function knightsOf(ctx: Ctx, seat: number): Piece[] {
   return ctx.piecesOf(seat).filter(isKnight);
 }
@@ -165,7 +173,7 @@ export function isAway(p: Piece): boolean {
 export function strength(ctx: Ctx, seat: number): number {
   return knightsOf(ctx, seat)
     .filter((k) => isActive(k) && !isAway(k))
-    .reduce((s, k) => s + knightLevel(k), 0);
+    .reduce((s, k) => s + knightStrength(ctx, k), 0);
 }
 
 export function knightAt(ctx: Ctx, corner: CornerId): Piece | undefined {
@@ -237,7 +245,11 @@ export function displaceTargets(ctx: Ctx, knight: Piece): CornerId[] {
       if (!mine) continue;
       for (const n of ctx.geometry.edgeCorners.get(e) ?? []) {
         const other = knightAt(ctx, n);
-        if (other && other.owner !== seat && knightLevel(other) < knightLevel(knight))
+        if (
+          other &&
+          other.owner !== seat &&
+          knightStrength(ctx, other) < knightStrength(ctx, knight)
+        )
           if (!out.includes(n)) out.push(n);
       }
     }
