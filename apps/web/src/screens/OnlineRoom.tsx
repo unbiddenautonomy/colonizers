@@ -230,7 +230,8 @@ function Lobby({
       ? (SPECIAL_MAPS.find((x) => x.id === (s.map as { id: string }).id) ?? null)
       : null;
   const noCk = specialPick?.noCitiesKnights === true;
-  const ck = s.citiesKnights && !noCk;
+  const needsCk = specialPick?.needsCitiesKnights === true;
+  const ck = (s.citiesKnights || needsCk) && !noCk;
   const bonus = vpBonus(ck, specialPick?.id ?? null);
   const optionList = describeOptions(s.options, players.length);
   const map = s.map;
@@ -416,7 +417,7 @@ function Lobby({
               <input
                 type="checkbox"
                 checked={ck}
-                disabled={noCk}
+                disabled={noCk || needsCk}
                 onChange={(e) => setGame({ citiesKnights: e.target.checked })}
               />{' '}
               ⚔️ Cities &amp; Knights (knights, barbarians, city improvements; +3 points to win)
@@ -479,8 +480,9 @@ function Lobby({
             <li>
               Expansions:{' '}
               {[
-                seaPick && 'Seafarers',
+                (seaPick || specialPick?.group === 'treasures') && 'Seafarers',
                 specialPick?.group === 'traders' && 'Traders & Barbarians',
+                specialPick?.group === 'treasures' && 'Treasures, Dragons & Adventurers',
                 ck && 'Cities & Knights',
               ]
                 .filter(Boolean)

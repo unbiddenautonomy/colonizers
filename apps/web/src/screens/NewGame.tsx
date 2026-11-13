@@ -116,7 +116,8 @@ export function NewGame({
       : choice;
   const specialId = effective.kind === 'special' ? effective.id : null;
   const noCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.noCitiesKnights === true;
-  const ck = ckWanted && !noCk;
+  const needsCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.needsCitiesKnights === true;
+  const ck = (ckWanted || needsCk) && !noCk;
   const extraVp = ck ? 3 : 0;
   const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
@@ -125,6 +126,7 @@ export function NewGame({
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
   const bonus = vpBonus(ck, specialId);
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
+  const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const special = useMemo(
     () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
     [specialId, seed, count],
@@ -400,8 +402,8 @@ export function NewGame({
         <div className="expansions">
           <button
             type="button"
-            className={`expansion ${sea ? 'on' : ''}`}
-            aria-pressed={!!sea}
+            className={`expansion ${sea || isTreasures ? 'on' : ''}`}
+            aria-pressed={!!sea || isTreasures}
             disabled={!scenarios.length}
             onClick={() =>
               sea
@@ -416,14 +418,18 @@ export function NewGame({
             type="button"
             className={`expansion ${ck ? 'on' : ''}`}
             aria-pressed={ck}
-            disabled={noCk}
+            disabled={noCk || needsCk}
             onClick={() => setCk(!ck)}
           >
             <strong>⚔️ Cities &amp; Knights</strong>
             <small>
-              {noCk
-                ? 'Not with Traders & Barbarians scenarios, which use the base game.'
-                : 'Knights, barbarians, commodities and city improvements. Works with every map.'}
+              {needsCk
+                ? 'This scenario is played with Cities & Knights.'
+                : noCk
+                  ? isTreasures
+                    ? 'Not with these Treasures, Dragons & Adventurers scenarios yet.'
+                    : 'Not with Traders & Barbarians scenarios, which use the base game.'
+                  : 'Knights, barbarians, commodities and city improvements. Works with every map.'}
             </small>
           </button>
           <button
@@ -438,6 +444,23 @@ export function NewGame({
           >
             <strong>🛒 Traders &amp; Barbarians</strong>
             <small>Five scenarios, each adding one idea. Pick one under Map above.</small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${isTreasures ? 'on' : ''}`}
+            aria-pressed={isTreasures}
+            disabled={count < 3 || count > 6}
+            onClick={() =>
+              isTreasures
+                ? setChoice({ kind: 'random', mode: 'classic' })
+                : setChoice({ kind: 'special', id: 'treasure-islands' })
+            }
+          >
+            <strong>🧰 Treasures, Dragons &amp; Adventurers</strong>
+            <small>
+              Treasure chests, fog and dragons on Seafarers maps, for 3 to 6 players. Pick one under
+              Map above.
+            </small>
           </button>
         </div>
         <h3 className="subhead">Winning</h3>

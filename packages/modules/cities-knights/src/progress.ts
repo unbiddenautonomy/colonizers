@@ -52,6 +52,7 @@ import {
   promote,
   promoteBlock,
   startRoll,
+  isAway,
 } from './rules.ts';
 
 const MAIN: Phase = { id: 'main' };
@@ -90,7 +91,13 @@ function opponents(ctx: Ctx, seat: number): number[] {
 function inventorHexes(ctx: Ctx): HexId[] {
   return (Object.keys(ctx.state.hexes) as HexId[]).filter((h) => {
     const hex = ctx.state.hexes[h];
-    return !!hex && !hex.hidden && hex.token !== undefined && ![2, 12, 6, 8].includes(hex.token);
+    return (
+      !!hex &&
+      !hex.hidden &&
+      hex.token !== undefined &&
+      hex.props?.noInventor !== true &&
+      ![2, 12, 6, 8].includes(hex.token)
+    );
   });
 }
 
@@ -129,6 +136,7 @@ function intrigueTargets(ctx: Ctx, seat: number): Piece[] {
   return ctx.state.players
     .filter((p) => p.seat !== seat)
     .flatMap((p) => knightsOf(ctx, p.seat))
+    .filter((k) => !isAway(k))
     .filter((k) =>
       (ctx.geometry.cornerEdges.get(cornerOf(k)) ?? []).some((e) =>
         ctx
@@ -250,7 +258,9 @@ function checkPlay(ctx: Ctx, a: Action & Play): string | null {
     case 'deserter': {
       const e = pickTarget();
       if (e) return e;
-      return knightsOf(ctx, target as number).length ? null : 'That player has no knights';
+      return knightsOf(ctx, target as number).some((k) => !isAway(k))
+        ? null
+        : 'That player has no knights at home';
     }
     case 'diplomat':
       return openRoads(ctx).length ? null : 'There is no open road';
@@ -886,6 +896,7 @@ const desertKnight = action<{ knight: string }>({
     const k = typeof a.knight === 'string' ? ctx.state.pieces[a.knight] : undefined;
     if (!k || !isKnight(k) || k.owner !== a.player || k.at.kind !== 'corner')
       return 'Pick one of your knights';
+    if (isAway(k)) return 'That knight is far away and can not desert';
     return null;
   },
   apply(ctx, a) {
@@ -902,7 +913,9 @@ const desertKnight = action<{ knight: string }>({
   },
   enumerate(ctx, player) {
     if (!owes(ctx, player)) return [];
-    return knightsOf(ctx, player).map((k) => ({ type: 'desertKnight', player, knight: k.id }));
+    return knightsOf(ctx, player)
+      .filter((k) => !isAway(k))
+      .map((k) => ({ type: 'desertKnight', player, knight: k.id }));
   },
 });
 

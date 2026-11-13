@@ -12,6 +12,14 @@ import {
 import { RESOURCE_ICON, TRACK_COLOR, type Theme } from '../theme/clean.ts';
 import { useTheme } from '../theme/themes.tsx';
 import { motionAttrs, useBoardMotion } from './motion.ts';
+import {
+  CanalStretch,
+  canalLinks,
+  DryBasin,
+  DryFarmland,
+  farmlandDry,
+  GoldRiver,
+} from './CanalArt.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -190,6 +198,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const fx = theme.pieceEffect === 'glow' ? 'url(#glow)' : 'url(#lift)';
   const patterned = new Set(theme.patterned ?? []);
   const hexes = useMemo(() => Object.values(state.hexes), [state.hexes]);
+  const canal = useMemo(() => canalLinks(state, S), [state]);
+  const dry = farmlandDry(state);
   const g = useMemo(() => buildGeometry(hexes.map((h) => h.id)), [hexes]);
   const svgRef = useRef<SVGSVGElement>(null);
   useBoardMotion(svgRef, g, state);
@@ -223,6 +233,9 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
       }
     | undefined;
   const barbarians = tb?.barbarians ?? {};
+  const dragons =
+    (state.data['treasures-dragons']?.dragons as Record<string, number> | undefined) ?? {};
+  const dragonAt = (h: HexId | undefined) => !!h && (dragons[h] ?? 0) > 0;
   const pirateHex = pieces.find((p) => p.type === 'pirate')?.at;
 
   return (
@@ -374,8 +387,17 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 <title>Held by barbarians: no production, and no building next to it</title>
               </polygon>
             )}
+            {dry && h.props?.farmland === true && (
+              <DryFarmland hex={h} S={S} points={hexPoints(h.q, h.r)} />
+            )}
+            {h.props?.basin === true && h.type === 'desert' && <DryBasin hex={h} S={S} />}
+            {h.props?.goldRiver === true && !fog && <GoldRiver hex={h} S={S} />}
+            {canal.has(h.id) && <CanalStretch hex={h} link={canal.get(h.id)!} S={S} />}
             {h.token && !fog && (barbarians[h.id] ?? 0) < 3 && (
-              <g className={rolled === h.token ? 'token hot' : 'token'}>
+              <g
+                className={rolled === h.token ? 'token hot' : 'token'}
+                opacity={dry && h.props?.farmland === true ? 0.55 : undefined}
+              >
                 <circle
                   cx={c.x}
                   cy={c.y}
@@ -610,6 +632,197 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         );
       })}
 
+      {Object.entries(dragons).map(([id, n]) => {
+        const h = state.hexes[id as HexId];
+        if (!h || n <= 0) return null;
+        const c = hexToPixel(h.q, h.r, S);
+        const lair = h.type === 'desert';
+        return (
+          <g key={`dragon-${id}`} className="dragon" pointerEvents="none">
+            {!lair && <polygon points={hexPoints(h.q, h.r)} fill="#5b0f0a" opacity={0.38} />}
+            <g filter="url(#lift)">
+              <circle
+                cx={c.x}
+                cy={c.y + (lair ? 0 : S * 0.5)}
+                r={S * (lair ? 0.3 : 0.2)}
+                fill="#7a1a12"
+                stroke="#f6d27a"
+                strokeWidth={2}
+              />
+              <text
+                x={c.x}
+                y={c.y + (lair ? S * 0.02 : S * 0.5)}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={S * (lair ? 0.3 : 0.22)}
+              >
+                🐉
+              </text>
+              {lair && (
+                <text
+                  x={c.x + S * 0.24}
+                  y={c.y + S * 0.26}
+                  textAnchor="middle"
+                  fontSize={S * 0.2}
+                  fontWeight={700}
+                  fill="#f6d27a"
+                  stroke="#3a0b07"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                >
+                  {n}
+                </text>
+              )}
+            </g>
+            <title>
+              {lair
+                ? `${n} dragon${n === 1 ? '' : 's'} in the desert`
+                : 'Dragon: this hex produces nothing'}
+            </title>
+          </g>
+        );
+      })}
+
+      {pieces
+        .filter((p) => p.type === 'road' && p.at.kind === 'edge')
+        .map((p) => {
+          const e = (p.at as { id: EdgeId }).id;
+          const hs = g.edgeHexes.get(e) ?? [];
+          if (hs.length !== 2 || !hs.every(dragonAt)) return null;
+          const [a, b] = edgeEnds(e, g);
+          const x = (a.x + b.x) / 2;
+          const y = (a.y + b.y) / 2;
+          const k = S * 0.09;
+          return (
+            <g key={`cut-${p.id}`} className="road-cut" pointerEvents="none">
+              <path
+                d={`M${x - k},${y - k} L${x + k},${y + k} M${x + k},${y - k} L${x - k},${y + k}`}
+                stroke="#f6d27a"
+                strokeWidth={4}
+                strokeLinecap="round"
+              />
+              <path
+                d={`M${x - k},${y - k} L${x + k},${y + k} M${x + k},${y - k} L${x - k},${y + k}`}
+                stroke="#7a1a12"
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
+              <title>Cut by dragons</title>
+            </g>
+          );
+        })}
+
+      {pieces
+        .filter((p) => p.type === 'treasure' && p.at.kind === 'corner')
+        .map((p) => {
+          const corner = (p.at as { id: CornerId }).id;
+          const c = cornerToPixel(corner, S);
+          const w = S * 0.44;
+          const h = S * 0.28;
+          return (
+            <g
+              key={p.id}
+              className="treasure"
+              filter="url(#lift)"
+              {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'treasure' })}
+            >
+              <rect
+                x={c.x - w / 2}
+                y={c.y - h / 2 + S * 0.03}
+                width={w}
+                height={h}
+                rx={2}
+                fill="#8a5a2b"
+                stroke="#3b2616"
+                strokeWidth={1.5}
+              />
+              <path
+                d={`M${c.x - w / 2},${c.y - h / 2 + S * 0.03} q${w / 2},${-h * 0.9} ${w},0 z`}
+                fill="#a86e35"
+                stroke="#3b2616"
+                strokeWidth={1.5}
+              />
+              <rect
+                x={c.x - S * 0.05}
+                y={c.y - S * 0.05}
+                width={S * 0.1}
+                height={S * 0.11}
+                fill="#f2c230"
+                stroke="#3b2616"
+                strokeWidth={1}
+              />
+              <title>Treasure chest: build a road or ship here to open it</title>
+            </g>
+          );
+        })}
+
+      {hexes
+        .filter((h) => h.props?.enchanted === true)
+        .map((h) => (
+          <polygon
+            key={`ench-${h.id}`}
+            className="enchanted"
+            points={hexPoints(h.q, h.r)}
+            fill="#6b3fa0"
+            opacity={0.16}
+            pointerEvents="none"
+          />
+        ))}
+
+      {pieces
+        .filter((p) => p.type === 'dragon' && p.at.kind === 'corner')
+        .map((p) => {
+          const corner = (p.at as { id: CornerId }).id;
+          const c = cornerToPixel(corner, S);
+          const tier = Number(p.props.tier ?? 1);
+          const r = S * 0.17;
+          return (
+            <g
+              key={p.id}
+              className="dragon-piece"
+              filter="url(#lift)"
+              {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'dragon' })}
+            >
+              <circle
+                cx={c.x}
+                cy={c.y}
+                r={r}
+                fill={tier === 3 ? '#3a0b07' : tier === 2 ? '#7a1a12' : '#a8452a'}
+                stroke="#f6d27a"
+                strokeWidth={2}
+              />
+              <text
+                x={c.x}
+                y={c.y + S * 0.01}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={S * 0.18}
+                pointerEvents="none"
+              >
+                🐉
+              </text>
+              {Array.from({ length: tier }, (_, i) => (
+                <circle
+                  key={i}
+                  cx={c.x + (i - (tier - 1) / 2) * S * 0.08}
+                  cy={c.y + r + S * 0.05}
+                  r={S * 0.03}
+                  fill="#f6d27a"
+                  stroke="#3a0b07"
+                  strokeWidth={1}
+                />
+              ))}
+              <title>
+                {tier === 1
+                  ? 'Dragon: any knight can beat it'
+                  : tier === 2
+                    ? 'Dragon: only a strong or mighty knight can beat it'
+                    : 'Dragon: only a mighty knight can beat it'}
+              </title>
+            </g>
+          );
+        })}
+
       {(tb?.edgeBarbarians ?? []).map((e) => {
         const [a, b] = edgeEnds(e, g);
         const x = (a.x + b.x) / 2;
@@ -793,7 +1006,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         })}
 
       {pieces
-        .filter((p) => p.at.kind === 'corner')
+        .filter((p) => p.at.kind === 'corner' && p.type !== 'treasure' && p.type !== 'dragon')
         .map((p) => {
           const corner = (p.at as { id: CornerId }).id;
           const c = cornerToPixel(corner, S);

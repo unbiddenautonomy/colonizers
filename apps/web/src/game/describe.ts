@@ -1,6 +1,7 @@
 import type { GameEvent } from '@colonizers/engine';
 import { nameOf } from '@colonizers/rulebook';
 import { achievementById } from '@colonizers/stats';
+import { TREASURE_TEXT, type TreasureKind } from '@colonizers/module-treasures-dragons';
 
 const TRACK: Record<string, string> = {
   science: 'science (green)',
@@ -133,6 +134,43 @@ export function describe(e: GameEvent, names: string[]): string | null {
     }
     case 'gameOver':
       return `🏆 ${n(e.winner)} wins!`;
+    // ---- Treasures, Dragons & Adventurers ----
+    case 'treasure':
+      return `🧰 ${n(e.player)} ${e.from === 'fog' ? 'found a treasure in the fog' : 'opened a treasure chest'}: ${TREASURE_TEXT[e.kind as TreasureKind] ?? 'a treasure'}.`;
+    case 'dragonsWake':
+      return `🐉 The dragons stir: ${e.awake as number} of ${e.total as number} awake.`;
+    case 'dragonsAttack':
+      return '🐉 All the dragons are awake. They attack!';
+    case 'dragonsSpread': {
+      const k = (e.hexes as string[]).length;
+      return `🐉 ${k === 1 ? 'A dragon flies' : `${k} dragons fly`} out of the desert.`;
+    }
+    case 'tokenPlaced':
+      return e.from === 'pile'
+        ? `🔢 A new hex takes number ${e.token as number} from the pile.`
+        : `🔢 ${n(e.player)} moved number ${e.token as number} from the home island to a new hex.`;
+    case 'knightCrossed':
+      return `⛵ ${n(e.player)} ferried a knight to the enchanted land.`;
+    case 'knightRoamed':
+      return `${n(e.player)} moved a knight across the enchanted land.`;
+    case 'knightPushed':
+      return `${n(e.player)} pushed ${n(e.victim)}'s knight aside.`;
+    case 'dragonFight':
+      return e.won
+        ? `⚔️ ${n(e.player)} beat a dragon!`
+        : `🐉 The dragon was too strong for ${n(e.player)}'s knight.`;
+    case 'dragonSlain':
+      return `⚔️ ${n(e.player)} drove out a dragon.`;
+    case 'canalDug': {
+      const who = e.players as number[];
+      return who[0] === who[1]
+        ? `⛏️ ${n(who[0])} dug a stretch of the canal: +2 points.`
+        : `⛏️ ${n(who[0])} and ${n(who[1])} dug a stretch of the canal: +1 point each.`;
+    }
+    case 'canalFlooded':
+      return '💧 The Great Canal is finished! The basin floods and the farmland grows grain again.';
+    case 'goldPanned':
+      return `⛏️ An 8: knights by the gold rivers pan for gold.`;
     // ---- Cities & Knights ----
     case 'eventDie':
       return e.face === 'ship'
