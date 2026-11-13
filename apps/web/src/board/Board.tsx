@@ -22,6 +22,7 @@ import {
 } from './CanalArt.tsx';
 import { buildingMarkers, GWP_ICON, neutralMarkers } from '../screens/GreedWealthPower.tsx';
 import { LairMarkers } from './EpArt.tsx';
+import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 
 const S = 60;
 const PIPS: Record<number, number> = {
@@ -247,6 +248,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const canal = useMemo(() => canalLinks(state, S), [state]);
   const dry = farmlandDry(state);
   const g = useMemo(() => buildGeometry(hexes.map((h) => h.id)), [hexes]);
+  const river = useMemo(() => riverRun(hexes), [hexes]);
   const svgRef = useRef<SVGSVGElement>(null);
   useBoardMotion(svgRef, g, state);
 
@@ -345,7 +347,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                     ? `Fishing ground: fish on ${h.token}`
                     : lakeNumbers.length
                       ? `Fishing lake: fish on ${lakeNumbers.join(', ')}`
-                      : h.type}
+                      : (riverTitle(h) ?? h.type)}
               </title>
             </polygon>
             {shoal && (
@@ -407,6 +409,9 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 aria-hidden="true"
               />
             )}
+            {!fog && (h.props?.gwpRiver === true || h.props?.swampland === true) && (
+              <RiverHex hex={h} run={river} S={S} />
+            )}
             {!isSea && theme.terrainIcons && theme.terrainIcon[type] && (
               <g aria-hidden="true" pointerEvents="none">
                 <circle
@@ -425,7 +430,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   dominantBaseline="central"
                   fontSize={S * 0.24}
                 >
-                  {theme.terrainIcon[type]}
+                  {h.props?.swampland === true ? '🐸' : theme.terrainIcon[type]}
                 </text>
               </g>
             )}

@@ -25,6 +25,7 @@ import {
   type Building,
   type Neutral,
 } from './constants.ts';
+import { riverGold } from './river.ts';
 
 /**
  * Greed, Wealth & Power's neutral pieces. Each is placed by its progress card;
@@ -279,6 +280,7 @@ export function bonusCard(ctx: Ctx, seat: number, hex: HexState): string | null 
   if (produces === 'brick' && mine.citadel) commodity = 'crystal';
   if (produces === 'grain' && mine.diocese) commodity = 'bread';
   if (hex.type === 'gold' && mine.monument) commodity = 'gold';
+  if (riverGold(ctx, seat, hex)) commodity = 'gold';
   if (commodity && ctx.bankHas({ [commodity]: 1 })) return commodity;
   if (produces && ctx.bankHas({ [produces]: 1 })) return produces;
   return null;

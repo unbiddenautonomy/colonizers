@@ -37,6 +37,8 @@ export const SETTINGS = {
   ckEventFaces: GWP_EVENT_FACES,
   progressLimit: GWP_PROGRESS_LIMIT,
   exclusiveMetropolis: [...EXCLUSIVE_METROPOLIS],
+  /** Lay the river: swampland and three river hexes in place of the desert, an ore, a brick and a wool hex. */
+  gwpRiver: false,
 };
 
 /** The four special buildings, one of each per player. */

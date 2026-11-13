@@ -34,6 +34,8 @@ export interface GameOptions {
   eventCards: boolean;
   /** Duel rules for two players: neutral builders, two rolls a turn, trade tokens. */
   twoPlayer: boolean;
+  /** Greed, Wealth & Power: the river and swampland take the place of the desert and three hexes. */
+  gwpRiver: boolean;
 }
 
 export const TURN_MODES: readonly TurnModeChoice[] = ['auto', 'normal', 'specialBuild', 'paired'];
@@ -51,6 +53,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   harbormaster: false,
   eventCards: false,
   twoPlayer: false,
+  gwpRiver: false,
 };
 
 export function cleanOptions(raw: unknown): GameOptions {
@@ -68,6 +71,7 @@ export function cleanOptions(raw: unknown): GameOptions {
     harbormaster: o.harbormaster === true,
     eventCards: o.eventCards === true,
     twoPlayer: o.twoPlayer === true,
+    gwpRiver: o.gwpRiver === true,
   };
 }
 
@@ -92,6 +96,7 @@ export function optionSettings(o: GameOptions, players: number): Record<string, 
     harbormaster: o.harbormaster,
     eventCards: o.eventCards,
     twoPlayer: o.twoPlayer && players === 2,
+    gwpRiver: o.gwpRiver,
   };
 }
 
