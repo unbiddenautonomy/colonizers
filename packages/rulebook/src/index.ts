@@ -8,6 +8,7 @@ import { treasuresDragonsRules } from './treasuresDragons.ts';
 import { explorersPiratesRules } from './explorersPirates.ts';
 import { greedWealthPowerRules } from './greedWealthPower.ts';
 import { worldWondersRules } from './worldWonders.ts';
+import { civilisationsRules } from './civilisations.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -23,6 +24,7 @@ export const RULEBOOKS: RulebookModule[] = [
   explorersPiratesRules,
   greedWealthPowerRules,
   worldWondersRules,
+  civilisationsRules,
   variantsRules,
 ];
 

@@ -196,6 +196,7 @@ export {
   canAct,
   ckData,
   citiesOf,
+  canPlaceKnight,
   cityAtRisk,
   shielded,
   isSheltered,
@@ -234,8 +235,9 @@ export {
   strength,
   wallsOf,
   wildDecks,
+  winsMetropolis,
   type CkData,
   type Levels,
 } from './rules.ts';
-export { wallBlock } from './actions.ts';
+export { claimMetropolis, wallBlock } from './actions.ts';
 export { holdsProgress, openRoutes, spendProgress } from './progress.ts';

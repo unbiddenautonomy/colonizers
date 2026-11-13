@@ -3,6 +3,7 @@ import { nameOf } from '@colonizers/rulebook';
 import { achievementById } from '@colonizers/stats';
 import { TREASURE_TEXT, type TreasureKind } from '@colonizers/module-treasures-dragons';
 import { WONDERS, type WonderId } from '@colonizers/module-world-wonders';
+import { CIV_BY_ID } from '@colonizers/module-civilisations';
 
 const TRACK: Record<string, string> = {
   science: 'science (green)',
@@ -338,6 +339,36 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🏹 ${n(e.player)} swept the roaming pieces off the board.`;
     case 'wonderDraw':
       return `🌿 ${n(e.player)} drew a card for moving the robber.`;
+    case 'civPicked':
+      return `${n(e.player)} picked a civilisation.`;
+    case 'civsRevealed':
+      return `🏳️ Civilisations chosen: ${Object.entries(e.civs as Record<string, string>)
+        .map(([s, c]) => `${n(Number(s))} (${CIV_BY_ID[c]?.name ?? c})`)
+        .join(', ')}.`;
+    case 'civUnlocked':
+      return `✨ ${n(e.player)} reached 10 points: ${CIV_BY_ID[e.civ as string]?.later.name ?? 'a new ability'} is theirs.`;
+    case 'civPicks':
+      return `🏳️ ${e.why}: ${n(e.player)} may take ${e.count === 1 ? 'a resource' : `${e.count} resources`} of their choice.`;
+    case 'civPick':
+      return `${n(e.player)} took ${cards({ [e.card as string]: 1 })}.`;
+    case 'civHarvest':
+      return `🏛️ ${n(e.player)}'s Republic took ${cards({ [e.card as string]: 1 })} from beside their new building.`;
+    case 'civSwapReady':
+      return null;
+    case 'civSwap':
+      return `🏳️ ${n(e.player)} swapped ${cards({ [e.gave as string]: 1 })} for ${cards({ [e.got as string]: 1 })}.`;
+    case 'civGain':
+      return `🏳️ ${e.why}: ${n(e.player)} takes ${cards({ [e.card as string]: 1 })}.`;
+    case 'civInnovation':
+      return e.lucky
+        ? `💡 ${n(e.player)}'s inventors threw ${e.red}: a ${e.track} card!`
+        : `💡 ${n(e.player)}'s inventors threw ${e.red}: nothing this time.`;
+    case 'civCalendar':
+      return `🏳️ ${n(e.player)} turned ${n(e.target)}'s ${e.track} track back and moved their own on.`;
+    case 'trackLowered':
+      return `${n(e.player)}'s ${e.track} track drops to level ${e.level}.`;
+    case 'metropolisLost':
+      return `${n(e.player)} loses the ${e.track} metropolis.`;
     case 'wonderFreeShip':
       return `🗼 The Lighthouse lit the way: ${n(e.player)}'s ship was free.`;
     case 'wonderRefundOffered':

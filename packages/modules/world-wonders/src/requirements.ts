@@ -105,7 +105,8 @@ export function wonderSites(ctx: Ctx, seat: number, id: WonderId): HexId[] {
   return sitesFor(ctx, seat, WONDERS[id].requirement);
 }
 
-function sitesFor(ctx: Ctx, seat: number, r: Requirement): HexId[] {
+/** Hexes a wonder with this requirement could stand on for this player now. */
+export function sitesFor(ctx: Ctx, seat: number, r: Requirement): HexId[] {
   switch (r.kind) {
     case 'terrain': {
       const near = buildings(ctx, seat, r.citiesOnly).filter((b) =>

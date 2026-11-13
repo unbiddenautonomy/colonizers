@@ -9,6 +9,7 @@ import { treasuresDragonsModule } from '@colonizers/module-treasures-dragons';
 import { explorersPiratesModule } from '@colonizers/module-explorers-pirates';
 import { greedWealthPowerModule } from '@colonizers/module-greed-wealth-power';
 import { worldWondersModule } from '@colonizers/module-world-wonders';
+import { civilisationsModule } from '@colonizers/module-civilisations';
 import {
   generateBoard,
   generateSeaBoard,
@@ -31,12 +32,15 @@ export const library = new ModuleLibrary([
   worldWondersModule,
   citiesKnightsModule,
   greedWealthPowerModule,
+  civilisationsModule,
 ]);
 
 /** Cities & Knights adds metropolises and defender points, so games go 3 points longer. */
 export const CK_EXTRA_VP = 3;
 /** Greed, Wealth & Power plays to 18 with the usual 10. */
 export const GWP_EXTRA_VP = 8;
+/** Civilisations plays to 20 with the usual 10. */
+export const CIV_EXTRA_VP = 10;
 
 /** Greed, Wealth & Power goes on top of Cities & Knights, on the usual maps and Seafarers. */
 export function gwpOn(
@@ -51,6 +55,11 @@ export function wondersOn(settings: Pick<RoomSettings, 'worldWonders' | 'map'>):
   return settings.worldWonders && settings.map.kind !== 'special';
 }
 
+/** Civilisations goes on top of Greed, Wealth & Power. */
+export function civsOn(settings: Pick<RoomSettings, 'civilisations'>, gwp: boolean): boolean {
+  return gwp && settings.civilisations;
+}
+
 /** Builds the game for a room or a game on one device. Names are already in seat order. */
 export function buildConfig(settings: RoomSettings, names: string[], seed: string): GameConfig {
   const n = names.length;
@@ -59,7 +68,8 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const ck =
     (settings.citiesKnights || picked?.needsCitiesKnights === true) && !picked?.noCitiesKnights;
   const gwp = gwpOn(settings, ck);
-  const extraVp = gwp ? GWP_EXTRA_VP : ck ? CK_EXTRA_VP : 0;
+  const civs = civsOn(settings, gwp);
+  const extraVp = civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? CK_EXTRA_VP : 0;
   const options = optionSettings(settings.options, n);
   const config = (
     extra: string[],
@@ -68,7 +78,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   ): GameConfig => ({
     seed,
     players: names,
-    modules: moduleList(extra, ck, gwp, wondersOn(settings)),
+    modules: moduleList(extra, ck, gwp, wondersOn(settings), civs),
     map,
     settings: { ...options, ...own },
     fixedSeats: true,
@@ -167,6 +177,8 @@ const SAFE_ORDER = [
   'harborSwap',
   'placeTbKnight',
   'moveEdgeBarbarian',
+  'pickCiv',
+  'civNeutral',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',

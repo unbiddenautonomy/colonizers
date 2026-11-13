@@ -1,0 +1,27 @@
+{
+  "name": "@colonizers/module-civilisations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Civilisations: each player leads one of 40 civilisations, with a start ability and a second one from 10 points. Needs Cities & Knights and Greed, Wealth & Power.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-cities-knights": "workspace:*",
+    "@colonizers/module-greed-wealth-power": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*",
+    "@colonizers/module-world-wonders": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}
