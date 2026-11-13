@@ -9,6 +9,7 @@ import {
   knightStrength,
 } from '@colonizers/module-cities-knights';
 import { MODULE_ID } from './constants.ts';
+import { festivalBlock } from './festival.ts';
 
 /**
  * Greed, Wealth & Power's Damsel and dragon, and two cards played ahead of
@@ -274,7 +275,10 @@ export function guardBuild(damsel: boolean) {
   return (prev: ActionDef): ActionDef => ({
     ...prev,
     check: (ctx, a) =>
-      lentBlock(ctx, a) ?? (damsel ? damselBlock(ctx, a) : null) ?? prev.check(ctx, a),
+      lentBlock(ctx, a) ??
+      festivalBlock(ctx, a) ??
+      (damsel ? damselBlock(ctx, a) : null) ??
+      prev.check(ctx, a),
   });
 }
 

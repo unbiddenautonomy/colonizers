@@ -462,6 +462,7 @@ The rules are lightningserpent's (GWP 1.0); we credit the authors of the expansi
         'basilica',
         'marketplace',
         'knight',
+        'festival',
       ],
       body: `**Level 3 abilities**
 
@@ -476,7 +477,18 @@ These trades are for resources only, not commodities.
 - Beer is a token everyone can see. It isn't a card: it doesn't count when a 7 is rolled, and it can't be stolen.
 - **1 Beer** activates any knight, yours or another player's.
 - Beer buys **commodities** from the bank: 4 Beer for 1, 3 with a 3:1 harbor, 2 with Trade level 3.
-- Beer festivals come in a later update.`,
+**Beer festivals** 🍻
+
+On your turn you can spend Beer on a festival for another player. It lasts until your next production roll is worked out, and you can only have one going at a time.
+
+| Festival | Beer | That player... |
+|---|---|---|
+| Road or ship | 2 | can't build roads (or ships) |
+| Knight | 3 | can't build new knights (or can't activate knights) |
+| Settlement | 4 | gets nothing from their settlements |
+| City | 5 | can't build city improvements |
+
+**Raven Flight** can break up a festival.`,
     },
     {
       id: 'gwp-dragon',

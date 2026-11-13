@@ -293,6 +293,12 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🗡️ ${n(e.player)} slew the dragon: Dragon Slayer, +2 points!`;
     case 'lentPaid':
       return `${n(e.player)} paid for Lent and may build.`;
+    case 'festival':
+      return `🍻 ${n(e.player)} threw a Beer festival for ${n(e.target)}.`;
+    case 'festivalOver':
+      return typeof e.stopped === 'number'
+        ? `🐦‍⬛ ${n(e.stopped)} broke up ${n(e.player)}'s Beer festival.`
+        : `🍻 ${n(e.player)}'s Beer festival is over.`;
     case 'heroOfCatan':
       return `🦸 ${n(e.player)} has a level 4 knight: Hero of Catan, +1 point!`;
     case 'barbariansAdvance':
