@@ -457,26 +457,75 @@ const ART: Record<string, Art> = {
 /** Hex types that have a printed picture. */
 export const MOTIF_TYPES = Object.keys(ART);
 
-/** <pattern> elements "pat-<type>" for every type the palette covers, plus the sea. */
+/** <pattern> elements "pat-<type>" for every type the palettes cover. */
+function drawnPatterns(palettes: Record<string, Palette>): ReactNode {
+  return Object.entries(palettes).map(([type, p]) => {
+    const art = ART[type];
+    if (!art) return null;
+    return (
+      <pattern key={type} id={`pat-${type}`} patternUnits="objectBoundingBox" width="1" height="1">
+        {art(p)}
+      </pattern>
+    );
+  });
+}
+
+/** The drawn tiles for every type the palettes cover, plus the sea. */
 export function tilePatterns(palettes: Record<string, Palette>, sea: Palette): ReactNode {
   return (
     <>
-      {Object.entries(palettes).map(([type, p]) => {
-        const art = ART[type];
-        if (!art) return null;
-        return (
-          <pattern
-            key={type}
-            id={`pat-${type}`}
-            patternUnits="objectBoundingBox"
-            width="1"
-            height="1"
-          >
-            {art(p)}
-          </pattern>
-        );
-      })}
+      {drawnPatterns(palettes)}
       {seaPattern('pat-sea', sea)}
+    </>
+  );
+}
+
+/**
+ * Picture tiles: hexes cut from artwork, one image per hex type, each a
+ * pointy-top hex filling a 104×120 box. The sea is either one picture per
+ * sea hex or a small picture repeated across the whole sea. Hex types
+ * without a picture fall back to the drawn tiles in `palettes`.
+ */
+export interface PictureSet {
+  hexes: Record<string, string>;
+  sea:
+    { href: string; perHex: true } | { href: string; perHex: false; width: number; height: number };
+}
+
+export function pictureTilePatterns(
+  set: PictureSet,
+  palettes: Record<string, Palette>,
+  sea: Palette,
+): ReactNode {
+  const drawn = Object.fromEntries(Object.entries(palettes).filter(([t]) => !set.hexes[t]));
+  const hexImage = (id: string, href: string) => (
+    <pattern key={id} id={id} patternUnits="objectBoundingBox" width="1" height="1">
+      <rect width={W} height={H} fill={sea.base} />
+      <image href={href} width={W} height={H} preserveAspectRatio="none" />
+    </pattern>
+  );
+  return (
+    <>
+      {drawnPatterns(drawn)}
+      {Object.entries(set.hexes).map(([type, href]) => hexImage(`pat-${type}`, href))}
+      {set.sea.perHex ? (
+        hexImage('pat-sea', set.sea.href)
+      ) : (
+        <pattern
+          key="pat-sea"
+          id="pat-sea"
+          patternUnits="userSpaceOnUse"
+          width={set.sea.width}
+          height={set.sea.height}
+        >
+          <image
+            href={set.sea.href}
+            width={set.sea.width}
+            height={set.sea.height}
+            preserveAspectRatio="none"
+          />
+        </pattern>
+      )}
     </>
   );
 }
