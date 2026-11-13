@@ -56,6 +56,12 @@ export interface CkData extends Record<string, unknown> {
   wildRed: number;
   /** Seats whose level 3 abilities are switched off for now. */
   noAbilities?: number[];
+  /** A level 3 ability borrowed for one turn (Greed, Wealth & Power's Secret Society). */
+  lent?: { seat: number; track: Track; turn: number } | null;
+  /** The event die face the next roll shows (Greed, Wealth & Power's Unicorn Magic). */
+  forcedEvent?: EventFace | null;
+  /** Seats whose cities the next attack can't take (Greed, Wealth & Power's Refuge). */
+  refuge?: number[];
   /** Cards one player may look at (Master Merchant, Spy). Hidden from everyone else. */
   peek: { seat: number; target: number; hand?: Cards; progress?: string[] } | null;
 }
@@ -109,7 +115,11 @@ export function levels(ctx: Ctx, seat: number): Levels {
  * `noAbilities`.
  */
 export function hasAbility(ctx: Ctx, seat: number, track: Track): boolean {
-  if (ckData(ctx).noAbilities?.includes(seat)) return false;
+  const d = ckData(ctx);
+  if (d.noAbilities?.includes(seat)) return false;
+  const lent = d.lent;
+  if (lent && lent.seat === seat && lent.track === track && lent.turn === ctx.state.turn.number)
+    return true;
   return levels(ctx, seat)[track] >= ABILITY_LEVEL;
 }
 
@@ -469,7 +479,8 @@ export function attack(ctx: Ctx): void {
   ctx.emit({ type: 'barbarianAttack', cities, knights, strengths, defended: won });
 
   if (!won) {
-    const exposed = seats.filter((s) => freeCities(ctx, s).length > 0);
+    const safe = d.refuge ?? [];
+    const exposed = seats.filter((s) => !safe.includes(s) && freeCities(ctx, s).length > 0);
     if (exposed.length) {
       const weakest = Math.min(...exposed.map((s) => strengths[s] as number));
       for (const s of exposed.filter((x) => strengths[x] === weakest)) {
@@ -491,6 +502,7 @@ export function attack(ctx: Ctx): void {
     }
   }
 
+  if (d.refuge?.length) d.refuge = [];
   for (const s of seats)
     for (const k of knightsOf(ctx, s)) {
       if (isAway(k)) continue;
@@ -534,7 +546,8 @@ export function startRoll(ctx: Ctx, player: number): void {
   d.alchemist = null;
   const red = chosen ? chosen.red : ctx.rng.int(1, 6);
   const yellow = chosen ? chosen.yellow : ctx.rng.int(1, 6);
-  const event = rollEventDie(ctx);
+  const event = d.forcedEvent ?? rollEventDie(ctx);
+  d.forcedEvent = null;
   const roll: DiceResult = { dice: { yellow, red, event }, total: red + yellow };
   d.forcedRoll = roll;
   ctx.state.data.base = { ...baseData(ctx), lastRoll: roll };

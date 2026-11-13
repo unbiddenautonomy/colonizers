@@ -217,6 +217,7 @@ export {
   levels,
   merchant,
   moveTargets,
+  giveProgress,
   progressCount,
   progressHeld,
   progressLimit,
@@ -231,4 +232,4 @@ export {
   type Levels,
 } from './rules.ts';
 export { wallBlock } from './actions.ts';
-export { holdsProgress, spendProgress } from './progress.ts';
+export { holdsProgress, openRoutes, spendProgress } from './progress.ts';

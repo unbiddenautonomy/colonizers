@@ -283,7 +283,9 @@ describe('The 12-sided event die', () => {
       s = act(s, { type: 'pickWildCard', player: seat, deck: 'trade' });
     }
     expect(s.phase.id).not.toBe('wildPick');
-    for (const p of s.players) expect(p.held.trade?.length ?? 0).toBeGreaterThanOrEqual(1);
+    // Each drew one: held, or a point card scored at once.
+    for (const p of s.players)
+      expect((p.held.trade?.length ?? 0) + (p.played.hansaLeague ?? 0)).toBeGreaterThanOrEqual(1);
   });
 });
 
