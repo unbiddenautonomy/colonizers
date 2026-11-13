@@ -26,6 +26,7 @@ import {
   GWP_ICON,
   neutralMarkers,
 } from '../screens/GreedWealthPower.tsx';
+import { churchMarkers } from '../screens/Church.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
@@ -1102,6 +1103,34 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             />
             <path d={d} fill={color(m.owner)} stroke={theme.outline} strokeWidth={1.2} />
             <title>Land Deed: this spot is held for its owner</title>
+          </g>
+        );
+      })}
+
+      {churchMarkers(state).map((m) => {
+        const edge = m.at.startsWith('e:');
+        if (edge && !g.edgeCorners.has(m.at as EdgeId)) return null;
+        const [a, b] = edge ? edgeEnds(m.at as EdgeId, g) : [null, null];
+        const k =
+          a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : cornerToPixel(m.at as CornerId, S);
+        // Diocese above its city, the Inquisitor to its right, a festival chip on the piece.
+        const r = S * 0.15;
+        const x = k.x + (m.slot === 1 ? S * 0.32 : 0);
+        const y = k.y - (m.slot === 0 ? 0 : S * 0.34);
+        return (
+          <g key={m.key} className="church-marker" pointerEvents="none" filter="url(#lift)">
+            <circle
+              cx={x}
+              cy={y}
+              r={r}
+              fill={m.owner === null ? '#fbf3e2' : color(m.owner)}
+              stroke={theme.outline}
+              strokeWidth={1.5}
+            />
+            <text x={x} y={y + r * 0.4} textAnchor="middle" fontSize={r * 1.1}>
+              {m.icon}
+            </text>
+            <title>{m.title}</title>
           </g>
         );
       })}

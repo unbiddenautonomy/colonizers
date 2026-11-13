@@ -112,6 +112,7 @@ export function moduleList(
   greedWealthPower = false,
   worldWonders = false,
   civilisations = false,
+  church = false,
 ): string[] {
   const order = [
     'base',
@@ -121,7 +122,8 @@ export function moduleList(
     'explorers-pirates',
     'variants',
     'cities-knights',
-    // After Cities & Knights (and Seafarers), so its production changes come last.
+    // After Cities & Knights (and Seafarers), so their production changes come last.
+    'church',
     'greed-wealth-power',
     // After those, so its roll wrapper comes outermost.
     'world-wonders',
@@ -136,6 +138,8 @@ export function moduleList(
     ...extra,
     ...(citiesKnights ? ['cities-knights'] : []),
     ...(citiesKnights && greedWealthPower ? ['greed-wealth-power'] : []),
+    // Church, Faith & Reformation on its own; Greed, Wealth & Power has its own Religion.
+    ...(citiesKnights && church && !greedWealthPower ? ['church'] : []),
     ...(worldWonders ? ['world-wonders'] : []),
     ...(citiesKnights && greedWealthPower && civilisations ? ['civilisations'] : []),
   ]);
@@ -165,6 +169,8 @@ export interface RoomSettings {
   worldWonders: boolean;
   /** Add Civilisations on top of Greed, Wealth & Power. */
   civilisations: boolean;
+  /** Add Church, Faith & Reformation on top of Cities & Knights (not with Greed, Wealth & Power). */
+  church: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -182,6 +188,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   greedWealthPower: false,
   worldWonders: false,
   civilisations: false,
+  church: false,
   turnTimer: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
@@ -315,6 +322,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     greedWealthPower: s.greedWealthPower === true,
     worldWonders: s.worldWonders === true,
     civilisations: s.civilisations === true,
+    church: s.church === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),

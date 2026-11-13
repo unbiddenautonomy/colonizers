@@ -1,3 +1,4 @@
+import { indulgenceActions } from './indulgence.ts';
 import type { ActionDef, CornerId, Ctx, GameModule, Piece } from '@colonizers/engine';
 import { RESOURCES } from '@colonizers/module-base';
 import { knightActions } from './actions.ts';
@@ -62,7 +63,7 @@ export const citiesKnightsModule: GameModule = {
     promote: { wool: 1, ore: 1 },
     wall: { brick: 2 },
   },
-  actions: { ...knightActions, ...progressActions },
+  actions: { ...knightActions, ...progressActions, ...indulgenceActions },
   dice: ckDice,
   wrapActions: {
     roll: (prev): ActionDef => {
@@ -241,3 +242,11 @@ export {
 } from './rules.ts';
 export { claimMetropolis, wallBlock } from './actions.ts';
 export { holdsProgress, openRoutes, spendProgress } from './progress.ts';
+export {
+  INDULGENCE,
+  indulgenceTiming,
+  playIndulgence,
+  REROLLS as INDULGENCE_REROLLS,
+  wrapIndulgenceRoll,
+  type HeldRoll,
+} from './indulgence.ts';

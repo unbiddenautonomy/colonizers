@@ -9,6 +9,7 @@ import { explorersPiratesRules } from './explorersPirates.ts';
 import { greedWealthPowerRules } from './greedWealthPower.ts';
 import { worldWondersRules } from './worldWonders.ts';
 import { civilisationsRules } from './civilisations.ts';
+import { churchRules } from './church.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -23,6 +24,7 @@ export const RULEBOOKS: RulebookModule[] = [
   treasuresDragonsRules,
   explorersPiratesRules,
   greedWealthPowerRules,
+  churchRules,
   worldWondersRules,
   civilisationsRules,
   variantsRules,
@@ -78,6 +80,9 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
  * move can link straight to the rule.
  */
 export const ERROR_PAGES: [RegExp, string][] = [
+  [/diocese/i, 'church-diocese'],
+  [/festival|beer/i, 'church-beer'],
+  [/^lent|anathema/i, 'church-cards'],
   [/wonder|^to start the /i, 'wonders'],
   [/citadel|diocese|monument|silo|brick hex|grain hex|gold field/i, 'gwp-buildings'],
   [/beer/i, 'gwp-abilities'],
@@ -122,6 +127,10 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/trade|offer|harbor|need \d/i, 'trading'],
 ];
 
-export function pageForError(message: string): string | null {
-  return ERROR_PAGES.find(([re]) => re.test(message))?.[1] ?? null;
+/** The page for a rule-check message, among the pages of the game's modules when given. */
+export function pageForError(message: string, modules?: readonly string[]): string | null {
+  const pages = modules
+    ? new Set(rulebookFor(modules).flatMap((b) => b.pages.map((p) => p.id)))
+    : null;
+  return ERROR_PAGES.find(([re, id]) => re.test(message) && (!pages || pages.has(id)))?.[1] ?? null;
 }

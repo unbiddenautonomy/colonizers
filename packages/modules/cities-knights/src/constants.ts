@@ -49,7 +49,12 @@ export const EVENT_FACES = ['ship', 'ship', 'ship', 'science', 'trade', 'politic
  * A face is a ship, a gate (a track), or 'wild': a ship that also lets every
  * player draw from any deck their levels allow (Greed, Wealth & Power).
  */
-export type EventFace = 'ship' | 'wild' | Track;
+/**
+ * `wild`: a ship, and everyone picks a deck their levels open (Greed, Wealth &
+ * Power). `joker`: the roller picks which track's gate it is (Church, Faith &
+ * Reformation).
+ */
+export type EventFace = 'ship' | 'wild' | 'joker' | Track;
 
 export const SCIENCE_CARDS = {
   alchemist: 2,

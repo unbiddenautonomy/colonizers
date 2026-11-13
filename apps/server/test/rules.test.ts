@@ -106,6 +106,22 @@ describe('game options', () => {
     expect(alone.modules).not.toContain('greed-wealth-power');
   });
 
+  it('adds Church, Faith & Reformation on top of Cities & Knights, playing to 15', () => {
+    const settings = cleanSettings({ ...DEFAULT_SETTINGS, citiesKnights: true, church: true });
+    const config = buildConfig(settings, names(4), 'seed');
+    expect(config.modules).toEqual(['base', 'variants', 'cities-knights', 'church']);
+    expect(config.settings?.vpTarget).toBe(15);
+    expect(library.createGame(config).state.decks.religion).toHaveLength(17);
+    // Greed, Wealth & Power has its own Religion, so Church stays out.
+    const both = buildConfig(
+      cleanSettings({ ...settings, greedWealthPower: true }),
+      names(4),
+      'seed',
+    );
+    expect(both.modules).toContain('greed-wealth-power');
+    expect(both.modules).not.toContain('church');
+  });
+
   it('builds Traders & Barbarians scenarios on the base game only', () => {
     for (const id of ['fishermen', 'rivers']) {
       const settings = cleanSettings({
