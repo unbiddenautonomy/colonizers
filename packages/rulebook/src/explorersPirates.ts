@@ -8,11 +8,14 @@ export const explorersPiratesRules: RulebookModule = {
     ship: { name: 'Ship', note: 'Built beside your harbor settlement. Carries settlers.' },
     harbor: { name: 'Harbor settlement', note: 'Upgrade a coastal settlement. 2 points.' },
     settler: { name: 'Settler', note: 'Goes on your harbor or a ship beside it.' },
+    crew: { name: 'Crew', note: 'Goes on your harbor or a ship beside it. Storms pirate lairs.' },
   },
   names: {
     gold: { name: 'Gold', icon: '🪙' },
     harbor: { name: 'Harbor settlement', icon: '⚓' },
     settler: { name: 'Settler', icon: '🧑‍🌾' },
+    crew: { name: 'Crew', icon: '⚔️' },
+    lair: { name: 'Pirate lair', icon: '🏴‍☠️' },
   },
   pages: [
     {
@@ -36,7 +39,9 @@ export const explorersPiratesRules: RulebookModule = {
 1. In the usual order, each player places a **harbor settlement** on the coast of the home island, and a **ship** beside it with a settler aboard.
 2. In reverse order, each player places a **settlement** and a **road**. This settlement collects starting resources.
 
-This is our own version of the expansion, played on our generated boards. Pirate lairs, fish and spice come next.`,
+**Pirate Lairs** adds crews, pirate lairs on gold fields out in the fog, the pirate ship, and the lair mission track. You need 2 points more than the target you picked (12 with the usual 10).
+
+This is our own version of the expansion, played on our generated boards. Fish and spice come next.`,
     },
     {
       id: 'ep-turn',
@@ -94,6 +99,34 @@ You can also build settlements with roads, as usual, but not next to the fog.`,
 - Anything else (sea, desert) pays **2 gold**.
 
 Ships can't sail through the fog, and nobody can build roads, settlements or ships right next to it.`,
+    },
+    {
+      id: 'pirate-lairs',
+      module: 'explorers-pirates',
+      section: 'rules',
+      title: 'Pirate lairs and the pirate ship',
+      summary: 'Crews storm lairs on the gold fields; the pirate ship moves on a 7.',
+      tags: ['pirate', 'lair', 'crew', 'gold field', 'mission', 'hero', 'tribute', 'chase', '7'],
+      body: `**Crews**
+
+A crew (1 ore, 1 wool) goes on your harbor settlement or a ship beside it, like a settler. A ship holds two crews, or one settler. You can have 6 crews out at a time.
+
+**Pirate lairs**
+
+Every gold field out in the fog holds a pirate lair. A ship beside a lair can **land its crews** there, from any player. The **third crew** captures the lair:
+
+- Everyone with crews there takes **2 gold** and moves **1 step** on the lair mission track.
+- Each of them rolls a die and adds their crews there. The highest is the **hero** and moves 1 more step (the player who landed last wins a tie).
+- All the crews go back to the supply.
+
+Each step on the mission track is worth **1 point**. A captured gold field pays **2 gold** to each settlement or harbor settlement beside it when its number is rolled. Before that it pays nothing.
+
+**The pirate ship**
+
+On a 7, after discards, you move the pirate ship to a sea hex that doesn't touch the home island. If other players have ships beside it, you rob one of them: a random resource, or 1 gold if they have no resources.
+
+- Sailing onto an edge beside the pirate costs **1 gold** in tribute, once per voyage. Without gold you must sail around it.
+- A ship beside the pirate that hasn't moved this turn can **chase** it: roll a die, and on a 6 the pirate leaves the board until the next 7. The ship's turn ends either way.`,
     },
   ],
 };

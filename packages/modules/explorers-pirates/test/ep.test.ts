@@ -14,6 +14,12 @@ import { generateEpBoard } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
 import {
   cargoOf,
+  epData,
+  lairCrews,
+  missionSteps,
+  pirateHexes,
+  pirateShip,
+  sailPlan,
   coastal,
   explorersPiratesModule,
   GOLD,
@@ -34,8 +40,8 @@ function rng(seed: number): () => number {
   };
 }
 
-function game(players = 3, seed = 'ep'): GameState {
-  const b = generateEpBoard({ seed, players, scenario: 'land-ho' });
+function game(players = 3, seed = 'ep', scenario = 'land-ho'): GameState {
+  const b = generateEpBoard({ seed, players, scenario });
   return lib.createGame({
     seed,
     players: Array.from({ length: players }, (_, i) => `P${i}`),
@@ -324,4 +330,179 @@ describe('Bots', () => {
       expect(settled + c.piecesOfType('harbor').length).toBeGreaterThan(players * 2);
     }, 120_000);
   }
+});
+
+describe('Pirate Lairs', () => {
+  const lairGame = (players = 3, seed = 'lairs') =>
+    toMain(finishSetup(game(players, seed, 'pirate-lairs')));
+
+  /** Turns over a lair's gold field and puts ships with crews beside it. */
+  function atLair(s: GameState, seats: number[], crews = 2) {
+    let hex = '' as HexId;
+    let edges: EdgeId[] = [];
+    s = edit(s, (c) => {
+      hex = Object.keys(epData(c).lairs)[0] as HexId;
+      const h = c.state.hexes[hex]!;
+      delete h.hidden;
+      for (const n of c.geometry.hexNeighbours.get(hex) ?? []) delete c.state.hexes[n]!.hidden;
+      edges = (c.geometry.hexEdges.get(hex) ?? []).filter(
+        (e) => !c.piecesAt({ kind: 'edge', id: e }).length,
+      );
+      seats.forEach((seat, i) => {
+        c.place(
+          'ship',
+          seat,
+          { kind: 'edge', id: edges[i]! },
+          {
+            cargo: Array<string>(crews).fill('crew'),
+            used: 0,
+          },
+        );
+      });
+    });
+    return {
+      s,
+      hex,
+      ship: (seat: number) =>
+        Object.values(s.pieces).find(
+          (p) =>
+            p.type === 'ship' &&
+            p.owner === seat &&
+            p.at.kind === 'edge' &&
+            edges.includes(p.at.id),
+        )!,
+    };
+  }
+
+  it('hide a lair on a gold field for each player plus one', () => {
+    for (const players of [2, 3, 4]) {
+      const s = game(players, `g${players}`, 'pirate-lairs');
+      const gold = Object.values(s.hexes).filter((h) => h.type === 'gold');
+      expect(gold).toHaveLength(players + 1);
+      expect(gold.every((h) => h.hidden && h.token !== 6 && h.token !== 8)).toBe(true);
+      expect(Object.keys(epData(ctxOf(s)).lairs)).toHaveLength(players + 1);
+      expect(ctxOf(s).vpTarget()).toBe(12);
+    }
+  });
+
+  it('fall to the third crew: gold and a mission step for everyone, one more for the hero', () => {
+    let s = lairGame();
+    const me = s.turn.player;
+    const other = (me + 1) % 3;
+    const at = atLair(s, [me, other], 2);
+    s = at.s;
+    // Another player's crews already wait at the lair.
+    s = edit(s, (c) => {
+      epData(c).lairs[at.hex] = { [other]: 1 };
+    });
+    const vp = s.players.map((p) => ctxOf(s).vp(p.seat));
+    const gold = s.players.map((p) => p.hand[GOLD] ?? 0);
+    const r = lib.apply(s, { type: 'landCrew', player: me, ship: at.ship(me).id, hex: at.hex });
+    s = r.state;
+    const c = ctxOf(s);
+    // Only the 2 crews the lair needed went ashore.
+    expect(lairCrews(c, at.hex)).toBe(0);
+    expect(epData(c).captured).toContain(at.hex);
+    const cap = r.events.find((e) => e.type === 'lairCaptured')!;
+    expect(cap.players).toEqual([me, other].sort());
+    for (const seat of [me, other]) {
+      expect(s.players[seat]!.hand[GOLD]).toBe(gold[seat]! + 2);
+      expect(missionSteps(c, seat)).toBe(seat === cap.hero ? 2 : 1);
+      expect(c.vp(seat)).toBe(vp[seat]! + missionSteps(c, seat));
+    }
+    // A captured field pays 2 gold to a settlement beside it.
+    const field = s.hexes[at.hex]!;
+    const piece = Object.values(s.pieces).find((p) => p.type === 'settlement')!;
+    expect(c.reduce('hexYield', field, piece, {})).toEqual({ [GOLD]: 2 });
+  });
+
+  it('have crews built onto a harbor or a ship beside it', () => {
+    let s = lairGame();
+    const me = s.turn.player;
+    s = edit(s, (c) => c.grant(me, { ore: 3, wool: 3 }));
+    const harbor = Object.values(s.pieces).find((p) => p.type === 'harbor' && p.owner === me)!;
+    s = act(s, { type: 'buildCrew', player: me, at: harbor.id });
+    s = act(s, { type: 'buildCrew', player: me, at: harbor.id });
+    expect(cargoOf(s.pieces[harbor.id]!)).toEqual(['crew', 'crew']);
+    expect(lib.check(s, { type: 'buildCrew', player: me, at: harbor.id })).toMatch(/no room/);
+  });
+
+  it('move the pirate on a 7, rob a ship beside it, and charge tribute', () => {
+    let s = lairGame();
+    const me = s.turn.player;
+    const victim = (me + 1) % 3;
+    s = edit(s, (c) => c.setPhase({ id: 'moveRobber', returnTo: 'main' }));
+    const legal = lib.legalActions(s, me);
+    expect(legal.some((a) => a.type === 'moveRobber')).toBe(false);
+    expect(legal.every((a) => a.type === 'movePirate')).toBe(true);
+    // Put the victim's ship beside a pirate spot.
+    const c0 = ctxOf(s);
+    const spot = pirateHexes(c0).find((h) =>
+      (c0.geometry.hexEdges.get(h) ?? []).some((e) => !c0.piecesAt({ kind: 'edge', id: e }).length),
+    )!;
+    const edge = (c0.geometry.hexEdges.get(spot) ?? []).find(
+      (e) => !c0.piecesAt({ kind: 'edge', id: e }).length,
+    )!;
+    s = edit(s, (c) => {
+      for (const p of c.piecesOf(victim, 'ship')) c.remove(p);
+      c.place('ship', victim, { kind: 'edge', id: edge }, { cargo: [], used: 0 });
+      c.player(victim).hand = { [GOLD]: 3 };
+    });
+    s = act(s, { type: 'movePirate', player: me, hex: spot });
+    expect(s.phase.id).toBe('main');
+    // No resources: the pirate takes a gold.
+    expect(s.players[victim]!.hand[GOLD]).toBe(2);
+    expect(pirateShip(ctxOf(s))?.at).toEqual({ kind: 'hex', id: spot });
+
+    // Sailing onto an edge beside the pirate costs a gold.
+    s = edit(s, (c) => {
+      const mine = c.piecesOf(me, 'ship')[0]!;
+      const near = (c.geometry.hexEdges.get(spot) ?? []).find((e) => e !== edge)!;
+      const before = [...(c.geometry.edgeCorners.get(near) ?? [])]
+        .flatMap((x) => c.geometry.cornerEdges.get(x) ?? [])
+        .find(
+          (e) =>
+            !(c.geometry.hexEdges.get(spot) ?? []).includes(e) &&
+            (c.geometry.edgeHexes.get(e) ?? []).some((h) => c.isSea(h)) &&
+            !c.piecesAt({ kind: 'edge', id: e }).length,
+        )!;
+      c.move(mine, { kind: 'edge', id: before });
+      mine.props.used = 0;
+      c.player(me).hand[GOLD] = 5;
+    });
+    const ship = ctxOf(s).piecesOf(me, 'ship')[0]!;
+    const plan = sailPlan(ctxOf(s), ship);
+    const taxed = [...plan].find(([, o]) => o.tribute > 0);
+    expect(taxed).toBeDefined();
+    s = act(s, { type: 'sailShip', player: me, ship: ship.id, to: taxed![0] });
+    expect(s.players[me]!.hand[GOLD]).toBe(4);
+    // A ship that has moved can't chase the pirate.
+    expect(lib.check(s, { type: 'chasePirate', player: me, ship: ship.id })).not.toBe(null);
+  });
+});
+
+describe('Pirate Lairs bots', () => {
+  it('play to a winner', () => {
+    const players = 3;
+    let s = game(players, 'bot-lairs', 'pirate-lairs');
+    const bot: BotConfig = { level: 'medium', style: 'balanced' };
+    const rand = rng(7);
+    const memory: BotMemory[] = Array.from({ length: players }, () => newMemory());
+    let clock = 0;
+    for (let i = 0; i < 6000 && s.winner === null; i++) {
+      clock += 1000;
+      const waiting = lib.waitingOn(s);
+      expect(waiting.length).toBeGreaterThan(0);
+      let acted = false;
+      for (const seat of waiting) {
+        const a = chooseAction(lib, s, seat, bot, memory[seat]!, { rand, now: clock });
+        if (!a) continue;
+        s = act(s, a);
+        acted = true;
+        break;
+      }
+      if (!acted) clock += 20_000;
+    }
+    expect(s.winner).not.toBe(null);
+  }, 180_000);
 });
