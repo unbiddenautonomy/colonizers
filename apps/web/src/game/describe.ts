@@ -246,6 +246,26 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `${n(e.player)} gave ${n(e.to)} a progress card.`;
     case 'honorParade':
       return `🎺 ${n(e.player)} held an Honor Parade: every knight is active.`;
+    case 'damselPlaced':
+      return `👸 ${n(e.player)} rolled doubles and moved the Damsel.`;
+    case 'damselLeft':
+      return e.why === 'attack'
+        ? '👸 The Damsel left after the attack.'
+        : '👸 The Damsel was chased off her hex.';
+    case 'dragonMoved':
+      return e.hex === null
+        ? `🐉 ${n(e.player)} sent the dragon away.`
+        : `🐉 ${n(e.player)} moved the dragon.`;
+    case 'dragonLair':
+      return `🐉 ${n(e.player)} woke the dragon in its lair: that hex lost its number.`;
+    case 'dragonChased':
+      return e.by === 'wizard'
+        ? '🧙 The Wizard drove the dragon away.'
+        : `🐉 ${n(e.player)}'s knight chased the dragon away.`;
+    case 'gwpDragonSlain':
+      return `🗡️ ${n(e.player)} slew the dragon: Dragon Slayer, +2 points!`;
+    case 'lentPaid':
+      return `${n(e.player)} paid for Lent and may build.`;
     case 'heroOfCatan':
       return `🦸 ${n(e.player)} has a level 4 knight: Hero of Catan, +1 point!`;
     case 'barbariansAdvance':

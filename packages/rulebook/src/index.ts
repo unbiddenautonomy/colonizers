@@ -77,6 +77,7 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/citadel|diocese|monument|silo|brick hex|grain hex|gold field/i, 'gwp-buildings'],
   [/beer/i, 'gwp-abilities'],
   [/duke|scholar|wizard|inquisitor|envoy/i, 'gwp-neutrals'],
+  [/damsel|dragon goes|lair/i, 'gwp-dragon'],
   [/metropolis, so/i, 'gwp'],
   [
     /harbor settlement|settler|extra sails|no moves left|can not reach there|ashore|gold buys/i,

@@ -139,6 +139,7 @@ const SAFE_ORDER = [
   'medicineCity',
   'merchantHex',
   'placeNeutral',
+  'placeDamsel',
   'brothelAnswer',
   'ritualGive',
   'keepProgress',

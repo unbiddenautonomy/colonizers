@@ -62,6 +62,14 @@ export interface CkData extends Record<string, unknown> {
   forcedEvent?: EventFace | null;
   /** Seats whose cities the next attack can't take (Greed, Wealth & Power's Refuge). */
   refuge?: number[];
+  /**
+   * Corners another module shelters (Greed, Wealth & Power's Damsel): cities
+   * there don't count for the barbarians and can't be lost; knights there can't
+   * act or defend, and stay active after an attack.
+   */
+  sheltered?: CornerId[];
+  /** A knight lent to another player for the next attack (Greed, Wealth & Power's Alliance). */
+  alliance?: { seat: number; knight: string } | null;
   /** Cards one player may look at (Master Merchant, Spy). Hidden from everyone else. */
   peek: { seat: number; target: number; hand?: Cards; progress?: string[] } | null;
 }
@@ -172,7 +180,13 @@ export function isActive(p: Piece): boolean {
 
 /** Active, and not switched on this turn (a knight can't act on the turn it is activated). */
 export function canAct(ctx: Ctx, p: Piece): boolean {
-  return isActive(p) && p.props.activatedTurn !== ctx.state.turn.number;
+  return isActive(p) && p.props.activatedTurn !== ctx.state.turn.number && !isSheltered(ctx, p);
+}
+
+/** Stands on a sheltered corner (see CkData.sheltered). */
+export function isSheltered(ctx: Ctx, p: Piece): boolean {
+  const list = ckData(ctx).sheltered;
+  return !!list?.length && p.at.kind === 'corner' && list.includes(p.at.id);
 }
 
 /** A knight sent away from Catan (an expansion's far shore): it can't defend Catan. */
@@ -180,10 +194,21 @@ export function isAway(p: Piece): boolean {
   return p.props.away === true;
 }
 
+/** Can this knight help against the barbarians? */
+function defends(ctx: Ctx, k: Piece): boolean {
+  return isActive(k) && !isAway(k) && !isSheltered(ctx, k);
+}
+
 export function strength(ctx: Ctx, seat: number): number {
-  return knightsOf(ctx, seat)
-    .filter((k) => isActive(k) && !isAway(k))
+  const ally = ckData(ctx).alliance;
+  let total = knightsOf(ctx, seat)
+    .filter((k) => defends(ctx, k) && !(ally && ally.knight === k.id && ally.seat !== seat))
     .reduce((s, k) => s + knightStrength(ctx, k), 0);
+  // A knight lent by an Alliance defends for the player who played it.
+  const lent = ally && ally.seat === seat ? ctx.state.pieces[ally.knight] : undefined;
+  if (lent && isKnight(lent) && lent.owner !== seat && defends(ctx, lent))
+    total += knightStrength(ctx, lent);
+  return total;
 }
 
 export function knightAt(ctx: Ctx, corner: CornerId): Piece | undefined {
@@ -460,7 +485,15 @@ export function barbarianTrack(ctx: Ctx): number {
 }
 
 export function barbarianStrength(ctx: Ctx): number {
-  return ctx.state.players.reduce((s, p) => s + citiesOf(ctx, p.seat).length, 0);
+  return ctx.state.players.reduce(
+    (s, p) => s + citiesOf(ctx, p.seat).filter((c) => !isSheltered(ctx, c)).length,
+    0,
+  );
+}
+
+/** Cities the barbarians can take: not a metropolis, and not sheltered. */
+export function cityAtRisk(ctx: Ctx, seat: number): Piece[] {
+  return freeCities(ctx, seat).filter((c) => !isSheltered(ctx, c));
 }
 
 export function defenseStrength(ctx: Ctx): number {
@@ -480,11 +513,11 @@ export function attack(ctx: Ctx): void {
 
   if (!won) {
     const safe = d.refuge ?? [];
-    const exposed = seats.filter((s) => !safe.includes(s) && freeCities(ctx, s).length > 0);
+    const exposed = seats.filter((s) => !safe.includes(s) && cityAtRisk(ctx, s).length > 0);
     if (exposed.length) {
       const weakest = Math.min(...exposed.map((s) => strengths[s] as number));
       for (const s of exposed.filter((x) => strengths[x] === weakest)) {
-        const open = freeCities(ctx, s);
+        const open = cityAtRisk(ctx, s);
         if (open.length === 1) pillage(ctx, open[0] as Piece);
         else d.pendingLoss.push(s);
       }
@@ -503,9 +536,10 @@ export function attack(ctx: Ctx): void {
   }
 
   if (d.refuge?.length) d.refuge = [];
+  d.alliance = null;
   for (const s of seats)
     for (const k of knightsOf(ctx, s)) {
-      if (isAway(k)) continue;
+      if (isAway(k) || isSheltered(ctx, k)) continue;
       k.props.active = false;
       delete k.props.activatedTurn;
     }
