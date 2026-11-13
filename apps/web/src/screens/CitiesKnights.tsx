@@ -229,7 +229,14 @@ export function CkBuild({
       {btn('knight', 'Knight', 'buildKnight', ctx.cost('knight', actor))}
       {btn('activate', 'Activate', 'activateKnight', ctx.cost('activate', actor))}
       {btn('promote', 'Promote', 'promoteKnight', ctx.cost('promote', actor))}
-      {btn('knightAct', '⚔️ Use knight', ['moveKnight', 'displaceKnight', 'chaseRobber'])}
+      {btn('knightAct', '⚔️ Use knight', [
+        'moveKnight',
+        'displaceKnight',
+        'chaseRobber',
+        'crossKnight',
+        'roamKnight',
+        'fightDragon',
+      ])}
       {btn('wall', 'City wall', 'buildWall', ctx.cost('wall', actor))}
       <div className="improve" role="group" aria-label="City improvements">
         {TRACKS.map((t) => (

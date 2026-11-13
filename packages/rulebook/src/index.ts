@@ -4,6 +4,7 @@ import { citiesKnightsRules } from './citiesKnights.ts';
 import { specialMapsRules } from './specialMaps.ts';
 import { variantsRules } from './variants.ts';
 import { tradersBarbariansRules } from './tradersBarbarians.ts';
+import { treasuresDragonsRules } from './treasuresDragons.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -15,6 +16,7 @@ export const RULEBOOKS: RulebookModule[] = [
   citiesKnightsRules,
   specialMapsRules,
   tradersBarbariansRules,
+  treasuresDragonsRules,
   variantsRules,
 ];
 
@@ -68,6 +70,10 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
  * move can link straight to the rule.
  */
 export const ERROR_PAGES: [RegExp, string][] = [
+  [/enchanted|ferr|crosses where/i, 'enchanted-land'],
+  [/gold river|small islands|off the lake|do not branch/i, 'great-canal'],
+  [/dragon/i, 'desert-dragons'],
+  [/no pirate in this scenario/i, 'treasures-dragons'],
   [/progress card|alchemist|scores by itself/i, 'progress-cards'],
   [/metropolis/i, 'metropolis'],
   [/improvement|track is complete|need \d+ (paper|cloth|coin)/i, 'improvements'],

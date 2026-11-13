@@ -65,6 +65,7 @@ import {
   TB_MOVE_PROMPT,
   WAGON_PROMPT,
 } from './TradersBarbarians.tsx';
+import { TdaPlayerStats, TdaStatus } from './TreasuresDragons.tsx';
 
 type Mode =
   | null
@@ -146,6 +147,8 @@ function targetsFor(
     want.add('moveWagon');
     want.add('driveBarbarian');
   }
+  if (ph === 'slayDragon') want.add('slayDragon');
+  if (ph === 'moveToken') want.add('takeToken');
   if (ph === 'moveRobber') {
     want.add('moveRobber');
     want.add('movePirate');
@@ -186,7 +189,17 @@ function targetsFor(
   if (ph === 'main' && mode === 'knightAct') {
     // First pick a knight, then where it goes (or the robber to chase).
     for (const a of legal) {
-      if (!['moveKnight', 'displaceKnight', 'chaseRobber'].includes(a.type)) continue;
+      if (
+        ![
+          'moveKnight',
+          'displaceKnight',
+          'chaseRobber',
+          'crossKnight',
+          'roamKnight',
+          'fightDragon',
+        ].includes(a.type)
+      )
+        continue;
       if (selectedShip === null) {
         const c = knightCorner(a.knight);
         if (c) t.corners.set(c, { type: 'selectKnight', player: a.player, knight: a.knight });
@@ -194,6 +207,10 @@ function targetsFor(
         if (a.type === 'chaseRobber') {
           const r = Object.values(state.pieces).find((p) => p.type === 'robber');
           if (r?.at.kind === 'hex') t.hexes.set(r.at.id, a);
+        } else if (a.type === 'fightDragon') {
+          // Tap the knight's own corner again to fight the dragon there.
+          const c = knightCorner(a.knight);
+          if (c) t.corners.set(c, a);
         } else t.corners.set(a.to as CornerId, a);
       }
     }
@@ -260,6 +277,10 @@ function prompt(state: GameState, actor: number | null, names: string[], mode: M
     }
     case 'steal':
       return `${who}: choose who to steal from.`;
+    case 'slayDragon':
+      return `${who}: tap a hex with a dragon to drive it out for good.`;
+    case 'moveToken':
+      return `${who}: the pile of numbers is empty. Tap a glowing home hex to move its number to the new island.`;
     case 'roadBuilding':
       return `${who}: place a free ${state.modules.includes('seafarers') ? 'road or ship' : 'road'} (${state.phase.remaining as number} left).`;
     case 'main':
@@ -366,6 +387,7 @@ export function Game({
   const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
   const tb = state.modules.includes('traders-barbarians') || state.settings.harbormaster === true;
+  const tda = state.modules.includes('treasures-dragons');
   const [chosenEdgeKind, setEdgeKind] = useState<EdgeKind>('road');
   const [selectedShip, setSelectedShip] = useState<string | null>(null);
   const canControl = (s: number) => (!online && !bots[s]) || s === seat;
@@ -627,6 +649,7 @@ export function Game({
                   </>
                 )}
                 {tb && <TbPlayerStats ctx={ctx} seat={p.seat} viewer={seat ?? actor} />}
+                {tda && <TdaPlayerStats ctx={ctx} seat={p.seat} />}
                 <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
                 {data.longestRoad === p.seat && (
                   <span className="award">
@@ -649,6 +672,7 @@ export function Game({
           );
         })}
         {ck && <BarbarianTrack ctx={ctx} />}
+        {tda && <TdaStatus ctx={ctx} />}
       </aside>
 
       <main className="board-wrap">

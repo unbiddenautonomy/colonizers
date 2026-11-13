@@ -157,9 +157,10 @@ export {
   pirateEdges,
   seaData,
   shipIsOpen,
+  startGoldPick,
   MODULE_ID as SEAFARERS_ID,
   type GoldPhase,
   type SeaData,
 } from './rules.ts';
-export { pirateVictims } from './actions.ts';
+export { freeSpots, pirateVictims } from './actions.ts';
 export type { SeaData as SeafarersData };

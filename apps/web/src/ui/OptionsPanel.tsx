@@ -152,6 +152,10 @@ export function SpecialMapButtons({
   const groups = [
     { title: 'Special maps', maps: maps.filter((m) => !m.group) },
     { title: 'Traders & Barbarians', maps: maps.filter((m) => m.group === 'traders') },
+    {
+      title: 'Treasures, Dragons & Adventurers',
+      maps: maps.filter((m) => m.group === 'treasures'),
+    },
   ];
   return (
     <>
@@ -193,6 +197,12 @@ export const SPECIAL_ICON: Record<string, string> = {
   caravans: '🐪',
   barbarians: '🪓',
   traders: '🛒',
+  'treasure-islands': '🧰',
+  'into-the-unknown': '🧭',
+  'greater-catan': '🔢',
+  'desert-dragons': '🐉',
+  'enchanted-land': '🔮',
+  'great-canal': '⛏️',
 };
 
 /** Icons for the Seafarers scenarios. */

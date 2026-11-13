@@ -19,6 +19,7 @@
     "@colonizers/module-seafarers": "workspace:*",
     "@colonizers/module-special-maps": "workspace:*",
     "@colonizers/module-traders-barbarians": "workspace:*",
+    "@colonizers/module-treasures-dragons": "workspace:*",
     "@colonizers/module-variants": "workspace:*",
     "@colonizers/rulebook": "workspace:*",
     "@colonizers/stats": "workspace:*",

@@ -5,6 +5,7 @@ import { citiesKnightsModule } from '@colonizers/module-cities-knights';
 import { variantsModule } from '@colonizers/module-variants';
 import { specialMapsModule } from '@colonizers/module-special-maps';
 import { tradersBarbariansModule } from '@colonizers/module-traders-barbarians';
+import { treasuresDragonsModule } from '@colonizers/module-treasures-dragons';
 import {
   generateBoard,
   generateSeaBoard,
@@ -21,6 +22,7 @@ export const library = new ModuleLibrary([
   seafarersModule,
   specialMapsModule,
   tradersBarbariansModule,
+  treasuresDragonsModule,
   variantsModule,
   citiesKnightsModule,
 ]);
@@ -33,7 +35,8 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const n = names.length;
   const picked = settings.map.kind === 'special' ? specialMapById(settings.map.id) : undefined;
   // Traders & Barbarians scenarios are base-game only.
-  const ck = settings.citiesKnights && !picked?.noCitiesKnights;
+  const ck =
+    (settings.citiesKnights || picked?.needsCitiesKnights === true) && !picked?.noCitiesKnights;
   const extraVp = ck ? CK_EXTRA_VP : 0;
   const options = optionSettings(settings.options, n);
   const config = (

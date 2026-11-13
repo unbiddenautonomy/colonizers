@@ -104,9 +104,14 @@ export function canAct(ctx: Ctx, p: Piece): boolean {
   return isActive(p) && p.props.activatedTurn !== ctx.state.turn.number;
 }
 
+/** A knight sent away from Catan (an expansion's far shore): it can't defend Catan. */
+export function isAway(p: Piece): boolean {
+  return p.props.away === true;
+}
+
 export function strength(ctx: Ctx, seat: number): number {
   return knightsOf(ctx, seat)
-    .filter(isActive)
+    .filter((k) => isActive(k) && !isAway(k))
     .reduce((s, k) => s + knightLevel(k), 0);
 }
 
@@ -405,6 +410,7 @@ export function attack(ctx: Ctx): void {
 
   for (const s of seats)
     for (const k of knightsOf(ctx, s)) {
+      if (isAway(k)) continue;
       k.props.active = false;
       delete k.props.activatedTurn;
     }

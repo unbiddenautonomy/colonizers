@@ -1784,6 +1784,34 @@ button.danger {
     animation: none;
   }
 }
+/* Treasures, Dragons & Adventurers */
+.tda-status {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.12));
+}
+
+.tda-status p {
+  margin: 0 0 4px;
+}
+
+.tda-meter {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.tda-meter span {
+  display: block;
+  height: 100%;
+  background: #b3261e;
+  transition: width 0.4s ease;
+}
+
+.tda-meter.canal span {
+  background: #2f74b5;
 
 /* Wagon cards (Traders scenario): parchment cards in a leather frame. */
 .wagon-row {
