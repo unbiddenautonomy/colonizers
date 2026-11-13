@@ -117,12 +117,13 @@ export function produce(ctx: Ctx, total: number): void {
   const owed = new Map<string, Map<number, number>>();
   for (const hex of Object.values(ctx.state.hexes)) {
     if (hex.token !== total || hex.hidden) continue;
-    if (robberHex?.kind === 'hex' && robberHex.id === hex.id) continue;
+    const robbed = robberHex?.kind === 'hex' && robberHex.id === hex.id;
     const def = ctx.registry.hexTypes[hex.type];
     if (!def || def.terrain !== 'land') continue;
     for (const corner of ctx.geometry.hexCorners.get(hex.id) ?? []) {
       for (const piece of ctx.piecesAt({ kind: 'corner', id: corner })) {
         if (piece.owner === null) continue;
+        if (ctx.reduce('hexBlocked', hex, piece, robbed)) continue;
         const pdef = ctx.registry.pieceTypes[piece.type];
         const base: Record<string, number> = {};
         if (def.produces && pdef?.production) base[def.produces] = pdef.production;

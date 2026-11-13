@@ -95,6 +95,13 @@ export interface Reducers {
   routeWeight(ctx: Ctx, piece: Piece, value: number): number;
   /** How many pieces of a type a player has in all (from the piece type's perPlayer). */
   supply(ctx: Ctx, player: number, type: string, value: number): number;
+  /**
+   * Is this piece kept from producing on this hex? Starts true when the robber
+   * stands there; a module can lift or add a block.
+   */
+  hexBlocked(ctx: Ctx, hex: HexState, piece: Piece, value: boolean): boolean;
+  /** A knight's strength (Cities & Knights starts from its printed level). */
+  knightStrength(ctx: Ctx, knight: Piece, value: number): number;
 }
 
 export interface DiceResult {
