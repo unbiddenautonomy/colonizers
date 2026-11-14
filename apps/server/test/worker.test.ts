@@ -205,6 +205,7 @@ describe('Lobby', () => {
       worldWonders: false,
       civilisations: false,
       church: false,
+      witches: false,
       turnTimer: 90,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,

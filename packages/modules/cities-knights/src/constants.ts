@@ -105,6 +105,8 @@ export const VP_PROGRESS = [
   'airship',
   'relic',
   'belovedPrince',
+  // Witches, Wizards & Dragons' White Magic.
+  'whiteMagic',
 ] as const;
 
 export function deckOf(card: string): Track | null {

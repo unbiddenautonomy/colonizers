@@ -14,6 +14,7 @@ import {
   isCommodity,
 } from './constants.ts';
 import { progressActions } from './progress.ts';
+import { fanActions } from './fancards.ts';
 import { dropLostSeats, seatActions, seatVp, seatYield, setUpTracks } from './seats.ts';
 import {
   ckData,
@@ -64,7 +65,13 @@ export const citiesKnightsModule: GameModule = {
     promote: { wool: 1, ore: 1 },
     wall: { brick: 2 },
   },
-  actions: { ...knightActions, ...progressActions, ...indulgenceActions, ...seatActions },
+  actions: {
+    ...knightActions,
+    ...progressActions,
+    ...indulgenceActions,
+    ...seatActions,
+    ...fanActions,
+  },
   dice: ckDice,
   wrapActions: {
     roll: (prev): ActionDef => {
@@ -220,6 +227,7 @@ export {
   isActiveTrack,
   isAway,
   isKnight,
+  landBarbarians,
   knightAt,
   knightLevel,
   knightStrength,
@@ -244,8 +252,30 @@ export {
   type CkData,
   type Levels,
 } from './rules.ts';
-export { claimMetropolis, wallBlock } from './actions.ts';
+export { claimMetropolis, lowerTrack, raiseTrack, wallBlock } from './actions.ts';
 export { holdsProgress, openRoutes, spendProgress } from './progress.ts';
+export {
+  askVeto,
+  attackHeld,
+  attackWindow,
+  defineFanCards,
+  FAN_PHASES,
+  fanCard,
+  fanDeck,
+  heldIn,
+  keepOne,
+  others,
+  pickTarget,
+  returnHeld,
+  takeHeld,
+  targets,
+  VETO,
+  wrapFanCards,
+  type CardTiming,
+  type FanCard,
+  type Play as FanPlay,
+  type Pooled,
+} from './fancards.ts';
 export {
   INDULGENCE,
   indulgenceTiming,

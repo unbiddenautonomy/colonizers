@@ -3,9 +3,10 @@ import {
   activeTracks,
   commodityBank,
   wrapIndulgenceRoll,
+  wrapFanCards,
   type CitySeat,
 } from '@colonizers/module-cities-knights';
-import { cardActions, religionDeck, syncInquisitor, wrapCards } from './cards.ts';
+import { CARDS, cardActions, religionDeck, syncInquisitor } from './cards.ts';
 import {
   BEER,
   BREAD,
@@ -119,7 +120,7 @@ export const churchModule: GameModule = {
   wrapActions: {
     ...Object.fromEntries(GUARDED.map((t) => [t, guardFestival])),
     bankTrade: wrapBankTrade,
-    playProgress: wrapCards,
+    playProgress: wrapFanCards(CARDS),
     roll: wrapIndulgenceRoll,
     aqueductPick: wrapAqueductPick,
     improveCity: guardFestival,
