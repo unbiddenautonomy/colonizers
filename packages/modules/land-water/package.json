@@ -1,0 +1,25 @@
+{
+  "name": "@colonizers/module-land-water",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Land & Water (SiedlerInsel): trains, ships and planes take the place of roads, travel the island through its fields, collect the yields of the fields they stand in, fish at sea and trade at harbors.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "@colonizers/module-seafarers": "workspace:*",
+    "@colonizers/module-variants": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}

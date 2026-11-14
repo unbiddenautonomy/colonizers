@@ -31,6 +31,7 @@ import { seatMarkers } from '../screens/CitiesKnights.tsx';
 import { witchesMarkers } from '../screens/Witches.tsx';
 import { princesMarkers } from '../screens/Princes.tsx';
 import { kingdomsMarkers } from '../screens/Kingdoms.tsx';
+import { landWaterVehicles } from '../screens/LandWater.tsx';
 import { ArmyFlag, soldiersMarkers } from '../screens/Soldiers.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
@@ -1178,6 +1179,36 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               {m.icon}
             </text>
             <title>{m.label}</title>
+          </g>
+        );
+      })}
+
+      {landWaterVehicles(state, S).map((v) => {
+        const r = S * 0.17;
+        return (
+          <g
+            key={v.id}
+            className="lw-vehicle"
+            filter="url(#lift)"
+            pointerEvents="none"
+            opacity={v.passive ? 0.55 : 1}
+            {...motionAttrs(v.id, v.at, v.x, v.y)}
+          >
+            <rect
+              x={v.x - r}
+              y={v.y - r}
+              width={r * 2}
+              height={r * 2}
+              rx={r * 0.45}
+              fill={color(v.owner)}
+              stroke={theme.outline}
+              strokeWidth={2}
+              strokeDasharray={v.passive ? '3 2' : undefined}
+            />
+            <text x={v.x} y={v.y + r * 0.42} textAnchor="middle" fontSize={r * 1.2}>
+              {v.icon}
+            </text>
+            <title>{v.title}</title>
           </g>
         );
       })}
