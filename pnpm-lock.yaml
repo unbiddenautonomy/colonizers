@@ -227,9 +227,6 @@ importers:
       '@colonizers/module-greed-wealth-power':
         specifier: workspace:*
         version: link:../modules/greed-wealth-power
-      '@colonizers/module-investors-speculators':
-        specifier: workspace:*
-        version: link:../modules/investors-speculators
       '@colonizers/module-princes-explorers':
         specifier: workspace:*
         version: link:../modules/princes-explorers
