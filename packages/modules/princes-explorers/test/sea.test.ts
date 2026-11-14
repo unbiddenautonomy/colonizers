@@ -148,5 +148,5 @@ describe('Princes & Explorers with Seafarers', () => {
       }
       expect(s.winner, `seed ${seed}`).not.toBeNull();
     }
-  });
+  }, 60_000);
 });

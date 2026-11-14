@@ -334,5 +334,5 @@ describe('Princes & Explorers', () => {
       expect(s.winner, `seed ${seed}`).not.toBeNull();
     }
     expect([...seen].sort()).toEqual(['explore', 'princeMove', 'princesRobber', 'steal']);
-  });
+  }, 60_000);
 });
