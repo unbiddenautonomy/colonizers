@@ -2,12 +2,16 @@ import { useState } from 'react';
 import type { Action, Ctx, GameState } from '@colonizers/engine';
 import { RESOURCES } from '@colonizers/module-base';
 import {
+  DERIVATIVE_COST,
+  DERIVATIVE_TERMS,
+  extraCount,
   FINANCE_ACTIONS,
   financeUsed,
   investorsData,
   LOAN_PENALTY,
   LOAN_REPAY,
   LOAN_TERMS,
+  loanBill,
   loansOf,
   RATE_MAX,
   RATE_MIN,
@@ -16,6 +20,11 @@ import {
   savingsReturn,
   SEVEN_SHOW,
   sevenCounts,
+  TOWN_ITEMS,
+  TOWN_PENALTY,
+  TOWN_REPAY,
+  TOWN_TERMS,
+  type Loan,
 } from '@colonizers/module-investors-speculators';
 import { nameOf } from '@colonizers/rulebook';
 import { ResourceCard } from '../ui/Cards.tsx';
@@ -86,7 +95,10 @@ export function MarketStatus({ ctx }: { ctx: Ctx }) {
 export function InvestorsStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const saved = savingsOf(ctx, seat);
   const loans = loansOf(ctx, seat);
-  const debt = investorsData(ctx).debt[String(seat)] ?? 0;
+  const d = investorsData(ctx);
+  const debt = d.debt[String(seat)] ?? 0;
+  const bonus = d.bonus[String(seat)] ?? 0;
+  const held = d.derivatives.filter((x) => x.holder === seat).length;
   return (
     <>
       {saved.length > 0 && (
@@ -106,6 +118,8 @@ export function InvestorsStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
         </span>
       )}
       {debt > 0 && <span title={`Bad debt: ${debt} points off`}>📉 −{debt}</span>}
+      {held > 0 && <span title="Derivatives placed">🎲 {held}</span>}
+      {bonus > 0 && <span title={`Won with derivatives: ${bonus} points`}>📈 +{bonus}</span>}
     </>
   );
 }
@@ -117,12 +131,17 @@ export function FinanceDialog({
   legal,
   act,
   onClose,
+  onLoanBuild,
+  names,
 }: {
   ctx: Ctx;
   actor: number;
   legal: Action[];
   act: (a: Action) => void;
   onClose: () => void;
+  /** Start placing a settlement or city on a town loan of this term. */
+  onLoanBuild: (item: string, term: number) => void;
+  names: string[];
 }) {
   const [card, setCard] = useState<string>(RESOURCES[0] as string);
   const rate = investorsData(ctx).rates[card] ?? 4;
@@ -134,7 +153,8 @@ export function FinanceDialog({
   return (
     <Modal title="Bank and loans" onClose={onClose}>
       <p className="muted">
-        {left} of {FINANCE_ACTIONS} finance actions left this turn (each card saved or borrowed).
+        {left} of {FINANCE_ACTIONS} finance actions left this turn (each card saved or borrowed,
+        town loan or derivative).
       </p>
       <div className="row wrap" role="group" aria-label="Resource">
         {RESOURCES.map((r) => (
@@ -179,17 +199,48 @@ export function FinanceDialog({
           );
         })}
       </div>
+      {TOWN_ITEMS.map((item) => (
+        <div key={item}>
+          <p>
+            Build a {item} on a loan (free now; paid back as 1½ to 2½ of its cost,{' '}
+            {cardsText(ctx.cost(item, actor))}):
+          </p>
+          <div className="row wrap">
+            {TOWN_TERMS.map((term) => {
+              const ok = legal.some(
+                (a) => a.type === 'buildOnLoan' && a.item === item && a.term === term,
+              );
+              const { times, half } = TOWN_REPAY[term];
+              return (
+                <button
+                  key={term}
+                  type="button"
+                  disabled={!ok}
+                  onClick={() => onLoanBuild(item, term)}
+                  title={`Pay back ${times}${half ? '½' : ''} × the cost, or lose ${TOWN_PENALTY[term]} points`}
+                >
+                  {term} turns → {times}
+                  {half ? '½' : ''}×
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
       {loans.length > 0 && (
         <>
           <p>Your loans (no one wins with a loan open):</p>
           <ul className="plain">
             {loans.map((l) => {
               const pays = legal.filter((a) => a.type === 'repayLoan' && a.loan === l.id);
+              const extra = extraCount(l);
               return (
                 <li key={l.id}>
                   {cardName(l.card)}, {l.left ? `${l.left} turns left` : 'due this turn'}: pay{' '}
-                  {LOAN_REPAY[l.term]} {cardName(l.card)}
-                  {l.term === 1 ? ' and one card of any kind' : ''}{' '}
+                  {cardsText(loanBill(l))}
+                  {extra === 1 ? ' and one card of any kind' : ''}
+                  {extra === 2 ? ` and 2 cards from a ${l.card}’s cost` : ''} (or {l.penalty}{' '}
+                  {l.penalty === 1 ? 'point' : 'points'} of bad debt){' '}
                   {pays.length === 0 && <small className="muted">(not enough cards)</small>}
                   {pays.map((a, i) => (
                     <button key={i} type="button" className="small" onClick={() => act(a)}>
@@ -203,12 +254,64 @@ export function FinanceDialog({
           </ul>
         </>
       )}
+      <DerivativeList ctx={ctx} legal={legal} act={act} names={names} />
       {saved.length > 0 && (
         <p className="muted">
           Saved: {saved.map((s) => `${cardName(s.card)} (${s.left} turns left)`).join(', ')}
         </p>
       )}
     </Modal>
+  );
+}
+
+/** Loans that take derivatives, with a button to bet on each. */
+function DerivativeList({
+  ctx,
+  legal,
+  act,
+  names,
+}: {
+  ctx: Ctx;
+  legal: Action[];
+  act: (a: Action) => void;
+  names: string[];
+}) {
+  const d = investorsData(ctx);
+  const groups = new Map<string, Loan[]>();
+  for (const l of d.loans)
+    if (l.term >= 5) groups.set(l.group, [...(groups.get(l.group) ?? []), l]);
+  if (!groups.size) return null;
+  return (
+    <>
+      <p>
+        Derivatives: pay {DERIVATIVE_COST} cards of one kind to bet a loan won’t be paid back (5
+        turns or more, early in its term):
+      </p>
+      <ul className="plain">
+        {[...groups].map(([group, ls]) => {
+          const l = ls[0] as Loan;
+          const buys = legal.filter((a) => a.type === 'buyDerivative' && a.group === group);
+          const held = d.derivatives.filter((x) => x.group === group);
+          return (
+            <li key={group}>
+              {names[l.seat]}: {ls.length > 1 ? `${ls.length} × ` : ''}
+              {cardName(l.card)}, {l.left} turns left, pays {DERIVATIVE_TERMS[l.term]?.pays ?? 1}
+              {held.length > 0 && (
+                <small className="muted">
+                  {' '}
+                  (held by {held.map((x) => names[x.holder]).join(', ')})
+                </small>
+              )}{' '}
+              {buys.map((a, i) => (
+                <button key={i} type="button" className="small" onClick={() => act(a)}>
+                  Bet with {DERIVATIVE_COST} {cardName(a.card as string)}
+                </button>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 
@@ -320,4 +423,12 @@ function ShowDialog({
       </div>
     </Modal>
   );
+}
+
+/** A board mode for building on a town loan: `loan:<item>:<term>`. */
+export const loanMode = (item: string, term: number) => `loan:${item}:${term}` as const;
+
+export function parseLoanMode(mode: string | null): { item: string; term: number } | null {
+  const m = mode?.match(/^loan:(settlement|city):(\d+)$/);
+  return m ? { item: m[1] as string, term: Number(m[2]) } : null;
 }

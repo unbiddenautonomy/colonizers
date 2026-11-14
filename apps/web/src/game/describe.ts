@@ -299,6 +299,12 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🧾 ${n(e.player)} paid back a loan with ${cards(e.paid as Record<string, number>)}.`;
     case 'loanDefaulted':
       return `📉 ${n(e.player)} could not pay back a loan: ${String(e.points)} ${e.points === 1 ? 'point' : 'points'} of bad debt.`;
+    case 'townLoan':
+      return `🧾 ${n(e.player)} built a ${String(e.item)} on a ${String(e.term)}-turn loan.`;
+    case 'derivativeBought':
+      return `🎲 ${n(e.player)} bet on ${n(e.on)}'s ${String(e.card)} loan not being paid back.`;
+    case 'derivativePaid':
+      return `🎲 ${n(e.player)}'s derivative on ${n(e.from)}'s loan paid ${String(e.points)} ${e.points === 1 ? 'point' : 'points'}.`;
     case 'sevenDrawn':
       return `📈 ${n(e.player)} showed ${cards(e.shown as Record<string, number>)}; drawn from the others: ${
         Object.entries(e.drawn as Record<string, Record<string, number>>)

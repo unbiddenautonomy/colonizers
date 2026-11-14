@@ -10,6 +10,7 @@ import {
   wrapMoveRobber,
 } from './market.ts';
 import { investorsData, loansOf } from './rules.ts';
+import { derivativeBlock, townActions, townCost, townMarkersOut } from './town.ts';
 
 /**
  * Investors & Speculators (Investoren und Spekulanten, a fan expansion from
@@ -27,11 +28,17 @@ import { investorsData, loansOf } from './rules.ts';
  * - **Loans**: borrow a card for 1 to 10 turns and pay it back with interest.
  *   A loan not paid back by the end of the turn it comes due becomes bad debt,
  *   points off for the rest of the game, and no one wins with a loan open.
- * - At most 5 finance actions (cards saved and loans taken) a turn.
+ * - **Town loans**: build a settlement or city free and pay back 1½ to 2½
+ *   times its cost in 3 to 10 turns. While one is open, cards can be
+ *   borrowed only in the turn a town loan is taken.
+ * - **Derivatives**: pay 2 cards of one kind to bet that a loan of 5 turns or
+ *   more (anyone's) won't be paid back; it pays 1 or 2 points if it isn't.
+ * - At most 5 finance actions (cards saved, loans taken, derivatives) a turn.
  */
 
 export * from './constants.ts';
-export { borrowBlock, loanBill, advanceBank, settleDue } from './bank.ts';
+export { borrowBlock, extraChoices, extraCount, loanBill, advanceBank, settleDue } from './bank.ts';
+export { derivativeBlock, townMarkersOut };
 export { downChoices, keepChoices, marketRatio, sevenCounts, upChoices } from './market.ts';
 export {
   financeUsed,
@@ -39,6 +46,8 @@ export {
   loansOf,
   rateOf,
   savingsOf,
+  isTownLoan,
+  type Derivative,
   type InvestorsData,
   type Loan,
   type Savings,
@@ -69,7 +78,7 @@ export const investorsModule: GameModule = {
   id: MODULE_ID,
   name: 'Investors & Speculators',
   dice: investorsDice,
-  actions: { ...bankActions, ...marketActions },
+  actions: { ...bankActions, ...marketActions, ...townActions },
   wrapActions: {
     roll: wrapRoll,
     discard: wrapDiscard,
@@ -87,7 +96,11 @@ export const investorsModule: GameModule = {
       return marketRatio(ctx, seat, give, get);
     },
     vp(ctx, seat, value) {
-      return value - (investorsData(ctx).debt[String(seat)] ?? 0);
+      const d = investorsData(ctx);
+      return value - (d.debt[String(seat)] ?? 0) + (d.bonus[String(seat)] ?? 0);
+    },
+    cost(_ctx, item, _seat, value) {
+      return townCost(item, value);
     },
     canWin(ctx, seat, value) {
       return value && loansOf(ctx, seat).length === 0;
