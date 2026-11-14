@@ -271,11 +271,19 @@ describe('game options', () => {
     expect(magic.modules).toEqual(
       expect.arrayContaining(['cities-knights', 'investors', 'witches', 'church']),
     );
-    // Not yet with Greed, Wealth & Power or World Wonders.
+    // With Greed, Wealth & Power and World Wonders too.
     for (const more of [{ worldWonders: true }, { citiesKnights: true, greedWealthPower: true }])
       expect(
         buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
-      ).not.toContain('investors');
+      ).toContain('investors');
+    // Not on the Treasures, Dragons & Adventurers maps yet.
+    expect(
+      buildConfig(
+        cleanSettings({ ...settings, map: { kind: 'special', id: 'great-canal' } }),
+        names(4),
+        'seed',
+      ).modules,
+    ).not.toContain('investors');
   });
 
   it('builds Traders & Barbarians scenarios on the base game only', () => {

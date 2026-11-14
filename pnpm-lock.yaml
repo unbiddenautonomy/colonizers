@@ -439,9 +439,15 @@ importers:
       '@colonizers/module-cities-knights':
         specifier: workspace:*
         version: link:../cities-knights
+      '@colonizers/module-civilisations':
+        specifier: workspace:*
+        version: link:../civilisations
       '@colonizers/module-explorers-pirates':
         specifier: workspace:*
         version: link:../explorers-pirates
+      '@colonizers/module-greed-wealth-power':
+        specifier: workspace:*
+        version: link:../greed-wealth-power
       '@colonizers/module-princes-explorers':
         specifier: workspace:*
         version: link:../princes-explorers
@@ -460,6 +466,9 @@ importers:
       '@colonizers/module-witches':
         specifier: workspace:*
         version: link:../witches
+      '@colonizers/module-world-wonders':
+        specifier: workspace:*
+        version: link:../world-wonders
       typescript:
         specifier: ~6.0.3
         version: 6.0.3

@@ -135,7 +135,7 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
       section: 'rules',
       title: 'With other expansions',
       summary:
-        'Seafarers, Cities & Knights, Witches, Church, Explorers & Pirates, Soldiers & Armies, Princes & Explorers, and 5 or 6 players.',
+        'Seafarers, Cities & Knights, Witches, Church, Greed, Wealth & Power, World Wonders, Explorers & Pirates, Soldiers & Armies, Princes & Explorers, and 5 or 6 players.',
       tags: [
         'seafarers',
         'pirate',
@@ -161,6 +161,10 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
         'bread',
         'beer',
         'magic kitchen',
+        'greed, wealth & power',
+        'world wonders',
+        'colossus',
+        'marketplace',
         'barbarians',
         'capitulate',
         '5 players',
@@ -173,6 +177,8 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
 **Explorers & Pirates.** Gold buys a resource for 3 if its rate is 5:1 or 6:1, 2 at 3:1 or 4:1, and 1 at 2:1. Harbor settlements and settlers can be taken on a town loan as well, at their own cost. On a 7 the pirate steals nothing.
 
 **Witches and Church.** Crystal goes by brick's rate plus 2, and Bread by grain's rate plus 1; on a 7 they count with their resource. Both can be bought, saved and borrowed without a Citadel or Diocese. The bank never sells Beer, but Beer buys at the rate of the card you take. The Magic Kitchen takes 3 off the rate when you give brick for a resource, never better than 1:1.
+
+**Greed, Wealth & Power and World Wonders.** Anything they add can be bought on resource loans. Their 1:1 trades (the Magic Kitchen, the Colossus) take 3 off the rate, and their 2:1 trades (the Marketplace, exchange cards) take 2 off, never better than 1:1. Beer buys commodities at its own fixed price.
 
 **Traders & Barbarians.** Gold buys a resource at the same 1 to 3 by its rate, still twice a turn. Against the barbarians there is no robber, so a 7 goes straight to the rates; for the traders a barbarian on the paths moves instead, taking no card.
 

@@ -321,6 +321,9 @@ export const worldWondersModule: GameModule = {
     tradeRatio: (ctx, seat, card, value) =>
       isResource(card) && hasStage(ctx, seat, 'lighthouse', 3) ? Math.min(value, 2) : value,
     swapRatio: (ctx, seat, give, get, value) =>
-      give === 'ore' && isResource(get) && hasStage(ctx, seat, 'colossus', 3) ? 1 : value,
+      // Ore at 1:1; on Investors & Speculators' market, 3 off its rate, never better than 1:1.
+      give === 'ore' && isResource(get) && hasStage(ctx, seat, 'colossus', 3)
+        ? Math.max(1, value - 3)
+        : value,
   },
 };
