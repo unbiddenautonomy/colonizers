@@ -156,14 +156,10 @@ export function NewGame({
     SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
   const soldiersOk = !gwp && !church && !witches && !wonders && soldiersMap;
   const soldiers = soldiersWanted && soldiersOk;
-  // Investors & Speculators goes on the base game on the usual maps, for now.
+  // Investors & Speculators goes on the usual maps and Seafarers, with or without Cities &
+  // Knights, not with the other fan expansions yet.
   const investorsOk =
-    !ck &&
-    !wonders &&
-    !princes &&
-    !soldiers &&
-    effective.kind !== 'special' &&
-    effective.kind !== 'scenario';
+    !gwp && !church && !witches && !wonders && !princes && !soldiers && !specialId;
   const investors = investorsWanted && investorsOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
@@ -629,7 +625,7 @@ export function NewGame({
             <strong>📈 Investors &amp; Speculators</strong>
             <small>
               {!investorsOk
-                ? 'Fan expansion for the base game on the usual maps (not with Seafarers, Cities & Knights or the other expansions yet).'
+                ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights (not with the special maps or the other fan expansions yet).'
                 : 'Fan expansion: an exchange market whose rates move on every 7, savings that pay interest, and loans that cost points if you can’t pay them back.'}
             </small>
           </button>

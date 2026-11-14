@@ -5,10 +5,12 @@ import {
   action,
   clampRate,
   investorsData,
-  isResource,
+  isTradable,
+  marketOf,
   onlyActive,
   rateOf,
   total,
+  tradables,
   type Resource,
 } from './rules.ts';
 
@@ -26,14 +28,10 @@ import {
 
 /** The bank's rate for one card of `get`, given `give` and this player's harbors. */
 export function marketRatio(ctx: Ctx, seat: number, give: string, get: string): number {
-  let rate = rateOf(ctx, get);
-  let off = 0;
-  for (const h of ctx.harborsOf(seat)) {
-    if (h.resource === 'any') off = Math.max(off, 1);
-    else if (h.resource === give) off = Math.max(off, 2);
-  }
-  rate -= off;
-  return Math.max(1, rate);
+  // Whatever betters the usual 4:1 for the card given (a harbor, a trading house, the
+  // merchant) takes as much off the market rate.
+  const off = Math.max(0, 4 - ctx.reduce('tradeRatio', seat, give, 4));
+  return Math.max(1, rateOf(ctx, get) - off);
 }
 
 /** Two dice, but a 7 in the first round is thrown again. */
@@ -48,7 +46,7 @@ export function investorsDice(ctx: Ctx): DiceResult {
 
 const resourceCards = (ctx: Ctx, seat: number): string[] => {
   const hand = ctx.player(seat).hand;
-  return RESOURCES.flatMap((r) => Array<string>(hand[r] ?? 0).fill(r));
+  return tradables(ctx).flatMap((r) => Array<string>(hand[r] ?? 0).fill(r));
 };
 
 const add = (into: Record<string, number>, cards: Cards | undefined) => {
@@ -60,10 +58,17 @@ export function sevenCounts(ctx: Ctx): Record<Resource, number> {
   const s = investorsData(ctx).seven;
   const out: Record<string, number> = Object.fromEntries(RESOURCES.map((r) => [r, 0]));
   if (!s) return out as Record<Resource, number>;
-  add(out, s.shown);
-  for (const c of Object.values(s.drawn ?? {})) add(out, c);
-  for (const c of Object.values(s.discarded)) add(out, c);
-  for (const k of Object.keys(out)) if (!isResource(k)) delete out[k];
+  // Commodities count with their resource.
+  const merged = (c: Cards | undefined) =>
+    Object.entries(c ?? {}).reduce<Record<string, number>>((m, [k, n]) => {
+      m[marketOf(k)] = (m[marketOf(k)] ?? 0) + (n ?? 0);
+      return m;
+    }, {});
+  add(out, merged(s.shown));
+  for (const c of Object.values(s.drawn ?? {})) add(out, merged(c));
+  for (const c of Object.values(s.discarded)) add(out, merged(c));
+  for (const k of Object.keys(out))
+    if (!(RESOURCES as readonly string[]).includes(k)) delete out[k];
   return out as Record<Resource, number>;
 }
 
@@ -93,19 +98,19 @@ export function downChoices(ctx: Ctx, up: readonly string[]): Resource[][] {
 /** Cards the roller may keep: any rival card that came to light. */
 export function keepChoices(
   ctx: Ctx,
-): { from: number; card: Resource; source: 'drawn' | 'discarded' }[] {
+): { from: number; card: string; source: 'drawn' | 'discarded' }[] {
   const s = investorsData(ctx).seven;
   if (!s) return [];
   const roller = ctx.active;
-  const out: { from: number; card: Resource; source: 'drawn' | 'discarded' }[] = [];
+  const out: { from: number; card: string; source: 'drawn' | 'discarded' }[] = [];
   for (const [seat, cards] of Object.entries(s.drawn ?? {}))
     for (const [card, n] of Object.entries(cards))
-      if (n && isResource(card) && ctx.has(Number(seat), { [card]: 1 }))
+      if (n && isTradable(ctx, card) && ctx.has(Number(seat), { [card]: 1 }))
         out.push({ from: Number(seat), card, source: 'drawn' });
   for (const [seat, cards] of Object.entries(s.discarded))
     if (Number(seat) !== roller)
       for (const [card, n] of Object.entries(cards))
-        if (n && isResource(card) && ctx.bankHas({ [card]: 1 }))
+        if (n && isTradable(ctx, card) && ctx.bankHas({ [card]: 1 }))
           out.push({ from: Number(seat), card, source: 'discarded' });
   return out;
 }
@@ -136,12 +141,24 @@ function finish(ctx: Ctx, to: string): void {
 
 /** After a 7's robber: show cards, or go straight to the rates with none to show. */
 export function startExchange(ctx: Ctx, to: string): void {
+  const s = investorsData(ctx).seven;
+  if (!s) return;
+  s.started = true;
   if (resourceCards(ctx, ctx.active).length) ctx.setPhase({ id: 'sevenShow', returnTo: to });
   else {
-    (investorsData(ctx).seven as { shown?: Cards }).shown = {};
+    s.shown = {};
     draw(ctx);
     ctx.setPhase({ id: 'sevenRates', returnTo: to });
   }
+}
+
+/**
+ * Once a 7's discards and robber are done (or skipped, as before the
+ * barbarians first land), the exchange begins.
+ */
+export function maybeStartExchange(ctx: Ctx): void {
+  const s = investorsData(ctx).seven;
+  if (s && !s.started && ctx.state.phase.id === 'main') startExchange(ctx, 'main');
 }
 
 export const sevenShow = action<{ cards: Cards }>({
@@ -151,7 +168,7 @@ export const sevenShow = action<{ cards: Cards }>({
     if (err) return err;
     const want = Math.min(SEVEN_SHOW, resourceCards(ctx, a.player).length);
     const c = a.cards ?? {};
-    if (!Object.entries(c).every(([k, n]) => isResource(k) && Number.isInteger(n) && n >= 0))
+    if (!Object.entries(c).every(([k, n]) => isTradable(ctx, k) && Number.isInteger(n) && n >= 0))
       return 'Pick resource cards';
     if (total(c) !== want) return `Show ${want} of your resource cards`;
     return ctx.has(a.player, c) ? null : 'You do not have those cards';
@@ -168,9 +185,9 @@ export const sevenShow = action<{ cards: Cards }>({
     const cards: Record<string, number> = {};
     const want = Math.min(SEVEN_SHOW, resourceCards(ctx, player).length);
     for (let i = 0; i < want; i++) {
-      const top = RESOURCES.filter((r) => (hand[r] ?? 0) > 0).sort(
-        (x, y) => (hand[y] ?? 0) - (hand[x] ?? 0),
-      )[0] as string;
+      const top = tradables(ctx)
+        .filter((r) => (hand[r] ?? 0) > 0)
+        .sort((x, y) => (hand[y] ?? 0) - (hand[x] ?? 0))[0] as string;
       hand[top] = (hand[top] ?? 0) - 1;
       cards[top] = (cards[top] ?? 0) + 1;
     }
@@ -208,7 +225,7 @@ export const sevenRates = action<{ up: Resource[]; down: Resource[] }>({
   },
 });
 
-export const sevenKeep = action<{ from: number; card: Resource; source: 'drawn' | 'discarded' }>({
+export const sevenKeep = action<{ from: number; card: string; source: 'drawn' | 'discarded' }>({
   phases: ['sevenKeep'],
   check(ctx, a) {
     const err = onlyActive(ctx, a);
@@ -248,23 +265,25 @@ export const sevenKeep = action<{ from: number; card: Resource; source: 'drawn' 
 
 export const marketActions: Record<string, ActionDef> = { sevenShow, sevenRates, sevenKeep };
 
-/** Robber move on a 7: no stealing, the exchange follows. */
-export function wrapMoveRobber(prev: ActionDef): ActionDef {
+/** Robber (or pirate) moves on a 7 steal nothing: the exchange follows. */
+function noSteal(prev: ActionDef, piece: 'robber' | 'pirate', event: string): ActionDef {
   return {
     ...prev,
     apply(ctx, a) {
       const s = investorsData(ctx).seven;
-      if (!s || s.shown) return prev.apply(ctx, a);
-      const to = returnTo(ctx);
+      if (!s || s.started) return prev.apply(ctx, a);
       const hex = a.hex as HexId;
-      const r = robber(ctx);
-      if (r) ctx.move(r, { kind: 'hex', id: hex });
-      else ctx.place('robber', null, { kind: 'hex', id: hex });
-      ctx.emit({ type: 'robberMoved', player: a.player, hex });
-      startExchange(ctx, to);
+      const p = piece === 'robber' ? robber(ctx) : ctx.piecesOfType('pirate')[0];
+      if (p) ctx.move(p, { kind: 'hex', id: hex });
+      else ctx.place(piece, null, { kind: 'hex', id: hex });
+      ctx.emit({ type: event, player: a.player, hex });
+      ctx.setPhase({ id: returnTo(ctx) });
     },
   };
 }
+
+export const wrapMoveRobber = (prev: ActionDef) => noSteal(prev, 'robber', 'robberMoved');
+export const wrapMovePirate = (prev: ActionDef) => noSteal(prev, 'pirate', 'pirateMoved');
 
 /** Discards on a 7 count toward the market. */
 export function wrapDiscard(prev: ActionDef): ActionDef {

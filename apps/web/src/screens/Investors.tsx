@@ -15,6 +15,7 @@ import {
   loansOf,
   RATE_MAX,
   RATE_MIN,
+  rateOf,
   SAVINGS_TERMS,
   savingsOf,
   savingsReturn,
@@ -24,6 +25,8 @@ import {
   TOWN_PENALTY,
   TOWN_REPAY,
   TOWN_TERMS,
+  COMMODITY_MARKET,
+  tradables,
   type Loan,
 } from '@colonizers/module-investors-speculators';
 import { nameOf } from '@colonizers/rulebook';
@@ -87,6 +90,9 @@ export function MarketStatus({ ctx }: { ctx: Ctx }) {
           </span>
         ))}
       </div>
+      {Object.keys(COMMODITY_MARKET).some((c) => ctx.registry.cardTypes[c]) && (
+        <small className="muted">Commodities go by their resource’s rate.</small>
+      )}
     </div>
   );
 }
@@ -144,7 +150,7 @@ export function FinanceDialog({
   names: string[];
 }) {
   const [card, setCard] = useState<string>(RESOURCES[0] as string);
-  const rate = investorsData(ctx).rates[card] ?? 4;
+  const rate = rateOf(ctx, card);
   const can = (type: string, f: (a: Action) => boolean) =>
     legal.find((a) => a.type === type && f(a));
   const loans = loansOf(ctx, actor);
@@ -157,7 +163,7 @@ export function FinanceDialog({
         town loan or derivative).
       </p>
       <div className="row wrap" role="group" aria-label="Resource">
-        {RESOURCES.map((r) => (
+        {tradables(ctx).map((r) => (
           <button
             key={r}
             type="button"
@@ -335,7 +341,13 @@ export function InvestorsChoices({
   if (actor !== state.turn.player) return null;
   if (id === 'sevenShow')
     return (
-      <ShowDialog key={state.seq} hand={state.players[actor]?.hand ?? {}} actor={actor} act={act} />
+      <ShowDialog
+        key={state.seq}
+        cards={tradables(ctx)}
+        hand={state.players[actor]?.hand ?? {}}
+        actor={actor}
+        act={act}
+      />
     );
   if (id === 'sevenRates') {
     const opts = legal.filter((a) => a.type === 'sevenRates');
@@ -377,15 +389,17 @@ export function InvestorsChoices({
 }
 
 function ShowDialog({
+  cards,
   hand,
   actor,
   act,
 }: {
+  cards: string[];
   hand: Record<string, number>;
   actor: number;
   act: (a: Action) => void;
 }) {
-  const have = RESOURCES.reduce((s, r) => s + (hand[r] ?? 0), 0);
+  const have = cards.reduce((s, r) => s + (hand[r] ?? 0), 0);
   const want = Math.min(SEVEN_SHOW, have);
   const [pick, setPick] = useState<Record<string, number>>({});
   const n = Object.values(pick).reduce((s, x) => s + x, 0);
@@ -396,7 +410,7 @@ function ShowDialog({
         rates.
       </p>
       <div className="row wrap">
-        {RESOURCES.map((r) => (
+        {cards.map((r) => (
           <button
             key={r}
             type="button"
