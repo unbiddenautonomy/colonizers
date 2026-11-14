@@ -2153,3 +2153,360 @@ button.ready {
 .civ-tile p {
   margin: 0.3rem 0;
 }
+
+/* ---------- App shell: the screens around the game ---------- */
+/* Night Harbor: deep navy, brass accents, a serif for headings. Every screen outside the board
+   takes these tokens, so buttons, cards and inputs follow without their own rules. */
+
+.setup-page {
+  --bg: #0b1422;
+  --card: #13213a;
+  --raised: #1b2e4f;
+  --text: #eaf0f8;
+  --muted: #9aa8bf;
+  --accent: #e8b04b;
+  --accent-text: #1a1406;
+  --border: #22324f;
+  --danger: #ff8a80;
+  --heading: 'DM Serif Display', Georgia, serif;
+  color-scheme: dark;
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  max-width: 1180px;
+  min-height: 100vh;
+  padding: 28px 24px 64px;
+}
+
+body:has(.setup-page) {
+  background: #0b1422;
+}
+
+.setup-page h1,
+.setup-page h2,
+.setup-page .section-title {
+  font-family: var(--heading);
+  font-weight: 400;
+}
+
+.setup-page h2 {
+  font-size: 1.6rem;
+}
+
+.setup-page .card {
+  border-radius: 20px;
+  padding: 24px;
+  margin: 0 0 16px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+}
+
+.setup-page button {
+  border-radius: 12px;
+  transition:
+    transform 0.12s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.setup-page button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.setup-page button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.setup-page button.on {
+  outline: 0;
+  background: var(--raised);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.setup-page input,
+.setup-page select {
+  background: #0f1a2c;
+  border-color: var(--border);
+  border-radius: 10px;
+}
+
+.setup-page input:focus-visible,
+.setup-page select:focus-visible,
+.setup-page button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.setup-page .subhead {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 20px 0 10px;
+}
+
+.small {
+  font-size: 0.88rem;
+}
+
+.stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+
+.stepper button {
+  border-radius: 999px;
+  border: 1px dashed #2a3b5c;
+  background: transparent;
+  color: #6b7a93;
+  min-height: 38px;
+  padding: 6px 16px;
+}
+
+.stepper button.done {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: #b9c4d6;
+}
+
+.stepper button.on {
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.step-num {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.setup-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.setup-steps {
+  flex: 999 1 560px;
+  min-width: 0;
+}
+
+.setup-summary {
+  flex: 1 1 300px;
+  min-width: 0;
+  position: sticky;
+  top: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.setup-summary dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.setup-summary dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setup-summary dt {
+  color: var(--muted);
+}
+
+.setup-summary dd {
+  margin: 0;
+  text-align: right;
+}
+
+.weight {
+  display: grid;
+  gap: 8px;
+}
+
+.weight-head {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.weight-head span {
+  color: var(--muted);
+}
+
+.weight-heavy {
+  color: var(--accent);
+}
+
+.weight-chaos {
+  color: #ff8a80;
+}
+
+.weight-bar {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+}
+
+.weight-bar span {
+  height: 8px;
+  border-radius: 3px;
+  background: #0b1422;
+}
+
+.weight-bar .fine {
+  background: #5fb3b3;
+}
+
+.weight-bar .heavy {
+  background: var(--accent);
+}
+
+.weight-bar .chaos {
+  background: #ff8a80;
+}
+
+.weight p {
+  margin: 0;
+}
+
+.setup-warnings {
+  margin: 0;
+  padding: 12px 14px 12px 30px;
+  border-radius: 12px;
+  background: rgb(232 176 75 / 0.1);
+  border: 1px solid rgb(232 176 75 / 0.35);
+  font-size: 0.9rem;
+  display: grid;
+  gap: 4px;
+}
+
+.setup-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.setup-nav button {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.setup-nav button.primary {
+  flex-basis: 100%;
+  min-height: 48px;
+  font-size: 1.05rem;
+}
+
+.fan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.fan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.setup-page .fan-card {
+  background: #0f1a2c;
+}
+
+.fan-card h4 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.fan-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #b9c4d6;
+}
+
+.fan-card button {
+  margin-top: auto;
+  align-self: stretch;
+  justify-content: center;
+}
+
+.fan-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--border);
+  color: #b9c4d6;
+}
+
+.fan-card.picked {
+  background: var(--raised);
+  border: 2px solid var(--accent);
+}
+
+.fan-card.picked .fan-tag {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.fan-card.pair {
+  border-color: rgb(232 176 75 / 0.45);
+}
+
+.fan-card.pair .fan-tag {
+  background: rgb(232 176 75 / 0.14);
+  color: var(--accent);
+}
+
+.fan-card.blocked {
+  opacity: 0.6;
+}
+
+.fan-card.blocked .fan-tag {
+  background: transparent;
+  border: 1px solid #2a3b5c;
+  color: #8592a8;
+}
+
+.setup-step[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-page button {
+    transition: none;
+  }
+  .setup-page button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+.setup-page .fan-card button:disabled {
+  background: transparent;
+  color: #56637a;
+  border: 1px dashed #2a3b5c;
+  opacity: 1;
+}
