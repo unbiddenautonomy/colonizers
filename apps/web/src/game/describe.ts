@@ -708,6 +708,22 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🦸 ${n(e.player)} has a level 4 knight: Hero of Catan, +1 point!`;
     case 'barbariansAdvance':
       return null;
+    case 'junkerPlaced':
+      return `🎩 ${n(e.player)} rolled doubles and put the Junker on a field.`;
+    case 'junkerLeft':
+      return '🎩 The Junker left after the attack.';
+    case 'dukePlaced':
+      return e.owner === e.player
+        ? `🎖️ ${n(e.player)} put the Duke beside one of their knights.`
+        : `🎖️ ${n(e.player)} put the Duke beside a knight of ${n(e.owner)}.`;
+    case 'scholarPlaced':
+      return e.owner === e.player
+        ? `🎓 ${n(e.player)} put the Scholar at one of their buildings.`
+        : `🎓 ${n(e.player)} put the Scholar at a building of ${n(e.owner)}.`;
+    case 'scholarLeft':
+      return '🎓 The Scholar left after the attack.';
+    case 'barbariansShifted':
+      return `⛵ ${n(e.player)} stood a knight down and moved the barbarian ship ${(e.steps as number) > 0 ? 'a step closer' : 'a step back'}.`;
     case 'barbariansWait':
       return `⛵ The barbarian ship stays in port (${e.rolls as number} of 3): it sets sail on the third ship.`;
     case 'knightCardDeserted':

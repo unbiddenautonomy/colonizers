@@ -211,6 +211,7 @@ describe('Lobby', () => {
       investors: false,
       kingdoms: false,
       landWater: false,
+      strategist: false,
       turnTimer: 90,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,

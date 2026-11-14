@@ -269,6 +269,8 @@ function Lobby({
     !specialPick &&
     !fog;
   const landWater = s.landWater && landWaterOk;
+  const strategistOk = ck && !gwp && !landWater;
+  const strategist = s.strategist && strategistOk;
   const bonus = vpBonus(
     ck,
     specialPick?.id ?? null,
@@ -579,6 +581,17 @@ function Lobby({
               🚂 Land &amp; Water (fan expansion for the base game or Cities &amp; Knights on the
               usual maps and Seafarers without fog: trains, ships and planes instead of roads; plays
               to 12, or 14 with Cities &amp; Knights)
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={strategist}
+                disabled={!strategistOk}
+                onChange={(e) => setGame({ strategist: e.target.checked })}
+              />{' '}
+              ♟️ Strategist &amp; Commander (fan expansion for Cities &amp; Knights, not with Greed,
+              Wealth &amp; Power or Land &amp; Water: the Junker freezes a field and hides it from
+              the barbarians; the Duke and the Scholar join the progress cards)
             </label>
             <label className="toggle">
               <input

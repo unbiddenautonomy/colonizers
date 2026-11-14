@@ -20,6 +20,7 @@ import {
   LAND_WATER_CK_EXTRA_VP,
   LAND_WATER_EXTRA_VP,
 } from '@colonizers/module-land-water';
+import { strategistModule } from '@colonizers/module-strategist';
 import { soldiersModule, SOLDIERS_EXTRA_VP } from '@colonizers/module-soldiers-armies';
 import { investorsModule } from '@colonizers/module-investors-speculators';
 import {
@@ -51,6 +52,7 @@ export const library = new ModuleLibrary([
   kingdomsModule,
   landWaterModule,
   landWaterCkModule,
+  strategistModule,
   soldiersModule,
   investorsModule,
 ]);
@@ -169,6 +171,19 @@ export function landWaterOn(
   return map.kind !== 'scenario' || seaScenarioById(map.id)?.fog !== true;
 }
 
+/**
+ * Strategist & Commander goes on top of Cities & Knights. Greed, Wealth & Power
+ * has its own Duke and Scholar, and Land & Water has no knight pieces.
+ */
+export function strategistOn(
+  settings: Pick<RoomSettings, 'strategist'>,
+  ck: boolean,
+  gwp: boolean,
+  landWater: boolean,
+): boolean {
+  return settings.strategist && ck && !gwp && !landWater;
+}
+
 /** Civilisations goes on top of Greed, Wealth & Power. */
 export function civsOn(settings: Pick<RoomSettings, 'civilisations'>, gwp: boolean): boolean {
   return gwp && settings.civilisations;
@@ -196,6 +211,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
     settings,
     gwp || church || witches || princes || soldiers || investors || kingdoms || wondersOn(settings),
   );
+  const strategist = strategistOn(settings, ck, gwp, landWater);
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
     (princes ? PRINCES_EXTRA_VP : 0) +
@@ -227,6 +243,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
         ...(investors ? ['investors'] : []),
         ...(kingdoms ? ['kingdoms'] : []),
         ...(landWater ? ['landwater'] : []),
+        ...(strategist ? ['strategist'] : []),
       ],
       ck,
       gwp,
