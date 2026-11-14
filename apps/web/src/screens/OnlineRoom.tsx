@@ -245,10 +245,18 @@ function Lobby({
   const princesOk = princesMap && !gwp && !church && !witches && !wonders;
   const princes = s.princes && princesOk;
   const soldiersOk =
-    !gwp && !church && !witches && !wonders && (!specialPick || specialPick.group === 'explorers');
+    !gwp &&
+    !church &&
+    !witches &&
+    !wonders &&
+    (!specialPick || specialPick.group === 'explorers' || specialPick.group === 'traders');
   const soldiers = s.soldiers && soldiersOk;
   const investorsOk =
-    !gwp && !church && !witches && !wonders && (!specialPick || specialPick.group === 'explorers');
+    !gwp &&
+    !church &&
+    !witches &&
+    !wonders &&
+    (!specialPick || specialPick.group === 'explorers' || specialPick.group === 'traders');
   const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church, witches, princes, soldiers);
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
@@ -523,9 +531,10 @@ function Lobby({
                 disabled={!investorsOk}
                 onChange={(e) => setGame({ investors: e.target.checked })}
               />{' '}
-              📈 Investors &amp; Speculators (fan expansion for the usual maps, Seafarers and
-              Explorers &amp; Pirates: moving exchange rates, savings and loans; not with the other
-              special maps, Church, Witches, Greed, Wealth &amp; Power or World Wonders yet)
+              📈 Investors &amp; Speculators (fan expansion for the usual maps, Seafarers, Explorers
+              &amp; Pirates and Traders &amp; Barbarians: moving exchange rates, savings and loans;
+              not with Treasures &amp; Dragons, Church, Witches, Greed, Wealth &amp; Power or World
+              Wonders yet)
             </label>
             <label className="toggle">
               <input

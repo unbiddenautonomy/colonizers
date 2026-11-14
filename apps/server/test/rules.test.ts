@@ -224,7 +224,7 @@ describe('game options', () => {
       ).not.toContain('soldiers');
   });
 
-  it('adds Investors & Speculators on the usual maps, Seafarers and Cities & Knights', () => {
+  it('adds Investors & Speculators on the usual maps, Seafarers, the special maps and Cities & Knights', () => {
     const settings = cleanSettings({ ...DEFAULT_SETTINGS, investors: true });
     const four = buildConfig(settings, names(4), 'seed');
     expect(four.modules).toEqual(['base', 'variants', 'investors']);
@@ -253,12 +253,17 @@ describe('game options', () => {
       'seed',
     );
     expect(ep.modules).toContain('investors');
-    // Not yet with the other special maps or fan expansions.
-    for (const more of [
-      { worldWonders: true },
-      { citiesKnights: true, church: true },
-      { map: { kind: 'special' as const, id: 'fishermen' } },
-    ])
+    // And the Traders & Barbarians scenarios, listed after them.
+    const tb = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'special', id: 'rivers' } }),
+      names(4),
+      'seed',
+    );
+    expect(tb.modules.indexOf('investors')).toBeGreaterThan(
+      tb.modules.indexOf('traders-barbarians'),
+    );
+    // Not yet with the other fan expansions.
+    for (const more of [{ worldWonders: true }, { citiesKnights: true, church: true }])
       expect(
         buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
       ).not.toContain('investors');

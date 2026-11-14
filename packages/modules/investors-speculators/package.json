@@ -22,6 +22,8 @@
     "@colonizers/module-princes-explorers": "workspace:*",
     "@colonizers/module-seafarers": "workspace:*",
     "@colonizers/module-soldiers-armies": "workspace:*",
+    "@colonizers/module-traders-barbarians": "workspace:*",
+    "@colonizers/module-variants": "workspace:*",
     "typescript": "~6.0.3",
     "vitest": "~4.1.12"
   }
