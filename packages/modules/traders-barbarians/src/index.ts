@@ -482,6 +482,14 @@ const buildBridge: ActionDef = {
   },
 };
 
+/** Gold for one resource: 2, unless another expansion prices it (Investors & Speculators' market). */
+export function goldPrice(ctx: Ctx, seat: number, resource: string): number {
+  return (
+    ctx.reduce('cost', `goldBuy:${resource}`, seat, { gold: GOLD_PER_RESOURCE }).gold ??
+    GOLD_PER_RESOURCE
+  );
+}
+
 const buyWithGold: ActionDef = {
   phases: ['main'],
   check(ctx, a) {
@@ -489,20 +497,22 @@ const buyWithGold: ActionDef = {
     if (a.player !== ctx.active) return 'Not your turn';
     if (tbData(ctx).goldBuys >= GOLD_BUYS_PER_TURN)
       return `You can buy with gold ${GOLD_BUYS_PER_TURN} times a turn`;
-    if (goldOf(ctx, a.player) < GOLD_PER_RESOURCE) return `You need ${GOLD_PER_RESOURCE} gold`;
     const r = a.resource as string;
     if (!(RESOURCES as readonly string[]).includes(r)) return 'Pick a resource';
+    const price = goldPrice(ctx, a.player, r);
+    if (goldOf(ctx, a.player) < price) return `You need ${price} gold`;
     return ctx.bankHas({ [r]: 1 }) ? null : 'The bank has none left';
   },
   apply(ctx, a) {
     const d = tbData(ctx);
-    d.gold[a.player] = goldOf(ctx, a.player) - GOLD_PER_RESOURCE;
+    const price = goldPrice(ctx, a.player, a.resource as string);
+    d.gold[a.player] = goldOf(ctx, a.player) - price;
     d.goldBuys += 1;
     ctx.grant(a.player, { [a.resource as string]: 1 });
     ctx.emit({
       type: 'goldSpent',
       player: a.player,
-      gold: GOLD_PER_RESOURCE,
+      gold: price,
       resource: a.resource,
     });
   },

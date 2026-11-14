@@ -154,6 +154,9 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
         'cavalry',
         'artillery',
         'princes & explorers',
+        'traders & barbarians',
+        'barbarians',
+        'capitulate',
         '5 players',
         '6 players',
       ],
@@ -163,7 +166,9 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
 
 **Explorers & Pirates.** Gold buys a resource for 3 if its rate is 5:1 or 6:1, 2 at 3:1 or 4:1, and 1 at 2:1. Harbor settlements and settlers can be taken on a town loan as well, at their own cost. On a 7 the pirate steals nothing.
 
-**Soldiers & Armies.** Cavalry and artillery can be mustered on a town loan, paid back at their cost like a building. Infantry can't.
+**Traders & Barbarians.** Gold buys a resource at the same 1 to 3 by its rate, still twice a turn. Against the barbarians there is no robber, so a 7 goes straight to the rates; for the traders a barbarian on the paths moves instead, taking no card.
+
+**Soldiers & Armies.** Cavalry and artillery can be mustered on a town loan, paid back at their cost like a building. Infantry can't. A player who capitulates first pays back every loan they can; the rest turns to bad debt, and they leave on half of what is left (never below 0). A player wiped out leaves on 0, their loans and savings with them. The last one standing must pay back their loans too, and wins only with more points than anyone who left; otherwise the player who left with the most wins. Derivatives on these loans pay nothing.
 
 **Princes & Explorers.** On a 7 the robber moves by the princes' rules but steals nothing, and the rates are set as usual. Buying a robber move outside a 7 still robs.
 

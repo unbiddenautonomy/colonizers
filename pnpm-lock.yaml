@@ -448,6 +448,12 @@ importers:
       '@colonizers/module-soldiers-armies':
         specifier: workspace:*
         version: link:../soldiers-armies
+      '@colonizers/module-traders-barbarians':
+        specifier: workspace:*
+        version: link:../traders-barbarians
+      '@colonizers/module-variants':
+        specifier: workspace:*
+        version: link:../variants
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
