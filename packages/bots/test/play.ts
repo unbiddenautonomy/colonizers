@@ -48,9 +48,13 @@ export function game(
     return lib.createGame({
       seed,
       players: names,
-      modules: ['base', 'seafarers', ...(ck ? ['cities-knights'] : [])],
+      modules: ['base', 'seafarers', ...(ck ? ['cities-knights'] : []), ...extra],
       map: b.map,
-      settings: { ...b.settings, vpTarget: Number(b.settings.vpTarget) + (ck ? 3 : 0) },
+      settings: {
+        ...b.settings,
+        vpTarget: Number(b.settings.vpTarget) + (ck ? 3 : 0) + (extra.includes('princes') ? 4 : 0),
+        ...settings,
+      },
       fixedSeats: true,
     }).state;
   }

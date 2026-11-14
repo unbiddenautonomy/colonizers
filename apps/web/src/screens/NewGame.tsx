@@ -142,9 +142,8 @@ export function NewGame({
   const church = ck && churchWanted && !gwp && !specialId;
   // Witches, Wizards & Dragons likewise, alone or with Church.
   const witches = ck && witchesWanted && !gwp && !specialId;
-  // Princes & Explorers goes on the base game's usual maps (not Seafarers or the special maps yet).
-  const princesMap =
-    effective.kind === 'random' || effective.kind === 'preset' || effective.kind === 'custom';
+  // Princes & Explorers goes on the usual maps and Seafarers (not the special maps yet).
+  const princesMap = effective.kind !== 'special';
   // Not yet with the other fan expansions.
   const princesOk = princesMap && !gwp && !church && !witches && !wonders;
   const princes = princesWanted && princesOk;
@@ -574,8 +573,8 @@ export function NewGame({
             <strong>🤴 Princes &amp; Explorers</strong>
             <small>
               {!princesOk
-                ? 'Fan expansion for the usual maps, with or without Cities & Knights (not with Seafarers or the other fan expansions yet).'
-                : `Fan expansion: four princes make buildings worth more, the robber takes points, and explorers swap numbers. ${ck ? 17 : 14} points.`}
+                ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights (not with the special maps or the other fan expansions yet).'
+                : `Fan expansion: four princes make buildings worth more, the robber takes points, and explorers swap numbers. Plays to 4 points more than usual.`}
             </small>
           </button>
           <button

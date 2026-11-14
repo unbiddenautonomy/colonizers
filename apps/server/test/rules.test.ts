@@ -159,12 +159,19 @@ describe('game options', () => {
       'seed',
     );
     expect(gwp.modules).not.toContain('princes');
+    // With Seafarers, four more than the scenario.
     const sea = buildConfig(
       cleanSettings({ ...settings, map: { kind: 'scenario', id: 'new-shores' } }),
       names(4),
       'seed',
     );
-    expect(sea.modules).not.toContain('princes');
+    expect(sea.modules).toEqual(['base', 'seafarers', 'variants', 'princes']);
+    const plain = buildConfig(
+      cleanSettings({ ...settings, princes: false, map: { kind: 'scenario', id: 'new-shores' } }),
+      names(4),
+      'seed',
+    );
+    expect(sea.settings?.vpTarget).toBe(Number(plain.settings?.vpTarget) + 4);
   });
 
   it('builds Traders & Barbarians scenarios on the base game only', () => {
