@@ -331,8 +331,17 @@ describe('game options', () => {
       'seed',
     );
     expect(fog.modules).not.toContain('landwater');
-    // Not yet with Cities & Knights or the other fan expansions.
-    for (const more of [{ citiesKnights: true }, { kingdoms: true }, { investors: true }])
+    // With Cities & Knights, to 14.
+    const ck = buildConfig(cleanSettings({ ...settings, citiesKnights: true }), names(4), 'seed');
+    expect(ck.modules).toEqual(['base', 'landwater', 'variants', 'cities-knights', 'landwater-ck']);
+    expect(ck.settings?.vpTarget).toBe(14);
+    expect(library.createGame(ck).state.modules).toContain('landwater-ck');
+    // Not yet with the other fan expansions.
+    for (const more of [
+      { kingdoms: true },
+      { investors: true },
+      { citiesKnights: true, church: true },
+    ])
       expect(
         buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
       ).not.toContain('landwater');

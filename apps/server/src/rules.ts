@@ -14,7 +14,12 @@ import { churchModule } from '@colonizers/module-church';
 import { witchesModule } from '@colonizers/module-witches';
 import { princesModule, PRINCES_EXTRA_VP } from '@colonizers/module-princes-explorers';
 import { kingdomsModule, KINGDOMS_EXTRA_VP } from '@colonizers/module-kingdoms-warriors';
-import { landWaterModule, LAND_WATER_EXTRA_VP } from '@colonizers/module-land-water';
+import {
+  landWaterCkModule,
+  landWaterModule,
+  LAND_WATER_CK_EXTRA_VP,
+  LAND_WATER_EXTRA_VP,
+} from '@colonizers/module-land-water';
 import { soldiersModule, SOLDIERS_EXTRA_VP } from '@colonizers/module-soldiers-armies';
 import { investorsModule } from '@colonizers/module-investors-speculators';
 import {
@@ -45,6 +50,7 @@ export const library = new ModuleLibrary([
   princesModule,
   kingdomsModule,
   landWaterModule,
+  landWaterCkModule,
   soldiersModule,
   investorsModule,
 ]);
@@ -150,9 +156,9 @@ export function kingdomsOn(
 }
 
 /**
- * Land & Water goes on the base game, on the usual maps and the Seafarers
- * scenarios without fog (its vehicles don't explore). Cities & Knights and
- * the other expansions come later.
+ * Land & Water goes on the base game or Cities & Knights, on the usual maps
+ * and the Seafarers scenarios without fog (its vehicles don't explore). The
+ * other expansions come later.
  */
 export function landWaterOn(
   settings: Pick<RoomSettings, 'landWater' | 'map'>,
@@ -188,7 +194,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   );
   const landWater = landWaterOn(
     settings,
-    ck || princes || soldiers || investors || kingdoms || wondersOn(settings),
+    gwp || church || witches || princes || soldiers || investors || kingdoms || wondersOn(settings),
   );
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
@@ -196,7 +202,8 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
     // With Princes & Explorers, its target stands (14, or 17 with Cities & Knights).
     (soldiers && !princes ? SOLDIERS_EXTRA_VP : 0) +
     (kingdoms ? KINGDOMS_EXTRA_VP : 0) +
-    (landWater ? LAND_WATER_EXTRA_VP : 0);
+    // With Cities & Knights it plays to 14, one more than that expansion's 13.
+    (landWater ? (ck ? LAND_WATER_CK_EXTRA_VP : LAND_WATER_EXTRA_VP) : 0);
   const options = optionSettings(settings.options, n);
   // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
   if (princes) {

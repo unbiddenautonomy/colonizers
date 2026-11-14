@@ -258,7 +258,16 @@ function Lobby({
     s.map.kind === 'scenario' &&
     SEA_SCENARIOS.find((x) => x.id === (s.map as { id: string }).id)?.fog === true;
   const landWaterOk =
-    !ck && !princes && !soldiers && !s.investors && !kingdoms && !wonders && !specialPick && !fog;
+    !gwp &&
+    !church &&
+    !witches &&
+    !princes &&
+    !soldiers &&
+    !s.investors &&
+    !kingdoms &&
+    !wonders &&
+    !specialPick &&
+    !fog;
   const landWater = s.landWater && landWaterOk;
   const bonus = vpBonus(
     ck,
@@ -567,8 +576,9 @@ function Lobby({
                 disabled={!landWaterOk}
                 onChange={(e) => setGame({ landWater: e.target.checked })}
               />{' '}
-              🚂 Land &amp; Water (fan expansion for the base game on the usual maps and Seafarers
-              without fog: trains, ships and planes instead of roads; plays to 12)
+              🚂 Land &amp; Water (fan expansion for the base game or Cities &amp; Knights on the
+              usual maps and Seafarers without fog: trains, ships and planes instead of roads; plays
+              to 12, or 14 with Cities &amp; Knights)
             </label>
             <label className="toggle">
               <input

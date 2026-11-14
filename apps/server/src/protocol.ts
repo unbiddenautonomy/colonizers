@@ -126,6 +126,8 @@ export function moduleList(
     'landwater',
     'variants',
     'cities-knights',
+    // Land & Water's Cities & Knights rules, wrapping that expansion's knights and cards.
+    'landwater-ck',
     // After the base game and Cities & Knights, so its robber wrapper comes outermost.
     'princes',
     // After the base game, so its turn and road wrappers come outermost.
@@ -158,6 +160,7 @@ export function moduleList(
     ...(citiesKnights && witches && !greedWealthPower ? ['witches'] : []),
     ...(worldWonders ? ['world-wonders'] : []),
     ...(citiesKnights && greedWealthPower && civilisations ? ['civilisations'] : []),
+    ...(citiesKnights && extra.includes('landwater') ? ['landwater-ck'] : []),
   ]);
   return order.filter((m) => want.has(m));
 }
