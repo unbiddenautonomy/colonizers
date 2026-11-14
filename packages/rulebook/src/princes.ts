@@ -81,5 +81,19 @@ You may also leave the numbers as they are.`,
 - The mover then takes a card from **any player**, wherever they build.
 - On your turn you can also pay **1 ore, 1 wool and 1 grain** to move it the same way.`,
     },
+    {
+      id: 'princes-ck',
+      module: M,
+      section: 'rules',
+      title: 'With Cities & Knights',
+      summary: 'Knights give way to move the robber; the Bishop goes six fields. 17 points.',
+      tags: ['cities', 'knights', 'metropolis', 'merchant', 'bishop', 'robber'],
+      body: `Princes & Explorers plays with Cities & Knights to 17 points.
+
+- A **metropolis** scores like its city: a point more for each prince, nothing next to the robber. A **merchant** on the robber's field scores nothing.
+- Princes and the robber only change points. Walls, knights and the barbarians work as usual, and the robber still waits for the first attack.
+- You can't pay to move the robber, and knights can't chase it. Instead a **knight gives way**: a strong or mighty knight steps down a level (staying active or not), a basic one leaves the board, and the robber moves one to three fields. Give up more knights to take it three fields further each.
+- The **Bishop** moves the robber up to six fields (then take a card from anyone), or takes a card from every other player.`,
+    },
   ],
 };

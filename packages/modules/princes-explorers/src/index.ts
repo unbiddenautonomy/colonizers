@@ -1,6 +1,13 @@
 import type { Action, ActionDef, Ctx, GameModule, HexId, Phase } from '@colonizers/engine';
 import { robber, stealFrom } from '@colonizers/module-base';
-import { BIG_GAME_HAND_LIMIT, MODULE_ID, PRINCE, ROBBER_MOVE_COST } from './constants.ts';
+import {
+  BIG_GAME_HAND_LIMIT,
+  MODULE_ID,
+  PRINCE,
+  ROBBER_MOVE_COST,
+  ROBBER_RANGE,
+} from './constants.ts';
+import { ckActions, ckRobberVp, ckWraps, withCk } from './ck.ts';
 import {
   princeMoves,
   princesAtCorner,
@@ -33,6 +40,9 @@ import {
  *   to three fields on a 7 or for 1 ore, 1 wool and 1 grain, and its mover
  *   takes a card from anyone.
  * - No development cards, no Largest Army, and play to 14.
+ *
+ * With Cities & Knights (list it after Cities & Knights), knights give way
+ * to move the robber and the Bishop goes six fields: see ck.ts. Play to 17.
  */
 
 export * from './constants.ts';
@@ -163,6 +173,7 @@ const buyRobberMove = action<object>({
   phases: ['main'],
   check(ctx, a) {
     if (a.player !== ctx.active) return 'Not your turn';
+    if (withCk(ctx)) return 'With Cities & Knights, give up a knight to move the robber';
     if (!robber(ctx)) return 'The robber is not on the board yet';
     if (!robberTargets(ctx, a.player).length) return 'The robber can not move';
     if (!ctx.has(a.player, ctx.cost('robberMove', a.player))) return 'You can not afford that';
@@ -178,7 +189,9 @@ const buyRobberMove = action<object>({
 
 /** The robber goes by Princes & Explorers' rules, and its mover robs anyone. */
 function wrapMoveRobber(prev: ActionDef): ActionDef {
-  const stuck = (ctx: Ctx, seat: number) => !!robber(ctx) && !robberTargets(ctx, seat).length;
+  const range = (ctx: Ctx) => (ctx.state.phase.range as number | undefined) ?? ROBBER_RANGE;
+  const targets = (ctx: Ctx, seat: number) => robberTargets(ctx, seat, range(ctx));
+  const stuck = (ctx: Ctx, seat: number) => !!robber(ctx) && !targets(ctx, seat).length;
   return {
     ...prev,
     check(ctx, a) {
@@ -186,7 +199,7 @@ function wrapMoveRobber(prev: ActionDef): ActionDef {
       const hex = a.hex as HexId;
       // Boxed in: it stays, and the card is still taken.
       if (stuck(ctx, a.player)) return hex === robberHex(ctx) ? null : 'The robber can not move';
-      return robberTargets(ctx, a.player).includes(hex) ? null : 'The robber can not go there';
+      return targets(ctx, a.player).includes(hex) ? null : 'The robber can not go there';
     },
     apply(ctx, a) {
       const returnTo = (ctx.state.phase.returnTo as string | undefined) ?? 'main';
@@ -207,7 +220,7 @@ function wrapMoveRobber(prev: ActionDef): ActionDef {
     },
     enumerate(ctx, player) {
       if (player !== ctx.active) return [];
-      const hexes = stuck(ctx, player) ? [robberHex(ctx) as HexId] : robberTargets(ctx, player);
+      const hexes = stuck(ctx, player) ? [robberHex(ctx) as HexId] : targets(ctx, player);
       return hexes.map((hex) => ({ type: 'moveRobber', player, hex }));
     },
   };
@@ -249,12 +262,13 @@ export const princesModule: GameModule = {
   costs: {
     robberMove: ROBBER_MOVE_COST,
   },
-  actions: { movePrince, exploreSwap, placePrincesRobber, buyRobberMove },
+  actions: { movePrince, exploreSwap, placePrincesRobber, buyRobberMove, ...ckActions },
   wrapActions: {
     moveRobber: wrapMoveRobber,
     buyDevCard: noDevCards,
     playDevCard: noDevCards,
   },
+  wrapActionsIfPresent: ckWraps,
   hooks: {
     init(ctx) {
       princesData(ctx);
@@ -266,7 +280,7 @@ export const princesModule: GameModule = {
     afterAction: afterSettlement,
   },
   reducers: {
-    vp: princesVp,
+    vp: (ctx, seat, value) => ckRobberVp(ctx, seat, princesVp(ctx, seat, value)),
     routeWeight: princesRouteWeight,
     // The robber takes points, not production.
     hexBlocked: (ctx, hex, _piece, value) => value && robberHex(ctx) !== hex.id,

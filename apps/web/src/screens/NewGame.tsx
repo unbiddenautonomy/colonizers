@@ -145,7 +145,9 @@ export function NewGame({
   // Princes & Explorers goes on the base game's usual maps (not Seafarers or the special maps yet).
   const princesMap =
     effective.kind === 'random' || effective.kind === 'preset' || effective.kind === 'custom';
-  const princes = !ck && princesWanted && princesMap;
+  // Not yet with the other fan expansions.
+  const princesOk = princesMap && !gwp && !church && !witches && !wonders;
+  const princes = princesWanted && princesOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp = (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) + (princes ? 4 : 0);
   const fanName =
@@ -566,14 +568,14 @@ export function NewGame({
             type="button"
             className={`expansion ${princes ? 'on' : ''}`}
             aria-pressed={princes}
-            disabled={ck || !princesMap}
+            disabled={!princesOk}
             onClick={() => setPrinces(!princes)}
           >
             <strong>🤴 Princes &amp; Explorers</strong>
             <small>
-              {ck || !princesMap
-                ? 'Fan expansion for the base game on the usual maps (not with Cities & Knights or Seafarers yet).'
-                : 'Fan expansion: four princes make buildings worth more, the robber takes points, and explorers swap numbers. 14 points.'}
+              {!princesOk
+                ? 'Fan expansion for the usual maps, with or without Cities & Knights (not with Seafarers or the other fan expansions yet).'
+                : `Fan expansion: four princes make buildings worth more, the robber takes points, and explorers swap numbers. ${ck ? 17 : 14} points.`}
             </small>
           </button>
           <button

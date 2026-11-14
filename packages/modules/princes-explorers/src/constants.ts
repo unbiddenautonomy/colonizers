@@ -12,6 +12,9 @@ export const PRINCES_EXTRA_VP = 4;
 /** On a 7 (or when paid for) the robber goes one to three fields. */
 export const ROBBER_RANGE = 3;
 
+/** With Cities & Knights, the Bishop takes it up to six. */
+export const BISHOP_RANGE = 6;
+
 /** Moving the robber without a 7 costs what a development card would. */
 export const ROBBER_MOVE_COST: Cards = { ore: 1, wool: 1, grain: 1 };
 

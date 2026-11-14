@@ -89,6 +89,7 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/^lent|anathema/i, 'church-cards'],
   [/citadel|crystal/i, 'witches-citadel'],
   [/bewitched|wizard/i, 'witches-wizard'],
+  [/give up a knight|give way|knight of the level below/i, 'princes-ck'],
   [/prince/i, 'princes-princes'],
   [/robber is not on the board|robber can not move/i, 'princes-robber'],
   [/numbers can not be swapped|explorers/i, 'princes-explorers'],
