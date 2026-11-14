@@ -262,8 +262,17 @@ describe('game options', () => {
     expect(tb.modules.indexOf('investors')).toBeGreaterThan(
       tb.modules.indexOf('traders-barbarians'),
     );
-    // Not yet with the other fan expansions.
-    for (const more of [{ worldWonders: true }, { citiesKnights: true, church: true }])
+    // With Witches and Church on Cities & Knights.
+    const magic = buildConfig(
+      cleanSettings({ ...settings, citiesKnights: true, church: true, witches: true }),
+      names(4),
+      'seed',
+    );
+    expect(magic.modules).toEqual(
+      expect.arrayContaining(['cities-knights', 'investors', 'witches', 'church']),
+    );
+    // Not yet with Greed, Wealth & Power or World Wonders.
+    for (const more of [{ worldWonders: true }, { citiesKnights: true, greedWealthPower: true }])
       expect(
         buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
       ).not.toContain('investors');

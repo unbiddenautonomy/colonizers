@@ -26,6 +26,7 @@ import {
   TOWN_REPAY,
   TOWN_TERMS,
   COMMODITY_MARKET,
+  COMMODITY_PREMIUM,
   tradables,
   type Loan,
 } from '@colonizers/module-investors-speculators';
@@ -91,7 +92,14 @@ export function MarketStatus({ ctx }: { ctx: Ctx }) {
         ))}
       </div>
       {Object.keys(COMMODITY_MARKET).some((c) => ctx.registry.cardTypes[c]) && (
-        <small className="muted">Commodities go by their resource’s rate.</small>
+        <small className="muted">
+          Commodities go by their resource’s rate
+          {Object.entries(COMMODITY_PREMIUM)
+            .filter(([c]) => ctx.registry.cardTypes[c])
+            .map(([c, n]) => `, ${cardName(c)} ${n} more`)
+            .join('')}
+          .
+        </small>
       )}
     </div>
   );

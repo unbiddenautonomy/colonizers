@@ -122,9 +122,9 @@ export function soldiersOn(
 
 /**
  * Investors & Speculators goes on the usual maps, Seafarers, the Explorers &
- * Pirates and Traders & Barbarians scenarios, with or without Cities & Knights,
- * Princes & Explorers and Soldiers & Armies. Its rules with the other
- * expansions come later.
+ * Pirates and Traders & Barbarians scenarios, with or without Cities & Knights
+ * (and Witches or Church on it), Princes & Explorers and Soldiers & Armies.
+ * Its rules with Greed, Wealth & Power and World Wonders come later.
  */
 export function investorsOn(
   settings: Pick<RoomSettings, 'investors' | 'map'>,
@@ -155,7 +155,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const witches = witchesOn(settings, ck, gwp);
   const princes = princesOn(settings, gwp || church || witches || wondersOn(settings));
   const soldiers = soldiersOn(settings, gwp || church || witches || wondersOn(settings));
-  const investors = investorsOn(settings, gwp || church || witches || wondersOn(settings));
+  const investors = investorsOn(settings, gwp || wondersOn(settings));
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
     (princes ? PRINCES_EXTRA_VP : 0) +

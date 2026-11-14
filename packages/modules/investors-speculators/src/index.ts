@@ -52,6 +52,7 @@ export {
   rateOf,
   savingsOf,
   COMMODITY_MARKET,
+  COMMODITY_PREMIUM,
   isTownLoan,
   isTradable,
   marketOf,
