@@ -1,27 +1,29 @@
 import type { ActionDef, GameModule } from '@colonizers/engine';
-import { activeTracks, commodityBank, wrapIndulgenceRoll } from '@colonizers/module-cities-knights';
+import {
+  activeTracks,
+  commodityBank,
+  wrapIndulgenceRoll,
+  type CitySeat,
+} from '@colonizers/module-cities-knights';
 import { cardActions, religionDeck, syncInquisitor, wrapCards } from './cards.ts';
 import {
   BEER,
-  DIOCESE_COST,
   BREAD,
-  CHURCH_EVENT_FACES,
   CHURCH_PROGRESS_LIMIT,
   CHURCH_TRACKS,
   CHURCH_VP_TARGET,
-  EXCLUSIVE_METROPOLIS,
+  DIOCESE_COST,
+  EXCLUSIVE_LEVEL,
   MODULE_ID,
 } from './constants.ts';
 import {
   beerRatio,
-  dioceseOf,
-  breadYield,
   brewBeer,
   churchActions,
   churchData,
   churchView,
+  DIOCESE,
   dropDeadFestivals,
-  dropLostDioceses,
   syncBans,
   endFestivals,
   festivalBlocksYield,
@@ -48,8 +50,9 @@ import {
  *   road or ship (2 Beer), knight (3), settlement (4) or city (5) shuts that
  *   piece down until your next turn.
  * - A ten-sided event die: five ships, four gates and a joker the roller
- *   points at a track. Five progress cards in hand; owning the Science or
- *   Religion metropolis stops the other at level 3.
+ *   points at a track (twelve sides with Witches, Wizards & Dragons too).
+ *   Five progress cards in hand; level 4 in Science or Religion (or Magic)
+ *   stops the others at level 3.
  *
  * List it after Cities & Knights (and Seafarers).
  */
@@ -58,9 +61,8 @@ export * from './constants.ts';
 export { CARDS as RELIGION_CARDS, debtOf, inquisitorSpots, producible } from './cards.ts';
 export {
   beerRatio,
-  dioceseBlock,
+  DIOCESE,
   dioceseOf,
-  diocesePrice,
   churchData,
   churchView,
   festivalBlock,
@@ -77,7 +79,6 @@ const commodity = { category: 'commodity', countsForHandLimit: true, bank: commo
 
 /** Actions a festival can stop. */
 const GUARDED = [
-  'buildDiocese',
   'activateKnight',
   'promoteKnight',
   'moveKnight',
@@ -97,13 +98,20 @@ export const churchModule: GameModule = {
   conflicts: ['greed-wealth-power'],
   settings: {
     vpTarget: CHURCH_VP_TARGET,
-    ckTracks: [...CHURCH_TRACKS],
-    ckEventFaces: CHURCH_EVENT_FACES,
+    // Cities & Knights joins these with other modules' (Magic) and sizes the event die.
+    ckAddTracks: ['religion'],
+    ckExclusiveLevel: [...EXCLUSIVE_LEVEL],
+    ckCitySeat: {
+      id: DIOCESE,
+      name: 'Diocese',
+      track: 'religion',
+      resource: 'grain',
+      commodity: BREAD,
+    } satisfies CitySeat,
     progressLimit: CHURCH_PROGRESS_LIMIT,
-    exclusiveMetropolis: [...EXCLUSIVE_METROPOLIS],
   },
   cardTypes: { [BREAD]: commodity, [BEER]: commodity },
-  costs: { diocese: DIOCESE_COST },
+  costs: { [DIOCESE]: DIOCESE_COST },
   decks: {
     religion: { cards: () => religionDeck([...CHURCH_TRACKS]) },
   },
@@ -114,12 +122,14 @@ export const churchModule: GameModule = {
     playProgress: wrapCards,
     roll: wrapIndulgenceRoll,
     aqueductPick: wrapAqueductPick,
-    improveCity: (prev): ActionDef =>
+    improveCity: guardFestival,
+    // The Inquisitor's city can't become a Citadel.
+    buildCitySeat: (prev): ActionDef =>
       guardFestival({
         ...prev,
         check(ctx, a) {
-          if (a.track === 'religion' && dioceseOf(ctx, a.player) === null)
-            return 'Religion improvements need a Diocese';
+          if (a.seat === 'citadel' && a.corner === churchView(ctx).inquisitor)
+            return 'Not while the Inquisitor is there';
           return prev.check(ctx, a);
         },
       }),
@@ -136,7 +146,6 @@ export const churchModule: GameModule = {
         ctx.state.decks.religion = ctx.rng.shuffle([...ctx.state.decks.religion, ...extra]);
     },
     afterAction(ctx) {
-      dropLostDioceses(ctx);
       dropDeadFestivals(ctx);
       brewBeer(ctx);
       syncInquisitor(ctx);
@@ -146,16 +155,14 @@ export const churchModule: GameModule = {
   },
   reducers: {
     vp(ctx, seat, value) {
-      return value + (dioceseOf(ctx, seat) !== null ? 1 : 0) - festivalVp(ctx, seat);
+      return value - festivalVp(ctx, seat);
     },
-    hexYield: breadYield,
     hexBlocked: festivalBlocksYield,
     routeWeight: festivalRouteWeight,
     knightStrength: festivalKnightStrength,
     takesProgress(ctx, seat, deck, value) {
       if (!value) return false;
-      if (churchView(ctx).bans?.some((b) => b.target === seat && b.track === deck)) return false;
-      return deck !== 'religion' || dioceseOf(ctx, seat) !== null;
+      return !churchView(ctx).bans?.some((b) => b.target === seat && b.track === deck);
     },
     swapRatio(ctx, seat, give, _get, value) {
       return give === BEER ? beerRatio(ctx, seat) : value;

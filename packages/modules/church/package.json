@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Church, Faith & Reformation: the Religion track, the Bishopric, Bread and Beer, and festivals. Needs Cities & Knights.",
+  "description": "Church, Faith & Reformation: the Religion track, the Diocese, Bread and Beer, and festivals. Needs Cities & Knights.",
   "exports": {
     ".": "./src/index.ts"
   },

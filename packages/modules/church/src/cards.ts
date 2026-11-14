@@ -16,7 +16,9 @@ import {
   playIndulgence,
   progressCount,
   progressHeld,
+  seatAt,
   spendProgress,
+  takesProgress,
   type Track,
 } from '@colonizers/module-cities-knights';
 import { MODULE_ID } from './constants.ts';
@@ -70,10 +72,12 @@ function takeFromEach(deck: Track): CardDef {
   return {
     count: 1,
     ...(deck === 'magic' ? { needs: 'magic' as Track } : {}),
-    check: (ctx, a) =>
-      others(ctx, a.player).some((s) => heldIn(ctx, s, deck).length)
+    check: (ctx, a) => {
+      if (!takesProgress(ctx, a.player, deck)) return `You can not take ${deck} cards`;
+      return others(ctx, a.player).some((s) => heldIn(ctx, s, deck).length)
         ? null
-        : `Nobody else has a ${deck} card`,
+        : `Nobody else has a ${deck} card`;
+    },
     apply(ctx, a) {
       const pool: { card: string; deck: Track }[] = [];
       for (const s of others(ctx, a.player)) {
@@ -339,7 +343,7 @@ function exiles(ctx: Ctx): Piece[] {
 export function inquisitorSpots(ctx: Ctx): CornerId[] {
   const at = churchView(ctx).inquisitor ?? null;
   return Object.values(ctx.state.pieces).flatMap((p) =>
-    p.type === 'city' && p.at.kind === 'corner' && !p.props.citadel && p.at.id !== at
+    p.type === 'city' && p.at.kind === 'corner' && seatAt(p) !== 'citadel' && p.at.id !== at
       ? [p.at.id]
       : [],
   );

@@ -104,8 +104,20 @@ describe('Bots', () => {
       9000,
     );
     expect(r.winner).not.toBeNull();
-    const d = r.state.data.church as { diocese: Record<number, string> };
-    expect(Object.keys(d.diocese).length).toBeGreaterThan(0);
+    const d = r.state.data['cities-knights'] as { seats?: { diocese?: Record<number, string> } };
+    expect(Object.keys(d.seats?.diocese ?? {}).length).toBeGreaterThan(0);
+  }, 240_000);
+
+  it('plays Church and Witches together', () => {
+    const r = play(
+      game('kh1', 4, 'ck', { vpTarget: 17 }, ['church', 'witches']),
+      [medium, medium, medium, medium],
+      9,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+    const d = r.state.data['cities-knights'] as { seats?: Record<string, object> };
+    expect(Object.keys(d.seats?.citadel ?? {}).length).toBeGreaterThan(0);
   }, 240_000);
 
   it('only sees what its seat may see', () => {

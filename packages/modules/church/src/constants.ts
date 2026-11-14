@@ -1,8 +1,6 @@
-import type { EventFace } from '@colonizers/module-cities-knights';
-
 export const MODULE_ID = 'church';
 
-/** Cities & Knights' three tracks and Religion. */
+/** Cities & Knights' three tracks and Religion (Magic too, with Witches, Wizards & Dragons). */
 export const CHURCH_TRACKS = ['science', 'trade', 'politics', 'religion'] as const;
 
 /** Bread from a Diocese on grain, Beer from the Abbey. */
@@ -13,25 +11,8 @@ export const BEER = 'beer';
 export const CHURCH_VP_TARGET = 15;
 export const CHURCH_PROGRESS_LIMIT = 5;
 
-/**
- * Played on its own, a ten-sided event die: five ships, a gate for each of
- * the four tracks, and a joker whose track the roller picks.
- */
-export const CHURCH_EVENT_FACES: EventFace[] = [
-  'ship',
-  'ship',
-  'ship',
-  'ship',
-  'ship',
-  'science',
-  'trade',
-  'politics',
-  'religion',
-  'joker',
-];
-
-/** Owning one of these metropolises stops the other at level 3. */
-export const EXCLUSIVE_METROPOLIS = ['science', 'religion'] as const;
+/** Level 4 in one of these stops the others at level 3. */
+export const EXCLUSIVE_LEVEL = ['science', 'religion'] as const;
 
 export const DIOCESE_COST = { grain: 1, brick: 1, lumber: 1 };
 

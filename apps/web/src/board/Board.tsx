@@ -27,6 +27,7 @@ import {
   neutralMarkers,
 } from '../screens/GreedWealthPower.tsx';
 import { churchMarkers } from '../screens/Church.tsx';
+import { seatMarkers } from '../screens/CitiesKnights.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
@@ -1107,13 +1108,13 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         );
       })}
 
-      {churchMarkers(state).map((m) => {
+      {[...seatMarkers(state), ...churchMarkers(state)].map((m) => {
         const edge = m.at.startsWith('e:');
         if (edge && !g.edgeCorners.has(m.at as EdgeId)) return null;
         const [a, b] = edge ? edgeEnds(m.at as EdgeId, g) : [null, null];
         const k =
           a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : cornerToPixel(m.at as CornerId, S);
-        // Diocese above its city, the Inquisitor to its right, a festival chip on the piece.
+        // A Diocese or Citadel above its city, the Inquisitor to its right, a festival chip on the piece.
         const r = S * 0.15;
         const x = k.x + (m.slot === 1 ? S * 0.32 : 0);
         const y = k.y - (m.slot === 0 ? 0 : S * 0.34);
