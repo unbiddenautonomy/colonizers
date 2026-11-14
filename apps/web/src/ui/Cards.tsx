@@ -6,16 +6,23 @@ export const RESOURCES = ['brick', 'lumber', 'wool', 'grain', 'ore'] as const;
 export const COMMODITY_CARDS = ['paper', 'cloth', 'coin'] as const;
 /** Greed, Wealth & Power's commodities. */
 export const GWP_CARDS = ['crystal', 'bread', 'gold'] as const;
-/** Church, Faith & Reformation's Bread and Beer. */
+/** Witches, Wizards & Dragons' Crystal, and Church, Faith & Reformation's Bread and Beer. */
+export const WITCHES_CARDS = ['crystal'] as const;
 export const CHURCH_CARDS = ['bread', 'beer'] as const;
+
+/** Commodities the fan expansions add to Cities & Knights, for the hand row. */
+export function fanCommodities(modules: readonly string[]): string[] {
+  if (modules.includes('greed-wealth-power')) return [...GWP_CARDS];
+  return [
+    ...(modules.includes('witches') ? WITCHES_CARDS : []),
+    ...(modules.includes('church') ? CHURCH_CARDS : []),
+  ];
+}
 
 /** Card types players trade and hold in this game. */
 export function handCards(modules: readonly string[]): readonly string[] {
   if (!modules.includes('cities-knights')) return RESOURCES;
-  if (modules.includes('greed-wealth-power'))
-    return [...RESOURCES, ...COMMODITY_CARDS, ...GWP_CARDS];
-  if (modules.includes('church')) return [...RESOURCES, ...COMMODITY_CARDS, ...CHURCH_CARDS];
-  return [...RESOURCES, ...COMMODITY_CARDS];
+  return [...RESOURCES, ...COMMODITY_CARDS, ...fanCommodities(modules)];
 }
 
 export function ResourceCard({

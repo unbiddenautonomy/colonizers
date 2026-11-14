@@ -36,6 +36,7 @@ import {
   CardPicker,
   clean,
   CostLine,
+  fanCommodities,
   handCards,
   RESOURCES,
   ResourceCard,
@@ -53,6 +54,8 @@ import {
   ckPrompt,
   CommodityCards,
   ProgressHand,
+  seatId,
+  seatPrompt,
   type CkMode,
 } from './CitiesKnights.tsx';
 import {
@@ -82,7 +85,6 @@ import {
   GwpChoices,
   GwpDragonChoice,
   gwpCardPrompt,
-  GWP_HAND,
   GWP_MODES,
   GwpActions,
   GwpPlayerStats,
@@ -110,7 +112,6 @@ import {
   type CivMode,
 } from './Civilisations.tsx';
 import {
-  CHURCH_HAND,
   ChurchActions,
   ChurchChoices,
   churchModePrompt,
@@ -198,6 +199,12 @@ function targetsFor(
   if (mode && state.phase.id === 'main' && (CIV_MODES as readonly string[]).includes(mode))
     return civTargets(legal, mode as CivMode, selectedShip);
   if (state.phase.id === 'main' && isChurchMode(mode)) return churchTargets(legal, mode);
+  const seat = state.phase.id === 'main' ? seatId(mode) : null;
+  if (seat) {
+    for (const a of legal)
+      if (a.type === 'buildCitySeat' && a.seat === seat) t.corners.set(a.corner as CornerId, a);
+    return t;
+  }
   const want = new Set<string>();
   const ph = state.phase.id;
   const pair = edgeChoices(state);
@@ -390,6 +397,7 @@ function prompt(
     case 'main':
       if (mode && GWP_MODES.includes(mode)) return gwpPrompt(who ?? '', mode, null) ?? '';
       if (isChurchMode(mode)) return churchModePrompt(who ?? '', mode);
+      if (seatId(mode)) return seatPrompt(who ?? '', seatId(mode)!);
       if (mode === 'tbMove') return `${who}: ${TB_MOVE_PROMPT}`;
       if (mode === 'wagon') return `${who}: ${WAGON_PROMPT}`;
       if (mode === 'moveShip')
@@ -895,7 +903,7 @@ export function Game({
                   {ck && (
                     <CommodityCards
                       hand={state.players[actor]!.hand}
-                      extra={gwp ? GWP_HAND : church ? CHURCH_HAND : []}
+                      extra={fanCommodities(state.modules)}
                     />
                   )}
                   {ep && (

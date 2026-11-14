@@ -14,6 +14,7 @@ import {
   isCommodity,
 } from './constants.ts';
 import { progressActions } from './progress.ts';
+import { dropLostSeats, seatActions, seatVp, seatYield, setUpTracks } from './seats.ts';
 import {
   ckData,
   ckDice,
@@ -63,7 +64,7 @@ export const citiesKnightsModule: GameModule = {
     promote: { wool: 1, ore: 1 },
     wall: { brick: 2 },
   },
-  actions: { ...knightActions, ...progressActions, ...indulgenceActions },
+  actions: { ...knightActions, ...progressActions, ...indulgenceActions, ...seatActions },
   dice: ckDice,
   wrapActions: {
     roll: (prev): ActionDef => {
@@ -124,8 +125,10 @@ export const citiesKnightsModule: GameModule = {
   hooks: {
     init(ctx) {
       ckData(ctx);
+      setUpTracks(ctx);
     },
     afterAction(ctx) {
+      dropLostSeats(ctx);
       // More than 4 progress cards: stop and put the extras back first.
       if (ctx.state.winner !== null || ctx.state.phase.id === 'progressDiscard') return;
       const owed = progressOverLimit(ctx);
@@ -138,7 +141,7 @@ export const citiesKnightsModule: GameModule = {
       if (piece.type !== 'city') return value;
       const commodity = TERRAIN_COMMODITY[hex.type];
       const produces = ctx.registry.hexTypes[hex.type]?.produces;
-      if (!commodity || !produces || !value[produces]) return value;
+      if (!commodity || !produces || !value[produces]) return seatYield(ctx, hex, piece, value);
       // A city here takes one resource and one commodity instead of two resources.
       return { ...value, [produces]: (value[produces] ?? 0) - 1, [commodity]: 1 };
     },
@@ -173,7 +176,7 @@ export const citiesKnightsModule: GameModule = {
       const played = ctx.player(seat).played;
       for (const c of VP_PROGRESS) v += played[c] ?? 0;
       if (merchant(ctx)?.owner === seat) v += 1;
-      return v;
+      return v + seatVp(ctx, seat);
     },
   },
   redact(data, viewer) {
@@ -232,6 +235,7 @@ export {
   reachable,
   rivalMetropolis,
   setMetropolis,
+  takesProgress,
   pillage,
   strength,
   wallsOf,
@@ -250,3 +254,15 @@ export {
   wrapIndulgenceRoll,
   type HeldRoll,
 } from './indulgence.ts';
+export {
+  citySeats,
+  jokerDie,
+  seatAllows,
+  seatAt,
+  seatBlock,
+  seatDef,
+  seatForTrack,
+  seatOf,
+  seatPrice,
+  type CitySeat,
+} from './seats.ts';

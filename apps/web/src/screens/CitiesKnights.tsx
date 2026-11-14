@@ -5,6 +5,8 @@ import {
   barbarianStrength,
   barbarianTrack,
   ckData,
+  citySeats,
+  seatOf,
   defenseStrength,
   improveCost,
   levels,
@@ -24,7 +26,42 @@ import { Modal } from '../ui/Modal.tsx';
 import { gwpOptionLabel } from './GreedWealthPower.tsx';
 import { AnathemaDialog, churchOptionLabel } from './Church.tsx';
 
-export type CkMode = 'knight' | 'activate' | 'promote' | 'knightAct' | 'wall';
+export type CkMode = 'knight' | 'activate' | 'promote' | 'knightAct' | 'wall' | `seat:${string}`;
+
+/** City seats (a Diocese, a Citadel): their icons, from the rulebook. */
+const seatIcon = (id: string) => nameOf(id).icon ?? '🏛️';
+
+/** Board targets and prompt for building a city seat. */
+export function seatId(mode: string | null): string | null {
+  return mode?.startsWith('seat:') ? mode.slice(5) : null;
+}
+
+export function seatPrompt(who: string, id: string): string {
+  return `${who}: tap the city (or settlement, paying for the city too) that becomes your ${nameOf(id).name}.`;
+}
+
+/** City seats on the board, in the owner's colour above the city. */
+export function seatMarkers(state: GameState): {
+  key: string;
+  at: string;
+  icon: string;
+  owner: number | null;
+  title: string;
+  slot: -1 | 0 | 1;
+}[] {
+  const seats = state.data['cities-knights']?.seats as
+    Record<string, Record<number, string>> | undefined;
+  return Object.entries(seats ?? {}).flatMap(([id, bySeat]) =>
+    Object.entries(bySeat).map(([seat, at]) => ({
+      key: `${id}-${seat}`,
+      at,
+      icon: seatIcon(id),
+      owner: Number(seat),
+      slot: -1 as const,
+      title: `${nameOf(id).name} of ${state.players[Number(seat)]?.name ?? `Player ${Number(seat) + 1}`}`,
+    })),
+  );
+}
 
 export const TRACK_LABEL: Record<Track, string> = {
   science: 'Science',
@@ -216,6 +253,13 @@ export function CkPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
           {d.metropolis[t]?.seat === seat && <span title="Metropolis">🏛️</span>}
         </span>
       ))}
+      {citySeats(ctx).map((def) =>
+        seatOf(ctx, def.id, seat) !== null ? (
+          <span key={def.id} title={`${def.name} (1 point)`}>
+            {seatIcon(def.id)}
+          </span>
+        ) : null,
+      )}
       <span title="Active knight strength">🛡️ {strength(ctx, seat)}</span>
       <span title="City walls">🧱 {wallsOf(ctx, seat)}</span>
       <span title="Progress cards">📜 {progressHeld(ctx, seat).length}</span>
@@ -274,6 +318,21 @@ export function CkBuild({
         'fightDragon',
       ])}
       {btn('wall', 'City wall', 'buildWall', ctx.cost('wall', actor))}
+      {citySeats(ctx)
+        .filter((def) => seatOf(ctx, def.id, actor) === null)
+        .map((def) => (
+          <button
+            key={def.id}
+            type="button"
+            className={mode === `seat:${def.id}` ? 'on' : ''}
+            aria-pressed={mode === `seat:${def.id}`}
+            disabled={!has('buildCitySeat', (a) => a.seat === def.id)}
+            onClick={() => toggle(`seat:${def.id}`)}
+            title={`One city becomes your ${def.name}: a point, ${nameOf(def.commodity).name} from ${def.resource}, and ${TRACK_LABEL[def.track]}`}
+          >
+            {seatIcon(def.id)} {def.name} <CostLine cost={ctx.cost(def.id, actor)} />
+          </button>
+        ))}
       <div className="improve" role="group" aria-label="City improvements">
         {activeTracks(ctx).map((t) => (
           <button
