@@ -149,7 +149,11 @@ export function NewGame({
   const princesOk = princesMap && !gwp && !church && !witches && !wonders;
   const princes = princesWanted && princesOk;
   // Soldiers & Armies goes on the base game on the usual island maps, for now.
-  const soldiersOk = !gwp && !church && !witches && !wonders && effective.kind !== 'special';
+  // On the usual maps, Seafarers and the Explorers & Pirates scenarios.
+  const soldiersMap =
+    effective.kind !== 'special' ||
+    SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
+  const soldiersOk = !gwp && !church && !witches && !wonders && soldiersMap;
   const soldiers = soldiersWanted && soldiersOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
@@ -580,7 +584,7 @@ export function NewGame({
             <strong>🤴 Princes &amp; Explorers</strong>
             <small>
               {!princesOk
-                ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights and Princes & Explorers (not with the special maps or the other fan expansions yet).'
+                ? 'Fan expansion for the usual maps, Seafarers and Explorers & Pirates, with or without Cities & Knights and Princes & Explorers (not with the other special maps or fan expansions yet).'
                 : `Fan expansion: four princes make buildings worth more, the robber takes points, and explorers swap numbers. Plays to 4 points more than usual.`}
             </small>
           </button>

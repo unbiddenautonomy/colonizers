@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@colonizers/engine": "workspace:*",
-    "@colonizers/module-base": "workspace:*"
+    "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-explorers-pirates": "workspace:*"
   },
   "devDependencies": {
     "@colonizers/maps": "workspace:*",

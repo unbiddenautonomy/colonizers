@@ -34,7 +34,11 @@ export type EpMode =
   | 'lair'
   | 'chase'
   | 'spice'
-  | 'deliver';
+  | 'deliver'
+  // With Soldiers & Armies: armies board and leave ships, and fight the pirate from them.
+  | 'board'
+  | 'land'
+  | 'pirateFight';
 
 export const EP_MODES: readonly string[] = [
   'harbor',
@@ -47,6 +51,9 @@ export const EP_MODES: readonly string[] = [
   'chase',
   'spice',
   'deliver',
+  'board',
+  'land',
+  'pirateFight',
 ];
 
 /** Gold and ships, for one player's row. */
@@ -157,7 +164,15 @@ export function epTargets(
       const loc = at(a.ship);
       if (loc?.kind === 'edge') t.edges.set(loc.id, a);
     }
-    if (mode === 'chase' && a.type === 'chasePirate') {
+    if (mode === 'board' && a.type === 'boardShip') {
+      const loc = at(a.army);
+      if (loc?.kind === 'corner') t.corners.set(loc.id, a);
+    }
+    if (mode === 'land' && a.type === 'landArmy') t.corners.set(a.corner as CornerId, a);
+    if (
+      (mode === 'chase' && a.type === 'chasePirate') ||
+      (mode === 'pirateFight' && a.type === 'attackPirate')
+    ) {
       const loc = at(a.ship);
       if (loc?.kind === 'edge') t.edges.set(loc.id, a);
     }
@@ -186,7 +201,8 @@ export function epPrompt(state: GameState, who: string, mode: string | null): st
   }
   if (state.phase.id === 'moveRobber')
     return `${who}: move the pirate ship to open sea away from the home island. It robs a player with a ship beside it.`;
-  if (state.phase.id !== 'main' && state.phase.id !== 'sail') return null;
+  if (state.phase.id !== 'main' && state.phase.id !== 'sail' && state.phase.id !== 'campaign')
+    return null;
   switch (mode) {
     case 'sail':
       return `${who}: tap a ship, then where it sails. The fog stops it.`;
@@ -210,7 +226,14 @@ export function epPrompt(state: GameState, who: string, mode: string | null): st
       return `${who}: tap your ship beside a spice village to buy a sack for ${SPICE_PRICE} gold.`;
     case 'deliver':
       return `${who}: tap your ship beside your harbor settlement to bring its fish and spice ashore.`;
+    case 'board':
+      return `${who}: tap your army at a harbor settlement to put it aboard your empty ship there.`;
+    case 'land':
+      return `${who}: tap a free corner at either end of your ship to put its army ashore.`;
+    case 'pirateFight':
+      return `${who}: tap your ship with an army aboard beside the pirate ship to fight it.`;
   }
+  if (state.phase.id === 'campaign') return null;
   if (state.phase.id === 'sail')
     return `${who}: sail on, swap cargo or found a settlement, then end your turn.`;
   return null;
@@ -235,7 +258,8 @@ export function EpActions({
 }) {
   const [goldOpen, setGoldOpen] = useState(false);
   const has = (type: string) => legal.some((a) => a.type === type);
-  const sailing = ctx.state.phase.id === 'sail';
+  // With Soldiers & Armies, ships sail while the armies are in the field.
+  const sailing = ctx.state.phase.id === 'sail' || ctx.state.phase.id === 'campaign';
   const lairs = hasPirate(ctx);
   const toggle = (m: EpMode | 'ship') => setMode(mode === m ? null : m);
   const gold = ctx.player(actor).hand[GOLD] ?? 0;
@@ -311,6 +335,9 @@ export function EpActions({
       {modeButton('found', '🏠 Found settlement', 'foundSettlement')}
       {lairs && modeButton('lair', '🏴‍☠️ Land crews', 'landCrew')}
       {lairs && has('chasePirate') && modeButton('chase', '💥 Chase pirate', 'chasePirate')}
+      {has('boardShip') && modeButton('board', '🪖 Board ship', 'boardShip')}
+      {has('landArmy') && modeButton('land', '🪖 Land army', 'landArmy')}
+      {has('attackPirate') && modeButton('pirateFight', '⚔️ Fight pirate', 'attackPirate')}
       {hasSpice(ctx) &&
         modeButton(
           'spice',
@@ -321,7 +348,7 @@ export function EpActions({
         )}
       {(hasFish(ctx) || hasSpice(ctx)) &&
         modeButton('deliver', '📦 Bring goods home', 'deliverGoods')}
-      {sailing && (
+      {ctx.state.phase.id === 'sail' && (
         <button
           type="button"
           className="primary"

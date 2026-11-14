@@ -74,7 +74,15 @@ export const unitCount = (army: Piece) => UNITS.reduce((sum, u) => sum + unitsOf
 
 /** Units of one kind a player has on the board, across all their armies. */
 export function unitsInPlay(ctx: Ctx, seat: number, unit: Unit): number {
-  return ctx.piecesOf(seat, ARMY).reduce((sum, a) => sum + unitsOf(a)[unit], 0);
+  const ashore = ctx.piecesOf(seat, ARMY).reduce((sum, a) => sum + unitsOf(a)[unit], 0);
+  // With Explorers & Pirates, armies aboard ships still count.
+  return ctx
+    .piecesOf(seat, 'ship')
+    .reduce(
+      (sum, s) =>
+        sum + (s.props.army ? unitsOf({ ...s, props: s.props.army as Piece['props'] })[unit] : 0),
+      ashore,
+    );
 }
 
 export function armyAt(ctx: Ctx, corner: CornerId): Piece | undefined {
@@ -127,6 +135,8 @@ export function buildingDie(b: Piece): number {
 /** Armies march along land edges, and across the sea on anyone's ships. */
 export function passable(ctx: Ctx, edge: EdgeId): boolean {
   if (ctx.isLandEdge(edge)) return true;
+  // Explorers & Pirates ships carry armies aboard instead (see ep.ts).
+  if (ctx.state.modules.includes('explorers-pirates')) return false;
   return ctx.piecesAt({ kind: 'edge', id: edge }).some((p) => p.type === 'ship');
 }
 

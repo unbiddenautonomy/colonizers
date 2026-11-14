@@ -244,7 +244,8 @@ function Lobby({
   const princesMap = s.map.kind !== 'special';
   const princesOk = princesMap && !gwp && !church && !witches && !wonders;
   const princes = s.princes && princesOk;
-  const soldiersOk = !gwp && !church && !witches && !wonders && s.map.kind !== 'special';
+  const soldiersOk =
+    !gwp && !church && !witches && !wonders && (!specialPick || specialPick.group === 'explorers');
   const soldiers = s.soldiers && soldiersOk;
   const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church, witches, princes, soldiers);
   const optionList = describeOptions(s.options, players.length, gwp, wonders);

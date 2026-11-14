@@ -285,6 +285,12 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `⚔️ ${n(e.player)} mustered ${e.free ? 'a free ' : ''}${String(e.unit)}.`;
     case 'wallBuilt':
       return `🧱 ${n(e.player)} built a ${e.free ? 'free ' : ''}city wall.`;
+    case 'armyBoarded':
+      return `🪖 ${n(e.player)}'s army went aboard a ship.`;
+    case 'armyLanded':
+      return `🪖 ${n(e.player)}'s army went ashore.`;
+    case 'pirateFought':
+      return `🏴‍☠️ ${n(e.player)} fought the pirate ship (${(e.rolls as number[]).join(' vs ')}) and ${e.won ? 'won' : 'lost'}.`;
     case 'unitSteppedUp':
       return `⚒️ ${n(e.player)} stepped ${String(e.unit)} up to ${String(e.to)}.`;
     case 'unitIntrigue':
