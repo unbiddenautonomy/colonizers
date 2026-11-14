@@ -149,7 +149,8 @@ export function NewGame({
   const princesOk = princesMap && !gwp && !church && !witches && !wonders;
   const princes = princesWanted && princesOk;
   // Soldiers & Armies goes on the base game on the usual island maps, for now.
-  const soldiersOk = !ck && !wonders && !princes && effective.kind !== 'special';
+  const soldiersOk =
+    !gwp && !church && !witches && !wonders && !princes && effective.kind !== 'special';
   const soldiers = soldiersWanted && soldiersOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp = (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) + (princes ? 4 : 0) + (soldiers ? 3 : 0);
@@ -593,7 +594,7 @@ export function NewGame({
             <strong>⚔️ Soldiers &amp; Armies</strong>
             <small>
               {!soldiersOk
-                ? 'Fan expansion for the base game, on the usual maps and Seafarers (not with Cities & Knights, the special maps or the other fan expansions yet).'
+                ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights (not with the special maps or the other fan expansions yet).'
                 : 'Fan expansion: muster armies, march them, and fight for your rivals’ settlements and cities. Plays to 3 points more than usual.'}
             </small>
           </button>
