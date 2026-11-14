@@ -57,5 +57,18 @@ The first to {setting:vpTarget} points wins.`,
 - At most **2 battles a turn**, against different players. A player's **last 2 markers** can't be attacked.
 - A marker in a battle doesn't count toward points until the battle is fought.`,
     },
+    {
+      id: 'kingdoms-ck',
+      module: M,
+      section: 'rules',
+      title: 'With Cities & Knights',
+      summary: 'Knights on the board fight for your kingdoms.',
+      tags: ['cities & knights', 'knights', 'defender of catan', 'commodities'],
+      body: `With Cities & Knights, a player's army in a battle is their **active knights** on the board: 1 for a basic knight, 2 for a strong one, 3 for a mighty one. Add half their **Defender of Catan** cards (rounded up) and half a die (rounded down).
+
+Around a surrounded city, the owner keeps the commodity and the kingdom takes the resource. A turn where your only yield comes from kingdom markers still counts as a yield, so the Aqueduct gives nothing extra.
+
+The game plays to 2 points more than Cities & Knights. Investors & Speculators plays alongside with no changes.`,
+    },
   ],
 };
