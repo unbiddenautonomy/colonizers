@@ -179,6 +179,9 @@ export function soldiersPrompt(
         : `${by} lost to the merchant.`;
     case 'robberToll':
       return mine ? `${who}: the robber won. Hand over a resource.` : `${by} lost to the robber.`;
+    case 'seaBattle':
+      if (mine) return `${who}: fight on at sea, or break off.`;
+      return defending ? `${by} is attacking your ship.` : `${by} is fighting at sea.`;
     case 'freeUnit':
       return mine
         ? `${who}: tap one of your settlements or cities to muster a free infantry.`
@@ -353,6 +356,24 @@ export function SoldiersChoices({
     !out[String(actor)] ? (
       <Capitulate state={state} actor={actor} to={others} act={act} />
     ) : null;
+  if (state.phase.id === 'seaBattle') {
+    const roll = legal.find((a) => a.type === 'seaBattleRoll');
+    const stop = legal.find((a) => a.type === 'seaBattleBreak');
+    return (
+      <>
+        {roll && (
+          <button type="button" className="primary" onClick={() => act(roll)}>
+            🎲 Fight on
+          </button>
+        )}
+        {stop && (
+          <button type="button" onClick={() => act(stop)}>
+            Break off
+          </button>
+        )}
+      </>
+    );
+  }
   if (state.phase.id === 'battle') {
     const roll = legal.find((a) => a.type === 'battleRoll');
     const hold = legal.find((a) => a.type === 'battleRetreat' && a.to === null);

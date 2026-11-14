@@ -289,6 +289,20 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🪖 ${n(e.player)}'s army went aboard a ship.`;
     case 'armyLanded':
       return `🪖 ${n(e.player)}'s army went ashore.`;
+    case 'unitsLanded':
+      return `🏴‍☠️ ${n(e.player)} put an army ashore on a pirate lair (${String(e.points)} points).`;
+    case 'heroPaid':
+      return `${n(e.player)}'s hero paid with a unit.`;
+    case 'unitsHome':
+      return `${n(e.player)}'s units from the lair went home: no ship had room.`;
+    case 'shipAttacked':
+      return `⚔️ ${n(e.player)} attacked ${n(e.defender)}'s ship.`;
+    case 'seaBattleRound':
+      return `🌊 ${n(e.player)} ${e.won ? 'won' : 'lost'} a round at sea (${(e.rolls as number[]).join(' vs ')}).`;
+    case 'cargoTaken':
+      return `${n(e.player)} took ${(e.taken as string[]).join(' and ') || 'nothing'} from ${n(e.from)}'s ship.`;
+    case 'seaBattleBroken':
+      return `${n(e.player)} broke off the sea battle.`;
     case 'pirateFought':
       return `🏴‍☠️ ${n(e.player)} fought the pirate ship (${(e.rolls as number[]).join(' vs ')}) and ${e.won ? 'won' : 'lost'}.`;
     case 'unitSteppedUp':
