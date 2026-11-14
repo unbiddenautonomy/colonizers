@@ -273,6 +273,8 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🤴 ${n(e.player)} moved a prince.`;
     case 'explorersSwapped':
       return `🧭 ${n(e.player)}'s explorers swapped two numbers.`;
+    case 'unitGaveWay':
+      return `⚔️ ${n(e.player)}'s army gave ${e.left ? 'up an infantry' : 'way, a unit down'} to move the robber.`;
     case 'knightGaveWay':
       return e.left
         ? `🛡️ ${n(e.player)}'s knight left the board to move the robber.`

@@ -474,6 +474,9 @@ importers:
       '@colonizers/module-cities-knights':
         specifier: workspace:*
         version: link:../cities-knights
+      '@colonizers/module-princes-explorers':
+        specifier: workspace:*
+        version: link:../princes-explorers
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../seafarers
