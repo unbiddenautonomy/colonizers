@@ -273,6 +273,10 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🤴 ${n(e.player)} moved a prince.`;
     case 'explorersSwapped':
       return `🧭 ${n(e.player)}'s explorers swapped two numbers.`;
+    case 'knightGaveWay':
+      return e.left
+        ? `🛡️ ${n(e.player)}'s knight left the board to move the robber.`
+        : `🛡️ ${n(e.player)}'s knight stepped down to move the robber.`;
     case 'robberBought':
       return `${n(e.player)} paid to move the robber.`;
     case 'wizardPlaced':

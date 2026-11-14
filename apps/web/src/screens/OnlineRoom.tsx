@@ -242,7 +242,8 @@ function Lobby({
   const church = ck && !gwp && s.church && !specialPick;
   const witches = ck && !gwp && s.witches && !specialPick;
   const princesMap = s.map.kind === 'random' || s.map.kind === 'preset' || s.map.kind === 'custom';
-  const princes = !ck && s.princes && princesMap;
+  const princesOk = princesMap && !gwp && !church && !witches && !wonders;
+  const princes = s.princes && princesOk;
   const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church, witches, princes);
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
@@ -492,11 +493,12 @@ function Lobby({
               <input
                 type="checkbox"
                 checked={princes}
-                disabled={ck || !princesMap}
+                disabled={!princesOk}
                 onChange={(e) => setGame({ princes: e.target.checked })}
               />{' '}
-              🤴 Princes &amp; Explorers (fan expansion for the base game on the usual maps, not
-              with Cities &amp; Knights or Seafarers yet; 14 points)
+              🤴 Princes &amp; Explorers (fan expansion for the usual maps, with or without Cities
+              &amp; Knights, not with Seafarers or the other fan expansions yet; 14 points, 17 with
+              Cities &amp; Knights)
             </label>
             <label className="toggle">
               <input

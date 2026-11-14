@@ -144,6 +144,16 @@ describe('Bots', () => {
     expect(princes).toHaveLength(4);
   }, 240_000);
 
+  it('plays Princes & Explorers with Cities & Knights', () => {
+    const r = play(
+      game('pf2', 4, 'ck', { vpTarget: 17 }, ['princes']),
+      [medium, medium, medium, medium],
+      4,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+  }, 240_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');
