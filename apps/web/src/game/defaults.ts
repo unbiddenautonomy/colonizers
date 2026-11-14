@@ -29,11 +29,14 @@ export function vpBonus(
   gwp = false,
   civs = false,
   church = false,
+  witches = false,
 ): number {
   const ckAdjust =
     citiesKnights && specialId ? (TDA_CK_ADJUST[specialId as keyof typeof TDA_CK_ADJUST] ?? 0) : 0;
-  // Greed, Wealth & Power plays to 18 with the usual 10, Civilisations to 20, Church to 15.
-  const expansion = citiesKnights ? (gwp ? (civs ? 10 : 8) : church ? 5 : 3) : 0;
+  // Greed, Wealth & Power plays to 18 with the usual 10, Civilisations to 20, Church or
+  // Witches to 15, both to 17.
+  const fan = church && witches ? 7 : church || witches ? 5 : 3;
+  const expansion = citiesKnights ? (gwp ? (civs ? 10 : 8) : fan) : 0;
   return expansion + (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) + ckAdjust;
 }
 

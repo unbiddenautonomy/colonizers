@@ -122,6 +122,13 @@ import {
   isChurchMode,
   type ChurchMode,
 } from './Church.tsx';
+import {
+  WITCHES_BOARD_PHASES,
+  WitchesChoices,
+  witchesOn,
+  witchesPrompt,
+  WitchesStats,
+} from './Witches.tsx';
 
 type Mode =
   | null
@@ -250,7 +257,8 @@ function targetsFor(
   if (
     CK_BOARD_PHASES.includes(ph) ||
     GWP_BOARD_PHASES.includes(ph) ||
-    GWP_CARD_BOARD_PHASES.includes(ph)
+    GWP_CARD_BOARD_PHASES.includes(ph) ||
+    WITCHES_BOARD_PHASES.includes(ph)
   ) {
     for (const a of legal) {
       if (typeof a.corner === 'string') t.corners.set(a.corner as CornerId, a);
@@ -432,6 +440,7 @@ function prompt(
         wonderPrompt(state, names) ??
         gwpCardPrompt(state, who ?? '', names) ??
         churchPrompt(state, who ?? '', actor) ??
+        witchesPrompt(state, who ?? '', actor) ??
         ''
       );
   }
@@ -509,6 +518,7 @@ export function Game({
   const wonders = wondersOn(state);
   const civs = civsOn(state);
   const church = churchOn(state);
+  const witches = witchesOn(state);
   const cardKinds = handCards(state.modules);
   const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
@@ -789,6 +799,7 @@ export function Game({
                     <CkPlayerStats ctx={ctx} seat={p.seat} />
                     {gwp && <GwpPlayerStats ctx={ctx} seat={p.seat} />}
                     {church && <ChurchStats ctx={ctx} seat={p.seat} />}
+                    {witches && <WitchesStats ctx={ctx} seat={p.seat} />}
                   </>
                 ) : ep ? (
                   <EpPlayerStats ctx={ctx} seat={p.seat} />
@@ -1378,6 +1389,8 @@ export function Game({
           owed={(state.phase.owed as Record<number, number>)[actor]!}
           cards={cardKinds}
           onDiscard={(cards) => act({ type: 'discard', player: actor, cards })}
+          plays={legal.filter((a) => a.type === 'playProgress')}
+          onPlay={act}
         />
       )}
 
@@ -1422,6 +1435,9 @@ export function Game({
       )}
       {church && actor !== null && (
         <ChurchChoices state={state} legal={legal} act={act} names={promptNames} />
+      )}
+      {witches && actor !== null && (
+        <WitchesChoices state={state} legal={legal} act={act} names={promptNames} />
       )}
 
       {state.phase.id === 'steal' && legal.some((a) => a.type === 'steal') && (
@@ -1602,12 +1618,17 @@ function DiscardDialog({
   owed,
   cards,
   onDiscard,
+  plays = [],
+  onPlay,
 }: {
   name: string;
   hand: Record<string, number>;
   owed: number;
   cards: readonly string[];
   onDiscard: (c: Record<string, number>) => void;
+  /** Progress cards for this moment (Small Dragon). */
+  plays?: Action[];
+  onPlay?: (a: Action) => void;
 }) {
   const [pick, setPick] = useState<Record<string, number>>({});
   return (
@@ -1628,6 +1649,16 @@ function DiscardDialog({
       >
         Discard {total(pick)}/{owed}
       </button>
+      {plays.length > 0 && onPlay && (
+        <div className="row wrap">
+          <small>Or play:</small>
+          {plays.map((a, i) => (
+            <button key={i} type="button" onClick={() => onPlay(a)}>
+              {nameOf(a.card as string).icon} {nameOf(a.card as string).name}
+            </button>
+          ))}
+        </div>
+      )}
     </Modal>
   );
 }

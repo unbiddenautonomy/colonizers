@@ -113,6 +113,7 @@ export function moduleList(
   worldWonders = false,
   civilisations = false,
   church = false,
+  witches = false,
 ): string[] {
   const order = [
     'base',
@@ -123,6 +124,8 @@ export function moduleList(
     'variants',
     'cities-knights',
     // After Cities & Knights (and Seafarers), so their production changes come last.
+    // Witches first, so the Wizard's guard against the robber doesn't lift a festival.
+    'witches',
     'church',
     'greed-wealth-power',
     // After those, so its roll wrapper comes outermost.
@@ -140,6 +143,8 @@ export function moduleList(
     ...(citiesKnights && greedWealthPower ? ['greed-wealth-power'] : []),
     // Church, Faith & Reformation on its own; Greed, Wealth & Power has its own Religion.
     ...(citiesKnights && church && !greedWealthPower ? ['church'] : []),
+    // Witches, Wizards & Dragons likewise; Greed, Wealth & Power has its own Magic.
+    ...(citiesKnights && witches && !greedWealthPower ? ['witches'] : []),
     ...(worldWonders ? ['world-wonders'] : []),
     ...(citiesKnights && greedWealthPower && civilisations ? ['civilisations'] : []),
   ]);
@@ -171,6 +176,8 @@ export interface RoomSettings {
   civilisations: boolean;
   /** Add Church, Faith & Reformation on top of Cities & Knights (not with Greed, Wealth & Power). */
   church: boolean;
+  /** Add Witches, Wizards & Dragons on top of Cities & Knights (not with Greed, Wealth & Power). */
+  witches: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -189,6 +196,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   worldWonders: false,
   civilisations: false,
   church: false,
+  witches: false,
   turnTimer: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
@@ -323,6 +331,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     worldWonders: s.worldWonders === true,
     civilisations: s.civilisations === true,
     church: s.church === true,
+    witches: s.witches === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),

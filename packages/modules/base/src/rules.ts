@@ -178,7 +178,7 @@ export function stealCandidates(ctx: Ctx, hex: HexId, thief: number): number[] {
   for (const c of ctx.geometry.hexCorners.get(hex) ?? []) {
     const b = ctx.buildingAt(c);
     if (b && b.owner !== null && b.owner !== thief && ctx.handSize(b.owner, false) > 0)
-      seats.add(b.owner);
+      if (ctx.reduce('robbable', b, hex, true)) seats.add(b.owner);
   }
   return [...seats].sort((a, b) => a - b);
 }

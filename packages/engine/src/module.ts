@@ -1,4 +1,5 @@
 import type { Ctx } from './context.ts';
+import type { HexId } from './hex.ts';
 import type { Action, Cards, HexState, Location, Piece } from './types.ts';
 
 export interface HexTypeDef {
@@ -116,6 +117,8 @@ export interface Reducers {
   barbarianLosses(ctx: Ctx, defended: boolean, value: number[]): number[];
   /** May this player receive progress cards from this deck? (Church: Religion needs a Diocese.) */
   takesProgress(ctx: Ctx, player: number, deck: string, value: boolean): boolean;
+  /** Can the robber's owner-to-be steal through this building on this hex? (Witches' Wizard says no.) */
+  robbable(ctx: Ctx, building: Piece, hex: HexId, value: boolean): boolean;
 }
 
 export interface DiceResult {

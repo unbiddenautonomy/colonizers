@@ -25,6 +25,7 @@ import { CardPicker, clean, CostLine, handCards, ResourceCard, total } from '../
 import { Modal } from '../ui/Modal.tsx';
 import { gwpOptionLabel } from './GreedWealthPower.tsx';
 import { AnathemaDialog, churchOptionLabel } from './Church.tsx';
+import { witchesOptionLabel } from './Witches.tsx';
 
 export type CkMode = 'knight' | 'activate' | 'promote' | 'knightAct' | 'wall' | `seat:${string}`;
 
@@ -113,6 +114,21 @@ export function ckPrompt(state: GameState, who: string, actor: number | null): s
       return owed
         ? `${who}: joker! Pick the gate it opens.`
         : 'Joker: waiting for the roller to pick a gate.';
+    case 'beforeAttack':
+      return owed
+        ? `${who}: the barbarians are landing. Play a card for this moment, or let them come.`
+        : 'The barbarians are landing. Waiting for players with a card for this moment.';
+    case 'veto': {
+      const play = state.phase.play as { card: string; player: number } | undefined;
+      const card = play ? nameOf(play.card).name : 'a card';
+      return owed
+        ? `${who}: ${state.players[play?.player ?? -1]?.name ?? 'A player'} aims ${card} at you. Turn it away with your Magic Veto?`
+        : `${card} is aimed at a player holding a Magic Veto. Waiting for their answer.`;
+    }
+    case 'keepOne':
+      return state.phase.by === actor
+        ? `${who}: keep one of the cards you took. The rest go back under their decks.`
+        : 'Waiting for a card to be kept.';
     case 'treasureProgress':
       return owed
         ? `${who}: your treasure is a progress card. Pick a deck to draw from.`
@@ -184,6 +200,8 @@ export function ckPrompt(state: GameState, who: string, actor: number | null): s
 export function optionLabel(a: Action, names: string[], state?: GameState): string {
   const church = churchOptionLabel(a, names, state);
   if (church !== null) return church;
+  const witches = witchesOptionLabel(a, names);
+  if (witches !== null) return witches;
   const gwp = gwpOptionLabel(a, names, state);
   if (gwp !== null) return gwp;
   const n = (s: unknown) => (typeof s === 'number' ? (names[s] ?? `Player ${s + 1}`) : '');
@@ -210,6 +228,14 @@ export function optionLabel(a: Action, names: string[], state?: GameState): stri
       return card(a.card);
     case 'ckDone':
       return 'Done';
+    case 'keepOne': {
+      const pool = (state?.phase.pool as { card: string }[] | undefined) ?? [];
+      return card(pool[a.index as number]?.card);
+    }
+    case 'answerVeto':
+      return a.use ? `${card('magicVeto')}: turn it away` : 'Let it happen';
+    case 'passAttack':
+      return 'Let them come';
     default:
       return a.type;
   }
@@ -509,6 +535,26 @@ export function CkChoices({
     );
   };
   switch (ph) {
+    case 'beforeAttack':
+      return list(
+        ['playProgress', 'passAttack'],
+        'The barbarians are landing',
+        'You hold a card for this moment. Play it now, or let the attack come.',
+      );
+    case 'veto': {
+      const play = state.phase.play as { card: string; player: number } | undefined;
+      return list(
+        ['answerVeto'],
+        nameOf('magicVeto').name,
+        `${names[play?.player ?? -1] ?? 'A player'} plays ${play ? nameOf(play.card).name : 'a card'} against you. Use your Magic Veto to turn it away?`,
+      );
+    }
+    case 'keepOne':
+      return list(
+        ['keepOne'],
+        'Keep one card',
+        'Keep one of the cards you took. The others go back under their decks.',
+      );
     case 'defenderPick':
       return list(
         ['pickDefenderCard'],

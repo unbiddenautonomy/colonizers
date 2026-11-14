@@ -10,6 +10,7 @@ import { greedWealthPowerRules } from './greedWealthPower.ts';
 import { worldWondersRules } from './worldWonders.ts';
 import { civilisationsRules } from './civilisations.ts';
 import { churchRules } from './church.ts';
+import { witchesRules } from './witches.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -25,6 +26,7 @@ export const RULEBOOKS: RulebookModule[] = [
   explorersPiratesRules,
   greedWealthPowerRules,
   churchRules,
+  witchesRules,
   worldWondersRules,
   civilisationsRules,
   variantsRules,
@@ -83,6 +85,8 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/diocese/i, 'church-diocese'],
   [/festival|beer/i, 'church-beer'],
   [/^lent|anathema/i, 'church-cards'],
+  [/citadel|crystal/i, 'witches-citadel'],
+  [/bewitched|wizard/i, 'witches-wizard'],
   [/wonder|^to start the /i, 'wonders'],
   [/citadel|diocese|monument|silo|brick hex|grain hex|gold field/i, 'gwp-buildings'],
   [/beer/i, 'gwp-abilities'],

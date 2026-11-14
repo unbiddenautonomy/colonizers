@@ -1,12 +1,8 @@
-import type { Action, ActionDef, CornerId, Ctx, HexId, Piece } from '@colonizers/engine';
+import type { Action, ActionDef, CornerId, Ctx, HexId } from '@colonizers/engine';
 import {
-  ckData,
-  claimMetropolis,
-  levels,
-  MAX_LEVEL,
-  METROPOLIS_LEVEL,
+  lowerTrack,
   progressOverLimit,
-  winsMetropolis,
+  raiseTrack,
   type Track,
 } from '@colonizers/module-cities-knights';
 import { CIV_BY_ID, type Civ, type CivClass } from './civs.ts';
@@ -203,33 +199,8 @@ export function markUse(ctx: Ctx, seat: number, key: string): void {
   civData(ctx).used[`${seat}:${key}:count`] = usedCount(ctx, seat, key) + 1;
 }
 
-/** Raises a track a level for free, claiming the metropolis if it is now won. */
-export function raiseTrack(ctx: Ctx, seat: number, track: Track): boolean {
-  const lv = levels(ctx, seat);
-  if (lv[track] >= MAX_LEVEL) return false;
-  lv[track] += 1;
-  ctx.emit({ type: 'improved', player: seat, track, level: lv[track], free: true });
-  if (winsMetropolis(ctx, seat, track, lv[track]))
-    claimMetropolis(ctx, seat, track, ctx.state.phase);
-  return true;
-}
-
-/** Drops a track a level; below level 4 its metropolis is lost. */
-export function lowerTrack(ctx: Ctx, seat: number, track: Track): boolean {
-  const lv = levels(ctx, seat);
-  if (lv[track] <= 0) return false;
-  lv[track] -= 1;
-  ctx.emit({ type: 'trackLowered', player: seat, track, level: lv[track] });
-  const d = ckData(ctx);
-  const m = d.metropolis[track];
-  if (m && m.seat === seat && lv[track] < METROPOLIS_LEVEL) {
-    const city = ctx.buildingAt(m.corner) as Piece | undefined;
-    if (city) delete city.props.metropolis;
-    delete d.metropolis[track];
-    ctx.emit({ type: 'metropolisLost', player: seat, track });
-  }
-  return true;
-}
+// Shared with Witches, Wizards & Dragons' Great Dragon, so they live in Cities & Knights.
+export { lowerTrack, raiseTrack };
 
 export type A<T> = Action & T;
 export function action<T>(def: ActionDef<A<T>>): ActionDef {

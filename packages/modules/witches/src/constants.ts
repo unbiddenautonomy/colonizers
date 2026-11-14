@@ -18,3 +18,12 @@ export const EXCLUSIVE_LEVEL = ['science', 'magic'] as const;
 
 /** The Magic Kitchen (Magic level 3): brick for any other resource, 1:1, on your turn. */
 export const KITCHEN_GIVES = 'brick';
+
+/** Cities & Knights' three tracks and Magic (Religion too, with Church, Faith & Reformation). */
+export const MAGIC_TRACKS = ['science', 'trade', 'politics', 'magic'] as const;
+
+/** The Wizard: a neutral figure guarding one settlement or city from the robber. */
+export const WIZARD = 'wizard';
+
+/** Small Dragon: cards more than usual you may keep when a 7 is rolled. */
+export const SMALL_DRAGON_EXTRA = 4;

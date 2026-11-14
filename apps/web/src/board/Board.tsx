@@ -28,6 +28,7 @@ import {
 } from '../screens/GreedWealthPower.tsx';
 import { churchMarkers } from '../screens/Church.tsx';
 import { seatMarkers } from '../screens/CitiesKnights.tsx';
+import { witchesMarkers } from '../screens/Witches.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
@@ -1108,7 +1109,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         );
       })}
 
-      {[...seatMarkers(state), ...churchMarkers(state)].map((m) => {
+      {[...seatMarkers(state), ...churchMarkers(state), ...witchesMarkers(state)].map((m) => {
         const edge = m.at.startsWith('e:');
         if (edge && !g.edgeCorners.has(m.at as EdgeId)) return null;
         const [a, b] = edge ? edgeEnds(m.at as EdgeId, g) : [null, null];
@@ -1205,7 +1206,14 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         })}
 
       {pieces
-        .filter((p) => p.at.kind === 'corner' && p.type !== 'treasure' && p.type !== 'dragon')
+        .filter(
+          (p) =>
+            p.at.kind === 'corner' &&
+            p.type !== 'treasure' &&
+            p.type !== 'dragon' &&
+            // The Wizard shows as a marker beside its building.
+            p.type !== 'wizard',
+        )
         .map((p) => {
           const corner = (p.at as { id: CornerId }).id;
           const c = cornerToPixel(corner, S);

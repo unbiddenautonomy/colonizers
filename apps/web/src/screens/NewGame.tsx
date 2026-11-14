@@ -92,6 +92,7 @@ export function NewGame({
   const [wondersWanted, setWonders] = useState(false);
   const [civsWanted, setCivs] = useState(false);
   const [churchWanted, setChurch] = useState(false);
+  const [witchesWanted, setWitches] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -138,13 +139,24 @@ export function NewGame({
   const civs = gwp && civsWanted;
   // Church, Faith & Reformation goes on top of Cities & Knights in place of Greed, Wealth & Power.
   const church = ck && churchWanted && !gwp && !specialId;
-  const extraVp = civs ? 10 : gwp ? 8 : church ? 5 : ck ? 3 : 0;
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}`;
+  // Witches, Wizards & Dragons likewise, alone or with Church.
+  const witches = ck && witchesWanted && !gwp && !specialId;
+  const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
+  const extraVp = civs ? 10 : gwp ? 8 : ck ? fanVp : 0;
+  const fanName =
+    church && witches
+      ? 'Church and Witches'
+      : church
+        ? 'Church, Faith & Reformation'
+        : witches
+          ? 'Witches, Wizards & Dragons'
+          : 'Cities & Knights';
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
-  const bonus = vpBonus(ck, specialId, gwp, civs, church);
+  const bonus = vpBonus(ck, specialId, gwp, civs, church, witches);
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
@@ -184,7 +196,7 @@ export function NewGame({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
           players,
-          modules: moduleList(extraModules, ck, gwp, wonders, civs, church),
+          modules: moduleList(extraModules, ck, gwp, wonders, civs, church, witches),
           map,
           settings: { ...opts, ...own },
           fixedSeats: true,
@@ -518,6 +530,22 @@ export function NewGame({
           </button>
           <button
             type="button"
+            className={`expansion ${witches ? 'on' : ''}`}
+            aria-pressed={witches}
+            disabled={!ck || gwp || !!specialId}
+            onClick={() => setWitches(!witches)}
+          >
+            <strong>🧙 Witches, Wizards &amp; Dragons</strong>
+            <small>
+              {gwp
+                ? 'Greed, Wealth & Power has its own Magic track, so this one is off with it.'
+                : ck && !specialId
+                  ? 'Fan expansion for Cities & Knights: a Magic track, Citadels, Crystal, the Wizard and dragons. 15 points (17 with Church).'
+                  : 'Fan expansion that goes on top of Cities & Knights, on the usual maps or Seafarers.'}
+            </small>
+          </button>
+          <button
+            type="button"
             className={`expansion ${wonders ? 'on' : ''}`}
             aria-pressed={wonders}
             disabled={!!specialId}
@@ -597,14 +625,7 @@ export function NewGame({
           <p>
             First to <strong>{Number(sea.settings.vpTarget) + extraVp}</strong> points, set by the
             scenario
-            {gwp
-              ? ' (+8 for Greed, Wealth & Power)'
-              : church
-                ? ' (+5 for Church, Faith & Reformation)'
-                : ck
-                  ? ' (+3 for Cities & Knights)'
-                  : ''}
-            .
+            {gwp ? ' (+8 for Greed, Wealth & Power)' : ck ? ` (+${extraVp} for ${fanName})` : ''}.
           </p>
         ) : (
           <label>
@@ -625,7 +646,7 @@ export function NewGame({
                 {' '}
                 {[
                   ck &&
-                    `+${extraVp} for ${civs ? 'Civilisations' : gwp ? 'Greed, Wealth & Power' : church ? 'Church, Faith & Reformation' : 'Cities & Knights'}`,
+                    `+${extraVp} for ${civs ? 'Civilisations' : gwp ? 'Greed, Wealth & Power' : fanName}`,
                   bonus - extraVp > 0 && `+${bonus - extraVp} for the scenario`,
                   bonus - extraVp < 0 && `${bonus - extraVp} for the scenario`,
                 ]

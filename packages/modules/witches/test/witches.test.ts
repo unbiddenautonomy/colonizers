@@ -2,16 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { Ctx, ModuleLibrary, type Action, type CornerId, type GameState } from '@colonizers/engine';
 import { baseModule } from '@colonizers/module-base';
 import { seafarersModule } from '@colonizers/module-seafarers';
+import { canPlaceSettlement, stealCandidates } from '@colonizers/module-base';
 import {
   activeTracks,
+  barbarianTrack,
   citiesKnightsModule,
   citiesOf,
+  ckData,
   eventFaces,
+  giveProgress,
+  holdsProgress,
+  isActive,
+  knightsOf,
   levels,
+  type Track,
 } from '@colonizers/module-cities-knights';
 import { churchModule } from '@colonizers/module-church';
 import { generateBoard } from '@colonizers/maps';
-import { witchesModule } from '../src/index.ts';
+import { witchesModule, wizardOwner } from '../src/index.ts';
 
 const lib = new ModuleLibrary([
   baseModule,
@@ -86,7 +94,7 @@ describe('Witches, Wizards & Dragons', () => {
     const alone = ctxOf(game());
     expect(activeTracks(alone)).toEqual(['science', 'trade', 'politics', 'magic']);
     expect(eventFaces(alone)).toHaveLength(10);
-    const both = ctxOf(game('both', ['base', 'cities-knights', 'church', 'witches']));
+    const both = ctxOf(game('both', ['base', 'cities-knights', 'witches', 'church']));
     expect(activeTracks(both)).toEqual(['science', 'trade', 'politics', 'magic', 'religion']);
     const faces = eventFaces(both);
     expect(faces).toHaveLength(12);
@@ -126,7 +134,7 @@ describe('Witches, Wizards & Dragons', () => {
   });
 
   it('a city is a Diocese or a Citadel, not both', () => {
-    let s = give(start(['base', 'cities-knights', 'church', 'witches']), 0, {
+    let s = give(start(['base', 'cities-knights', 'witches', 'church']), 0, {
       ore: 1,
       brick: 3,
       grain: 1,
@@ -160,10 +168,270 @@ describe('Witches, Wizards & Dragons', () => {
   });
 });
 
+const hold = (s: GameState, seat: number, card: string, deck: Track = 'magic') =>
+  edit(s, (ctx) => giveProgress(ctx, seat, deck, card));
+
+const play = (s: GameState, seat: number, card: string, extra: Partial<Action> = {}) =>
+  act(s, { type: 'playProgress', player: seat, card, ...extra });
+
+const knight = (s: GameState, seat: number, active = true) =>
+  edit(s, (ctx) => {
+    const corner = ctx.geometry.corners.find(
+      (c) => ctx.piecesAt({ kind: 'corner', id: c }).length === 0,
+    )!;
+    ctx.place('knight1', seat, { kind: 'corner', id: corner }, { active });
+  });
+
+describe('the Magic cards', () => {
+  it('Lightning turns a field into desert and leaves its number', () => {
+    let s = play(hold(start(), 0, 'lightning'), 0, 'lightning');
+    expect(s.phase.id).toBe('magicPick');
+    const pick = legal(s, 0, 'magicPick')[0]!;
+    const token = s.hexes[pick.hex as keyof typeof s.hexes]!.token;
+    s = act(s, pick);
+    const hex = s.hexes[pick.hex as keyof typeof s.hexes]!;
+    expect(hex.type).toBe('desert');
+    expect(hex.token).toBe(token);
+    expect(s.phase.id).toBe('main');
+  });
+
+  it('Star Favor swaps any two numbers, 6 and 8 too', () => {
+    let s = play(hold(start(), 0, 'starFavor'), 0, 'starFavor');
+    const hexes = Object.values(s.hexes).filter((h) => h.token === 6 || h.token === 8);
+    const [x, y] = [hexes[0]!, hexes.find((h) => h.token !== hexes[0]!.token) ?? hexes[1]!];
+    const [tx, ty] = [x.token, y.token];
+    s = act(s, { type: 'magicPick', player: 0, hex: x.id });
+    s = act(s, { type: 'magicPick', player: 0, hex: y.id });
+    expect([s.hexes[x.id]!.token, s.hexes[y.id]!.token]).toEqual([ty, tx]);
+  });
+
+  it('Enchanted Land swaps two fields with their numbers', () => {
+    let s = play(hold(start(), 0, 'enchantedLand'), 0, 'enchantedLand');
+    const land = Object.values(s.hexes).filter((h) => h.type !== 'desert' && h.token);
+    const x = land[0]!;
+    const y = land.find((h) => h.type !== x.type)!;
+    const before = [x.type, x.token, y.type, y.token];
+    s = act(s, { type: 'magicPick', player: 0, hex: x.id });
+    s = act(s, { type: 'magicPick', player: 0, hex: y.id });
+    const [a, b] = [s.hexes[x.id]!, s.hexes[y.id]!];
+    expect([b.type, b.token, a.type, a.token]).toEqual(before);
+  });
+
+  it('the Wizard guards a building from the robber and is worth a point', () => {
+    let s = hold(start(), 0, 'wizard');
+    const vp = ctxOf(s).vp(0);
+    const corner = cityOf(s, 0);
+    s = play(s, 0, 'wizard');
+    s = act(s, { type: 'magicPick', player: 0, corner });
+    let ctx = ctxOf(s);
+    expect(wizardOwner(ctx)).toBe(0);
+    expect(ctx.vp(0)).toBe(vp + 1);
+    // Robber beside the Wizard's city: it still produces, and no card is taken through it.
+    const hex = ctx.geometry.cornerHexes.get(corner)!.find((h) => ctx.state.hexes[h]?.token)!;
+    s = give(
+      edit(s, (c) => c.move(c.piecesOfType('robber')[0]!, { kind: 'hex', id: hex })),
+      0,
+      { wool: 1 },
+    );
+    ctx = ctxOf(s);
+    const city = ctx.buildingAt(corner)!;
+    expect(ctx.reduce('hexBlocked', ctx.state.hexes[hex]!, city, true)).toBe(false);
+    const others = ctx.geometry.cornerHexes.get(corner)!;
+    const alone = !ctx
+      .piecesOf(0)
+      .some(
+        (p) =>
+          p.at.kind === 'corner' &&
+          p.at.id !== corner &&
+          ctx.registry.pieceTypes[p.type]?.building &&
+          (ctx.geometry.cornerHexes.get(p.at.id) ?? []).includes(hex),
+      );
+    if (alone) expect(stealCandidates(ctx, hex, 1)).not.toContain(0);
+    expect(others.length).toBeGreaterThan(0);
+  });
+
+  it('the Inquisitor drives the Wizard off', () => {
+    const modules = ['base', 'cities-knights', 'witches', 'church'];
+    let s = hold(start(modules), 0, 'wizard');
+    const corner = cityOf(s, 0);
+    s = act(play(s, 0, 'wizard'), { type: 'magicPick', player: 0, corner });
+    s = hold(main(s, 1), 1, 'inquisitor', 'religion');
+    s = play(s, 1, 'inquisitor', { option: corner });
+    expect(wizardOwner(ctxOf(s))).toBeNull();
+  });
+
+  it("Witch's Spell puts a player's knights down for three turns", () => {
+    let s = knight(hold(start(), 0, 'witchSpell'), 1);
+    s = play(s, 0, 'witchSpell', { target: 1 });
+    const k = knightsOf(ctxOf(s), 1)[0]!;
+    expect(isActive(k)).toBe(false);
+    s = give(main(s, 1), 1, { grain: 1 });
+    expect(() => act(s, { type: 'activateKnight', player: 1, knight: k.id })).toThrow(/bewitched/);
+    s = edit(s, (ctx) => (ctx.state.turn.number += 3));
+    s = act(s, { type: 'activateKnight', player: 1, knight: k.id });
+    expect(isActive(ctxOf(s).state.pieces[k.id]!)).toBe(true);
+  });
+
+  it('Magic Veto turns away a card aimed at you', () => {
+    let s = knight(hold(hold(start(), 0, 'witchSpell'), 1, 'magicVeto'), 1);
+    s = play(s, 0, 'witchSpell', { target: 1 });
+    expect(s.phase.id).toBe('veto');
+    expect(lib.waitingOn(s)).toEqual([1]);
+    s = act(s, { type: 'answerVeto', player: 1, use: true });
+    expect(s.phase.id).toBe('main');
+    expect(isActive(knightsOf(ctxOf(s), 1)[0]!)).toBe(true);
+    expect(holdsProgress(ctxOf(s), 1, 'magicVeto')).toBe(false);
+  });
+
+  it('letting the card through works it out', () => {
+    let s = knight(hold(hold(start(), 0, 'witchSpell'), 1, 'magicVeto'), 1);
+    s = play(s, 0, 'witchSpell', { target: 1 });
+    s = act(s, { type: 'answerVeto', player: 1, use: false });
+    expect(isActive(knightsOf(ctxOf(s), 1)[0]!)).toBe(false);
+    expect(holdsProgress(ctxOf(s), 1, 'magicVeto')).toBe(true);
+  });
+
+  it("Magic Power is played when the ship lands, on anyone's turn", () => {
+    let s = knight(hold(start(), 1, 'magicPower'), 1);
+    s = edit(s, (ctx) => {
+      const d = ckData(ctx);
+      d.barbarian = barbarianTrack(ctx) - 1;
+      d.forcedEvent = 'ship';
+      ctx.setPhase({ id: 'roll' });
+    });
+    s = act(s, { type: 'roll', player: 0 });
+    expect(s.phase.id).toBe('beforeAttack');
+    expect(lib.waitingOn(s)).toEqual([1]);
+    const r = lib.apply(s, { type: 'playProgress', player: 1, card: 'magicPower' });
+    const attack = r.events.find((e) => e.type === 'barbarianAttack')!;
+    expect((attack.strengths as number[])[1]).toBe(2);
+    expect(r.state.phase.id).not.toBe('beforeAttack');
+  });
+
+  it('passing lets the attack come', () => {
+    let s = hold(start(), 1, 'magicPower');
+    s = edit(s, (ctx) => {
+      ckData(ctx).barbarian = barbarianTrack(ctx) - 1;
+      ckData(ctx).forcedEvent = 'ship';
+      ctx.setPhase({ id: 'roll' });
+    });
+    s = act(s, { type: 'roll', player: 0 });
+    const r = lib.apply(s, { type: 'passAttack', player: 1 });
+    expect(r.events.some((e) => e.type === 'barbarianAttack')).toBe(true);
+    expect(holdsProgress(ctxOf(r.state), 1, 'magicPower')).toBe(true);
+  });
+
+  it('Small Dragon keeps four more cards on a 7', () => {
+    let s = give(hold(start(), 1, 'smallDragon'), 1, { wool: 5, ore: 5 });
+    s = edit(s, (ctx) => {
+      ckData(ctx).alchemist = { red: 3, yellow: 4 };
+      ctx.setPhase({ id: 'roll' });
+    });
+    s = act(s, { type: 'roll', player: 0 });
+    expect(s.phase.id).toBe('discard');
+    expect((s.phase.owed as Record<number, number>)[1]).toBeGreaterThan(0);
+    s = play(s, 1, 'smallDragon');
+    expect((s.phase.owed as Record<number, number> | undefined)?.[1]).toBeUndefined();
+  });
+
+  it('the Great Dragon takes a rival improvement', () => {
+    let s = edit(hold(start(), 0, 'greatDragon'), (ctx) => {
+      levels(ctx, 0).politics = 1;
+      levels(ctx, 1).politics = 2;
+    });
+    expect(
+      legal(s, 0, 'playProgress').some((a) => a.card === 'greatDragon' && a.option === 'trade'),
+    ).toBe(false);
+    s = play(s, 0, 'greatDragon', { target: 1, option: 'politics' });
+    const ctx = ctxOf(s);
+    expect([levels(ctx, 0).politics, levels(ctx, 1).politics]).toEqual([2, 1]);
+  });
+
+  it('Magic Formula: everyone hands over a card, you keep one', () => {
+    let s = hold(
+      hold(hold(start(), 0, 'magicFormula'), 1, 'crane', 'science'),
+      2,
+      'smith',
+      'politics',
+    );
+    s = play(s, 0, 'magicFormula');
+    expect(s.phase.id).toBe('magicFormula');
+    s = act(s, { type: 'formulaGive', player: 1, card: 'crane', deck: 'science' });
+    s = act(s, { type: 'formulaGive', player: 2, card: 'smith', deck: 'politics' });
+    expect(s.phase.id).toBe('keepOne');
+    s = act(s, { type: 'keepOne', player: 0, index: 1 });
+    const ctx = ctxOf(s);
+    expect(holdsProgress(ctx, 0, 'smith')).toBe(true);
+    expect(holdsProgress(ctx, 0, 'crane')).toBe(false);
+    expect(holdsProgress(ctx, 1, 'crane')).toBe(false);
+  });
+
+  it('Magic Current can bring the ship in at once', () => {
+    let s = hold(start(), 0, 'magicCurrent');
+    s = edit(s, (ctx) => (ckData(ctx).barbarian = barbarianTrack(ctx) - 1));
+    const r = lib.apply(s, {
+      type: 'playProgress',
+      player: 0,
+      card: 'magicCurrent',
+      option: 'forward',
+    });
+    expect(r.events.some((e) => e.type === 'barbarianAttack')).toBe(true);
+    expect(ckData(ctxOf(r.state)).barbarian).toBe(0);
+    expect(['main', 'loseCity']).toContain(r.state.phase.id);
+  });
+
+  it('Unicorn Dance sets the event die before the roll', () => {
+    let s = edit(hold(start(), 0, 'unicornDance'), (ctx) => ctx.setPhase({ id: 'roll' }));
+    s = play(s, 0, 'unicornDance', { option: 'politics' });
+    const r = lib.apply(s, { type: 'roll', player: 0 });
+    expect(r.events.find((e) => e.type === 'eventDie')?.face).toBe('politics');
+  });
+
+  it('Magic Move carries a settlement to a new spot on your roads', () => {
+    // A road out to an open spot.
+    let s = edit(hold(start(), 0, 'magicMove'), (ctx) => {
+      const spot = ctx.geometry.corners.find(
+        (c) => ctx.isLandCorner(c) && canPlaceSettlement(ctx, 0, c, false) === null,
+      )!;
+      const edge = ctx.geometry.cornerEdges.get(spot)!.find((e) => ctx.isLandEdge(e))!;
+      ctx.place('road', 0, { kind: 'edge', id: edge });
+    });
+    s = play(s, 0, 'magicMove');
+    const from = legal(s, 0, 'magicPick')[0]!.corner as CornerId;
+    const type = ctxOf(s).buildingAt(from)!.type;
+    s = act(s, { type: 'magicPick', player: 0, corner: from });
+    const to = legal(s, 0, 'magicPick')[0]!.corner as CornerId;
+    s = act(s, { type: 'magicPick', player: 0, corner: to });
+    const ctx = ctxOf(s);
+    expect(ctx.buildingAt(from)).toBeUndefined();
+    expect(ctx.buildingAt(to)?.type).toBe(type);
+  });
+
+  it('White Magic is a point the moment it is drawn', () => {
+    const s = start();
+    const vp = ctxOf(s).vp(0);
+    expect(ctxOf(hold(s, 0, 'whiteMagic')).vp(0)).toBe(vp + 1);
+  });
+
+  it('Nature Spell takes three resources', () => {
+    let s = hold(start(), 0, 'natureSpell');
+    const before = ctxOf(s).player(0).hand.ore ?? 0;
+    s = play(s, 0, 'natureSpell', { cards: { ore: 3 } });
+    expect(ctxOf(s).player(0).hand.ore).toBe(before + 3);
+  });
+
+  it('Magic Fortune knocks two cards off a settlement', () => {
+    const s = play(hold(start(), 0, 'magicFortune'), 0, 'magicFortune', {
+      cards: { brick: 1, lumber: 1 },
+    });
+    expect(ctxOf(s).cost('settlement', 0)).toEqual({ wool: 1, grain: 1 });
+  });
+});
+
 describe('Witches, Wizards & Dragons, played at random', () => {
   for (const [seed, modules] of [
     ['hzd-a', ['base', 'cities-knights', 'witches']],
-    ['hzd-b', ['base', 'cities-knights', 'church', 'witches']],
+    ['hzd-b', ['base', 'cities-knights', 'witches', 'church']],
   ] as const)
     it(`never gets stuck (${seed})`, () => {
       let s = finishSetup(game(seed, [...modules]));
