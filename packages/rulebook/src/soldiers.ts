@@ -148,9 +148,11 @@ Players who are out sit their turns out. The game ends when someone reaches {set
 
 - Everyone starts with a **harbor settlement and a city** (the city stands where the second settlement would).
 - After building, ships sail and armies march in the same stretch of the turn: setting sail takes the field.
-- Armies don't march along these ships. To reach another island, move an army onto your harbor settlement's corner and put it **aboard** an empty ship of yours there (it fills the hold). It goes **ashore** at a free end of the ship, and nothing else can be loaded while it is aboard.
-- A ship with an army aboard, beside the pirate ship, can **fight the pirate** once a turn, as armies fight the robber (the army's die against a d6): win and move the pirate, lose and give up a resource. Crews can't chase it any more.
-- **Harbor settlements defend like cities**: a d12, plus walls, and they drop to a settlement when beaten.`,
+- Armies don't march along these ships. To reach another island, move an army onto your harbor settlement's corner and put it **aboard** a ship of yours there with room (it takes one place in the hold). It goes **ashore** at a free end of the ship. While it is aboard, the ship can't swap cargo at a harbor or found a settlement.
+- A ship with an army aboard, beside the pirate ship, can **fight the pirate** once a turn, as armies fight the robber (the army's die against a d6): win and move the pirate, lose and give up a resource. Nothing else can chase it off.
+- **Harbor settlements defend like cities**: a d12, plus walls, and they drop to a settlement when beaten.
+- **Pirate lairs** fall to units instead of crews (there are no crews). A ship with an army aboard beside a lair puts the army ashore there. When the units on a lair are worth 3 (infantry 1, cavalry 2, artillery 3), it is captured: everyone with units there gets 2 gold and a mission step. The hero (a d6 plus their unit points) gets a step more, but one of their units there steps down. The units then go back aboard the ships that brought them, if there's room, or home to the box.
+- **Sea battles**: a ship with an army aboard can attack a rival ship with cargo on a neighbouring edge. An army aboard fights as on land. A settler, fish or spice defends with a d10 and is taken after two losses: what fits comes aboard your ship (a rival settler goes home and one of yours takes its place), and the rest is lost.`,
     },
     {
       id: 'soldiers-ck',

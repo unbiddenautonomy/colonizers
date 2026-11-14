@@ -112,7 +112,11 @@ const buildCrew = action<{ at: string }>({
   },
 });
 
-function capture(ctx: Ctx, hex: HexId, lander: number): void {
+/**
+ * A lair falls to what stands on it (crews, or Soldiers & Armies' unit
+ * points, kept in the same tally). Returns the hero.
+ */
+export function captureLair(ctx: Ctx, hex: HexId, lander: number): number {
   const d = epData(ctx);
   const crews = d.lairs[hex] ?? {};
   const seats = Object.keys(crews)
@@ -133,6 +137,7 @@ function capture(ctx: Ctx, hex: HexId, lander: number): void {
   delete d.lairs[hex];
   d.captured.push(hex);
   ctx.emit({ type: 'lairCaptured', hex, players: seats, hero, rolls, gold: CAPTURE_GOLD });
+  return hero;
 }
 
 const landCrew = action<{ ship: string; hex: HexId }>({
@@ -157,7 +162,7 @@ const landCrew = action<{ ship: string; hex: HexId }>({
     const lair = epData(ctx).lairs[a.hex]!;
     lair[a.player] = (lair[a.player] ?? 0) + landed;
     ctx.emit({ type: 'crewLanded', player: a.player, hex: a.hex, crews: landed });
-    if (lairCrews(ctx, a.hex) >= LAIR_CREWS) capture(ctx, a.hex, a.player);
+    if (lairCrews(ctx, a.hex) >= LAIR_CREWS) captureLair(ctx, a.hex, a.player);
   },
   enumerate(ctx, player) {
     if (player !== ctx.active) return [];

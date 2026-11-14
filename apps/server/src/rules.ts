@@ -287,6 +287,7 @@ const SAFE_ORDER = [
   'exploreSwap',
   'placePrincesRobber',
   'battleRetreat',
+  'seaBattleBreak',
   'payRobberToll',
   'answerBattleCall',
   'payMerchantToll',

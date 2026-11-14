@@ -12,6 +12,7 @@ import {
 import { baseModule } from '@colonizers/module-base';
 import { explorersPiratesModule } from '@colonizers/module-explorers-pirates';
 import { generateEpBoard } from '@colonizers/maps';
+import { epData, missionSteps } from '@colonizers/module-explorers-pirates';
 import { ARMY, buildingDie, soldiersModule } from '../src/index.ts';
 import { unitsInPlay } from '../src/rules.ts';
 
@@ -157,6 +158,67 @@ describe('Soldiers & Armies with Explorers & Pirates', () => {
     const won = ev.find((e) => e.type === 'pirateFought')?.won;
     expect(fight.phase.id).toBe(won ? 'moveRobber' : 'robberToll');
     expect(() => act(fight, { type: 'attackPirate', player: 0, ship: ship.id })).toThrow();
+  });
+
+  it('storms a pirate lair with units: 3 points take it, and the hero pays a unit', () => {
+    let lair = '' as HexId;
+    let ship = '';
+    let s = edit(atTheHarbor().s, (ctx) => {
+      const d = epData(ctx);
+      lair = Object.keys(d.lairs)[0] as HexId;
+      delete ctx.state.hexes[lair]!.hidden;
+      const edge = (ctx.geometry.hexEdges.get(lair) ?? []).find(
+        (e) => !ctx.piecesAt({ kind: 'edge', id: e }).length,
+      ) as EdgeId;
+      const p = ctx.place('ship', 0, { kind: 'edge', id: edge }, { cargo: ['army'] });
+      p.props.army = { cavalry: 1, infantry: 1 };
+      ship = p.id;
+    });
+    expect(lib.legalActions(s, 0).some((a) => a.type === 'buildCrew')).toBe(false);
+    s = act(s, { type: 'landUnits', player: 0, ship, hex: lair });
+    const c = ctxOf(s);
+    expect(epData(c).captured).toContain(lair);
+    expect(missionSteps(c, 0, 'lairs')).toBe(2);
+    // The hero's cavalry stepped down; both units are back aboard.
+    expect(s.pieces[ship]?.props.army).toMatchObject({ cavalry: 0, infantry: 2 });
+  });
+
+  it('fights a sea battle: cargo defends with a d10 and is taken after two losses', () => {
+    let mine = '';
+    let theirs = '';
+    let s = edit(atTheHarbor().s, (ctx) => {
+      ctx.setPhase({ id: 'campaign' });
+      const [e1, e2] = (() => {
+        for (const e of ctx.geometry.edges) {
+          if (!(ctx.geometry.edgeHexes.get(e) ?? []).every((h) => ctx.isSea(h))) continue;
+          if (ctx.piecesAt({ kind: 'edge', id: e }).length) continue;
+          for (const c of ctx.geometry.edgeCorners.get(e) ?? [])
+            for (const n of ctx.geometry.cornerEdges.get(c) ?? [])
+              if (
+                n !== e &&
+                (ctx.geometry.edgeHexes.get(n) ?? []).some((h) => ctx.isSea(h)) &&
+                !ctx.piecesAt({ kind: 'edge', id: n }).length
+              )
+                return [e, n];
+        }
+        return [];
+      })() as [EdgeId, EdgeId];
+      const a = ctx.place('ship', 0, { kind: 'edge', id: e1 }, { cargo: ['army'] });
+      a.props.army = { artillery: 3 };
+      mine = a.id;
+      theirs = ctx.place('ship', 1, { kind: 'edge', id: e2 }, { cargo: ['fish'] }).id;
+    });
+    s = act(s, { type: 'attackShip', player: 0, ship: mine, target: theirs });
+    expect(s.phase).toMatchObject({ id: 'seaBattle', defender: 1, hits: 0 });
+    for (let i = 0; i < 40 && s.phase.id === 'seaBattle'; i++)
+      s = act(s, { type: 'seaBattleRoll', player: 0 });
+    expect(s.phase.id).toBe('campaign');
+    const army = s.pieces[mine]?.props.army as
+      { artillery: number; cavalry: number; infantry: number } | undefined;
+    if (army && army.artillery + army.cavalry + army.infantry > 0) {
+      expect(s.pieces[mine]?.props.cargo).toEqual(['army', 'fish']);
+      expect(s.pieces[theirs]?.props.cargo).toEqual([]);
+    }
   });
 
   it('defends harbor settlements like cities', () => {
