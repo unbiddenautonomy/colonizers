@@ -247,6 +247,13 @@ function Lobby({
   const soldiersOk =
     !gwp && !church && !witches && !wonders && (!specialPick || specialPick.group === 'explorers');
   const soldiers = s.soldiers && soldiersOk;
+  const investorsOk =
+    !ck &&
+    !wonders &&
+    !princes &&
+    !soldiers &&
+    s.map.kind !== 'special' &&
+    s.map.kind !== 'scenario';
   const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church, witches, princes, soldiers);
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
@@ -513,6 +520,17 @@ function Lobby({
               ⚔️ Soldiers &amp; Armies (fan expansion for the usual maps and Seafarers, with or
               without Cities &amp; Knights, not with the other fan expansions yet; 3 points more
               than usual)
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={s.investors && investorsOk}
+                disabled={!investorsOk}
+                onChange={(e) => setGame({ investors: e.target.checked })}
+              />{' '}
+              📈 Investors &amp; Speculators (fan expansion for the base game on the usual maps:
+              moving exchange rates, savings and loans; not with Seafarers, Cities &amp; Knights or
+              the other expansions yet)
             </label>
             <label className="toggle">
               <input

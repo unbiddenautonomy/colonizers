@@ -1,0 +1,23 @@
+{
+  "name": "@colonizers/module-investors-speculators",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Investors & Speculators (SiedlerInsel): a bank with an exchange market whose rates follow supply and demand, savings that pay interest, and loans that cost points when they go unpaid.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}
