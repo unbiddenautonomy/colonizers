@@ -13,6 +13,7 @@ import { civilisationsModule } from '@colonizers/module-civilisations';
 import { churchModule } from '@colonizers/module-church';
 import { witchesModule } from '@colonizers/module-witches';
 import { princesModule, PRINCES_EXTRA_VP } from '@colonizers/module-princes-explorers';
+import { kingdomsModule, KINGDOMS_EXTRA_VP } from '@colonizers/module-kingdoms-warriors';
 import { soldiersModule, SOLDIERS_EXTRA_VP } from '@colonizers/module-soldiers-armies';
 import { investorsModule } from '@colonizers/module-investors-speculators';
 import {
@@ -41,6 +42,7 @@ export const library = new ModuleLibrary([
   greedWealthPowerModule,
   civilisationsModule,
   princesModule,
+  kingdomsModule,
   soldiersModule,
   investorsModule,
 ]);
@@ -134,6 +136,17 @@ export function investorsOn(settings: Pick<RoomSettings, 'investors' | 'map'>): 
   return settings.investors && ok;
 }
 
+/**
+ * Kingdoms & Warriors goes on the base game, on the usual maps and Seafarers.
+ * Its rules with Cities & Knights and the other expansions come later.
+ */
+export function kingdomsOn(
+  settings: Pick<RoomSettings, 'kingdoms' | 'map'>,
+  others: boolean,
+): boolean {
+  return settings.kingdoms && !others && settings.map.kind !== 'special';
+}
+
 /** Civilisations goes on top of Greed, Wealth & Power. */
 export function civsOn(settings: Pick<RoomSettings, 'civilisations'>, gwp: boolean): boolean {
   return gwp && settings.civilisations;
@@ -153,11 +166,16 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const princes = princesOn(settings, gwp || church || witches || wondersOn(settings));
   const soldiers = soldiersOn(settings, gwp || church || witches || wondersOn(settings));
   const investors = investorsOn(settings);
+  const kingdoms = kingdomsOn(
+    settings,
+    ck || princes || soldiers || investors || wondersOn(settings),
+  );
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
     (princes ? PRINCES_EXTRA_VP : 0) +
     // With Princes & Explorers, its target stands (14, or 17 with Cities & Knights).
-    (soldiers && !princes ? SOLDIERS_EXTRA_VP : 0);
+    (soldiers && !princes ? SOLDIERS_EXTRA_VP : 0) +
+    (kingdoms ? KINGDOMS_EXTRA_VP : 0);
   const options = optionSettings(settings.options, n);
   // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
   if (princes) {
@@ -179,6 +197,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
         ...(princes ? ['princes'] : []),
         ...(soldiers ? ['soldiers'] : []),
         ...(investors ? ['investors'] : []),
+        ...(kingdoms ? ['kingdoms'] : []),
       ],
       ck,
       gwp,
@@ -308,6 +327,7 @@ const SAFE_ORDER = [
   'movePrince',
   'exploreSwap',
   'placePrincesRobber',
+  'placeFreeMarker',
   'battleRetreat',
   'seaBattleBreak',
   'sevenShow',

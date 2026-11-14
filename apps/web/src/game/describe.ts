@@ -341,6 +341,16 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🕵️ ${n(e.player)} took an infantry from ${n(e.victim)}.`;
     case 'unitDeserted':
       return `🏃 ${n(e.player)}'s ${String(e.unit)} deserted to ${n(e.to)}.`;
+    case 'kingdomMarker':
+      return e.attack !== null && e.attack !== undefined
+        ? `⚔️ ${n(e.player)} set a kingdom marker on ${n(e.attack)}'s field.`
+        : `👑 ${n(e.player)} set a ${e.free ? 'free ' : ''}kingdom marker.`;
+    case 'kingdomBattle': {
+      const [a, b] = e.strength as [number, number];
+      return a === b
+        ? `⚔️ ${n(e.player)} and ${n(e.defender)} fought to a draw (${a}–${b}); the attacker's marker goes.`
+        : `⚔️ ${n(e.winner)} won the battle for a field (${a}–${b}) and takes a free marker.`;
+    }
     case 'startingCity':
       return `${n(e.player)} starts with a city.`;
     case 'freeDevCard':

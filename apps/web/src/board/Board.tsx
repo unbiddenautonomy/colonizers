@@ -30,6 +30,7 @@ import { churchMarkers } from '../screens/Church.tsx';
 import { seatMarkers } from '../screens/CitiesKnights.tsx';
 import { witchesMarkers } from '../screens/Witches.tsx';
 import { princesMarkers } from '../screens/Princes.tsx';
+import { kingdomsMarkers } from '../screens/Kingdoms.tsx';
 import { ArmyFlag, soldiersMarkers } from '../screens/Soldiers.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
@@ -1146,7 +1147,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         );
       })}
 
-      {[...neutralMarkers(state), ...princesMarkers(state), ...soldiersMarkers(state)].map((m) => {
+      {[
+        ...neutralMarkers(state),
+        ...princesMarkers(state),
+        ...soldiersMarkers(state),
+        ...kingdomsMarkers(state),
+      ].map((m) => {
         const h = state.hexes[m.hex];
         if (!h) return null;
         const c = hexToPixel(h.q, h.r, S);

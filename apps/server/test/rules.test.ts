@@ -286,6 +286,26 @@ describe('game options', () => {
     ).not.toContain('investors');
   });
 
+  it('adds Kingdoms & Warriors on the base game, 2 points more', () => {
+    const settings = cleanSettings({ ...DEFAULT_SETTINGS, kingdoms: true });
+    const four = buildConfig(settings, names(4), 'seed');
+    expect(four.modules).toEqual(['base', 'variants', 'kingdoms']);
+    expect(four.settings?.vpTarget).toBe(12);
+    const state = library.createGame(four).state;
+    expect(state.modules).toContain('kingdoms');
+    const sea = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'scenario', id: 'new-shores' } }),
+      names(4),
+      'seed',
+    );
+    expect(sea.modules).toContain('kingdoms');
+    // Not yet with Cities & Knights or the other fan expansions.
+    for (const more of [{ citiesKnights: true }, { princes: true }, { investors: true }])
+      expect(
+        buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
+      ).not.toContain('kingdoms');
+  });
+
   it('builds Traders & Barbarians scenarios on the base game only', () => {
     for (const id of ['fishermen', 'rivers']) {
       const settings = cleanSettings({

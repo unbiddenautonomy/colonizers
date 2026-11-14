@@ -120,19 +120,30 @@ export function produce(ctx: Ctx, total: number): void {
     const robbed = robberHex?.kind === 'hex' && robberHex.id === hex.id;
     const def = ctx.registry.hexTypes[hex.type];
     if (!def || def.terrain !== 'land') continue;
-    for (const corner of ctx.geometry.hexCorners.get(hex.id) ?? []) {
-      for (const piece of ctx.piecesAt({ kind: 'corner', id: corner })) {
-        if (piece.owner === null) continue;
-        if (ctx.reduce('hexBlocked', hex, piece, robbed)) continue;
-        const pdef = ctx.registry.pieceTypes[piece.type];
-        const base: Record<string, number> = {};
-        if (def.produces && pdef?.production) base[def.produces] = pdef.production;
-        const got = ctx.reduce('hexYield', hex, piece, base);
-        for (const [card, n] of Object.entries(got)) {
-          if (n <= 0) continue;
+    // Buildings on the hex's corners, and producing pieces on the hex itself (kingdom markers).
+    const onHex = ctx
+      .piecesAt({ kind: 'hex', id: hex.id })
+      .filter((p) => !!ctx.registry.pieceTypes[p.type]?.production);
+    const pieces = [
+      ...(ctx.geometry.hexCorners.get(hex.id) ?? []).flatMap((corner) =>
+        ctx.piecesAt({ kind: 'corner', id: corner }),
+      ),
+      ...onHex,
+    ];
+    for (const piece of pieces) {
+      if (piece.owner === null) continue;
+      if (ctx.reduce('hexBlocked', hex, piece, robbed)) continue;
+      const pdef = ctx.registry.pieceTypes[piece.type];
+      const base: Record<string, number> = {};
+      if (def.produces && pdef?.production) base[def.produces] = pdef.production;
+      const got = ctx.reduce('hexYield', hex, piece, base);
+      const shares = ctx.reduce('yieldShares', hex, piece, { [piece.owner]: got });
+      for (const [seat, cards] of Object.entries(shares)) {
+        for (const [card, n] of Object.entries(cards)) {
+          if (!n || n <= 0) continue;
           if (!owed.has(card)) owed.set(card, new Map());
           const m = owed.get(card) as Map<number, number>;
-          m.set(piece.owner, (m.get(piece.owner) ?? 0) + n);
+          m.set(Number(seat), (m.get(Number(seat)) ?? 0) + n);
         }
       }
     }
