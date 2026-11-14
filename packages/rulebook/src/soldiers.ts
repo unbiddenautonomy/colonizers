@@ -129,7 +129,20 @@ Players who are out sit their turns out. The game ends when someone reaches {set
       title: 'With Cities & Knights',
       summary:
         'Units replace knights; the barbarians besiege the weakest; metropolises roll a d20. 16 points.',
-      tags: ['cities', 'knights', 'barbarians', 'metropolis', 'merchant', 'politics'],
+      tags: [
+        'cities',
+        'knights',
+        'barbarians',
+        'metropolis',
+        'merchant',
+        'politics',
+        'progress',
+        'warlord',
+        'smith',
+        'intrigue',
+        'deserter',
+        'engineer',
+      ],
       body: `Soldiers & Armies plays with Cities & Knights to 16 points.
 
 - There are **no knights**. Against the barbarians, and for Defender of Catan, each player counts their units: infantry 1, cavalry 2, artillery 3, a nuke 4.
@@ -137,7 +150,15 @@ Players who are out sit their turns out. The game ends when someone reaches {set
 - A **metropolis** defends with a **d20**. Beaten down to a city, its owner drops back to level 3 on that track, and the metropolis goes to whoever is furthest along it (the first in order of play on a tie).
 - An army next to a rival's **merchant** can attack it once a turn. The owner defends with a d10. Win, and move the merchant to any field; lose, and give its owner two cards.
 - The owner of the **Politics metropolis** marches each army five corners free.
-- These walls (three to a city) replace the Cities & Knights walls. Progress cards that name knights do nothing for now.`,
+- These walls (three to a city) replace the Cities & Knights walls.
+
+Progress cards that name knights work with units instead:
+
+- **Warlord**: muster a free infantry at one of your settlements or cities.
+- **Smith**: step one of your units up a level (infantry to cavalry, cavalry to artillery), or muster a free infantry.
+- **Intrigue**: take one infantry from a rival army on a corner your road or ship touches.
+- **Deserter**: pick a rival. They give up one unit of their choice, and you muster one of the same level (or the best below it you have left).
+- **Engineer**: a free wall, up to three to a city.`,
     },
     {
       id: 'soldiers-walls',
