@@ -125,6 +125,8 @@ export function moduleList(
     'cities-knights',
     // After the base game and Cities & Knights, so its robber wrapper comes outermost.
     'princes',
+    // After the base game, so its turn and road wrappers come outermost.
+    'soldiers',
     // After Cities & Knights (and Seafarers), so their production changes come last.
     // Witches first, so the Wizard's guard against the robber doesn't lift a festival.
     'witches',
@@ -182,6 +184,8 @@ export interface RoomSettings {
   witches: boolean;
   /** Add Princes & Explorers (SiedlerInsel) to the base game on the usual maps. */
   princes: boolean;
+  /** Add Soldiers & Armies (SiedlerInsel) to the base game on the usual maps. */
+  soldiers: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -202,6 +206,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   church: false,
   witches: false,
   princes: false,
+  soldiers: false,
   turnTimer: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
@@ -338,6 +343,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     church: s.church === true,
     witches: s.witches === true,
     princes: s.princes === true,
+    soldiers: s.soldiers === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),
