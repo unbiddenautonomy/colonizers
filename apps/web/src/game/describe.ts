@@ -311,6 +311,16 @@ export function describe(e: GameEvent, names: string[]): string | null {
         : `⚔️ The robber beat ${n(e.player)}'s army.`;
     case 'robberToll':
       return `${n(e.player)} paid the robber a card.`;
+    case 'alliesJoined':
+      return `⚔️ ${n(e.player)}'s neighbouring armies joined the fight.`;
+    case 'nukeBought':
+      return `☢️ ${n(e.player)} bought a nuke.`;
+    case 'nukeDetonated':
+      return `☢️ ${n(e.player)} set off a nuke.`;
+    case 'playerDestroyed':
+      return `💀 ${n(e.player)} was wiped out by ${n(e.by)}.`;
+    case 'capitulated':
+      return `🏳️ ${n(e.player)} capitulated to ${n(e.to)}, finishing on ${String(e.vp)} points.`;
     case 'wizardPlaced':
       return `🧙 ${n(e.player)} put the Wizard at their building.`;
     case 'wizardGone':

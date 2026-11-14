@@ -237,6 +237,7 @@ function soldiersHints(state: GameState, ctx: Ctx, seat: number): number {
     units += n * (guards ? 1.2 : 1);
   }
   score += Math.min(units, 8) * 0.9;
+  score += ctx.piecesOf(seat, 'nuke').length * 1.5;
   for (const p of ctx.piecesOf(seat)) {
     if (!ctx.registry.pieceTypes[p.type]?.building) continue;
     if (p.props.damaged) score -= 2;
@@ -265,9 +266,20 @@ function soldiersHints(state: GameState, ctx: Ctx, seat: number): number {
       }
     }
     if (state.phase.id === 'battle') {
-      const army = state.pieces[state.phase.army as string];
+      const pool = (ids: unknown) =>
+        Math.max(
+          0,
+          ...((ids as string[] | undefined) ?? []).map((id) => {
+            const a = state.pieces[id];
+            return a ? armyDie(a.props) : 0;
+          }),
+        );
+      const mine = pool(state.phase.attackers);
+      const theirs = pool(state.phase.defenders);
       const target = state.phase.target as { corner: CornerId } | undefined;
-      if (army && target) score += valueOf(target.corner, armyDie(army.props)) * 1.5 + 0.2;
+      if (mine && target)
+        score +=
+          (theirs ? (winChance(mine, theirs) - 0.5) * 2 : valueOf(target.corner, mine)) * 1.5 + 0.2;
     }
   }
   return score;

@@ -43,3 +43,9 @@ export const DEV_HOLD_MAX = 4;
 
 /** Soldiers & Armies plays to 13. */
 export const SOLDIERS_EXTRA_VP = 3;
+
+/** The once-a-game nuke: 6 ore, 5 grain and 5 cards of any kind, for a field up to 6 away. */
+export const NUKE = 'nuke';
+export const NUKE_COST: Cards = { ore: 6, grain: 5 };
+export const NUKE_ANY = 5;
+export const NUKE_RANGE = 6;

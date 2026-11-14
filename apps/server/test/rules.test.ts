@@ -182,12 +182,15 @@ describe('game options', () => {
     expect(buildConfig(settings, names(6), 'seed').settings?.turnMode).toBe('normal');
     const state = library.createGame(four).state;
     expect(state.decks.dev).not.toContain('victoryPoint');
-    // Not with Cities & Knights, Seafarers or Princes & Explorers yet.
-    for (const more of [
-      { citiesKnights: true },
-      { princes: true },
-      { map: { kind: 'scenario', id: 'new-shores' } as const },
-    ])
+    // With Seafarers, three more than the scenario.
+    const sea = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'scenario', id: 'new-shores' } }),
+      names(4),
+      'seed',
+    );
+    expect(sea.modules).toEqual(['base', 'seafarers', 'variants', 'soldiers']);
+    // Not with Cities & Knights or Princes & Explorers yet.
+    for (const more of [{ citiesKnights: true }, { princes: true }])
       expect(
         buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
       ).not.toContain('soldiers');
