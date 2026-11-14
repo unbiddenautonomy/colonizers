@@ -56,6 +56,11 @@ export const TOWN_PENALTY: Record<TownTerm, number> = { 3: 3, 5: 4, 7: 4, 10: 5 
 
 /** Town loan markers in the box: this many open for settlements, and as many for cities. */
 export const TOWN_MARKERS = 10;
+/** With 5 or 6 players there are twice as many. */
+export const TOWN_MARKERS_BIG = 20;
+
+/** With 5 or 6 players, a 7 lets everyone hold this many more cards. */
+export const BIG_GAME_HAND = 3;
 
 /** Derivatives each player holds. */
 export const DERIVATIVES = 5;

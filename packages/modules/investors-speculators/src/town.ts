@@ -7,6 +7,7 @@ import {
   DERIVATIVES,
   TOWN_ITEMS,
   TOWN_MARKERS,
+  TOWN_MARKERS_BIG,
   TOWN_PENALTY,
   TOWN_TERMS,
   type TownItem,
@@ -48,6 +49,9 @@ function withFinancing<T>(fn: () => T): T {
 
 const buildType = (item: TownItem) => (item === 'settlement' ? 'buildSettlement' : 'buildCity');
 
+/** Town loan markers of each kind in the box. */
+export const townMarkers = (ctx: Ctx) => (ctx.playerCount >= 5 ? TOWN_MARKERS_BIG : TOWN_MARKERS);
+
 /** Town loans of this kind open across the table. */
 export const townMarkersOut = (ctx: Ctx, item: TownItem) =>
   investorsData(ctx).loans.filter((l) => l.card === item).length;
@@ -60,8 +64,8 @@ export const buildOnLoan = action<{ item: TownItem; corner: CornerId; term: Town
     if (!(TOWN_ITEMS as readonly unknown[]).includes(a.item)) return 'Build a settlement or a city';
     if (!(TOWN_TERMS as readonly unknown[]).includes(a.term))
       return 'Town loans run 3, 5, 7 or 10 turns';
-    if (townMarkersOut(ctx, a.item) >= TOWN_MARKERS)
-      return `All ${TOWN_MARKERS} ${a.item} loans are taken`;
+    if (townMarkersOut(ctx, a.item) >= townMarkers(ctx))
+      return `All ${townMarkers(ctx)} ${a.item} loans are taken`;
     const def = ctx.registry.actions[buildType(a.item)];
     if (!def) return 'Can not build that';
     return withFinancing(() =>
@@ -71,9 +75,12 @@ export const buildOnLoan = action<{ item: TownItem; corner: CornerId; term: Town
   apply(ctx, a) {
     const def = ctx.registry.actions[buildType(a.item)];
     const cost = ctx.cost(a.item, a.player);
+    const before = ctx.vp(a.player);
     withFinancing(() =>
       def?.apply(ctx, { type: buildType(a.item), player: a.player, corner: a.corner }),
     );
+    // A settlement or city is worth a point more; anything beyond waits on the loan.
+    const held = Math.max(0, ctx.vp(a.player) - before - 1);
     const d = investorsData(ctx);
     const id = `l${d.nextId++}`;
     d.loans.push({
@@ -86,6 +93,7 @@ export const buildOnLoan = action<{ item: TownItem; corner: CornerId; term: Town
       penalty: TOWN_PENALTY[a.term],
       group: id,
       cost,
+      ...(held ? { held } : {}),
     });
     useFinance(ctx);
     ctx.emit({ type: 'townLoan', player: a.player, item: a.item, term: a.term });
@@ -94,7 +102,7 @@ export const buildOnLoan = action<{ item: TownItem; corner: CornerId; term: Town
     if (player !== ctx.active || financeLeft(ctx)) return [];
     const out: Action[] = [];
     for (const item of TOWN_ITEMS) {
-      if (townMarkersOut(ctx, item) >= TOWN_MARKERS) continue;
+      if (townMarkersOut(ctx, item) >= townMarkers(ctx)) continue;
       const def = ctx.registry.actions[buildType(item)];
       const corners = withFinancing(() =>
         (def?.enumerate?.(ctx, player) ?? []).map((x) => x.corner as CornerId),

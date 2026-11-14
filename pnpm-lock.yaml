@@ -433,6 +433,12 @@ importers:
       '@colonizers/maps':
         specifier: workspace:*
         version: link:../../maps
+      '@colonizers/module-cities-knights':
+        specifier: workspace:*
+        version: link:../cities-knights
+      '@colonizers/module-seafarers':
+        specifier: workspace:*
+        version: link:../seafarers
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
