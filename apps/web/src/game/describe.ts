@@ -279,6 +279,38 @@ export function describe(e: GameEvent, names: string[]): string | null {
         : `🛡️ ${n(e.player)}'s knight stepped down to move the robber.`;
     case 'robberBought':
       return `${n(e.player)} paid to move the robber.`;
+    case 'unitBought':
+      return `⚔️ ${n(e.player)} mustered ${String(e.unit)}.`;
+    case 'wallBuilt':
+      return `🧱 ${n(e.player)} built a city wall.`;
+    case 'startingCity':
+      return `${n(e.player)} starts with a city.`;
+    case 'freeDevCard':
+      return `${n(e.player)} drew a free development card.`;
+    case 'armyMarched':
+      return `⚔️ ${n(e.player)}'s army marched${Number(e.paid) ? ` (${String(e.paid)} paid)` : ''}.`;
+    case 'attacked':
+      return `⚔️ ${n(e.player)} attacked ${n(e.defender)}'s ${(e.target as { kind: string }).kind === 'army' ? 'army' : 'town'}.`;
+    case 'battleRound': {
+      const [a, d] = e.rolls as [number, number];
+      const [da, dd] = e.dice as [number, number];
+      const walls = Number(e.walls) ? ` +${String(e.walls)}` : '';
+      return `🎲 ${a} (d${da}) against ${d}${walls} (d${dd}): ${e.won ? `${n(e.player)} wins the round` : `${n(e.defender)} holds`}.`;
+    }
+    case 'armyDestroyed':
+      return `${n(e.player)}'s army was wiped out.`;
+    case 'armyRetreated':
+      return `${n(e.player)} broke off the fight.`;
+    case 'settlementCaptured':
+      return e.taken
+        ? `🏴 ${n(e.player)} captured ${n(e.from)}'s settlement.`
+        : `🔥 ${n(e.player)} destroyed ${n(e.from)}'s settlement.`;
+    case 'robberFought':
+      return e.won
+        ? `⚔️ ${n(e.player)}'s army drove off the robber.`
+        : `⚔️ The robber beat ${n(e.player)}'s army.`;
+    case 'robberToll':
+      return `${n(e.player)} paid the robber a card.`;
     case 'wizardPlaced':
       return `🧙 ${n(e.player)} put the Wizard at their building.`;
     case 'wizardGone':
