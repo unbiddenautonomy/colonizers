@@ -31,6 +31,7 @@ import {
   seaScenarioById,
   specialMapById,
 } from '@colonizers/maps';
+import { MODES, resolve, type BoardInfo, type ModeId } from '@colonizers/modes';
 import { moduleList, optionSettings, type RoomSettings } from './protocol.ts';
 
 /** Every rules module the server knows. Expansions are added here as they ship. */
@@ -74,144 +75,44 @@ export function fanExtraVp(church: boolean, witches: boolean): number {
   return church || witches ? CHURCH_EXTRA_VP : CK_EXTRA_VP;
 }
 
-/** Greed, Wealth & Power goes on top of Cities & Knights, on the usual maps and Seafarers. */
-export function gwpOn(
-  settings: Pick<RoomSettings, 'greedWealthPower' | 'map'>,
-  ck: boolean,
-): boolean {
-  return ck && settings.greedWealthPower && settings.map.kind !== 'special';
+/** What the shared mode rules need to know about the room's map. */
+export function boardInfo(map: RoomSettings['map']): BoardInfo {
+  if (map.kind === 'scenario')
+    return { kind: 'seafarers', fog: seaScenarioById(map.id)?.fog === true };
+  if (map.kind === 'special') {
+    const special = specialMapById(map.id);
+    return {
+      kind: 'special',
+      group: special?.group ?? null,
+      needsCk: special?.needsCitiesKnights === true,
+      noCk: special?.noCitiesKnights === true,
+    };
+  }
+  return { kind: 'usual' };
 }
 
-/** World Wonders goes on the usual maps and Seafarers, with or without Cities & Knights. */
-export function wondersOn(settings: Pick<RoomSettings, 'worldWonders' | 'map'>): boolean {
-  return settings.worldWonders && settings.map.kind !== 'special';
-}
-
-/** Church, Faith & Reformation goes on top of Cities & Knights, in place of Greed, Wealth & Power. */
-export function churchOn(
-  settings: Pick<RoomSettings, 'church' | 'map'>,
-  ck: boolean,
-  gwp: boolean,
-): boolean {
-  return ck && !gwp && settings.church && settings.map.kind !== 'special';
-}
-
-/** Witches, Wizards & Dragons goes on top of Cities & Knights, in place of Greed, Wealth & Power. */
-export function witchesOn(
-  settings: Pick<RoomSettings, 'witches' | 'map'>,
-  ck: boolean,
-  gwp: boolean,
-): boolean {
-  return ck && !gwp && settings.witches && settings.map.kind !== 'special';
-}
-
-/**
- * Princes & Explorers goes on the usual maps and Seafarers, on the base game or Cities &
- * Knights, but not yet with the special maps or the other fan expansions.
- */
-export function princesOn(
-  settings: Pick<RoomSettings, 'princes' | 'map'>,
-  otherFan: boolean,
-): boolean {
-  const kind = settings.map.kind;
-  return settings.princes && !otherFan && kind !== 'special';
-}
-
-/**
- * Soldiers & Armies goes on the usual maps, Seafarers and the Explorers &
- * Pirates scenarios, on the base game or Cities & Knights, and with Princes &
- * Explorers. Its rules with the other fan expansions come later.
- */
-export function soldiersOn(
-  settings: Pick<RoomSettings, 'soldiers' | 'map'>,
-  otherFan: boolean,
-): boolean {
-  const map = settings.map;
-  const special = map.kind === 'special' ? specialMapById(map.id) : undefined;
-  const ok = map.kind !== 'special' || special?.group === 'explorers';
-  return settings.soldiers && !otherFan && ok;
-}
-
-/**
- * Investors & Speculators goes on the usual maps, Seafarers, the Explorers &
- * Pirates and Traders & Barbarians scenarios, with or without Cities & Knights
- * (and Witches, Church or Greed, Wealth & Power on it), World Wonders,
- * Princes & Explorers and Soldiers & Armies.
- */
-export function investorsOn(settings: Pick<RoomSettings, 'investors' | 'map'>): boolean {
-  const map = settings.map;
-  const special = map.kind === 'special' ? specialMapById(map.id) : undefined;
-  const ok =
-    map.kind !== 'special' || special?.group === 'explorers' || special?.group === 'traders';
-  return settings.investors && ok;
-}
-
-/**
- * Kingdoms & Warriors goes on the usual maps and Seafarers, on the base game
- * or Cities & Knights, and with Investors & Speculators.
- */
-export function kingdomsOn(
-  settings: Pick<RoomSettings, 'kingdoms' | 'map'>,
-  others: boolean,
-): boolean {
-  return settings.kingdoms && !others && settings.map.kind !== 'special';
-}
-
-/**
- * Land & Water goes on the base game or Cities & Knights, on the usual maps
- * and the Seafarers scenarios without fog (its vehicles don't explore). The
- * other expansions come later.
- */
-export function landWaterOn(
-  settings: Pick<RoomSettings, 'landWater' | 'map'>,
-  others: boolean,
-): boolean {
-  const map = settings.map;
-  if (!settings.landWater || others || map.kind === 'special') return false;
-  return map.kind !== 'scenario' || seaScenarioById(map.id)?.fog !== true;
-}
-
-/**
- * Strategist & Commander goes on top of Cities & Knights. Greed, Wealth & Power
- * has its own Duke and Scholar, and Land & Water has no knight pieces.
- */
-export function strategistOn(
-  settings: Pick<RoomSettings, 'strategist'>,
-  ck: boolean,
-  gwp: boolean,
-  landWater: boolean,
-): boolean {
-  return settings.strategist && ck && !gwp && !landWater;
-}
-
-/** Civilisations goes on top of Greed, Wealth & Power. */
-export function civsOn(settings: Pick<RoomSettings, 'civilisations'>, gwp: boolean): boolean {
-  return gwp && settings.civilisations;
+/** The modes a room asked for, by their shared ids. */
+export function wantedModes(settings: RoomSettings): ModeId[] {
+  return MODES.filter((m) => settings[m] === true);
 }
 
 /** Builds the game for a room or a game on one device. Names are already in seat order. */
 export function buildConfig(settings: RoomSettings, names: string[], seed: string): GameConfig {
   const n = names.length;
-  const picked = settings.map.kind === 'special' ? specialMapById(settings.map.id) : undefined;
-  // Traders & Barbarians scenarios are base-game only.
-  const ck =
-    (settings.citiesKnights || picked?.needsCitiesKnights === true) && !picked?.noCitiesKnights;
-  const gwp = gwpOn(settings, ck);
-  const civs = civsOn(settings, gwp);
-  const church = churchOn(settings, ck, gwp);
-  const witches = witchesOn(settings, ck, gwp);
-  const princes = princesOn(settings, gwp || church || witches || wondersOn(settings));
-  const soldiers = soldiersOn(settings, gwp || church || witches || wondersOn(settings));
-  const investors = investorsOn(settings);
-  const kingdoms = kingdomsOn(
-    settings,
-    princes || soldiers || gwp || church || witches || wondersOn(settings),
-  );
-  const landWater = landWaterOn(
-    settings,
-    gwp || church || witches || princes || soldiers || investors || kingdoms || wondersOn(settings),
-  );
-  const strategist = strategistOn(settings, ck, gwp, landWater);
+  // One rule for every mix, shared with the new-game screens.
+  const on = resolve(boardInfo(settings.map), wantedModes(settings));
+  const ck = on.has('citiesKnights');
+  const gwp = on.has('greedWealthPower');
+  const civs = on.has('civilisations');
+  const church = on.has('church');
+  const witches = on.has('witches');
+  const wonders = on.has('worldWonders');
+  const princes = on.has('princes');
+  const soldiers = on.has('soldiers');
+  const investors = on.has('investors');
+  const kingdoms = on.has('kingdoms');
+  const landWater = on.has('landWater');
+  const strategist = on.has('strategist');
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
     (princes ? PRINCES_EXTRA_VP : 0) +
@@ -247,7 +148,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
       ],
       ck,
       gwp,
-      wondersOn(settings),
+      wonders,
       civs,
       church,
       witches,

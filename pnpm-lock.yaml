@@ -44,6 +44,9 @@ importers:
       '@colonizers/maps':
         specifier: workspace:*
         version: link:../../packages/maps
+      '@colonizers/modes':
+        specifier: workspace:*
+        version: link:../../packages/modes
       '@colonizers/module-base':
         specifier: workspace:*
         version: link:../../packages/modules/base
@@ -132,6 +135,9 @@ importers:
       '@colonizers/maps':
         specifier: workspace:*
         version: link:../../packages/maps
+      '@colonizers/modes':
+        specifier: workspace:*
+        version: link:../../packages/modes
       '@colonizers/module-base':
         specifier: workspace:*
         version: link:../../packages/modules/base
@@ -291,6 +297,15 @@ importers:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ~4.1.12
+        version: 4.1.12(@types/node@22.20.5)(vite@8.3.6(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/modes:
+    devDependencies:
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
