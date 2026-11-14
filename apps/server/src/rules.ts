@@ -121,9 +121,10 @@ export function soldiersOn(
 }
 
 /**
- * Investors & Speculators goes on the usual maps, Seafarers and the Explorers &
- * Pirates scenarios, with or without Cities & Knights, Princes & Explorers and
- * Soldiers & Armies. Its rules with the other expansions come later.
+ * Investors & Speculators goes on the usual maps, Seafarers, the Explorers &
+ * Pirates and Traders & Barbarians scenarios, with or without Cities & Knights,
+ * Princes & Explorers and Soldiers & Armies. Its rules with the other
+ * expansions come later.
  */
 export function investorsOn(
   settings: Pick<RoomSettings, 'investors' | 'map'>,
@@ -131,7 +132,8 @@ export function investorsOn(
 ): boolean {
   const map = settings.map;
   const special = map.kind === 'special' ? specialMapById(map.id) : undefined;
-  const ok = map.kind !== 'special' || special?.group === 'explorers';
+  const ok =
+    map.kind !== 'special' || special?.group === 'explorers' || special?.group === 'traders';
   return settings.investors && !otherFan && ok;
 }
 

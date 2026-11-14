@@ -9,7 +9,7 @@ import {
   scenarioOf,
   tbData,
   GOLD_BUYS_PER_TURN,
-  GOLD_PER_RESOURCE,
+  goldPrice,
   KNIGHT_STEPS,
   KNIGHT_STEPS_GRAIN,
   KNIGHTS_PER_PLAYER,
@@ -293,13 +293,19 @@ export function TbActions({
         {open === 'gold' && (
           <Modal title="Buy with gold" onClose={close}>
             <p>
-              {GOLD_PER_RESOURCE} gold buys one resource, up to {GOLD_BUYS_PER_TURN} times a turn.
-              You have {goldOf(ctx, actor)} gold.
+              Gold buys one resource, up to {GOLD_BUYS_PER_TURN} times a turn. You have{' '}
+              {goldOf(ctx, actor)} gold.
             </p>
             <div className="row wrap">
               {buys.map((a) => (
-                <button key={a.resource as string} type="button" onClick={() => run(a)}>
-                  {RESOURCE_ICON[a.resource as string] ?? (a.resource as string)}
+                <button
+                  key={a.resource as string}
+                  type="button"
+                  disabled={goldPrice(ctx, actor, a.resource as string) > goldOf(ctx, actor)}
+                  onClick={() => run(a)}
+                >
+                  {RESOURCE_ICON[a.resource as string] ?? (a.resource as string)}{' '}
+                  <small>{goldPrice(ctx, actor, a.resource as string)} 🪙</small>
                 </button>
               ))}
             </div>
@@ -339,13 +345,19 @@ export function TbActions({
         {open === 'gold' && (
           <Modal title="Buy with gold" onClose={close}>
             <p>
-              {GOLD_PER_RESOURCE} gold buys one resource, up to {GOLD_BUYS_PER_TURN} times a turn.
-              You have {goldOf(ctx, actor)} gold.
+              Gold buys one resource, up to {GOLD_BUYS_PER_TURN} times a turn. You have{' '}
+              {goldOf(ctx, actor)} gold.
             </p>
             <div className="row wrap">
               {buys.map((a) => (
-                <button key={a.resource as string} type="button" onClick={() => run(a)}>
-                  {RESOURCE_ICON[a.resource as string] ?? (a.resource as string)}
+                <button
+                  key={a.resource as string}
+                  type="button"
+                  disabled={goldPrice(ctx, actor, a.resource as string) > goldOf(ctx, actor)}
+                  onClick={() => run(a)}
+                >
+                  {RESOURCE_ICON[a.resource as string] ?? (a.resource as string)}{' '}
+                  <small>{goldPrice(ctx, actor, a.resource as string)} 🪙</small>
                 </button>
               ))}
             </div>

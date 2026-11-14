@@ -156,10 +156,13 @@ export function NewGame({
     SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
   const soldiersOk = !gwp && !church && !witches && !wonders && soldiersMap;
   const soldiers = soldiersWanted && soldiersOk;
-  // Investors & Speculators goes on the usual maps, Seafarers and the Explorers & Pirates
-  // maps, with Cities & Knights, Princes or Soldiers, not with the other fan expansions yet.
+  // Investors & Speculators goes on the usual maps, Seafarers and the Explorers & Pirates and
+  // Traders & Barbarians maps, with Cities & Knights, Princes or Soldiers, not with the other
+  // fan expansions yet.
   const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
-  const investorsOk = !gwp && !church && !witches && !wonders && (!specialId || isExplorers);
+  const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
+  const investorsOk =
+    !gwp && !church && !witches && !wonders && (!specialId || isExplorers || isTraders);
   const investors = investorsWanted && investorsOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
@@ -178,7 +181,6 @@ export function NewGame({
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
   const bonus = vpBonus(ck, specialId, gwp, civs, church, witches, princes, soldiers);
-  const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const special = useMemo(
     () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
@@ -608,7 +610,7 @@ export function NewGame({
             <strong>⚔️ Soldiers &amp; Armies</strong>
             <small>
               {!soldiersOk
-                ? 'Fan expansion for the usual maps, Seafarers and Explorers & Pirates, with or without Cities & Knights, Princes & Explorers and Soldiers & Armies (not with the other special maps or fan expansions yet).'
+                ? 'Fan expansion for the usual maps, Seafarers, Explorers & Pirates and Traders & Barbarians, with or without Cities & Knights, Princes & Explorers and Soldiers & Armies (not with Treasures & Dragons or the other fan expansions yet).'
                 : princes
                   ? 'Fan expansion: muster armies, march them, and fight for your rivals’ settlements and cities. With Princes & Explorers, units give way to move the robber, and the princes’ target stands.'
                   : 'Fan expansion: muster armies, march them, and fight for your rivals’ settlements and cities. Plays to 3 points more than usual.'}
@@ -624,7 +626,7 @@ export function NewGame({
             <strong>📈 Investors &amp; Speculators</strong>
             <small>
               {!investorsOk
-                ? 'Fan expansion for the usual maps, Seafarers and Explorers & Pirates, with or without Cities & Knights, Princes & Explorers and Soldiers & Armies (not with the other special maps or fan expansions yet).'
+                ? 'Fan expansion for the usual maps, Seafarers, Explorers & Pirates and Traders & Barbarians, with or without Cities & Knights, Princes & Explorers and Soldiers & Armies (not with Treasures & Dragons or the other fan expansions yet).'
                 : 'Fan expansion: an exchange market whose rates move on every 7, savings that pay interest, and loans that cost points if you can’t pay them back.'}
             </small>
           </button>
