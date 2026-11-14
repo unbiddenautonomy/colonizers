@@ -38,7 +38,9 @@ export type EpMode =
   // With Soldiers & Armies: armies board and leave ships, and fight the pirate from them.
   | 'board'
   | 'land'
-  | 'pirateFight';
+  | 'pirateFight'
+  | 'lairUnits'
+  | 'seaAttack';
 
 export const EP_MODES: readonly string[] = [
   'harbor',
@@ -54,7 +56,12 @@ export const EP_MODES: readonly string[] = [
   'board',
   'land',
   'pirateFight',
+  'lairUnits',
+  'seaAttack',
 ];
+
+/** With Soldiers & Armies, units storm the lairs and crews are gone. */
+const withUnits = (ctx: Ctx) => ctx.state.modules.includes('soldiers');
 
 /** Gold and ships, for one player's row. */
 export function EpPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
@@ -69,7 +76,9 @@ export function EpPlayerStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
       )}
       {hasPirate(ctx) && (
         <>
-          <span title={`Crews out (at most ${CREWS})`}>⚔️ {crewsOut(ctx, seat)}</span>
+          {!withUnits(ctx) && (
+            <span title={`Crews out (at most ${CREWS})`}>⚔️ {crewsOut(ctx, seat)}</span>
+          )}
           <span title="Pirate lair mission: 1 point per step">
             🏴‍☠️ {missionSteps(ctx, seat, 'lairs')}
           </span>
@@ -102,7 +111,10 @@ export function EpStatus({ ctx }: { ctx: Ctx }) {
       {lairs && (
         <p>
           🏴‍☠️ Pirate lairs captured: <strong>{d.captured.length}</strong> of {total}
-          <small className="muted"> · {LAIR_CREWS} crews take a lair</small>
+          <small className="muted">
+            {' '}
+            · {LAIR_CREWS} {withUnits(ctx) ? 'unit points' : 'crews'} take a lair
+          </small>
         </p>
       )}
       {fish && (
@@ -169,6 +181,11 @@ export function epTargets(
       if (loc?.kind === 'corner') t.corners.set(loc.id, a);
     }
     if (mode === 'land' && a.type === 'landArmy') t.corners.set(a.corner as CornerId, a);
+    if (mode === 'lairUnits' && a.type === 'landUnits') t.hexes.set(a.hex as HexId, a);
+    if (mode === 'seaAttack' && a.type === 'attackShip') {
+      const loc = at(a.target);
+      if (loc?.kind === 'edge') t.edges.set(loc.id, a);
+    }
     if (
       (mode === 'chase' && a.type === 'chasePirate') ||
       (mode === 'pirateFight' && a.type === 'attackPirate')
@@ -232,6 +249,10 @@ export function epPrompt(state: GameState, who: string, mode: string | null): st
       return `${who}: tap a free corner at either end of your ship to put its army ashore.`;
     case 'pirateFight':
       return `${who}: tap your ship with an army aboard beside the pirate ship to fight it.`;
+    case 'lairUnits':
+      return `${who}: tap a pirate lair beside your ship to put its army ashore there. 3 unit points take it.`;
+    case 'seaAttack':
+      return `${who}: tap a rival ship with cargo next to your ship with an army aboard.`;
   }
   if (state.phase.id === 'campaign') return null;
   if (state.phase.id === 'sail')
@@ -307,6 +328,7 @@ export function EpActions({
             'buildSettler',
           )}
           {lairs &&
+            !withUnits(ctx) &&
             modeButton(
               'crew',
               <>
@@ -333,7 +355,9 @@ export function EpActions({
       )}
       {modeButton('cargo', '🔁 Swap cargo', 'swapCargo')}
       {modeButton('found', '🏠 Found settlement', 'foundSettlement')}
-      {lairs && modeButton('lair', '🏴‍☠️ Land crews', 'landCrew')}
+      {lairs && !withUnits(ctx) && modeButton('lair', '🏴‍☠️ Land crews', 'landCrew')}
+      {lairs && has('landUnits') && modeButton('lairUnits', '🏴‍☠️ Storm lair', 'landUnits')}
+      {has('attackShip') && modeButton('seaAttack', '⚔️ Attack ship', 'attackShip')}
       {lairs && has('chasePirate') && modeButton('chase', '💥 Chase pirate', 'chasePirate')}
       {has('boardShip') && modeButton('board', '🪖 Board ship', 'boardShip')}
       {has('landArmy') && modeButton('land', '🪖 Land army', 'landArmy')}

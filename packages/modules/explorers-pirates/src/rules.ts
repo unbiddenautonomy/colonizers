@@ -31,13 +31,13 @@ export const SHIP_MOVES = 4;
 export const BOOST_MOVES = 2;
 /** Room in a ship's hold or a harbor's dock: a settler fills it; a crew, fish or spice takes half. */
 export const HOLD = 2;
-/** Hold space each load takes. An army (Soldiers & Armies) fills the hold. */
+/** Hold space each load takes, an army (Soldiers & Armies) among them. */
 export const CARGO_SIZE: Record<string, number> = {
   settler: 2,
   crew: 1,
   fish: 1,
   spice: 1,
-  army: 2,
+  army: 1,
 };
 /** Settlers each player can have out at once. */
 export const SETTLERS = 2;

@@ -1,5 +1,12 @@
 import type { Action, ActionDef, CornerId, Ctx, EdgeId, Phase, Piece } from '@colonizers/engine';
-import { cargoOf, nearFog, ownShip, pirateShip } from '@colonizers/module-explorers-pirates';
+import {
+  cargoOf,
+  cargoRoom,
+  CARGO_SIZE,
+  nearFog,
+  ownShip,
+  pirateShip,
+} from '@colonizers/module-explorers-pirates';
 import { ARMY, ROBBER_DIE } from './constants.ts';
 import { armyDie, canStop, cornerOf, setTurnFlag, turnFlag } from './rules.ts';
 
@@ -9,8 +16,8 @@ import { armyDie, canStop, cornerOf, setTurnFlag, turnFlag } from './rules.ts';
  * - Building is followed by one stretch for ships and armies alike: sailing
  *   takes the field, and armies march while ships sail.
  * - Armies don't march along these ships. To reach another island an army
- *   boards one of your ships from your harbor settlement's corner (it fills
- *   the hold), and goes ashore at either end of the ship.
+ *   boards one of your ships from your harbor settlement's corner (it takes
+ *   one place in the hold), and goes ashore at either end of the ship.
  * - A ship carrying an army can fight the pirate ship, as armies fight the
  *   robber: win and move it, lose and give up a resource. Nothing else can.
  * - Harbor settlements defend like cities.
@@ -52,7 +59,9 @@ export function boardingShips(ctx: Ctx, army: Piece): Piece[] {
   if (!c || b?.type !== 'harbor' || b.owner !== army.owner) return [];
   return ctx
     .piecesOf(army.owner as number, 'ship')
-    .filter((s) => ends(ctx, s).includes(c) && !cargoOf(s).length && !armyAboard(s));
+    .filter(
+      (s) => ends(ctx, s).includes(c) && !armyAboard(s) && cargoRoom(s) >= (CARGO_SIZE.army ?? 1),
+    );
 }
 
 /** Where a ship's army can go ashore. */
@@ -72,7 +81,7 @@ const boardShip = action<{ army: string; ship: string }>({
     if (!army) return 'That is not your army';
     return boardingShips(ctx, army).some((s) => s.id === a.ship)
       ? null
-      : 'Armies board an empty ship of yours at your harbor settlement';
+      : 'Armies board a ship of yours with room, at your harbor settlement';
   },
   apply(ctx, a) {
     const army = ctx.state.pieces[a.army] as Piece;
