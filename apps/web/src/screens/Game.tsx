@@ -1019,7 +1019,7 @@ export function Game({
             </div>
           )}
           <PrincesChoices state={state} legal={legal} act={act} />
-          <SoldiersChoices state={state} legal={legal} act={act} />
+          <SoldiersChoices state={state} legal={legal} act={act} actor={actor} />
           {has('ckDone') && CK_BOARD_PHASES.includes(state.phase.id) && (
             <button type="button" onClick={() => act({ type: 'ckDone', player: actor! })}>
               Done

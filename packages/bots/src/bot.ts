@@ -108,7 +108,12 @@ export function chooseAction(
   }
 
   options = options.filter(
-    (a) => a.type !== 'offerTrade' && a.type !== 'respondTrade' && a.type !== 'confirmTrade',
+    (a) =>
+      a.type !== 'offerTrade' &&
+      a.type !== 'respondTrade' &&
+      a.type !== 'confirmTrade' &&
+      // Bots never give up.
+      a.type !== 'capitulate',
   );
   if (!options.length) return null;
   if (options.length === 1) return options[0]!;

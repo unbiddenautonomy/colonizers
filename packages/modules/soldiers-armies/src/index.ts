@@ -16,6 +16,8 @@ import {
   HAND_LIMIT,
   MAX_WALLS,
   MODULE_ID,
+  NUKE,
+  NUKE_COST,
   ROBBER_DIE,
   UNIT_COSTS,
   UNIT_LIMIT,
@@ -27,24 +29,26 @@ import {
 import {
   armyAt,
   armyDie,
-  attackTargets,
-  buildingDie,
   cornerOf,
-  cutOffRoutes,
   enemyArmyAt,
   freeSteps,
-  loseUnit,
   marchTargets,
   nextToRobber,
-  retreatCorners,
   setTurnFlag,
   soldiersData,
   turnFlag,
   unitsInPlay,
   unitsOf,
   wallsOf,
-  type Target,
+  isOut,
 } from './rules.ts';
+import { answerBattleCall, attack, battleRetreat, battleRoll } from './battle.ts';
+import { capitulate, checkLastStanding, skipIfOut } from './fate.ts';
+import { buyNuke, detonateNuke } from './nuke.ts';
+
+export { nukeOf, nukeTargets } from './nuke.ts';
+export { beaten } from './fate.ts';
+export type { BattlePhase } from './battle.ts';
 
 /**
  * Soldiers & Armies (Soldaten & Armeen, from siedlerinsel.wordpress.com), a
@@ -86,6 +90,8 @@ export {
   turnFlag,
   unitsOf,
   wallsOf,
+  hexDistance,
+  isOut,
   type SoldiersData,
   type Target,
   type Units,
@@ -265,175 +271,21 @@ const marchArmy = action<{ army: string; to: CornerId }>({
   },
 });
 
-/** Rivals can't build a road on past a corner an army holds. */
-function noRoadPastArmies(prev: ActionDef): ActionDef {
-  return {
+/** Rivals can't build a road (or ship) on past a corner an army holds. */
+const noRoutePastArmies =
+  (route: string) =>
+  (prev: ActionDef): ActionDef => ({
     ...prev,
     check(ctx, a) {
       const err = prev.check(ctx, a);
       if (err) return err;
       const corners = ctx.geometry.edgeCorners.get(a.edge as EdgeId) ?? [];
-      const from = corners.filter((c) => connectsAt(ctx, a.player, c, 'land'));
+      const from = corners.filter((c) => connectsAt(ctx, a.player, c, route));
       return from.length && from.every((c) => enemyArmyAt(ctx, c, a.player))
         ? 'An army holds that corner'
         : null;
     },
-  };
-}
-
-// ---- Fighting ----
-
-interface BattlePhase {
-  id: 'battle';
-  army: string;
-  target: Target;
-}
-
-const battle = (ctx: Ctx) => ctx.state.phase as unknown as BattlePhase;
-
-const sameTarget = (x: Target, y: Target) => x.kind === y.kind && x.corner === y.corner;
-
-const attack = action<{ army: string; target: Target }>({
-  phases: ['campaign'],
-  check(ctx, a) {
-    const err = onlyActive(ctx, a);
-    if (err) return err;
-    const army = ownArmy(ctx, a.player, a.army);
-    if (!army) return 'That is not your army';
-    if (!a.target || typeof a.target !== 'object') return 'Pick something to attack';
-    return attackTargets(ctx, army).some((t) => sameTarget(t, a.target))
-      ? null
-      : 'The army can not attack that';
-  },
-  apply(ctx, a) {
-    setTurnFlag(ctx, 'fought');
-    const target: Target = { kind: a.target.kind, corner: a.target.corner } as Target;
-    const defender =
-      target.kind === 'army'
-        ? armyAt(ctx, target.corner)?.owner
-        : ctx.buildingAt(target.corner)?.owner;
-    ctx.emit({ type: 'attacked', player: a.player, defender, target });
-    ctx.setPhase({ id: 'battle', army: a.army, target });
-  },
-  enumerate(ctx, player) {
-    if (player !== ctx.active) return [];
-    return ctx.piecesOf(player, ARMY).flatMap((army) =>
-      attackTargets(ctx, army).map((target) => ({
-        type: 'attack',
-        player,
-        army: army.id,
-        target,
-      })),
-    );
-  },
-});
-
-/** The building takes a beating: damaged first, then down a level. True when it falls. */
-function damage(ctx: Ctx, b: Piece): boolean {
-  if (!b.props.damaged) {
-    b.props.damaged = true;
-    return false;
-  }
-  if (b.type === 'settlement' || ctx.supplyLeft(b.owner as number, 'settlement') <= 0) return true;
-  const s = ctx.upgrade(b, 'settlement');
-  delete s.props.damaged;
-  delete s.props.walls;
-  return false;
-}
-
-/** The settlement is the attacker's now, with the roads that lose their way home. */
-function capture(ctx: Ctx, attacker: number, corner: CornerId, b: Piece): void {
-  const loser = b.owner as number;
-  const routes = cutOffRoutes(ctx, corner, loser);
-  ctx.remove(b);
-  const took = ctx.supplyLeft(attacker, 'settlement') > 0;
-  if (took) ctx.place('settlement', attacker, { kind: 'corner', id: corner });
-  for (const r of routes) {
-    if (ctx.supplyLeft(attacker, r.type) > 0) r.owner = attacker;
-    else ctx.remove(r);
-  }
-  ctx.invalidatePieces();
-  ctx.emit({
-    type: 'settlementCaptured',
-    player: attacker,
-    from: loser,
-    at: corner,
-    taken: took,
-    routes: routes.length,
   });
-}
-
-const battleRoll = action<object>({
-  phases: ['battle'],
-  check: onlyActive,
-  apply(ctx, a) {
-    const ph = battle(ctx);
-    const army = ctx.state.pieces[ph.army] as Piece;
-    const corner = ph.target.corner;
-    const foe = ph.target.kind === 'army' ? armyAt(ctx, corner) : ctx.buildingAt(corner);
-    if (!foe) {
-      ctx.setPhase({ id: 'campaign' });
-      return;
-    }
-    const dice = [
-      armyDie(army),
-      ph.target.kind === 'army' ? armyDie(foe) : buildingDie(foe),
-    ] as const;
-    const walls = ph.target.kind === 'building' ? wallsOf(foe) : 0;
-    const rolls = [ctx.rng.int(1, dice[0]), ctx.rng.int(1, dice[1])] as const;
-    const won = rolls[0] > rolls[1] + walls;
-    ctx.emit({
-      type: 'battleRound',
-      player: a.player,
-      defender: foe.owner,
-      target: ph.target.kind,
-      at: corner,
-      dice,
-      rolls,
-      walls,
-      won,
-    });
-    let over = false;
-    if (!won) {
-      over = !loseUnit(ctx, army);
-      if (over) ctx.emit({ type: 'armyDestroyed', player: a.player, by: foe.owner });
-    } else if (ph.target.kind === 'army') {
-      over = !loseUnit(ctx, foe);
-      if (over) ctx.emit({ type: 'armyDestroyed', player: foe.owner, by: a.player });
-    } else if (damage(ctx, foe)) {
-      capture(ctx, a.player, corner, foe);
-      over = true;
-    }
-    if (over) ctx.setPhase({ id: 'campaign' });
-  },
-  enumerate: (ctx, player) => (player === ctx.active ? [{ type: 'battleRoll', player }] : []),
-});
-
-/** Break off the fight and fall back a corner (or hold still if there's nowhere to go). */
-const battleRetreat = action<{ to: CornerId | null }>({
-  phases: ['battle'],
-  check(ctx, a) {
-    const err = onlyActive(ctx, a);
-    if (err) return err;
-    const army = ctx.state.pieces[battle(ctx).army] as Piece;
-    const options = retreatCorners(ctx, army);
-    if (a.to === null) return options.length ? 'Fall back to a neighbouring corner' : null;
-    return options.includes(a.to) ? null : 'The army can not fall back there';
-  },
-  apply(ctx, a) {
-    const army = ctx.state.pieces[battle(ctx).army] as Piece;
-    const from = cornerOf(army);
-    if (a.to) ctx.move(army, { kind: 'corner', id: a.to });
-    ctx.emit({ type: 'armyRetreated', player: a.player, from, to: a.to });
-    ctx.setPhase({ id: 'campaign' });
-  },
-  enumerate(ctx, player) {
-    if (player !== ctx.active) return [];
-    const army = ctx.state.pieces[battle(ctx).army] as Piece;
-    const options = retreatCorners(ctx, army);
-    return (options.length ? options : [null]).map((to) => ({ type: 'battleRetreat', player, to }));
-  },
-});
 
 /** Once a turn, an army next to the robber can fight it. */
 const attackRobber = action<{ army: string }>({
@@ -510,11 +362,14 @@ export const soldiersModule: GameModule = {
   },
   pieceTypes: {
     [ARMY]: { on: 'corner' },
+    [NUKE]: { on: 'corner' },
   },
   costs: {
     ...UNIT_COSTS,
     wall: WALL_COST,
     armyStep: ARMY_STEP_COST,
+    // The nuke's fixed part; five cards of any kind come on top.
+    nukeBase: NUKE_COST,
   },
   actions: {
     buyUnit,
@@ -523,16 +378,24 @@ export const soldiersModule: GameModule = {
     takeTheField,
     marchArmy,
     attack,
+    answerBattleCall,
     battleRoll,
     battleRetreat,
     attackRobber,
     payRobberToll,
+    buyNuke,
+    detonateNuke,
+    capitulate,
   },
   wrapActions: {
     buyDevCard: notBought,
     endTurn: endInTheField,
-    buildRoad: noRoadPastArmies,
-    placeFreeRoad: noRoadPastArmies,
+    buildRoad: noRoutePastArmies('land'),
+    placeFreeRoad: noRoutePastArmies('land'),
+  },
+  wrapActionsIfPresent: {
+    buildShip: noRoutePastArmies('sea'),
+    placeFreeShip: noRoutePastArmies('sea'),
   },
   hooks: {
     init(ctx) {
@@ -562,9 +425,16 @@ export const soldiersModule: GameModule = {
         ctx.events.some((e) => BOUGHT.has(e.type) && e.player === ctx.active)
       )
         setTurnFlag(ctx, 'bought');
+      checkLastStanding(ctx);
     },
+    turnStarted: skipIfOut,
   },
   reducers: {
+    // A player who is out finishes on the points they left with.
+    vp: (ctx, seat, value) => soldiersData(ctx).out?.[String(seat)]?.vp ?? value,
+    canWin: (ctx, seat, value) => value && !isOut(ctx, seat),
+    // A nuked field makes nothing.
+    hexBlocked: (ctx, hex, _piece, value) => value || !!soldiersData(ctx).nuked?.[hex.id],
     handLimit(ctx, seat, value) {
       const walls = ctx
         .piecesOf(seat)
