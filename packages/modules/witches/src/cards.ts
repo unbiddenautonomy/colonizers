@@ -8,6 +8,7 @@ import {
   ckData,
   defineFanCards,
   eventFaces,
+  excuseDiscard,
   fanDeck,
   keepOne,
   knightsOf,
@@ -29,7 +30,7 @@ import {
   type Pooled,
   type Track,
 } from '@colonizers/module-cities-knights';
-import { MAGIC_TRACKS, SMALL_DRAGON_EXTRA } from './constants.ts';
+import { MAGIC_TRACKS, MODULE_ID, SMALL_DRAGON_EXTRA } from './constants.ts';
 import {
   placeWizard,
   spellOn,
@@ -181,7 +182,7 @@ function discardLimit(ctx: Ctx, seat: number): number {
 
 // ---- The cards ----
 
-export const CARDS = defineFanCards({
+export const CARDS = defineFanCards(MODULE_ID, {
   lightning: {
     count: 1,
     check: (ctx) => (fertile(ctx).length ? null : 'There is no land to strike'),
@@ -239,13 +240,8 @@ export const CARDS = defineFanCards({
         ? null
         : 'You would still hold too many cards',
     apply(ctx, a) {
-      const ph = ctx.state.phase;
-      const owed = { ...(ph.owed as Record<number, number>) };
-      delete owed[a.player];
       ctx.emit({ type: 'smallDragon', player: a.player });
-      if (Object.keys(owed).length) ctx.setPhase({ ...ph, owed });
-      else if (ph.skipRobber) ctx.setPhase({ id: (ph.returnTo as string | undefined) ?? 'main' });
-      else ctx.setPhase({ id: 'moveRobber', returnTo: ph.returnTo });
+      excuseDiscard(ctx, a.player);
     },
   },
   magicFortune: {

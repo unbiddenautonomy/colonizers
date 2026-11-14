@@ -20,7 +20,6 @@ import {
   eventFaces,
   giveProgress,
   hasAbility,
-  holdsProgress,
   isActive,
   isAway,
   isKnight,
@@ -29,11 +28,21 @@ import {
   openRoutes,
   progressCount,
   progressHeld,
-  spendProgress,
   type Track,
-  indulgenceTiming,
-  playIndulgence,
-  INDULGENCE_REROLLS as REROLLS,
+  crusaderCard,
+  defineFanCards,
+  excuseDiscard,
+  heldIn,
+  indulgenceCard,
+  keepOne,
+  others,
+  pickTarget,
+  reformationCard,
+  refugeCard,
+  returnHeld,
+  takeFromEach,
+  wrapFanCards,
+  type FanCard,
 } from '@colonizers/module-cities-knights';
 import { MODULE_ID } from './constants.ts';
 import { dragonData, dragonGone, landDragon } from './dragon.ts';
@@ -67,10 +76,6 @@ export function cardData(ctx: Ctx): CardData {
   return ctx.data<CardData>(MODULE_ID);
 }
 
-function others(ctx: Ctx, seat: number): number[] {
-  return ctx.state.players.map((p) => p.seat).filter((s) => s !== seat);
-}
-
 type Play = Action & {
   card: string;
   target?: number;
@@ -80,27 +85,19 @@ type Play = Action & {
   face?: string;
 };
 
-type When = 'main' | 'roll' | 'beforeOrAfter' | 'discard' | 'indulgence';
-
-interface CardDef {
+/** A Greed, Wealth & Power card: a shared fan card that names its deck. */
+type CardDef = Omit<FanCard, 'deck' | 'options' | 'check' | 'apply'> & {
   deck: Track;
-  count: number;
-  /** When it can be played: on your turn after rolling (default), before rolling, either, or when a 7 makes you discard. */
-  when?: When;
   /** The choices offered (merged into the action). One empty choice if left out. */
   options?(ctx: Ctx, seat: number): Partial<Play>[];
   check?(ctx: Ctx, a: Play): string | null;
   apply(ctx: Ctx, a: Play): void;
-}
+};
+
+/** A card row shared with Church, Faith & Reformation, in the Religion deck here. */
+const religion = (card: FanCard): CardDef => ({ ...card, deck: 'religion' }) as CardDef;
 
 // ---- Small helpers ----
-
-function pickTarget(ctx: Ctx, a: Play): string | null {
-  const t = a.target;
-  if (!Number.isInteger(t) || t === a.player || !ctx.state.players[t as number])
-    return 'Pick another player';
-  return null;
-}
 
 function stealEach(ctx: Ctx, seat: number, count: (s: number) => number): void {
   for (const s of others(ctx, seat))
@@ -113,30 +110,6 @@ function askGifts(ctx: Ctx, seat: number, from: number[], reason: string): void 
   for (const s of from) if (ctx.handSize(s, false) > 0) owed[s] = 1;
   if (Object.keys(owed).length)
     ctx.setPhase({ id: 'wedding', owed, by: seat, reason, returnTo: MAIN });
-}
-
-/** Puts a held progress card back under its deck. */
-function returnHeld(ctx: Ctx, seat: number, deck: Track, card: string): void {
-  const held = ctx.player(seat).held[deck] ?? [];
-  const i = held.findIndex((h) => h.card === card);
-  if (i < 0) return;
-  held.splice(i, 1);
-  (ctx.state.decks[deck] ??= []).push(card);
-}
-
-function heldIn(ctx: Ctx, seat: number, deck: Track): string[] {
-  return (ctx.player(seat).held[deck] ?? []).map((h) => h.card);
-}
-
-/** Takes cards from others into a pool the player keeps one of; the rest go under their decks. */
-function keepOne(ctx: Ctx, seat: number, pool: { card: string; deck: Track }[]): void {
-  if (!pool.length) return;
-  if (pool.length === 1) {
-    const [only] = pool as [{ card: string; deck: Track }];
-    giveProgress(ctx, seat, only.deck, only.card);
-    return;
-  }
-  ctx.setPhase({ id: 'keepProgress', by: seat, pool, returnTo: MAIN });
 }
 
 function hexIsHarbor(ctx: Ctx, corner: CornerId): boolean {
@@ -683,8 +656,8 @@ export const CARDS: Record<string, CardDef> = {
       ctx.setPhase({ id: 'progressDiscard', owed, reason: 'bookBurning', returnTo: MAIN });
     },
   },
-  dogma: takeFromEach('science'),
-  witchBurning: takeFromEach('magic'),
+  dogma: religion(takeFromEach('science')),
+  witchBurning: religion(takeFromEach('magic')),
   lent: {
     deck: 'religion',
     count: 1,
@@ -705,14 +678,7 @@ export const CARDS: Record<string, CardDef> = {
       askGifts(ctx, a.player, others(ctx, a.player), 'churchTax');
     },
   },
-  crusader: {
-    deck: 'religion',
-    count: 2,
-    check: (ctx, a) => (ctx.supplyLeft(a.player, 'knight1') > 0 ? null : 'No basic knights left'),
-    apply(ctx) {
-      ctx.setPhase({ id: 'placeDeserter', knightType: 'knight1', active: true, returnTo: MAIN });
-    },
-  },
+  crusader: religion(crusaderCard(2)),
   missionary: {
     deck: 'religion',
     count: 1,
@@ -746,28 +712,7 @@ export const CARDS: Record<string, CardDef> = {
       ctx.emit({ type: 'missionary', player: a.player, target, lost });
     },
   },
-  reformation: {
-    deck: 'religion',
-    count: 1,
-    options: () => [{ option: 'mine' }, { option: 'others' }],
-    check(ctx, a) {
-      if (a.option === 'mine')
-        return progressCount(ctx, a.player) > 1 ? null : 'You have no other progress cards';
-      if (a.option === 'others')
-        return others(ctx, a.player).some((s) => progressCount(ctx, s) > 0)
-          ? null
-          : 'Nobody else has a progress card';
-      return 'Pick one';
-    },
-    apply(ctx, a) {
-      const seats = a.option === 'mine' ? [a.player] : others(ctx, a.player);
-      for (const s of seats) {
-        const had = progressHeld(ctx, s);
-        for (const h of had) returnHeld(ctx, s, h.deck, h.card);
-        for (const h of had) drawProgress(ctx, s, h.deck);
-      }
-    },
-  },
+  reformation: religion(reformationCard()),
   badOmen: {
     deck: 'religion',
     count: 1,
@@ -803,26 +748,8 @@ export const CARDS: Record<string, CardDef> = {
       ctx.emit({ type: 'banishment', player: a.player });
     },
   },
-  indulgence: {
-    deck: 'religion',
-    count: 2,
-    when: 'indulgence',
-    options: () => REROLLS.map((option) => ({ option })),
-    check: (_ctx, a) => (REROLLS.includes(a.option ?? '') ? null : 'Pick the dice to throw again'),
-    apply(ctx, a) {
-      playIndulgence(ctx, a.player, a.option as string);
-    },
-  },
-  refuge: {
-    deck: 'religion',
-    count: 2,
-    when: 'beforeOrAfter',
-    check: (ctx, a) =>
-      ckData(ctx).refuge?.includes(a.player) ? 'Your cities are already safe' : null,
-    apply(ctx, a) {
-      (ckData(ctx).refuge ??= []).push(a.player);
-    },
-  },
+  indulgence: religion(indulgenceCard(2)),
+  refuge: religion(refugeCard(2)),
 
   // ---- Wealth ----
   landDeed: {
@@ -923,42 +850,11 @@ export const CARDS: Record<string, CardDef> = {
     count: 2,
     when: 'discard',
     apply(ctx, a) {
-      const ph = ctx.state.phase;
-      const owed = { ...(ph.owed as Record<number, number>) };
-      delete owed[a.player];
       ctx.emit({ type: 'intimidation', player: a.player });
-      if (Object.keys(owed).length) ctx.setPhase({ ...ph, owed });
-      else ctx.setPhase({ id: 'moveRobber', returnTo: ph.returnTo });
+      excuseDiscard(ctx, a.player);
     },
   },
 };
-
-function takeFromEach(deck: Track): CardDef {
-  return {
-    deck: 'religion',
-    count: 1,
-    check: (ctx, a) =>
-      others(ctx, a.player).some((s) => heldIn(ctx, s, deck).length > 0)
-        ? null
-        : `Nobody else has a ${deck} card`,
-    apply(ctx, a) {
-      const pool: { card: string; deck: Track }[] = [];
-      for (const s of others(ctx, a.player)) {
-        const held = heldIn(ctx, s, deck);
-        if (!held.length) continue;
-        const card = held[ctx.rng.int(0, held.length - 1)] as string;
-        const list = ctx.player(s).held[deck] ?? [];
-        list.splice(
-          list.findIndex((h) => h.card === card),
-          1,
-        );
-        pool.push({ card, deck });
-        ctx.emit({ type: 'progressTaken', player: a.player, from: s, deck });
-      }
-      keepOne(ctx, a.player, pool);
-    },
-  };
-}
 
 function gwpBuildings(ctx: Ctx, seat: number): { citadel?: unknown; diocese?: unknown } {
   const d = ctx.state.data[MODULE_ID] as
@@ -1039,64 +935,10 @@ export function deckCards(deck: string): Record<string, number> {
 
 // ---- Playing ----
 
-function timing(ctx: Ctx, a: Play, def: CardDef): string | null {
-  const ph = ctx.state.phase;
-  if (def.when === 'indulgence') return indulgenceTiming(ctx, a.player);
-  if (ph.id === 'indulgence') return 'Not while a roll waits for an Indulgence';
-  if (def.when === 'discard') {
-    const owed = (ph.owed as Record<number, number> | undefined)?.[a.player];
-    if (ph.id !== 'discard' || !owed || ph.skipRobber)
-      return 'Play this when a 7 makes you discard';
-    return null;
-  }
-  if (a.player !== ctx.active) return 'Not your turn';
-  const when = def.when ?? 'main';
-  if (when === 'roll' && ph.id !== 'roll') return 'Play this before you roll';
-  if (when === 'main' && ph.id !== 'main') return 'Progress cards are played after rolling';
-  if (when === 'beforeOrAfter' && ph.id !== 'roll' && ph.id !== 'main') return 'Not now';
-  return null;
-}
+defineFanCards(MODULE_ID, CARDS as Record<string, FanCard>);
 
-function checkCard(ctx: Ctx, a: Play): string | null {
-  const def = CARDS[a.card] as CardDef;
-  if (!holdsProgress(ctx, a.player, a.card)) return 'You do not hold that card';
-  return timing(ctx, a, def) ?? def.check?.(ctx, a) ?? null;
-}
-
-/** Adds the new cards to playProgress (also playable during a discard, for Intimidation). */
-export function wrapCards(prev: ActionDef): ActionDef {
-  return {
-    ...prev,
-    phases: [...(prev.phases ?? []), 'discard', 'indulgence'],
-    check(ctx, a) {
-      if (isGwpCard(a.card)) return checkCard(ctx, a as Play);
-      if (ctx.state.phase.id === 'indulgence') return 'Not while a roll waits for an Indulgence';
-      return prev.check(ctx, a);
-    },
-    apply(ctx, a) {
-      if (!isGwpCard(a.card)) return prev.apply(ctx, a);
-      const def = CARDS[a.card as string] as CardDef;
-      spendProgress(ctx, a.player, a.card as string);
-      def.apply(ctx, a as Play);
-    },
-    enumerate(ctx, player) {
-      const ph = ctx.state.phase.id;
-      const out =
-        ph === 'discard' || ph === 'indulgence'
-          ? []
-          : (prev.enumerate?.(ctx, player) ?? []).filter((a) => !isGwpCard(a.card));
-      const seen = new Set<string>();
-      for (const { card } of progressHeld(ctx, player)) {
-        if (seen.has(card) || !isGwpCard(card)) continue;
-        seen.add(card);
-        const def = CARDS[card] as CardDef;
-        for (const o of def.options?.(ctx, player) ?? [{}])
-          out.push({ type: 'playProgress', player, card, ...o } as Action);
-      }
-      return out;
-    },
-  };
-}
+/** Adds the new cards to playProgress, through Cities & Knights' fan card engine. */
+export const wrapCards = wrapFanCards(CARDS as Record<string, FanCard>);
 
 // ---- Steps after playing a card ----
 
@@ -1240,31 +1082,6 @@ const ritualGive: ActionDef = {
   },
 };
 
-/** Keep one card from a pool; the rest go under their decks. */
-const keepProgress: ActionDef = {
-  phases: ['keepProgress'],
-  check(ctx, a) {
-    const ph = ctx.state.phase;
-    if (a.player !== ph.by) return 'Not you';
-    const pool = ph.pool as { card: string }[];
-    return Number.isInteger(a.index) && pool[a.index as number] ? null : 'Pick a card';
-  },
-  apply(ctx, a) {
-    const ph = ctx.state.phase;
-    const pool = ph.pool as { card: string; deck: Track }[];
-    pool.forEach((p, i) => {
-      if (i === a.index) giveProgress(ctx, a.player, p.deck, p.card);
-      else (ctx.state.decks[p.deck] ??= []).push(p.card);
-    });
-    back(ctx);
-  },
-  enumerate(ctx, player) {
-    const ph = ctx.state.phase;
-    if (player !== ph.by) return [];
-    return (ph.pool as unknown[]).map((_, index) => ({ type: 'keepProgress', player, index }));
-  },
-};
-
 /** Espionage: take the top card of one deck. */
 const espionageTake: ActionDef = {
   phases: ['espionage'],
@@ -1293,7 +1110,6 @@ export const cardActions: Record<string, ActionDef> = {
   summonRemove,
   naiadHex,
   ritualGive,
-  keepProgress,
   espionageTake,
 };
 
