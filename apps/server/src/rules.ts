@@ -104,16 +104,18 @@ export function princesOn(
 }
 
 /**
- * Soldiers & Armies goes on the usual maps and Seafarers, on the base game or
- * Cities & Knights, and with Princes & Explorers. Its rules with the other
- * fan expansions come later.
+ * Soldiers & Armies goes on the usual maps, Seafarers and the Explorers &
+ * Pirates scenarios, on the base game or Cities & Knights, and with Princes &
+ * Explorers. Its rules with the other fan expansions come later.
  */
 export function soldiersOn(
   settings: Pick<RoomSettings, 'soldiers' | 'map'>,
   otherFan: boolean,
 ): boolean {
-  const kind = settings.map.kind;
-  return settings.soldiers && !otherFan && kind !== 'special';
+  const map = settings.map;
+  const special = map.kind === 'special' ? specialMapById(map.id) : undefined;
+  const ok = map.kind !== 'special' || special?.group === 'explorers';
+  return settings.soldiers && !otherFan && ok;
 }
 
 /** Civilisations goes on top of Greed, Wealth & Power. */

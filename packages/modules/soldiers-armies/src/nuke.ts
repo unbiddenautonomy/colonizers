@@ -95,6 +95,7 @@ function blast(ctx: Ctx, b: Piece): void {
   else if (b.type !== 'settlement' && ctx.supplyLeft(b.owner as number, 'settlement') > 0) {
     const s = ctx.upgrade(b, 'settlement');
     delete s.props.damaged;
+    delete s.props.cargo;
   } else ctx.remove(b);
 }
 

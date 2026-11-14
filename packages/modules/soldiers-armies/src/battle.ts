@@ -142,6 +142,8 @@ function damage(ctx: Ctx, b: Piece): boolean {
   const s = ctx.upgrade(b, 'settlement');
   delete s.props.damaged;
   delete s.props.walls;
+  // A harbor settlement's dock (Explorers & Pirates) goes with it.
+  delete s.props.cargo;
   return false;
 }
 

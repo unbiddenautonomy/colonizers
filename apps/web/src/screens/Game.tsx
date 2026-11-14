@@ -1065,20 +1065,22 @@ export function Game({
             )}
           {wonders && !myTurnMain && <WonderPanel ctx={ctx} actor={null} legal={[]} act={act} />}
           {civs && !myTurnMain && <CivPanel ctx={ctx} actor={actor} legal={[]} act={act} />}
-          {ep && state.phase.id === 'sail' && actor === state.turn.player && (
-            <EpActions
-              ctx={ctx}
-              actor={actor}
-              legal={legal}
-              act={act}
-              mode={mode}
-              setMode={(m) => {
-                setSelectedShip(null);
-                setMode(m);
-              }}
-              selectedShip={mode === 'sail' ? selectedShip : null}
-            />
-          )}
+          {ep &&
+            (state.phase.id === 'sail' || (state.phase.id === 'campaign' && soldiersOn(state))) &&
+            actor === state.turn.player && (
+              <EpActions
+                ctx={ctx}
+                actor={actor}
+                legal={legal}
+                act={act}
+                mode={mode}
+                setMode={(m) => {
+                  setSelectedShip(null);
+                  setMode(m);
+                }}
+                selectedShip={mode === 'sail' ? selectedShip : null}
+              />
+            )}
           {(myTurnMain || outOfTurn) && actor !== null && (
             <>
               {outOfTurn && (

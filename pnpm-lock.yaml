@@ -467,6 +467,9 @@ importers:
       '@colonizers/module-base':
         specifier: workspace:*
         version: link:../base
+      '@colonizers/module-explorers-pirates':
+        specifier: workspace:*
+        version: link:../explorers-pirates
     devDependencies:
       '@colonizers/maps':
         specifier: workspace:*
