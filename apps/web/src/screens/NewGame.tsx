@@ -163,9 +163,16 @@ export function NewGame({
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const investorsOk = !specialId || isExplorers || isTraders;
   const investors = investorsWanted && investorsOk;
-  // Kingdoms & Warriors goes on the base game, on the usual maps and Seafarers, for now.
+  // Kingdoms & Warriors goes on the usual maps and Seafarers, on the base game or Cities &
+  // Knights, and with Investors & Speculators.
   const kingdomsOk =
-    !ck && !princes && !soldiers && !investors && !wonders && effective.kind !== 'special';
+    !gwp &&
+    !church &&
+    !witches &&
+    !princes &&
+    !soldiers &&
+    !wonders &&
+    effective.kind !== 'special';
   const kingdoms = kingdomsWanted && kingdomsOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
@@ -647,7 +654,7 @@ export function NewGame({
             <strong>👑 Kingdoms &amp; Warriors</strong>
             <small>
               {!kingdomsOk
-                ? 'Fan expansion for the base game on the usual maps and Seafarers (not with Cities & Knights or the other fan expansions yet).'
+                ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights and Investors & Speculators (not with the other fan expansions yet).'
                 : 'Fan expansion: kingdoms spread out from your cities, take their fields’ resources, score a point for every 3 joined, and are fought over with your knights. Plays to 2 points more.'}
             </small>
           </button>

@@ -30,6 +30,11 @@ import { robber } from '@colonizers/module-base';
  *   marker, away from rival buildings and rival markers. At most 2 battles a
  *   turn, against different players, and a player's last 2 markers are safe.
  * - Plays to 2 points more than usual.
+ *
+ * With Cities & Knights, the army is the active knights on the board by
+ * strength, plus half the Defender of Catan cards (rounded up). Around a
+ * surrounded city the owner keeps the commodity and the kingdom takes the
+ * resource.
  */
 
 export const MODULE_ID = 'kingdoms';
@@ -196,8 +201,22 @@ const placeFreeMarker: ActionDef = {
   },
 };
 
-/** A player's strength in battle, without the die: knights played and Largest Army. */
+const KNIGHTS: Record<string, number> = { knight1: 1, knight2: 2, knight3: 3 };
+
+/**
+ * A player's strength in battle, without the die: knight cards played and
+ * Largest Army. With Cities & Knights, their active knights by strength, and
+ * half their Defender of Catan cards (rounded up).
+ */
 export function armyOf(ctx: Ctx, seat: number): number {
+  const ck = ctx.state.data['cities-knights'] as { defender?: Record<number, number> } | undefined;
+  if (ck) {
+    const knights = ctx
+      .piecesOf(seat)
+      .filter((p) => KNIGHTS[p.type] && p.props.active === true)
+      .reduce((n, k) => n + ctx.reduce('knightStrength', k, KNIGHTS[k.type] as number), 0);
+    return knights + Math.ceil((ck.defender?.[seat] ?? 0) / 2);
+  }
   const base = ctx.state.data.base as { largestArmy?: number | null } | undefined;
   return (ctx.player(seat).played.knight ?? 0) + (base?.largestArmy === seat ? 1 : 0);
 }
@@ -292,7 +311,13 @@ function yieldShares(
   const total = Object.values(mine).reduce((n, k) => n + (k ?? 0), 0);
   // A settlement gives it all; anything bigger keeps all but one card.
   let take = piece.type === 'settlement' ? total : Math.min(1, total);
-  for (const [card, n] of Object.entries(mine)) {
+  // Take resources first: a city's owner keeps its commodity (Cities & Knights).
+  const order = Object.entries(mine).sort(
+    ([a], [b]) =>
+      Number(ctx.registry.cardTypes[b]?.category === 'resource') -
+      Number(ctx.registry.cardTypes[a]?.category === 'resource'),
+  );
+  for (const [card, n] of order) {
     const k = Math.min(n, take);
     if (!k) continue;
     mine[card] = n - k;

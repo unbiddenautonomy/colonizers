@@ -251,8 +251,8 @@ function Lobby({
   const soldiers = s.soldiers && soldiersOk;
   const investorsOk =
     !specialPick || specialPick.group === 'explorers' || specialPick.group === 'traders';
-  const investors = s.investors && investorsOk;
-  const kingdomsOk = !ck && !princes && !soldiers && !investors && !wonders && !specialPick;
+  const kingdomsOk =
+    !gwp && !church && !witches && !princes && !soldiers && !wonders && !specialPick;
   const kingdoms = s.kingdoms && kingdomsOk;
   const bonus = vpBonus(
     ck,
@@ -549,9 +549,9 @@ function Lobby({
                 disabled={!kingdomsOk}
                 onChange={(e) => setGame({ kingdoms: e.target.checked })}
               />{' '}
-              👑 Kingdoms &amp; Warriors (fan expansion for the base game on the usual maps and
-              Seafarers: kingdoms that spread from your cities and are fought over; 2 points more
-              than usual)
+              👑 Kingdoms &amp; Warriors (fan expansion for the usual maps and Seafarers, with or
+              without Cities &amp; Knights: kingdoms that spread from your cities and are fought
+              over; 2 points more than usual)
             </label>
             <label className="toggle">
               <input

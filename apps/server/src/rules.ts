@@ -137,8 +137,8 @@ export function investorsOn(settings: Pick<RoomSettings, 'investors' | 'map'>): 
 }
 
 /**
- * Kingdoms & Warriors goes on the base game, on the usual maps and Seafarers.
- * Its rules with Cities & Knights and the other expansions come later.
+ * Kingdoms & Warriors goes on the usual maps and Seafarers, on the base game
+ * or Cities & Knights, and with Investors & Speculators.
  */
 export function kingdomsOn(
   settings: Pick<RoomSettings, 'kingdoms' | 'map'>,
@@ -168,7 +168,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const investors = investorsOn(settings);
   const kingdoms = kingdomsOn(
     settings,
-    ck || princes || soldiers || investors || wondersOn(settings),
+    princes || soldiers || gwp || church || witches || wondersOn(settings),
   );
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
