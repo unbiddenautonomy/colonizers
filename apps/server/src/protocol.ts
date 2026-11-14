@@ -128,6 +128,8 @@ export function moduleList(
     'cities-knights',
     // Land & Water's Cities & Knights rules, wrapping that expansion's knights and cards.
     'landwater-ck',
+    // Strategist & Commander, wrapping Cities & Knights' knights, robber and cards.
+    'strategist',
     // After the base game and Cities & Knights, so its robber wrapper comes outermost.
     'princes',
     // After the base game, so its turn and road wrappers come outermost.
@@ -202,6 +204,8 @@ export interface RoomSettings {
   kingdoms: boolean;
   /** Add Land & Water (SiedlerInsel): vehicles instead of roads, on the usual maps and Seafarers. */
   landWater: boolean;
+  /** Add Strategist & Commander (fan expansion) on top of Cities & Knights. */
+  strategist: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -226,6 +230,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   investors: false,
   kingdoms: false,
   landWater: false,
+  strategist: false,
   turnTimer: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
@@ -366,6 +371,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     investors: s.investors === true,
     kingdoms: s.kingdoms === true,
     landWater: s.landWater === true,
+    strategist: s.strategist === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),

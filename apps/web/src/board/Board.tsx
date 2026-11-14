@@ -32,6 +32,7 @@ import { witchesMarkers } from '../screens/Witches.tsx';
 import { princesMarkers } from '../screens/Princes.tsx';
 import { kingdomsMarkers } from '../screens/Kingdoms.tsx';
 import { landWaterVehicles } from '../screens/LandWater.tsx';
+import { sfCornerMarkers, sfHexMarkers } from '../screens/Strategist.tsx';
 import { ArmyFlag, soldiersMarkers } from '../screens/Soldiers.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
@@ -1120,7 +1121,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         );
       })}
 
-      {[...seatMarkers(state), ...churchMarkers(state), ...witchesMarkers(state)].map((m) => {
+      {[
+        ...seatMarkers(state),
+        ...churchMarkers(state),
+        ...witchesMarkers(state),
+        ...sfCornerMarkers(state),
+      ].map((m) => {
         const edge = m.at.startsWith('e:');
         if (edge && !g.edgeCorners.has(m.at as EdgeId)) return null;
         const [a, b] = edge ? edgeEnds(m.at as EdgeId, g) : [null, null];
@@ -1153,6 +1159,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         ...princesMarkers(state),
         ...soldiersMarkers(state),
         ...kingdomsMarkers(state),
+        ...sfHexMarkers(state),
       ].map((m) => {
         const h = state.hexes[m.hex];
         if (!h) return null;

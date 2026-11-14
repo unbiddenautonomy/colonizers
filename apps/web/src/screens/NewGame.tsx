@@ -98,6 +98,7 @@ export function NewGame({
   const [investorsWanted, setInvestors] = useState(false);
   const [kingdomsWanted, setKingdoms] = useState(false);
   const [landWaterWanted, setLandWater] = useState(false);
+  const [strategistWanted, setStrategist] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -191,6 +192,10 @@ export function NewGame({
     !specialId &&
     !fog;
   const landWater = landWaterWanted && landWaterOk;
+  // Strategist & Commander goes on Cities & Knights; Greed, Wealth & Power has its own Duke and
+  // Scholar, and Land & Water has no knight pieces.
+  const strategistOk = ck && !gwp && !landWater;
+  const strategist = strategistWanted && strategistOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
     (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) +
@@ -207,7 +212,7 @@ export function NewGame({
         : witches
           ? 'Witches, Wizards & Dragons'
           : 'Cities & Knights';
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}:${investors}:${kingdoms}:${landWater}`;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}:${investors}:${kingdoms}:${landWater}:${strategist}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
@@ -276,6 +281,7 @@ export function NewGame({
               ...(investors ? ['investors'] : []),
               ...(kingdoms ? ['kingdoms'] : []),
               ...(landWater ? ['landwater'] : []),
+              ...(strategist ? ['strategist'] : []),
             ],
             ck,
             gwp,
@@ -701,6 +707,20 @@ export function NewGame({
               {!landWaterOk
                 ? 'Fan expansion for the base game or Cities & Knights, on the usual maps and Seafarers without fog (not with the other expansions yet).'
                 : 'Fan expansion: no roads. Trains, ships and planes travel through the fields, collect their yields, fish and trade at harbors, and found new settlements. Plays to 12 (14 with Cities & Knights).'}
+            </small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${strategist ? 'on' : ''}`}
+            aria-pressed={strategist}
+            disabled={!strategistOk}
+            onClick={() => setStrategist(!strategist)}
+          >
+            <strong>♟️ Strategist &amp; Commander</strong>
+            <small>
+              {!strategistOk
+                ? 'Fan expansion that goes on top of Cities & Knights (not with Greed, Wealth & Power or Land & Water).'
+                : 'Fan expansion: doubles bring the Junker, who freezes a field and hides it from the barbarians; the Duke and the Scholar join the progress cards.'}
             </small>
           </button>
           <button
