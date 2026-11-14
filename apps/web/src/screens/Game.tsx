@@ -158,6 +158,17 @@ import {
   type LandWaterMode,
 } from './LandWater.tsx';
 import {
+  SF_BOARD_PHASES,
+  SF_MODES,
+  sfModePrompt,
+  sfPhasePrompt,
+  sfTargets,
+  StrategistActions,
+  strategistOn,
+  StrategistStats,
+  type StrategistMode,
+} from './Strategist.tsx';
+import {
   knightGiveWayTargets,
   PRINCES_BOARD_PHASES,
   PrincesChoices,
@@ -195,6 +206,7 @@ type Mode =
   | SoldiersMode
   | KingdomMode
   | LandWaterMode
+  | StrategistMode
   | `loan:${string}`;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'finance' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
@@ -278,6 +290,8 @@ function targetsFor(
     return kingdomTargets(legal, mode as KingdomMode);
   if (state.phase.id === 'main' && mode && LW_MODES.includes(mode))
     return landWaterTargets(state, legal, mode as LandWaterMode, selectedShip);
+  if (state.phase.id === 'main' && mode && SF_MODES.includes(mode))
+    return sfTargets(state, legal, mode as StrategistMode);
   if (PRINCES_BOARD_PHASES.includes(state.phase.id))
     return princesTargets(state, legal, selectedShip);
   const soldiers = soldiersOn(state) ? soldiersTargets(state, legal, mode, selectedShip) : null;
@@ -334,6 +348,7 @@ function targetsFor(
   if (
     CK_BOARD_PHASES.includes(ph) ||
     GWP_BOARD_PHASES.includes(ph) ||
+    SF_BOARD_PHASES.includes(ph) ||
     GWP_CARD_BOARD_PHASES.includes(ph) ||
     WITCHES_BOARD_PHASES.includes(ph)
   ) {
@@ -495,6 +510,7 @@ function prompt(
       if (mode === 'tbMove') return `${who}: ${TB_MOVE_PROMPT}`;
       if (mode === 'wagon') return `${who}: ${WAGON_PROMPT}`;
       if (mode && LW_MODES.includes(mode)) return landWaterPrompt(who ?? '', mode, picked) ?? '';
+      if (mode && SF_MODES.includes(mode)) return sfModePrompt(who ?? '', mode) ?? '';
       if (mode === 'moveShip')
         return `${who}: tap the ship to move, then where it should sail. Tap the button again to cancel.`;
       if (mode === 'knightAct')
@@ -528,6 +544,7 @@ function prompt(
         tbPrompt(state, who ?? '', actor) ??
         ckPrompt(state, who ?? '', actor) ??
         gwpPhasePrompt(state, who ?? '') ??
+        sfPhasePrompt(state, who ?? '') ??
         wonderPrompt(state, names) ??
         gwpCardPrompt(state, who ?? '', names) ??
         churchPrompt(state, who ?? '', actor) ??
@@ -915,6 +932,7 @@ export function Game({
                 {investors && <InvestorsStats ctx={ctx} seat={p.seat} />}
                 {kingdomsOn(state) && <KingdomsStats ctx={ctx} seat={p.seat} />}
                 {landWaterOn(state) && <LandWaterStats ctx={ctx} seat={p.seat} />}
+                {strategistOn(state) && <StrategistStats ctx={ctx} seat={p.seat} />}
                 {!landWaterOn(state) && (
                   <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
                 )}
@@ -1358,6 +1376,9 @@ export function Game({
                     setMode(m);
                   }}
                 />
+              )}
+              {strategistOn(state) && myTurnMain && (
+                <StrategistActions legal={legal} mode={mode} setMode={setMode} />
               )}
               {soldiersOn(state) && myTurnMain && (
                 <SoldiersActions

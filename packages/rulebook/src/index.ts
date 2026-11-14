@@ -16,6 +16,7 @@ import { soldiersRules } from './soldiers.ts';
 import { investorsRules } from './investors.ts';
 import { kingdomsRules } from './kingdoms.ts';
 import { landWaterRules } from './landwater.ts';
+import { strategistRules } from './strategist.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -37,6 +38,7 @@ export const RULEBOOKS: RulebookModule[] = [
   investorsRules,
   kingdomsRules,
   landWaterRules,
+  strategistRules,
   worldWondersRules,
   civilisationsRules,
   variantsRules,
@@ -92,6 +94,7 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
  * move can link straight to the rule.
  */
 export const ERROR_PAGES: [RegExp, string][] = [
+  [/junker|step down|moves the barbarians|still in port/i, 'strategist'],
   [
     /no roads: build vehicles|building is over|active vehicles stands|passive vehicle|another step costs|planes need a city|ships start on the coast|no room there/i,
     'landwater-vehicles',
