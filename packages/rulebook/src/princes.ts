@@ -95,5 +95,20 @@ You may also leave the numbers as they are.`,
 - You can't pay to move the robber, and knights can't chase it. Instead a **knight gives way**: a strong or mighty knight steps down a level (staying active or not), a basic one leaves the board, and the robber moves one to three fields. Give up more knights to take it three fields further each.
 - The **Bishop** moves the robber up to six fields (then take a card from anyone), or takes a card from every other player.`,
     },
+    {
+      id: 'princes-sea',
+      module: M,
+      section: 'rules',
+      title: 'With Seafarers',
+      summary: 'Princes and the robber cross the sea along closed ship lines.',
+      tags: ['seafarers', 'ships', 'islands', 'sea', 'robber'],
+      body: `Princes & Explorers plays on the Seafarers maps to four points more than the scenario.
+
+- The princes start on the home island, well apart, on the desert and the least likely numbers.
+- Princes and the robber stay on land. They can cross to another island in one step along one of your **closed ship lines** (ships running from one of your buildings to another), skipping the sea between. Undiscovered fields are off limits.
+- Ships count like roads: double at a prince, and not at all next to the robber.
+- The robber comes in on the **first 7**, not at the desert, on a field where someone has built.
+- Only neighbouring numbers on the same island can be swapped, so a one-field island is safe from explorers.`,
+    },
   ],
 };
