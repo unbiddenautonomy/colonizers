@@ -254,6 +254,12 @@ function Lobby({
   const kingdomsOk =
     !gwp && !church && !witches && !princes && !soldiers && !wonders && !specialPick;
   const kingdoms = s.kingdoms && kingdomsOk;
+  const fog =
+    s.map.kind === 'scenario' &&
+    SEA_SCENARIOS.find((x) => x.id === (s.map as { id: string }).id)?.fog === true;
+  const landWaterOk =
+    !ck && !princes && !soldiers && !s.investors && !kingdoms && !wonders && !specialPick && !fog;
+  const landWater = s.landWater && landWaterOk;
   const bonus = vpBonus(
     ck,
     specialPick?.id ?? null,
@@ -264,6 +270,7 @@ function Lobby({
     princes,
     soldiers,
     kingdoms,
+    landWater,
   );
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
@@ -552,6 +559,16 @@ function Lobby({
               👑 Kingdoms &amp; Warriors (fan expansion for the usual maps and Seafarers, with or
               without Cities &amp; Knights: kingdoms that spread from your cities and are fought
               over; 2 points more than usual)
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={landWater}
+                disabled={!landWaterOk}
+                onChange={(e) => setGame({ landWater: e.target.checked })}
+              />{' '}
+              🚂 Land &amp; Water (fan expansion for the base game on the usual maps and Seafarers
+              without fog: trains, ships and planes instead of roads; plays to 12)
             </label>
             <label className="toggle">
               <input

@@ -121,6 +121,9 @@ export function moduleList(
     'special-maps',
     'traders-barbarians',
     'explorers-pirates',
+    // After the base game and Seafarers, so it replaces their roads and ships; before the
+    // variants (so out-of-turn building wraps it) and Cities & Knights (whose roll ends in ours).
+    'landwater',
     'variants',
     'cities-knights',
     // After the base game and Cities & Knights, so its robber wrapper comes outermost.
@@ -194,6 +197,8 @@ export interface RoomSettings {
   investors: boolean;
   /** Add Kingdoms & Warriors (SiedlerInsel) to the base game on the usual maps and Seafarers. */
   kingdoms: boolean;
+  /** Add Land & Water (SiedlerInsel): vehicles instead of roads, on the usual maps and Seafarers. */
+  landWater: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -217,6 +222,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   soldiers: false,
   investors: false,
   kingdoms: false,
+  landWater: false,
   turnTimer: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
@@ -356,6 +362,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     soldiers: s.soldiers === true,
     investors: s.investors === true,
     kingdoms: s.kingdoms === true,
+    landWater: s.landWater === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),

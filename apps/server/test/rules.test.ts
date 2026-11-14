@@ -313,6 +313,31 @@ describe('game options', () => {
       ).not.toContain('kingdoms');
   });
 
+  it('adds Land & Water, to 12, on the usual maps and Seafarers without fog', () => {
+    const settings = cleanSettings({ ...DEFAULT_SETTINGS, landWater: true });
+    const four = buildConfig(settings, names(4), 'seed');
+    expect(four.modules).toEqual(['base', 'landwater', 'variants']);
+    expect(four.settings?.vpTarget).toBe(12);
+    expect(library.createGame(four).state.modules).toContain('landwater');
+    const sea = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'scenario', id: 'new-shores' } }),
+      names(4),
+      'seed',
+    );
+    expect(sea.modules).toEqual(expect.arrayContaining(['seafarers', 'landwater']));
+    const fog = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'scenario', id: 'fog-islands' } }),
+      names(4),
+      'seed',
+    );
+    expect(fog.modules).not.toContain('landwater');
+    // Not yet with Cities & Knights or the other fan expansions.
+    for (const more of [{ citiesKnights: true }, { kingdoms: true }, { investors: true }])
+      expect(
+        buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
+      ).not.toContain('landwater');
+  });
+
   it('builds Traders & Barbarians scenarios on the base game only', () => {
     for (const id of ['fishermen', 'rivers']) {
       const settings = cleanSettings({

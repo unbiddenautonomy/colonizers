@@ -149,6 +149,15 @@ import {
   type KingdomMode,
 } from './Kingdoms.tsx';
 import {
+  LandWaterActions,
+  landWaterOn,
+  landWaterPrompt,
+  LandWaterStats,
+  landWaterTargets,
+  LW_MODES,
+  type LandWaterMode,
+} from './LandWater.tsx';
+import {
   knightGiveWayTargets,
   PRINCES_BOARD_PHASES,
   PrincesChoices,
@@ -185,6 +194,7 @@ type Mode =
   | 'princesKnight'
   | SoldiersMode
   | KingdomMode
+  | LandWaterMode
   | `loan:${string}`;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'finance' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
@@ -266,6 +276,8 @@ function targetsFor(
   }
   if (state.phase.id === 'main' && mode && KINGDOM_MODES.includes(mode))
     return kingdomTargets(legal, mode as KingdomMode);
+  if (state.phase.id === 'main' && mode && LW_MODES.includes(mode))
+    return landWaterTargets(state, legal, mode as LandWaterMode, selectedShip);
   if (PRINCES_BOARD_PHASES.includes(state.phase.id))
     return princesTargets(state, legal, selectedShip);
   const soldiers = soldiersOn(state) ? soldiersTargets(state, legal, mode, selectedShip) : null;
@@ -458,6 +470,11 @@ function prompt(
       return state.modules.includes('seafarers')
         ? `${who}: move the robber to a land hex, or the pirate to a sea hex.`
         : `${who}: move the robber to a new hex.`;
+    case 'lwPick': {
+      const owed = (state.phase.owed as Record<number, number>)[actor ?? -1];
+      if (!owed) return 'Waiting for players to pick their resources.';
+      return `${who}: pick ${owed} resource${owed === 1 ? '' : 's'}, for gold under a train or for your fishing ships.`;
+    }
     case 'pickGold': {
       const owed = (state.phase.owed as Record<number, number>)[actor ?? -1];
       if (!owed) return 'Waiting for players to pick their gold.';
@@ -477,6 +494,7 @@ function prompt(
       if (seatId(mode)) return seatPrompt(who ?? '', seatId(mode)!);
       if (mode === 'tbMove') return `${who}: ${TB_MOVE_PROMPT}`;
       if (mode === 'wagon') return `${who}: ${WAGON_PROMPT}`;
+      if (mode && LW_MODES.includes(mode)) return landWaterPrompt(who ?? '', mode, picked) ?? '';
       if (mode === 'moveShip')
         return `${who}: tap the ship to move, then where it should sail. Tap the button again to cancel.`;
       if (mode === 'knightAct')
@@ -583,7 +601,7 @@ export function Game({
       ? ((state.phase.owed as Record<number, number>)[actor] ?? 0)
       : 0;
   const goldOwed =
-    state.phase.id === 'pickGold' && actor !== null
+    (state.phase.id === 'pickGold' || state.phase.id === 'lwPick') && actor !== null
       ? ((state.phase.owed as Record<number, number>)[actor] ?? 0)
       : 0;
   const owedPhase = !!state.phase.owed;
@@ -655,6 +673,8 @@ export function Game({
     mode === 'civHarbor' ||
     mode === 'civTiticaca' ||
     mode === 'civHarakiri' ||
+    mode === 'lwMove' ||
+    mode === 'lwChase' ||
     PRINCES_BOARD_PHASES.includes(state.phase.id) ||
     SOLDIERS_BOARD_PHASES.includes(state.phase.id)
       ? selectedShip
@@ -683,8 +703,10 @@ export function Game({
     if (g.act(a)) {
       // A wagon moves one path at a time, ships sail one after another and spice comes a
       // sack at a time, so those modes stay on.
-      if (!['moveWagon', 'sailShip', 'boostShip', 'buySpice'].includes(a.type)) setMode(null);
-      setSelectedShip(null);
+      if (!['moveWagon', 'sailShip', 'boostShip', 'buySpice', 'moveVehicle'].includes(a.type))
+        setMode(null);
+      // A vehicle stays picked, to take its next step.
+      setSelectedShip(a.type === 'moveVehicle' ? (a.piece as string) : null);
     }
   };
 
@@ -891,7 +913,10 @@ export function Game({
                 <DuelStats ctx={ctx} seat={p.seat} />
                 {investors && <InvestorsStats ctx={ctx} seat={p.seat} />}
                 {kingdomsOn(state) && <KingdomsStats ctx={ctx} seat={p.seat} />}
-                <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
+                {landWaterOn(state) && <LandWaterStats ctx={ctx} seat={p.seat} />}
+                {!landWaterOn(state) && (
+                  <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
+                )}
                 {data.longestRoad === p.seat && (
                   <span className="award">
                     {seafarers ? 'Longest Trade Route' : 'Longest Road'}
@@ -1032,6 +1057,8 @@ export function Game({
                         onClick={() => {
                           if (card === 'yearOfPlenty') setDialog('yearOfPlenty');
                           else if (card === 'monopoly') setDialog('monopoly');
+                          else if (card === 'roadBuilding' && landWaterOn(state))
+                            setMode('lwFree:train');
                           else act({ type: 'playDevCard', player: actor, card });
                         }}
                       >
@@ -1132,9 +1159,11 @@ export function Game({
                   {sbpBuilder === actor ? 'Special build:' : 'Partner build:'}
                 </span>
               )}
-              {(ep
-                ? (['road', 'settlement'] as const)
-                : (['road', 'settlement', 'city'] as const)
+              {(landWaterOn(state)
+                ? (['settlement', 'city'] as const)
+                : ep
+                  ? (['road', 'settlement'] as const)
+                  : (['road', 'settlement', 'city'] as const)
               ).map((m) => {
                 const type =
                   m === 'road' ? 'buildRoad' : m === 'settlement' ? 'buildSettlement' : 'buildCity';
@@ -1213,7 +1242,7 @@ export function Game({
                   }}
                 />
               )}
-              {seafarers && (
+              {seafarers && !landWaterOn(state) && (
                 <>
                   <button
                     type="button"
@@ -1314,6 +1343,19 @@ export function Game({
                   legal={legal}
                   mode={mode}
                   setMode={setMode}
+                />
+              )}
+              {landWaterOn(state) && myTurnMain && (
+                <LandWaterActions
+                  ctx={ctx}
+                  actor={actor}
+                  legal={legal}
+                  act={act}
+                  mode={mode}
+                  setMode={(m) => {
+                    setSelectedShip(null);
+                    setMode(m);
+                  }}
                 />
               )}
               {soldiersOn(state) && myTurnMain && (
@@ -1550,7 +1592,13 @@ export function Game({
             RESOURCES.reduce((sum, r) => sum + (state.bank[r] ?? 0), 0),
           )}
           bank={state.bank}
-          onPick={(cards) => act({ type: 'pickGold', player: actor, cards })}
+          onPick={(cards) =>
+            act({
+              type: state.phase.id === 'lwPick' ? 'pickResources' : 'pickGold',
+              player: actor,
+              cards,
+            })
+          }
         />
       )}
 
