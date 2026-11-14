@@ -135,7 +135,7 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
       section: 'rules',
       title: 'With other expansions',
       summary:
-        'Seafarers, Cities & Knights, Explorers & Pirates, Soldiers & Armies, Princes & Explorers, and 5 or 6 players.',
+        'Seafarers, Cities & Knights, Witches, Church, Explorers & Pirates, Soldiers & Armies, Princes & Explorers, and 5 or 6 players.',
       tags: [
         'seafarers',
         'pirate',
@@ -155,6 +155,12 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
         'artillery',
         'princes & explorers',
         'traders & barbarians',
+        'witches',
+        'church',
+        'crystal',
+        'bread',
+        'beer',
+        'magic kitchen',
         'barbarians',
         'capitulate',
         '5 players',
@@ -165,6 +171,8 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
 **Cities & Knights.** Commodities trade, save and borrow at their resource's rate: paper with lumber, cloth with wool, coin with ore. On a 7 they count with their resource. The rates are set on every 7, even before the barbarians first land and the robber comes into play. The trading house, the merchant and the Merchant Fleet take 2 off a rate as a 2:1 harbor would. The game's own dice are used, so a first-round 7 isn't thrown again.
 
 **Explorers & Pirates.** Gold buys a resource for 3 if its rate is 5:1 or 6:1, 2 at 3:1 or 4:1, and 1 at 2:1. Harbor settlements and settlers can be taken on a town loan as well, at their own cost. On a 7 the pirate steals nothing.
+
+**Witches and Church.** Crystal goes by brick's rate plus 2, and Bread by grain's rate plus 1; on a 7 they count with their resource. Both can be bought, saved and borrowed without a Citadel or Diocese. The bank never sells Beer, but Beer buys at the rate of the card you take. The Magic Kitchen takes 3 off the rate when you give brick for a resource, never better than 1:1.
 
 **Traders & Barbarians.** Gold buys a resource at the same 1 to 3 by its rate, still twice a turn. Against the barbarians there is no robber, so a 7 goes straight to the rates; for the traders a barbarian on the paths moves instead, taking no card.
 

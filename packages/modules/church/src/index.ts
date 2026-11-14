@@ -166,7 +166,9 @@ export const churchModule: GameModule = {
       return !churchView(ctx).bans?.some((b) => b.target === seat && b.track === deck);
     },
     swapRatio(ctx, seat, give, _get, value) {
-      return give === BEER ? beerRatio(ctx, seat) : value;
+      // On Investors & Speculators' market Beer goes at the rate of the card it buys.
+      if (give !== BEER || ctx.state.modules.includes('investors')) return value;
+      return beerRatio(ctx, seat);
     },
   },
 };

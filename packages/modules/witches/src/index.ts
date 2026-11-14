@@ -128,7 +128,8 @@ export const witchesModule: GameModule = {
   },
   reducers: {
     swapRatio(ctx, seat, give, get, value) {
-      return kitchenSwap(ctx, seat, give, get) ? 1 : value;
+      // Brick at 1:1; on Investors & Speculators' market, 3 off its rate, never better than 1:1.
+      return kitchenSwap(ctx, seat, give, get) ? Math.max(1, value - 3) : value;
     },
     vp(ctx, seat, value) {
       return wizardOwner(ctx) === seat ? value + 1 : value;

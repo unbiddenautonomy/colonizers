@@ -433,6 +433,9 @@ importers:
       '@colonizers/maps':
         specifier: workspace:*
         version: link:../../maps
+      '@colonizers/module-church':
+        specifier: workspace:*
+        version: link:../church
       '@colonizers/module-cities-knights':
         specifier: workspace:*
         version: link:../cities-knights
@@ -454,6 +457,9 @@ importers:
       '@colonizers/module-variants':
         specifier: workspace:*
         version: link:../variants
+      '@colonizers/module-witches':
+        specifier: workspace:*
+        version: link:../witches
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
