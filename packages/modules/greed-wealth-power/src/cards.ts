@@ -191,7 +191,9 @@ export function exchangeRatio(
   const turn = ctx.state.turn.number;
   for (const e of cardData(ctx).exchanges ?? []) {
     if (e.seat !== seat || e.turn !== turn || e.get !== get) continue;
-    if (e.give === give || (e.give === '*' && isResource(give))) return Math.min(value, 2);
+    if (e.give === give || (e.give === '*' && isResource(give)))
+      // On Investors & Speculators' market, 2 off the card's rate instead.
+      return ctx.state.modules.includes('investors') ? Math.max(1, value - 2) : Math.min(value, 2);
   }
   return value;
 }
