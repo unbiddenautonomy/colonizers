@@ -12,6 +12,7 @@ import { worldWondersModule } from '@colonizers/module-world-wonders';
 import { civilisationsModule } from '@colonizers/module-civilisations';
 import { churchModule } from '@colonizers/module-church';
 import { witchesModule } from '@colonizers/module-witches';
+import { princesModule, PRINCES_EXTRA_VP } from '@colonizers/module-princes-explorers';
 import {
   generateBoard,
   generateSeaBoard,
@@ -37,6 +38,7 @@ export const library = new ModuleLibrary([
   witchesModule,
   greedWealthPowerModule,
   civilisationsModule,
+  princesModule,
 ]);
 
 /** Cities & Knights adds metropolises and defender points, so games go 3 points longer. */
@@ -87,6 +89,12 @@ export function witchesOn(
   return ck && !gwp && settings.witches && settings.map.kind !== 'special';
 }
 
+/** Princes & Explorers goes on the base game's usual maps (not yet with Cities & Knights or Seafarers). */
+export function princesOn(settings: Pick<RoomSettings, 'princes' | 'map'>, ck: boolean): boolean {
+  const kind = settings.map.kind;
+  return settings.princes && !ck && (kind === 'random' || kind === 'preset' || kind === 'custom');
+}
+
 /** Civilisations goes on top of Greed, Wealth & Power. */
 export function civsOn(settings: Pick<RoomSettings, 'civilisations'>, gwp: boolean): boolean {
   return gwp && settings.civilisations;
@@ -103,8 +111,16 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const civs = civsOn(settings, gwp);
   const church = churchOn(settings, ck, gwp);
   const witches = witchesOn(settings, ck, gwp);
-  const extraVp = civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0;
+  const princes = princesOn(settings, ck);
+  const extraVp =
+    (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
+    (princes ? PRINCES_EXTRA_VP : 0);
   const options = optionSettings(settings.options, n);
+  // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
+  if (princes) {
+    if (options.turnMode === 'specialBuild') options.turnMode = 'normal';
+    options.friendlyRobber = false;
+  }
   const config = (
     extra: string[],
     map: GameConfig['map'],
@@ -112,7 +128,15 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   ): GameConfig => ({
     seed,
     players: names,
-    modules: moduleList(extra, ck, gwp, wondersOn(settings), civs, church, witches),
+    modules: moduleList(
+      [...extra, ...(princes ? ['princes'] : [])],
+      ck,
+      gwp,
+      wondersOn(settings),
+      civs,
+      church,
+      witches,
+    ),
     map,
     settings: { ...options, ...own },
     fixedSeats: true,
@@ -226,6 +250,9 @@ const SAFE_ORDER = [
   'answerVeto',
   'formulaGive',
   'magicPick',
+  'movePrince',
+  'exploreSwap',
+  'placePrincesRobber',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',
@@ -254,6 +281,8 @@ export function timeoutAction(state: GameState, seat: number, rand: () => number
     if (type === 'answerVeto') options = options.filter((a) => a.use === false);
     if (type === 'civCurse') options = options.filter((a) => a.target === null);
     if (type === 'civColony') options = options.filter((a) => a.civ !== 'redraw');
+    // Nor swaps numbers for the explorers.
+    if (type === 'exploreSwap') options = options.filter((a) => a.hexes === null);
     if (options.length) return options[Math.floor(rand() * options.length)] ?? null;
   }
   return null;
