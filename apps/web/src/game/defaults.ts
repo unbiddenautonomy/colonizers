@@ -33,6 +33,7 @@ export function vpBonus(
   princes = false,
   soldiers = false,
   kingdoms = false,
+  landWater = false,
 ): number {
   const ckAdjust =
     citiesKnights && specialId ? (TDA_CK_ADJUST[specialId as keyof typeof TDA_CK_ADJUST] ?? 0) : 0;
@@ -47,6 +48,8 @@ export function vpBonus(
     (soldiers && !princes ? 3 : 0) +
     // Kingdoms & Warriors plays to 2 more.
     (kingdoms ? 2 : 0) +
+    // Land & Water plays to 12.
+    (landWater ? 2 : 0) +
     (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) +
     ckAdjust
   );

@@ -15,6 +15,7 @@ import { princesRules } from './princes.ts';
 import { soldiersRules } from './soldiers.ts';
 import { investorsRules } from './investors.ts';
 import { kingdomsRules } from './kingdoms.ts';
+import { landWaterRules } from './landwater.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -35,6 +36,7 @@ export const RULEBOOKS: RulebookModule[] = [
   soldiersRules,
   investorsRules,
   kingdomsRules,
+  landWaterRules,
   worldWondersRules,
   civilisationsRules,
   variantsRules,
@@ -90,6 +92,12 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
  * move can link straight to the rule.
  */
 export const ERROR_PAGES: [RegExp, string][] = [
+  [
+    /no roads: build vehicles|building is over|active vehicles stands|passive vehicle|another step costs|planes need a city|ships start on the coast|no room there/i,
+    'landwater-vehicles',
+  ],
+  [/planes can not be chased|chased|pick what the knight does/i, 'landwater-cards'],
+  [/two generic harbors/i, 'landwater-yields'],
   [/diocese/i, 'church-diocese'],
   [/festival|beer/i, 'church-beer'],
   [/^lent|anathema/i, 'church-cards'],

@@ -59,6 +59,8 @@ const EVENT_TEXT: Record<string, string> = {
   plentifulYear: 'plentiful year, everyone takes a card',
 };
 
+const vehicle = (t: unknown) => (t === 'ferry' ? 'ship' : String(t));
+
 /** One line of log text for an event, or null to leave it out. */
 export function describe(e: GameEvent, names: string[]): string | null {
   const n = (seat: unknown) =>
@@ -81,7 +83,7 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return lines.length ? lines.join('; ') + '.' + short : `Nobody collected anything.${short}`;
     }
     case 'built':
-      return `${n(e.player)} built a ${e.piece === 'wall' ? 'city wall' : e.piece === 'harbor' ? 'harbor settlement' : (e.piece as string)}${e.free ? ' (free)' : ''}.`;
+      return `${n(e.player)} built a ${e.piece === 'wall' ? 'city wall' : e.piece === 'harbor' ? 'harbor settlement' : e.piece === 'ferry' ? 'ship' : (e.piece as string)}${e.free ? ' (free)' : ''}.`;
     case 'shipSailed':
       return `${n(e.player)} sailed a ship ${e.moves as number} edge${e.moves === 1 ? '' : 's'}.`;
     case 'shipBoosted':
@@ -179,7 +181,9 @@ export function describe(e: GameEvent, names: string[]): string | null {
           ? 'Longest Road'
           : e.award === 'harbormaster'
             ? 'Harbormaster'
-            : 'Largest Army';
+            : e.award === 'mostVehicles'
+              ? 'Most Vehicles'
+              : 'Largest Army';
       // Seafarers calls it Longest Trade Route; the log keeps one name.
       if (e.to === null) return `Nobody holds ${label} now.`;
       return e.wonder === 'colosseum'
@@ -351,6 +355,28 @@ export function describe(e: GameEvent, names: string[]): string | null {
         ? `⚔️ ${n(e.player)} and ${n(e.defender)} fought to a draw (${a}–${b}); the attacker's marker goes.`
         : `⚔️ ${n(e.winner)} won the battle for a field (${a}–${b}) and takes a free marker.`;
     }
+    case 'vehicleMoved':
+      return `${n(e.player)} moved a ${vehicle(e.piece)}${Object.keys(e.paid as object).length ? ` for ${cards(e.paid as Record<string, number>)}` : ''}.`;
+    case 'vehicleActivated':
+      return `${n(e.player)} turned a ${vehicle(e.piece)} active again.`;
+    case 'vehicleYield': {
+      const got = e.received as Record<string, Record<string, number>>;
+      return `🚂 Trains collected: ${Object.entries(got)
+        .map(([seat, c]) => `${n(Number(seat))} ${cards(c)}`)
+        .join(', ')}.`;
+    }
+    case 'fished':
+      return `🎣 ${Object.entries(e.fish as Record<string, number>)
+        .map(([seat, k]) => `${n(Number(seat))} ${k} fish`)
+        .join(', ')}: a resource of their choice for each.`;
+    case 'lwPicked':
+      return `${n(e.player)} took ${cards(e.cards as Record<string, number>)}.`;
+    case 'knightSpeed':
+      return `⚔️ ${n(e.player)} played a knight for ${e.points as number} free steps.`;
+    case 'vehicleChased':
+      return `⚔️ ${n(e.player)} chased ${n(e.owner)}'s ${vehicle(e.piece)} to the next field.`;
+    case 'vehicleSunk':
+      return `⚔️ ${n(e.player)} chased ${n(e.owner)}'s ${vehicle(e.piece)} off the board, back to their supply.`;
     case 'startingCity':
       return `${n(e.player)} starts with a city.`;
     case 'freeDevCard':

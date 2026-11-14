@@ -68,6 +68,9 @@ importers:
       '@colonizers/module-kingdoms-warriors':
         specifier: workspace:*
         version: link:../../packages/modules/kingdoms-warriors
+      '@colonizers/module-land-water':
+        specifier: workspace:*
+        version: link:../../packages/modules/land-water
       '@colonizers/module-princes-explorers':
         specifier: workspace:*
         version: link:../../packages/modules/princes-explorers
@@ -150,6 +153,9 @@ importers:
       '@colonizers/module-kingdoms-warriors':
         specifier: workspace:*
         version: link:../../packages/modules/kingdoms-warriors
+      '@colonizers/module-land-water':
+        specifier: workspace:*
+        version: link:../../packages/modules/land-water
       '@colonizers/module-princes-explorers':
         specifier: workspace:*
         version: link:../../packages/modules/princes-explorers
@@ -497,6 +503,31 @@ importers:
       '@colonizers/module-cities-knights':
         specifier: workspace:*
         version: link:../cities-knights
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ~4.1.12
+        version: 4.1.12(@types/node@22.20.5)(vite@8.3.6(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/modules/land-water:
+    dependencies:
+      '@colonizers/engine':
+        specifier: workspace:*
+        version: link:../../engine
+      '@colonizers/module-base':
+        specifier: workspace:*
+        version: link:../base
+    devDependencies:
+      '@colonizers/maps':
+        specifier: workspace:*
+        version: link:../../maps
+      '@colonizers/module-seafarers':
+        specifier: workspace:*
+        version: link:../seafarers
+      '@colonizers/module-variants':
+        specifier: workspace:*
+        version: link:../variants
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
