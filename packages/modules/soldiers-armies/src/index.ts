@@ -49,11 +49,15 @@ import { barbarianSieges, ckActions, ckWraps, unitStrength, withCk } from './ck.
 import { progressUnitActions, progressUnitWraps } from './progress.ts';
 import { princesWraps, unitRobberMove, withPrinces } from './princes.ts';
 import { epActions, epWraps, sailIsCampaign, withEp } from './ep.ts';
+import { epWarActions, epWarWraps } from './epwar.ts';
 
 export { nukeOf, nukeTargets } from './nuke.ts';
 export { beaten } from './fate.ts';
 export { loseMetropolis, unitStrength } from './ck.ts';
 export type { BattlePhase } from './battle.ts';
+export type { SeaBattlePhase } from './epwar.ts';
+export { armyAboard, boardingShips, landingCorners } from './ep.ts';
+export { seaTargets, CARGO_DIE } from './epwar.ts';
 export { intrigueArmies, musterCorners, stepUps } from './progress.ts';
 
 /**
@@ -403,6 +407,7 @@ export const soldiersModule: GameModule = {
     ...progressUnitActions,
     unitRobberMove,
     ...epActions,
+    ...epWarActions,
   },
   wrapActions: {
     buyDevCard: notBought,
@@ -417,6 +422,7 @@ export const soldiersModule: GameModule = {
     ...progressUnitWraps,
     ...princesWraps,
     ...epWraps,
+    ...epWarWraps,
   },
   hooks: {
     init(ctx) {

@@ -35,6 +35,8 @@ export interface SoldiersData extends Record<string, unknown> {
   nukeBought?: Record<string, boolean>;
   /** Fields a nuke turned over: they produce nothing. */
   nuked?: Record<string, boolean>;
+  /** With Explorers & Pirates: units landed on pirate lairs, by field and seat, and the ship they came from. */
+  lairUnits?: Record<string, Record<string, { units: Units; ship: string }>>;
 }
 
 export function soldiersData(ctx: Ctx): SoldiersData {
@@ -75,14 +77,22 @@ export const unitCount = (army: Piece) => UNITS.reduce((sum, u) => sum + unitsOf
 /** Units of one kind a player has on the board, across all their armies. */
 export function unitsInPlay(ctx: Ctx, seat: number, unit: Unit): number {
   const ashore = ctx.piecesOf(seat, ARMY).reduce((sum, a) => sum + unitsOf(a)[unit], 0);
-  // With Explorers & Pirates, armies aboard ships still count.
-  return ctx
+  // With Explorers & Pirates, units aboard ships and on pirate lairs still count.
+  const afloat = ctx
     .piecesOf(seat, 'ship')
-    .reduce(
-      (sum, s) =>
-        sum + (s.props.army ? unitsOf({ ...s, props: s.props.army as Piece['props'] })[unit] : 0),
-      ashore,
-    );
+    .reduce((sum, s) => sum + (s.props.army ? unitsFrom(s.props.army)[unit] : 0), 0);
+  const lairs = Object.values(soldiersData(ctx).lairUnits ?? {}).reduce(
+    (sum, at) => sum + (at[String(seat)]?.units[unit] ?? 0),
+    0,
+  );
+  return ashore + afloat + lairs;
+}
+
+/** Units from an army's props (or a ship's army aboard). */
+export function unitsFrom(props: unknown): Units {
+  const p = (props && typeof props === 'object' ? props : {}) as Record<string, unknown>;
+  const n = (u: Unit) => (typeof p[u] === 'number' ? (p[u] as number) : 0);
+  return { infantry: n('infantry'), cavalry: n('cavalry'), artillery: n('artillery') };
 }
 
 export function armyAt(ctx: Ctx, corner: CornerId): Piece | undefined {
