@@ -280,9 +280,15 @@ export function describe(e: GameEvent, names: string[]): string | null {
     case 'robberBought':
       return `${n(e.player)} paid to move the robber.`;
     case 'unitBought':
-      return `⚔️ ${n(e.player)} mustered ${String(e.unit)}.`;
+      return `⚔️ ${n(e.player)} mustered ${e.free ? 'a free ' : ''}${String(e.unit)}.`;
     case 'wallBuilt':
-      return `🧱 ${n(e.player)} built a city wall.`;
+      return `🧱 ${n(e.player)} built a ${e.free ? 'free ' : ''}city wall.`;
+    case 'unitSteppedUp':
+      return `⚒️ ${n(e.player)} stepped ${String(e.unit)} up to ${String(e.to)}.`;
+    case 'unitIntrigue':
+      return `🕵️ ${n(e.player)} took an infantry from ${n(e.victim)}.`;
+    case 'unitDeserted':
+      return `🏃 ${n(e.player)}'s ${String(e.unit)} deserted to ${n(e.to)}.`;
     case 'startingCity':
       return `${n(e.player)} starts with a city.`;
     case 'freeDevCard':
