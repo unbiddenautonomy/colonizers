@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@colonizers/engine": "workspace:*",
-    "@colonizers/module-base": "workspace:*"
+    "@colonizers/module-base": "workspace:*",
+    "@colonizers/module-cities-knights": "workspace:*"
   },
   "devDependencies": {
     "@colonizers/maps": "workspace:*",

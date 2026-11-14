@@ -28,6 +28,14 @@ import {
   wallsOf,
 } from './rules.ts';
 
+const NO_DEV_CARDS = 'Cities & Knights uses progress cards instead of development cards';
+const keepDevCards = (prev: ActionDef): ActionDef => ({
+  ...prev,
+  check: (ctx, a) => (ctx.state.modules.includes('landwater') ? prev.check(ctx, a) : NO_DEV_CARDS),
+  enumerate: (ctx, player) =>
+    ctx.state.modules.includes('landwater') ? (prev.enumerate?.(ctx, player) ?? []) : [],
+});
+
 const commodityCard = { category: 'commodity', countsForHandLimit: true, bank: commodityBank };
 const knight = (): { on: 'corner'; perPlayer: () => number; blocksRoutes: true } => ({
   on: 'corner',
@@ -94,16 +102,9 @@ export const citiesKnightsModule: GameModule = {
           ctx.setPhase({ id: (before.returnTo as string) ?? 'main' });
       },
     }),
-    buyDevCard: (prev): ActionDef => ({
-      ...prev,
-      check: () => 'Cities & Knights uses progress cards instead of development cards',
-      enumerate: () => [],
-    }),
-    playDevCard: (prev): ActionDef => ({
-      ...prev,
-      check: () => 'Cities & Knights uses progress cards instead of development cards',
-      enumerate: () => [],
-    }),
+    // Land & Water keeps the knight cards (and only those) in place of knight pieces.
+    buyDevCard: keepDevCards,
+    playDevCard: keepDevCards,
     placeSetupSettlement: (prev): ActionDef => ({
       ...prev,
       apply(ctx, a) {

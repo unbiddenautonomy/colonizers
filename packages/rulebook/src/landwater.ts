@@ -94,5 +94,22 @@ You may play several development cards in a turn, though never one bought the sa
 
 **Road Building** builds a free train or ship, or a plane for 3 of its cards less.`,
     },
+    {
+      id: 'landwater-ck',
+      module: M,
+      section: 'rules',
+      title: 'Land & Water with Cities & Knights',
+      summary: 'Knight cards instead of knights, commodities from trains, a late barbarian ship.',
+      tags: ['cities & knights', 'knight card', 'barbarians', 'commodity', 'progress', 'fortress'],
+      body: `Land & Water also goes with Cities & Knights, to 14 points.
+
+- Everyone starts with a **settlement and a city**, and no vehicles.
+- There are **no knight pieces**. The development deck holds only the base game's **knight cards**. They cost the usual development card and can be played the turn they're bought, in any of the three Land & Water ways. The robber use waits until the barbarians have attacked once.
+- Played knight cards stay out and count **1 each against the barbarians**. They never turn passive, and they win Defender of Catan cards. They also count for the **Largest Army**. A tie goes to the player with a Fortress (Politics level 3); otherwise the card stays where it is.
+- A **train** collects a commodity in place of its resource when you have another train in a field of the same kind (gold doesn't count). Two trains in one field never collect two commodities.
+- The **Aqueduct** and **fishing** both pay.
+- The **barbarian ship** sets sail only when it comes up on the event die for the third time.
+- Progress cards: **Warlord** and **Smith** give a free knight card. The **Deserter** wins over one of a rival's played knights. **Intrigue** chases a rival's train or ship like a knight. The **Diplomat** gives two free steps. **Road Building** builds a free train or ship, or a plane for 3 cards less.`,
+    },
   ],
 };
