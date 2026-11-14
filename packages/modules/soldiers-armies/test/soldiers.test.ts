@@ -336,8 +336,8 @@ describe('Soldiers & Armies', () => {
       ctx.place('city', 0, { kind: 'corner', id: corner });
       ctx.grant(0, { brick: 12 });
     });
-    for (let i = 0; i < 3; i++) s = act(s, { type: 'buildWall', player: 0, corner });
-    expect(() => act(s, { type: 'buildWall', player: 0, corner })).toThrow(/at most 3/);
+    for (let i = 0; i < 3; i++) s = act(s, { type: 'buildCityWall', player: 0, corner });
+    expect(() => act(s, { type: 'buildCityWall', player: 0, corner })).toThrow(/at most 3/);
     expect(ctxOf(s).reduce('handLimit', 0, 7)).toBe(16);
     expect(ctxOf(s).reduce('handLimit', 1, 7)).toBe(10);
   });

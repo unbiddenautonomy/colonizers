@@ -184,6 +184,16 @@ describe('Bots', () => {
     expect(r.winner).not.toBeNull();
   }, 240_000);
 
+  it('plays Soldiers & Armies with Cities & Knights', () => {
+    const r = play(
+      game('sa3', 4, 'ck', { vpTarget: 16 }, ['soldiers']),
+      [medium, medium, medium, medium],
+      8,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+  }, 240_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');
