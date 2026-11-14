@@ -1,0 +1,23 @@
+{
+  "name": "@colonizers/module-soldiers-armies",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Soldiers & Armies (SiedlerInsel): buy infantry, cavalry and artillery, march them across the island, and attack rival armies, settlements and cities. Walls, a robber you can fight, and a free development card for a quiet turn.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}

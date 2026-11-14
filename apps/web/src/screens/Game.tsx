@@ -137,6 +137,15 @@ import {
   princesPrompt,
   princesTargets,
 } from './Princes.tsx';
+import {
+  SOLDIERS_BOARD_PHASES,
+  SoldiersActions,
+  SoldiersChoices,
+  soldiersOn,
+  soldiersPrompt,
+  soldiersTargets,
+  type SoldiersMode,
+} from './Soldiers.tsx';
 
 type Mode =
   | null
@@ -154,7 +163,8 @@ type Mode =
   | CkMode
   | CivMode
   | ChurchMode
-  | 'princesKnight';
+  | 'princesKnight'
+  | SoldiersMode;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
@@ -223,6 +233,8 @@ function targetsFor(
   }
   if (PRINCES_BOARD_PHASES.includes(state.phase.id))
     return princesTargets(state, legal, selectedShip);
+  const soldiers = soldiersOn(state) ? soldiersTargets(state, legal, mode, selectedShip) : null;
+  if (soldiers) return soldiers;
   if (state.phase.id === 'main' && mode === 'princesKnight') {
     t.corners = knightGiveWayTargets(state, legal);
     return t;
@@ -390,6 +402,8 @@ function prompt(
   if (duel) return duel;
   const princes = princesPrompt(state, who ?? '', actor, picked);
   if (princes) return princes;
+  const soldiers = soldiersPrompt(state, who ?? '', actor, mode, picked);
+  if (soldiers) return soldiers;
   if (mode && (CIV_MODES as readonly string[]).includes(mode))
     return civModePrompt(who ?? '', mode as CivMode, picked);
   const civ = civPrompt(state, names, actor);
@@ -600,7 +614,8 @@ export function Game({
     mode === 'civHarbor' ||
     mode === 'civTiticaca' ||
     mode === 'civHarakiri' ||
-    PRINCES_BOARD_PHASES.includes(state.phase.id)
+    PRINCES_BOARD_PHASES.includes(state.phase.id) ||
+    SOLDIERS_BOARD_PHASES.includes(state.phase.id)
       ? selectedShip
       : null;
   const targets = useMemo(
@@ -1004,6 +1019,7 @@ export function Game({
             </div>
           )}
           <PrincesChoices state={state} legal={legal} act={act} />
+          <SoldiersChoices state={state} legal={legal} act={act} />
           {has('ckDone') && CK_BOARD_PHASES.includes(state.phase.id) && (
             <button type="button" onClick={() => act({ type: 'ckDone', player: actor! })}>
               Done
@@ -1241,7 +1257,20 @@ export function Game({
                   Move robber <CostLine cost={ctx.cost('robberMove', actor)} />
                 </button>
               )}
-              {!ck && !ep && !princesOn(state) && (
+              {soldiersOn(state) && myTurnMain && (
+                <SoldiersActions
+                  ctx={ctx}
+                  actor={actor}
+                  legal={legal}
+                  act={act}
+                  mode={mode}
+                  setMode={(m) => {
+                    setSelectedShip(null);
+                    setMode(m);
+                  }}
+                />
+              )}
+              {!ck && !ep && !princesOn(state) && !soldiersOn(state) && (
                 <button
                   type="button"
                   disabled={!has('buyDevCard')}

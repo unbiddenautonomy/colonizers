@@ -30,6 +30,7 @@ import { churchMarkers } from '../screens/Church.tsx';
 import { seatMarkers } from '../screens/CitiesKnights.tsx';
 import { witchesMarkers } from '../screens/Witches.tsx';
 import { princesMarkers } from '../screens/Princes.tsx';
+import { ArmyFlag } from '../screens/Soldiers.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
@@ -1212,6 +1213,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             p.at.kind === 'corner' &&
             p.type !== 'treasure' &&
             p.type !== 'dragon' &&
+            // Soldiers & Armies' armies stand beside the corner, drawn below.
+            p.type !== 'army' &&
             // The Wizard shows as a marker beside its building.
             p.type !== 'wizard',
         )
@@ -1234,7 +1237,24 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 />
               );
             return (
-              <g key={p.id} filter={fx}>
+              <g key={p.id} filter={fx} opacity={p.props.damaged === true ? 0.6 : 1}>
+                {p.props.damaged === true && <title>Damaged in battle</title>}
+                {typeof p.props.walls === 'number' &&
+                  Array.from({ length: p.props.walls }, (_, i) => (
+                    <rect
+                      key={`wall-${i}`}
+                      x={c.x - S * 0.32}
+                      y={c.y + S * (0.08 + i * 0.09)}
+                      width={S * 0.64}
+                      height={S * 0.08}
+                      rx={2}
+                      fill="#8a7f72"
+                      stroke={theme.outline}
+                      strokeWidth={1.5}
+                    >
+                      <title>{`City walls: ${p.props.walls as number}`}</title>
+                    </rect>
+                  ))}
                 {p.props.wall === true && (
                   <rect
                     x={c.x - S * 0.32}
@@ -1299,6 +1319,24 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { owner: p.owner, kind: p.type })}
             >
               {inner}
+            </g>
+          );
+        })}
+
+      {pieces
+        .filter((p) => p.type === 'army' && p.at.kind === 'corner')
+        .map((p) => {
+          const corner = (p.at as { id: CornerId }).id;
+          const c = cornerToPixel(corner, S);
+          const x = c.x + S * 0.2;
+          const y = c.y - S * 0.24;
+          return (
+            <g
+              key={p.id}
+              filter={fx}
+              {...motionAttrs(p.id, `corner:${corner}`, x, y, { owner: p.owner, kind: p.type })}
+            >
+              <ArmyFlag x={x} y={y} color={color(p.owner)} army={p} theme={theme} />
             </g>
           );
         })}

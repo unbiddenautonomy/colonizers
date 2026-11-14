@@ -183,6 +183,7 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
   if (state.modules.includes('cities-knights')) score += ckHints(state, ctx, seat);
   if (state.modules.includes('explorers-pirates')) score += epHints(state, ctx, seat, blocked);
   if (state.modules.includes('world-wonders')) score += wonderHints(ctx, seat, vp, target);
+  if (state.modules.includes('soldiers')) score += soldiersHints(state, ctx, seat);
   if (ctx.registry.pieceTypes.ship) score += ctx.piecesOf(seat, 'ship').length * 0.15;
 
   // Other players: their production and points count against us, the leader most.
@@ -196,6 +197,79 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
     worst = Math.max(worst, theirVp);
   }
   score -= worst * 1.2;
+  return score;
+}
+
+// ---- Soldiers & Armies ----
+
+const unitCount = (props: Record<string, unknown>, k: string) =>
+  typeof props[k] === 'number' ? (props[k] as number) : 0;
+
+/** The die an army rolls: its best unit's. */
+function armyDie(props: Record<string, unknown>): number {
+  if (unitCount(props, 'artillery')) return 12;
+  if (unitCount(props, 'cavalry')) return 10;
+  return 6;
+}
+
+/** Chance that a roll of dA beats a roll of dD plus a bonus (ties lose). */
+export function winChance(dA: number, dD: number, bonus = 0): number {
+  let wins = 0;
+  for (let a = 1; a <= dA; a++) wins += Math.max(0, Math.min(dD, a - bonus - 1));
+  return wins / (dA * dD);
+}
+
+/**
+ * Units guard and threaten; damage hurts. In the field, an army next to a
+ * weak target is worth more, and a battle is worth its odds.
+ */
+function soldiersHints(state: GameState, ctx: Ctx, seat: number): number {
+  let score = 0;
+  const armies = ctx.piecesOf(seat, 'army');
+  let units = 0;
+  for (const a of armies) {
+    const at = a.at.kind === 'corner' ? a.at.id : null;
+    const guards = at && ctx.buildingAt(at)?.owner === seat;
+    const n =
+      unitCount(a.props, 'infantry') +
+      unitCount(a.props, 'cavalry') * 1.3 +
+      unitCount(a.props, 'artillery') * 1.7;
+    units += n * (guards ? 1.2 : 1);
+  }
+  score += Math.min(units, 8) * 0.9;
+  for (const p of ctx.piecesOf(seat)) {
+    if (!ctx.registry.pieceTypes[p.type]?.building) continue;
+    if (p.props.damaged) score -= 2;
+    score += unitCount(p.props, 'walls') * 0.7;
+  }
+  // The best target next to each army, by its odds.
+  const valueOf = (corner: CornerId, die: number): number => {
+    const guard = ctx.piecesAt({ kind: 'corner', id: corner }).find((p) => p.type === 'army');
+    if (guard) return guard.owner === seat ? 0 : (winChance(die, armyDie(guard.props)) - 0.5) * 2;
+    const b = ctx.buildingAt(corner);
+    if (!b || b.owner === seat || b.owner === null) return 0;
+    const dD = b.type === 'settlement' ? 8 : 12;
+    return (winChance(die, dD, unitCount(b.props, 'walls')) - 0.5) * (b.props.damaged ? 8 : 5);
+  };
+  if (state.turn.player === seat) {
+    if (state.phase.id === 'campaign') {
+      if (armies.length) score += 0.1;
+      for (const a of armies) {
+        if (a.at.kind !== 'corner') continue;
+        const die = armyDie(a.props);
+        const best = Math.max(
+          0,
+          ...(ctx.geometry.cornerNeighbours.get(a.at.id) ?? []).map((c) => valueOf(c, die)),
+        );
+        score += best;
+      }
+    }
+    if (state.phase.id === 'battle') {
+      const army = state.pieces[state.phase.army as string];
+      const target = state.phase.target as { corner: CornerId } | undefined;
+      if (army && target) score += valueOf(target.corner, armyDie(army.props)) * 1.5 + 0.2;
+    }
+  }
   return score;
 }
 
