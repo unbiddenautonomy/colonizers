@@ -13,6 +13,7 @@ import { civilisationsModule } from '@colonizers/module-civilisations';
 import { churchModule } from '@colonizers/module-church';
 import { witchesModule } from '@colonizers/module-witches';
 import { princesModule, PRINCES_EXTRA_VP } from '@colonizers/module-princes-explorers';
+import { soldiersModule, SOLDIERS_EXTRA_VP } from '@colonizers/module-soldiers-armies';
 import {
   generateBoard,
   generateSeaBoard,
@@ -39,6 +40,7 @@ export const library = new ModuleLibrary([
   greedWealthPowerModule,
   civilisationsModule,
   princesModule,
+  soldiersModule,
 ]);
 
 /** Cities & Knights adds metropolises and defender points, so games go 3 points longer. */
@@ -101,6 +103,19 @@ export function princesOn(
   return settings.princes && !otherFan && kind !== 'special';
 }
 
+/**
+ * Soldiers & Armies goes on the base game on the usual island maps. Its rules
+ * for Cities & Knights, Seafarers and the other fan expansions come later.
+ */
+export function soldiersOn(
+  settings: Pick<RoomSettings, 'soldiers' | 'map'>,
+  ck: boolean,
+  otherFan: boolean,
+): boolean {
+  const kind = settings.map.kind;
+  return settings.soldiers && !ck && !otherFan && kind !== 'special' && kind !== 'scenario';
+}
+
 /** Civilisations goes on top of Greed, Wealth & Power. */
 export function civsOn(settings: Pick<RoomSettings, 'civilisations'>, gwp: boolean): boolean {
   return gwp && settings.civilisations;
@@ -118,15 +133,23 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const church = churchOn(settings, ck, gwp);
   const witches = witchesOn(settings, ck, gwp);
   const princes = princesOn(settings, gwp || church || witches || wondersOn(settings));
+  const soldiers = soldiersOn(
+    settings,
+    ck,
+    gwp || church || witches || princes || wondersOn(settings),
+  );
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
-    (princes ? PRINCES_EXTRA_VP : 0);
+    (princes ? PRINCES_EXTRA_VP : 0) +
+    (soldiers ? SOLDIERS_EXTRA_VP : 0);
   const options = optionSettings(settings.options, n);
   // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
   if (princes) {
     if (options.turnMode === 'specialBuild') options.turnMode = 'normal';
     options.friendlyRobber = false;
   }
+  // Soldiers & Armies marches after building, so there's no Special Building Phase either.
+  if (soldiers && options.turnMode === 'specialBuild') options.turnMode = 'normal';
   const config = (
     extra: string[],
     map: GameConfig['map'],
@@ -135,7 +158,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
     seed,
     players: names,
     modules: moduleList(
-      [...extra, ...(princes ? ['princes'] : [])],
+      [...extra, ...(princes ? ['princes'] : []), ...(soldiers ? ['soldiers'] : [])],
       ck,
       gwp,
       wondersOn(settings),
@@ -259,6 +282,8 @@ const SAFE_ORDER = [
   'movePrince',
   'exploreSwap',
   'placePrincesRobber',
+  'battleRetreat',
+  'payRobberToll',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',

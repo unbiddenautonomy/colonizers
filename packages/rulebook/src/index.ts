@@ -12,6 +12,7 @@ import { civilisationsRules } from './civilisations.ts';
 import { churchRules } from './church.ts';
 import { witchesRules } from './witches.ts';
 import { princesRules } from './princes.ts';
+import { soldiersRules } from './soldiers.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -29,6 +30,7 @@ export const RULEBOOKS: RulebookModule[] = [
   churchRules,
   witchesRules,
   princesRules,
+  soldiersRules,
   worldWondersRules,
   civilisationsRules,
   variantsRules,
@@ -136,6 +138,11 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/robber|steal/i, 'robber'],
   [/discard/i, 'robber'],
   [/trade|offer|harbor|need \d/i, 'trading'],
+  // Soldiers & Armies last, so its broad words don't catch other expansions' messages.
+  [/\barmy\b|armies|muster|march|fall back|fighting has begun/i, 'soldiers-armies'],
+  [/can not attack|robber this turn|next to the robber/i, 'soldiers-battle'],
+  [/walls? |a city takes at most/i, 'soldiers-walls'],
+  [/not bought|quiet turn|without buying|without playing a development/i, 'soldiers'],
 ];
 
 /** The page for a rule-check message, among the pages of the game's modules when given. */

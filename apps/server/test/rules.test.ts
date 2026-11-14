@@ -174,6 +174,25 @@ describe('game options', () => {
     expect(sea.settings?.vpTarget).toBe(Number(plain.settings?.vpTarget) + 4);
   });
 
+  it('adds Soldiers & Armies on the base game (13 points)', () => {
+    const settings = cleanSettings({ ...DEFAULT_SETTINGS, soldiers: true });
+    const four = buildConfig(settings, names(4), 'seed');
+    expect(four.modules).toEqual(['base', 'variants', 'soldiers']);
+    expect(four.settings?.vpTarget).toBe(13);
+    expect(buildConfig(settings, names(6), 'seed').settings?.turnMode).toBe('normal');
+    const state = library.createGame(four).state;
+    expect(state.decks.dev).not.toContain('victoryPoint');
+    // Not with Cities & Knights, Seafarers or Princes & Explorers yet.
+    for (const more of [
+      { citiesKnights: true },
+      { princes: true },
+      { map: { kind: 'scenario', id: 'new-shores' } as const },
+    ])
+      expect(
+        buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
+      ).not.toContain('soldiers');
+  });
+
   it('builds Traders & Barbarians scenarios on the base game only', () => {
     for (const id of ['fishermen', 'rivers']) {
       const settings = cleanSettings({

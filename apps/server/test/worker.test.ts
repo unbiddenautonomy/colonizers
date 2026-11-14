@@ -207,6 +207,7 @@ describe('Lobby', () => {
       church: false,
       witches: false,
       princes: false,
+      soldiers: false,
       turnTimer: 90,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,

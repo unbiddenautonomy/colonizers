@@ -94,6 +94,7 @@ export function NewGame({
   const [churchWanted, setChurch] = useState(false);
   const [witchesWanted, setWitches] = useState(false);
   const [princesWanted, setPrinces] = useState(false);
+  const [soldiersWanted, setSoldiers] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -147,8 +148,12 @@ export function NewGame({
   // Not yet with the other fan expansions.
   const princesOk = princesMap && !gwp && !church && !witches && !wonders;
   const princes = princesWanted && princesOk;
+  // Soldiers & Armies goes on the base game on the usual island maps, for now.
+  const soldiersOk =
+    !ck && !wonders && !princes && effective.kind !== 'special' && effective.kind !== 'scenario';
+  const soldiers = soldiersWanted && soldiersOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
-  const extraVp = (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) + (princes ? 4 : 0);
+  const extraVp = (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) + (princes ? 4 : 0) + (soldiers ? 3 : 0);
   const fanName =
     church && witches
       ? 'Church and Witches'
@@ -157,12 +162,12 @@ export function NewGame({
         : witches
           ? 'Witches, Wizards & Dragons'
           : 'Cities & Knights';
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}`;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
-  const bonus = vpBonus(ck, specialId, gwp, civs, church, witches, princes);
+  const bonus = vpBonus(ck, specialId, gwp, civs, church, witches, princes, soldiers);
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
@@ -202,13 +207,15 @@ export function NewGame({
       if (opts.turnMode === 'specialBuild') opts.turnMode = 'normal';
       opts.friendlyRobber = false;
     }
+    // Soldiers & Armies marches after building, so no Special Building Phase either.
+    if (soldiers && opts.turnMode === 'specialBuild') opts.turnMode = 'normal';
     const make = (extraModules: string[], map: MapSpec, own: Record<string, unknown>) =>
       onStart({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
           players,
           modules: moduleList(
-            [...extraModules, ...(princes ? ['princes'] : [])],
+            [...extraModules, ...(princes ? ['princes'] : []), ...(soldiers ? ['soldiers'] : [])],
             ck,
             gwp,
             wonders,
@@ -575,6 +582,20 @@ export function NewGame({
               {!princesOk
                 ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights (not with the special maps or the other fan expansions yet).'
                 : `Fan expansion: four princes make buildings worth more, the robber takes points, and explorers swap numbers. Plays to 4 points more than usual.`}
+            </small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${soldiers ? 'on' : ''}`}
+            aria-pressed={soldiers}
+            disabled={!soldiersOk}
+            onClick={() => setSoldiers(!soldiers)}
+          >
+            <strong>⚔️ Soldiers &amp; Armies</strong>
+            <small>
+              {!soldiersOk
+                ? 'Fan expansion for the base game on the usual maps (not with Cities & Knights, Seafarers or the other expansions yet).'
+                : 'Fan expansion: muster armies, march them, and fight for your rivals’ settlements and cities. Plays to 3 points more than usual.'}
             </small>
           </button>
           <button
