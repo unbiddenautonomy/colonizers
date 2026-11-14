@@ -157,6 +157,11 @@ export interface GameModule {
   reducers?: Partial<Reducers>;
   /** Replaces the dice. The last module that provides dice wins. */
   dice?: (ctx: Ctx) => DiceResult;
+  /**
+   * Wraps the dice of the modules before it (or the two plain dice), so a
+   * module can throw again without replacing another expansion's dice.
+   */
+  wrapDice?: (previous: (ctx: Ctx) => DiceResult) => (ctx: Ctx) => DiceResult;
   /** Hides secret module data from players in their view. */
   redact?: (data: Record<string, unknown>, viewer: number | null) => Record<string, unknown>;
 }
@@ -249,6 +254,14 @@ export function buildRegistry(modules: GameModule[]): Registry {
       if (prev) reg.actions[type] = wrap(prev);
     }
     if (m.dice) reg.dice = m.dice;
+    if (m.wrapDice) reg.dice = m.wrapDice(reg.dice ?? plainDice);
   }
   return reg;
+}
+
+/** Two six-sided dice, when no module brings its own. */
+export function plainDice(ctx: Ctx): DiceResult {
+  const a = ctx.rng.int(1, 6);
+  const b = ctx.rng.int(1, 6);
+  return { dice: { white1: a, white2: b }, total: a + b };
 }

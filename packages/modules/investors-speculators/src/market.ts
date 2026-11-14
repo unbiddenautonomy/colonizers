@@ -34,14 +34,14 @@ export function marketRatio(ctx: Ctx, seat: number, give: string, get: string): 
   return Math.max(1, rateOf(ctx, get) - off);
 }
 
-/** Two dice, but a 7 in the first round is thrown again. */
-export function investorsDice(ctx: Ctx): DiceResult {
-  for (;;) {
-    const a = ctx.rng.int(1, 6);
-    const b = ctx.rng.int(1, 6);
-    if (a + b !== 7 || ctx.state.turn.round > 0)
-      return { dice: { white1: a, white2: b }, total: a + b };
-  }
+/** The game's dice, but a 7 in the first round is thrown again. */
+export function wrapInvestorsDice(prev: (ctx: Ctx) => DiceResult): (ctx: Ctx) => DiceResult {
+  return (ctx) => {
+    let roll = prev(ctx);
+    // A few tries: dice another expansion has already fixed (Cities & Knights') stay as they are.
+    for (let i = 0; i < 20 && roll.total === 7 && ctx.state.turn.round === 0; i++) roll = prev(ctx);
+    return roll;
+  };
 }
 
 const resourceCards = (ctx: Ctx, seat: number): string[] => {

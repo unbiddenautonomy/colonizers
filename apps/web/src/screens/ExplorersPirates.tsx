@@ -11,6 +11,7 @@ import {
   missionSteps,
   GOLD_BUYS,
   GOLD_PRICE,
+  goldPrice,
   hasFish,
   hasSpice,
   movesLeft,
@@ -390,7 +391,7 @@ export function EpActions({
             You have {gold} 🪙. {GOLD_PRICE} gold buy 1 resource, up to {GOLD_BUYS} a turn. Three of
             one resource sell for 1 gold.
           </p>
-          <h3 className="subhead">Buy for {GOLD_PRICE} 🪙</h3>
+          <h3 className="subhead">Buy with 🪙</h3>
           <div className="row wrap">
             {RESOURCES.map((r) => {
               const a = buys.find((x) => x.resource === r);
@@ -403,7 +404,7 @@ export function EpActions({
                     if (a) act(a);
                   }}
                 >
-                  {RESOURCE_ICON[r]}
+                  {RESOURCE_ICON[r]} {goldPrice(ctx, actor, r)} 🪙
                 </button>
               );
             })}

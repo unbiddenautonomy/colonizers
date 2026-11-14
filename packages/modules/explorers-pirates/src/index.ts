@@ -353,6 +353,16 @@ const foundSettlement = action<{ ship: string; corner: CornerId }>({
 
 // ---- Gold ----
 
+/**
+ * Gold for one resource: 2, unless a module prices it by the \`cost\` reducer
+ * (item \`goldBuy:<resource>\`), as Investors & Speculators' market does.
+ */
+export function goldPrice(ctx: Ctx, seat: number, resource: string): number {
+  return (
+    ctx.reduce('cost', `goldBuy:${resource}`, seat, { [GOLD]: GOLD_PRICE })[GOLD] ?? GOLD_PRICE
+  );
+}
+
 const buyWithGold = action<{ resource: string }>({
   phases: ['main'],
   check(ctx, a) {
@@ -362,7 +372,8 @@ const buyWithGold = action<{ resource: string }>({
     const d = epData(ctx);
     if (d.boughtTurn === ctx.state.turn.number && d.bought >= GOLD_BUYS)
       return `Gold buys at most ${GOLD_BUYS} resources a turn`;
-    if (!ctx.has(a.player, { [GOLD]: GOLD_PRICE })) return `You need ${GOLD_PRICE} gold`;
+    const price = goldPrice(ctx, a.player, a.resource);
+    if (!ctx.has(a.player, { [GOLD]: price })) return `You need ${price} gold`;
     if (!ctx.bankHas({ [a.resource]: 1 })) return 'The bank has none left';
     return null;
   },
@@ -373,9 +384,10 @@ const buyWithGold = action<{ resource: string }>({
       d.bought = 0;
     }
     d.bought++;
-    ctx.pay(a.player, { [GOLD]: GOLD_PRICE });
+    const price = goldPrice(ctx, a.player, a.resource);
+    ctx.pay(a.player, { [GOLD]: price });
     ctx.grant(a.player, { [a.resource]: 1 });
-    ctx.emit({ type: 'boughtWithGold', player: a.player, resource: a.resource, gold: GOLD_PRICE });
+    ctx.emit({ type: 'boughtWithGold', player: a.player, resource: a.resource, gold: price });
   },
   enumerate(ctx, player) {
     if (player !== ctx.active) return [];

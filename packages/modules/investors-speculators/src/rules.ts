@@ -5,6 +5,7 @@ import {
   RATE_MAX,
   RATE_MIN,
   RATE_START,
+  TOWN_ITEMS,
   type LoanTerm,
   type SavingsTerm,
   type TownTerm,
@@ -155,4 +156,4 @@ export const onlyActive = (ctx: Ctx, a: Action) =>
 
 export const total = (c: Cards) => Object.values(c).reduce((s, n) => s + (n ?? 0), 0);
 
-export const isTownLoan = (l: Loan) => l.card === 'settlement' || l.card === 'city';
+export const isTownLoan = (l: Loan) => Object.hasOwn(TOWN_ITEMS, l.card);
