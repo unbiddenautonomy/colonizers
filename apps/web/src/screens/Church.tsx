@@ -69,10 +69,6 @@ export function churchModePrompt(who: string, mode: ChurchMode): string {
 /** Prompts for the steps the Religion cards add. */
 export function churchPrompt(state: GameState, who: string, actor: number | null): string | null {
   switch (state.phase.id) {
-    case 'churchKeep':
-      return state.phase.by === actor
-        ? `${who}: keep one of the cards you took. The rest go back under their decks.`
-        : 'Waiting for a card to be kept.';
     case 'churchTax': {
       const owed = (state.phase.owed as Record<number, number>)[actor ?? -1];
       return owed
@@ -111,10 +107,6 @@ function cityLabel(state: GameState | undefined, corner: unknown): string {
 export function churchOptionLabel(a: Action, names: string[], state?: GameState): string | null {
   const n = (s: unknown) => (typeof s === 'number' ? (names[s] ?? `Player ${s + 1}`) : '');
   switch (a.type) {
-    case 'churchKeep': {
-      const pool = (state?.phase.pool as { card: string }[] | undefined) ?? [];
-      return card(pool[a.index as number]?.card);
-    }
     case 'churchTaxPay':
       return card(a.card);
     case 'pickJoker':
@@ -222,7 +214,7 @@ export function ChurchActions({
   );
 }
 
-/** Dialogs the Religion cards open: keeping a card, paying the Church Tax. */
+/** Dialogs the Religion cards open: paying the Church Tax. */
 export function ChurchChoices({
   state,
   legal,
@@ -251,12 +243,6 @@ export function ChurchChoices({
     );
   };
   switch (state.phase.id) {
-    case 'churchKeep':
-      return list(
-        'churchKeep',
-        'Keep one card',
-        'Keep one of the cards you took. The others go back under their decks.',
-      );
     case 'churchTax':
       return list(
         'churchTaxPay',

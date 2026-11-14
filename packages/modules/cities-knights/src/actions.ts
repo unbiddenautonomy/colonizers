@@ -7,7 +7,7 @@ import {
   type Piece,
 } from '@colonizers/engine';
 import { RESOURCES } from '@colonizers/module-base';
-import { KNIGHT_TYPES, MAX_WALLS, type Track } from './constants.ts';
+import { KNIGHT_TYPES, MAX_LEVEL, MAX_WALLS, METROPOLIS_LEVEL, type Track } from './constants.ts';
 import {
   activeTracks,
   canAct,
@@ -360,6 +360,34 @@ export function claimMetropolis(ctx: Ctx, seat: number, track: Track, returnTo: 
     return;
   }
   ctx.setPhase({ id: 'placeMetropolis', owed: { [seat]: 1 }, track, returnTo });
+}
+
+/** Raises a track a level for free, claiming the metropolis if it is now won. */
+export function raiseTrack(ctx: Ctx, seat: number, track: Track): boolean {
+  const lv = levels(ctx, seat);
+  if (lv[track] >= MAX_LEVEL) return false;
+  lv[track] += 1;
+  ctx.emit({ type: 'improved', player: seat, track, level: lv[track], free: true });
+  if (winsMetropolis(ctx, seat, track, lv[track]))
+    claimMetropolis(ctx, seat, track, ctx.state.phase);
+  return true;
+}
+
+/** Drops a track a level; below level 4 its metropolis is lost. */
+export function lowerTrack(ctx: Ctx, seat: number, track: Track): boolean {
+  const lv = levels(ctx, seat);
+  if (lv[track] <= 0) return false;
+  lv[track] -= 1;
+  ctx.emit({ type: 'trackLowered', player: seat, track, level: lv[track] });
+  const d = ckData(ctx);
+  const m = d.metropolis[track];
+  if (m && m.seat === seat && lv[track] < METROPOLIS_LEVEL) {
+    const city = ctx.buildingAt(m.corner);
+    if (city) delete city.props.metropolis;
+    delete d.metropolis[track];
+    ctx.emit({ type: 'metropolisLost', player: seat, track });
+  }
+  return true;
 }
 
 interface MetropolisPhase extends OwedPhase {
