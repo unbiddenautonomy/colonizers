@@ -22,6 +22,7 @@
     "@colonizers/module-witches": "workspace:*",
     "@colonizers/module-princes-explorers": "workspace:*",
     "@colonizers/module-investors-speculators": "workspace:*",
+    "@colonizers/module-kingdoms-warriors": "workspace:*",
     "@colonizers/module-soldiers-armies": "workspace:*",
     "@colonizers/module-civilisations": "workspace:*",
     "@colonizers/module-world-wonders": "workspace:*",

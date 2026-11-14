@@ -96,6 +96,7 @@ export function NewGame({
   const [princesWanted, setPrinces] = useState(false);
   const [soldiersWanted, setSoldiers] = useState(false);
   const [investorsWanted, setInvestors] = useState(false);
+  const [kingdomsWanted, setKingdoms] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -162,9 +163,16 @@ export function NewGame({
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const investorsOk = !specialId || isExplorers || isTraders;
   const investors = investorsWanted && investorsOk;
+  // Kingdoms & Warriors goes on the base game, on the usual maps and Seafarers, for now.
+  const kingdomsOk =
+    !ck && !princes && !soldiers && !investors && !wonders && effective.kind !== 'special';
+  const kingdoms = kingdomsWanted && kingdomsOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
-    (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) + (princes ? 4 : 0) + (soldiers && !princes ? 3 : 0);
+    (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) +
+    (princes ? 4 : 0) +
+    (soldiers && !princes ? 3 : 0) +
+    (kingdoms ? 2 : 0);
   const fanName =
     church && witches
       ? 'Church and Witches'
@@ -173,12 +181,12 @@ export function NewGame({
         : witches
           ? 'Witches, Wizards & Dragons'
           : 'Cities & Knights';
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}:${investors}`;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}:${investors}:${kingdoms}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
-  const bonus = vpBonus(ck, specialId, gwp, civs, church, witches, princes, soldiers);
+  const bonus = vpBonus(ck, specialId, gwp, civs, church, witches, princes, soldiers, kingdoms);
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const special = useMemo(
     () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
@@ -229,6 +237,7 @@ export function NewGame({
               ...(princes ? ['princes'] : []),
               ...(soldiers ? ['soldiers'] : []),
               ...(investors ? ['investors'] : []),
+              ...(kingdoms ? ['kingdoms'] : []),
             ],
             ck,
             gwp,
@@ -626,6 +635,20 @@ export function NewGame({
               {!investorsOk
                 ? 'Fan expansion for the usual maps, Seafarers, Explorers & Pirates and Traders & Barbarians (not the Treasures, Dragons & Adventurers maps yet).'
                 : 'Fan expansion: an exchange market whose rates move on every 7, savings that pay interest, and loans that cost points if you can’t pay them back.'}
+            </small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${kingdoms ? 'on' : ''}`}
+            aria-pressed={kingdoms}
+            disabled={!kingdomsOk}
+            onClick={() => setKingdoms(!kingdoms)}
+          >
+            <strong>👑 Kingdoms &amp; Warriors</strong>
+            <small>
+              {!kingdomsOk
+                ? 'Fan expansion for the base game on the usual maps and Seafarers (not with Cities & Knights or the other fan expansions yet).'
+                : 'Fan expansion: kingdoms spread out from your cities, take their fields’ resources, score a point for every 3 joined, and are fought over with your knights. Plays to 2 points more.'}
             </small>
           </button>
           <button

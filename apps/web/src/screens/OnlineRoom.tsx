@@ -251,7 +251,20 @@ function Lobby({
   const soldiers = s.soldiers && soldiersOk;
   const investorsOk =
     !specialPick || specialPick.group === 'explorers' || specialPick.group === 'traders';
-  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church, witches, princes, soldiers);
+  const investors = s.investors && investorsOk;
+  const kingdomsOk = !ck && !princes && !soldiers && !investors && !wonders && !specialPick;
+  const kingdoms = s.kingdoms && kingdomsOk;
+  const bonus = vpBonus(
+    ck,
+    specialPick?.id ?? null,
+    gwp,
+    civs,
+    church,
+    witches,
+    princes,
+    soldiers,
+    kingdoms,
+  );
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
   const seaPick =
@@ -528,6 +541,17 @@ function Lobby({
               📈 Investors &amp; Speculators (fan expansion for the usual maps, Seafarers, Explorers
               &amp; Pirates and Traders &amp; Barbarians: moving exchange rates, savings and loans;
               not on the Treasures, Dragons &amp; Adventurers maps yet)
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={kingdoms}
+                disabled={!kingdomsOk}
+                onChange={(e) => setGame({ kingdoms: e.target.checked })}
+              />{' '}
+              👑 Kingdoms &amp; Warriors (fan expansion for the base game on the usual maps and
+              Seafarers: kingdoms that spread from your cities and are fought over; 2 points more
+              than usual)
             </label>
             <label className="toggle">
               <input

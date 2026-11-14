@@ -83,6 +83,17 @@ export interface Reducers {
   cost(ctx: Ctx, item: string, player: number, value: Cards): Cards;
   /** Cards a piece collects from a hex on production. */
   hexYield(ctx: Ctx, hex: HexState, piece: Piece, value: Cards): Cards;
+  /**
+   * Who receives a piece's yield from a hex, by seat. Starts with everything
+   * to the piece's owner; a module can hand some of it to another player
+   * (Kingdoms & Warriors: a kingdom that surrounds a rival's settlement).
+   */
+  yieldShares(
+    ctx: Ctx,
+    hex: HexState,
+    piece: Piece,
+    value: Record<number, Cards>,
+  ): Record<number, Cards>;
   /** Best bank trade ratio for giving a card type. */
   tradeRatio(ctx: Ctx, player: number, card: string, value: number): number;
   /**
