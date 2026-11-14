@@ -347,6 +347,28 @@ describe('game options', () => {
       ).not.toContain('landwater');
   });
 
+  it('adds Strategist & Commander on top of Cities & Knights only', () => {
+    const settings = cleanSettings({ ...DEFAULT_SETTINGS, strategist: true });
+    expect(buildConfig(settings, names(4), 'seed').modules).not.toContain('strategist');
+    const ck = buildConfig(cleanSettings({ ...settings, citiesKnights: true }), names(4), 'seed');
+    expect(ck.modules).toEqual(['base', 'variants', 'cities-knights', 'strategist']);
+    expect(ck.settings?.vpTarget).toBe(13);
+    expect(library.createGame(ck).state.decks.politics).toContain('sfDuke');
+    // With Church, Faith & Reformation too; not with Greed, Wealth & Power or Land & Water.
+    const church = buildConfig(
+      cleanSettings({ ...settings, citiesKnights: true, church: true }),
+      names(4),
+      'seed',
+    );
+    expect(church.modules).toEqual(expect.arrayContaining(['church', 'strategist']));
+    expect(library.createGame(church).state.modules).toContain('strategist');
+    for (const more of [{ greedWealthPower: true }, { landWater: true }])
+      expect(
+        buildConfig(cleanSettings({ ...settings, citiesKnights: true, ...more }), names(4), 'seed')
+          .modules,
+      ).not.toContain('strategist');
+  });
+
   it('builds Traders & Barbarians scenarios on the base game only', () => {
     for (const id of ['fishermen', 'rivers']) {
       const settings = cleanSettings({
