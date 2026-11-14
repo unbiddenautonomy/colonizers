@@ -198,7 +198,6 @@ const SAFE_ORDER = [
   'placeDamsel',
   'brothelAnswer',
   'ritualGive',
-  'keepProgress',
   'espionageTake',
   'summonRemove',
   'naiadHex',
