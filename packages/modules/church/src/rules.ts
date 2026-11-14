@@ -9,15 +9,15 @@ import type {
   Phase,
   Piece,
 } from '@colonizers/engine';
-import { ckData, hasAbility, isKnight, type Track } from '@colonizers/module-cities-knights';
 import {
-  BEER,
-  BEER_RATIO,
-  BREAD,
-  FESTIVAL_COST,
-  MODULE_ID,
-  type FestivalKind,
-} from './constants.ts';
+  ckData,
+  hasAbility,
+  isKnight,
+  seatAt,
+  seatOf,
+  type Track,
+} from '@colonizers/module-cities-knights';
+import { BEER, BEER_RATIO, FESTIVAL_COST, MODULE_ID, type FestivalKind } from './constants.ts';
 
 /**
  * Church, Faith & Reformation's board rules: the Diocese, Bread, the
@@ -35,8 +35,6 @@ export interface Festival {
 }
 
 export interface ChurchData extends Record<string, unknown> {
-  /** Each player's Diocese, at most one. */
-  diocese: Record<number, CornerId>;
   festivals: Festival[];
   /** Lent: the player who may not build until they pay a grain and a wool. */
   lent?: { target: number; owed: Cards } | null;
@@ -48,7 +46,6 @@ export interface ChurchData extends Record<string, unknown> {
 
 export function churchData(ctx: Ctx): ChurchData {
   const d = ctx.data<ChurchData>(MODULE_ID);
-  d.diocese ??= {};
   d.festivals ??= [];
   return d;
 }
@@ -67,75 +64,10 @@ const onlyActive = (ctx: Ctx, a: Action): string | null =>
 
 // ---- The Diocese ----
 
-export const dioceseOf = (ctx: Ctx, seat: number): CornerId | null =>
-  churchView(ctx).diocese?.[seat] ?? null;
-
-export const isDiocese = (p: Piece | undefined): boolean => p?.props.diocese === true;
-
-/** What a Diocese on this corner costs: the Diocese, and the city first for a settlement. */
-export function diocesePrice(ctx: Ctx, seat: number, corner: CornerId): Cards {
-  const out: Cards = { ...ctx.cost('diocese', seat) };
-  if (ctx.buildingAt(corner)?.type === 'settlement')
-    for (const [c, n] of Object.entries(ctx.cost('city', seat))) out[c] = (out[c] ?? 0) + n;
-  return out;
-}
-
-export function dioceseBlock(ctx: Ctx, seat: number, corner: CornerId): string | null {
-  if (dioceseOf(ctx, seat) !== null) return 'You already have a Diocese';
-  const b = ctx.buildingAt(corner);
-  if (!b || b.owner !== seat || (b.type !== 'city' && b.type !== 'settlement'))
-    return 'Pick one of your cities or settlements';
-  if (b.props.citadel) return 'A Citadel can not be a Diocese too';
-  if (festiveAt(ctx, b)) return 'Not while it is holding a festival';
-  if (b.type === 'settlement' && ctx.supplyLeft(seat, 'city') <= 0) return 'No cities left';
-  const price = diocesePrice(ctx, seat, corner);
-  return ctx.has(seat, price) ? null : 'You can not afford it';
-}
-
-const buildDiocese = action<{ corner: CornerId }>({
-  phases: ['main'],
-  check: (ctx, a) => onlyActive(ctx, a) ?? dioceseBlock(ctx, a.player, a.corner),
-  apply(ctx, a) {
-    ctx.pay(a.player, diocesePrice(ctx, a.player, a.corner));
-    let city = ctx.buildingAt(a.corner)!;
-    if (city.type === 'settlement') {
-      city = ctx.upgrade(city, 'city');
-      ctx.emit({ type: 'built', player: a.player, piece: 'city', at: a.corner });
-    }
-    city.props.diocese = true;
-    churchData(ctx).diocese[a.player] = a.corner;
-    ctx.emit({ type: 'dioceseBuilt', player: a.player, at: a.corner });
-  },
-  enumerate(ctx, player) {
-    if (player !== ctx.active || dioceseOf(ctx, player) !== null) return [];
-    return ctx
-      .piecesOf(player)
-      .flatMap((p) =>
-        p.at.kind === 'corner' && !dioceseBlock(ctx, player, p.at.id)
-          ? [{ type: 'buildDiocese', player, corner: p.at.id }]
-          : [],
-      );
-  },
-});
-
-/** A Diocese knocked back to a settlement by the barbarians is gone. */
-export function dropLostDioceses(ctx: Ctx): void {
-  const d = churchView(ctx);
-  for (const [seat, corner] of Object.entries(d.diocese ?? {})) {
-    const b = ctx.buildingAt(corner);
-    if (b && b.type === 'city' && b.owner === Number(seat) && isDiocese(b)) continue;
-    if (b) delete b.props.diocese;
-    delete churchData(ctx).diocese[Number(seat)];
-    ctx.emit({ type: 'dioceseLost', player: Number(seat), at: corner });
-  }
-}
-
-/** A Diocese's city on grain makes a Bread in place of its second grain. */
-export function breadYield(ctx: Ctx, hex: HexState, piece: Piece, value: Cards): Cards {
-  if (!isDiocese(piece) || ctx.registry.hexTypes[hex.type]?.produces !== 'grain') return value;
-  if ((value.grain ?? 0) < 2) return value;
-  return { ...value, grain: (value.grain ?? 0) - 1, [BREAD]: (value[BREAD] ?? 0) + 1 };
-}
+/** The Diocese is Cities & Knights' shared city seat; these name it for this module. */
+export const DIOCESE = 'diocese';
+export const dioceseOf = (ctx: Ctx, seat: number): CornerId | null => seatOf(ctx, DIOCESE, seat);
+export const isDiocese = (p: Piece | undefined): boolean => seatAt(p) === DIOCESE;
 
 // ---- Beer ----
 
@@ -321,7 +253,7 @@ export function festivalVp(ctx: Ctx, seat: number): number {
     const p = ctx.state.pieces[f.piece];
     if (!p) continue;
     if (p.type === 'settlement') lost += 1;
-    if (p.type === 'city') lost += 2 + (isDiocese(p) ? 1 : 0);
+    if (p.type === 'city') lost += 2 + (seatAt(p) ? 1 : 0);
   }
   return lost;
 }
@@ -360,7 +292,7 @@ const LENT_BLOCKS = [
   'buildShip',
   'buildSettlement',
   'buildCity',
-  'buildDiocese',
+  'buildCitySeat',
   'buildWall',
   'improveCity',
 ];
@@ -407,6 +339,7 @@ export function festivalStops(ctx: Ctx, a: Action): string | null {
       return festive(a.ship);
     case 'buildCity':
     case 'buildWall':
+    case 'buildCitySeat':
       return festiveCorner(a.corner);
     case 'buildRoad':
     case 'buildShip': {
@@ -447,4 +380,4 @@ export function guardFestival(prev: ActionDef): ActionDef {
   return out;
 }
 
-export const churchActions: Record<string, ActionDef> = { buildDiocese, holdFestival };
+export const churchActions: Record<string, ActionDef> = { holdFestival };

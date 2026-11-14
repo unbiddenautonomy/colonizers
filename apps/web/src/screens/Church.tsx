@@ -8,7 +8,6 @@ import {
   type GameState,
 } from '@colonizers/engine';
 import {
-  dioceseOf,
   churchView,
   debtOf,
   FESTIVAL_COST,
@@ -24,7 +23,7 @@ import { Modal } from '../ui/Modal.tsx';
 
 export const churchOn = (state: GameState) => state.modules.includes('church');
 
-export const CHURCH_MODES = ['diocese', 'festival'] as const;
+export const CHURCH_MODES = ['festival'] as const;
 export type ChurchMode = (typeof CHURCH_MODES)[number];
 export const isChurchMode = (m: string | null): m is ChurchMode =>
   m !== null && (CHURCH_MODES as readonly string[]).includes(m);
@@ -48,11 +47,10 @@ const TRACK_NAME: Record<string, string> = {
   religion: 'Religion',
 };
 
-/** Board targets for building a Diocese or holding a festival. */
+/** Board targets for holding a festival. */
 export function churchTargets(legal: Action[], mode: ChurchMode): Targets {
   const t: Targets = { corners: new Map(), edges: new Map(), hexes: new Map() };
   for (const a of legal) {
-    if (mode === 'diocese' && a.type === 'buildDiocese') t.corners.set(a.corner as CornerId, a);
     if (mode === 'festival' && a.type === 'holdFestival') {
       const at = a.at as string;
       if (at.startsWith('e:')) t.edges.set(at as EdgeId, a);
@@ -63,9 +61,9 @@ export function churchTargets(legal: Action[], mode: ChurchMode): Targets {
 }
 
 export function churchModePrompt(who: string, mode: ChurchMode): string {
-  return mode === 'diocese'
-    ? `${who}: tap the city (or settlement, paying for the city too) that becomes your Diocese.`
-    : `${who}: tap a rival's road, ship, knight, settlement or city to hold a festival there. It stops until your next turn.`;
+  return mode === 'festival'
+    ? `${who}: tap a rival's road, ship, knight, settlement or city to hold a festival there. It stops until your next turn.`
+    : '';
 }
 
 /** Prompts for the steps the Religion cards add. */
@@ -136,7 +134,7 @@ export function churchOptionLabel(a: Action, names: string[], state?: GameState)
   }
 }
 
-/** A player's Diocese and church troubles, for the player list. */
+/** A player's church troubles, for the player list. */
 export function ChurchStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const v = churchView(ctx);
   const bans = (v.bans ?? []).filter((b) => b.target === seat);
@@ -144,7 +142,6 @@ export function ChurchStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const inquisitor = v.inquisitor ? ctx.buildingAt(v.inquisitor)?.owner === seat : false;
   return (
     <>
-      {dioceseOf(ctx, seat) !== null && <span title="Diocese (1 point)">⛪</span>}
       {hosting && (
         <span
           title={`Holding a festival on a ${KIND_NAME[hosting.kind]} of ${ctx.state.players[hosting.target]?.name}`}
@@ -168,7 +165,7 @@ export function ChurchStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   );
 }
 
-/** On your turn: the Diocese, festivals, and paying off Lent or Anathema. */
+/** On your turn: festivals, and paying off Lent or Anathema. */
 export function ChurchActions({
   ctx,
   actor,
@@ -191,18 +188,6 @@ export function ChurchActions({
   const debts = [...new Set(pays.map((a) => a.debt as string))];
   return (
     <>
-      {dioceseOf(ctx, actor) === null && (
-        <button
-          type="button"
-          className={mode === 'diocese' ? 'on' : ''}
-          aria-pressed={mode === 'diocese'}
-          disabled={!has('buildDiocese')}
-          onClick={() => toggle('diocese')}
-          title="One city becomes your Diocese: a point, Bread from grain, and Religion"
-        >
-          ⛪ Diocese <CostLine cost={ctx.cost('diocese', actor)} />
-        </button>
-      )}
       <button
         type="button"
         className={mode === 'festival' ? 'on' : ''}
@@ -348,7 +333,7 @@ export function AnathemaDialog({
   );
 }
 
-/** What the board shows: Dioceses, the Inquisitor and festival chips. */
+/** What the board shows: the Inquisitor and festival chips. */
 export function churchMarkers(state: GameState): {
   key: string;
   at: string;
@@ -360,7 +345,6 @@ export function churchMarkers(state: GameState): {
 }[] {
   const v = state.data.church as
     | {
-        diocese?: Record<number, CornerId>;
         festivals?: { by: number; target: number; at: string; kind: FestivalKind }[];
         inquisitor?: CornerId | null;
       }
@@ -368,14 +352,6 @@ export function churchMarkers(state: GameState): {
   if (!v) return [];
   const name = (s: number) => state.players[s]?.name ?? `Player ${s + 1}`;
   return [
-    ...Object.entries(v.diocese ?? {}).map(([seat, at]) => ({
-      key: `diocese-${seat}`,
-      at,
-      icon: '⛪',
-      slot: -1 as const,
-      owner: Number(seat),
-      title: `Diocese of ${name(Number(seat))}`,
-    })),
     ...(v.festivals ?? []).map((f) => ({
       key: `festival-${f.by}`,
       at: f.at,

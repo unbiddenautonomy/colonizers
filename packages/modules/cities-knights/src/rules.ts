@@ -1,3 +1,4 @@
+import { seatAllows, seatForTrack } from './seats.ts';
 import type {
   ActionDef,
   Cards,
@@ -60,6 +61,8 @@ export interface CkData extends Record<string, unknown> {
   releasingRoll?: boolean;
   /** The roller of a joker face, until they pick its track. */
   pendingJoker?: number | null;
+  /** City seats (a Diocese, a Citadel): where each player's stands, by kind. */
+  seats?: Record<string, Record<number, CornerId>>;
   /** Seats whose level 3 abilities are switched off for now. */
   noAbilities?: number[];
   /** A level 3 ability borrowed for one turn (Greed, Wealth & Power's Secret Society). */
@@ -153,12 +156,23 @@ function exclusiveTracks(ctx: Ctx): readonly Track[] {
   return ctx.setting<Track[] | undefined>('exclusiveMetropolis') ?? [];
 }
 
-/** The metropolis of another shut-out track this player owns, if any. */
+/**
+ * The rival track that stops this one at level 3, if any: the metropolis of
+ * another shut-out track this player owns (Greed, Wealth & Power), or level 4
+ * in another (`exclusiveLevel`: Church, Faith & Reformation and Witches,
+ * Wizards & Dragons).
+ */
 export function rivalMetropolis(ctx: Ctx, seat: number, track: Track): Track | null {
   const ex = exclusiveTracks(ctx);
-  if (!ex.includes(track)) return null;
   const d = ckData(ctx);
-  return ex.find((t) => t !== track && d.metropolis[t]?.seat === seat) ?? null;
+  if (ex.includes(track)) {
+    const owned = ex.find((t) => t !== track && d.metropolis[t]?.seat === seat);
+    if (owned) return owned;
+  }
+  const byLevel = ctx.setting<Track[] | undefined>('exclusiveLevel') ?? [];
+  if (!byLevel.includes(track)) return null;
+  const lv = levels(ctx, seat);
+  return byLevel.find((t) => t !== track && lv[t] >= METROPOLIS_LEVEL) ?? null;
 }
 
 // ---- Knights ----
@@ -372,9 +386,14 @@ export function improveBlock(ctx: Ctx, seat: number, track: Track): string | nul
   const level = levels(ctx, seat)[track];
   if (level >= MAX_LEVEL) return 'That track is complete';
   if (!citiesOf(ctx, seat).length) return 'You need a city to build city improvements';
+  const seatNeeded = seatForTrack(ctx, track);
+  if (seatNeeded && !seatAllows(ctx, seat, track))
+    return `${track[0]!.toUpperCase()}${track.slice(1)} improvements need a ${seatNeeded.name}`;
   const rival = rivalMetropolis(ctx, seat, track);
   if (rival && level >= ABILITY_LEVEL)
-    return `You own the ${rival} metropolis, so ${track} stops at level ${ABILITY_LEVEL}`;
+    return ckData(ctx).metropolis[rival]?.seat === seat
+      ? `You own the ${rival} metropolis, so ${track} stops at level ${ABILITY_LEVEL}`
+      : `You have level ${METROPOLIS_LEVEL} in ${rival}, so ${track} stops at level ${ABILITY_LEVEL}`;
   if (winsMetropolis(ctx, seat, track, level + 1) && !freeCities(ctx, seat).length)
     return 'You need a city without a metropolis';
   if (!ctx.has(seat, improveCost(ctx, seat, track)))
@@ -453,7 +472,7 @@ export function giveProgress(ctx: Ctx, seat: number, deck: Track, card: string):
  * deck is empty.
  */
 export function drawProgress(ctx: Ctx, seat: number, deck: Track): boolean {
-  if (!ctx.reduce('takesProgress', seat, deck, true)) return false;
+  if (!takesProgress(ctx, seat, deck)) return false;
   const card = ctx.drawCard(deck);
   if (!card) return false;
   giveProgress(ctx, seat, deck, card);
@@ -479,7 +498,16 @@ export function turnOrder(ctx: Ctx): number[] {
 /** Can this player draw from a track's deck when the red die shows `red`? */
 export function gateOpen(ctx: Ctx, seat: number, track: Track, red: number): boolean {
   const level = levels(ctx, seat)[track];
-  return level >= 1 && red <= level + 1 && ctx.reduce('takesProgress', seat, track, true);
+  return level >= 1 && red <= level + 1 && takesProgress(ctx, seat, track);
+}
+
+/**
+ * May this player receive a card of this deck, from the bank or another
+ * player? A track with a city seat needs the seat; other modules can say no
+ * through the `takesProgress` reducer.
+ */
+export function takesProgress(ctx: Ctx, seat: number, deck: Track): boolean {
+  return seatAllows(ctx, seat, deck) && ctx.reduce('takesProgress', seat, deck, true);
 }
 
 /** A gate on the event die: everyone whose level in that track covers the red die draws. */

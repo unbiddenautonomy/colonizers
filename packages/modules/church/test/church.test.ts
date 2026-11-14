@@ -100,9 +100,9 @@ describe('Church, Faith & Reformation', () => {
     s = edit(s, (ctx) => expect(drawProgress(ctx, 0, 'religion')).toBe(false));
     const vp = ctxOf(s).vp(0);
     const corner = cityOf(s, 0);
-    s = act(s, { type: 'buildDiocese', player: 0, corner });
+    s = act(s, { type: 'buildCitySeat', player: 0, seat: 'diocese', corner });
     expect(ctxOf(s).vp(0)).toBe(vp + 1);
-    expect(legal(s, 0, 'buildDiocese')).toHaveLength(0);
+    expect(legal(s, 0, 'buildCitySeat')).toHaveLength(0);
     expect(legal(s, 0, 'improveCity').some((a) => a.track === 'religion')).toBe(true);
     const ctx = ctxOf(s);
     const city = ctx.buildingAt(corner)!;
@@ -219,6 +219,6 @@ describe('Church, Faith & Reformation, played at random', () => {
         seen.add(a.type === 'playProgress' ? `card:${a.card as string}` : a.type);
         s = act(s, a);
       }
-      expect(seen.has('buildDiocese') || seen.has('holdFestival') || s.winner !== null).toBe(true);
+      expect(seen.has('buildCitySeat') || seen.has('holdFestival') || s.winner !== null).toBe(true);
     }, 120_000);
 });
