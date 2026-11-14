@@ -138,6 +138,21 @@ Players who are out sit their turns out. The game ends when someone reaches {set
 - The game is won on **points only**: being the last player standing doesn't end it.`,
     },
     {
+      id: 'soldiers-ep',
+      module: M,
+      section: 'rules',
+      title: 'With Explorers & Pirates',
+      summary: 'Armies sail aboard your ships, fight the pirate, and harbors defend like cities.',
+      tags: ['explorers', 'pirates', 'ships', 'harbor', 'pirate ship'],
+      body: `Soldiers & Armies plays on the Explorers & Pirates scenarios, to three points more.
+
+- Everyone starts with a **harbor settlement and a city** (the city stands where the second settlement would).
+- After building, ships sail and armies march in the same stretch of the turn: setting sail takes the field.
+- Armies don't march along these ships. To reach another island, move an army onto your harbor settlement's corner and put it **aboard** an empty ship of yours there (it fills the hold). It goes **ashore** at a free end of the ship, and nothing else can be loaded while it is aboard.
+- A ship with an army aboard, beside the pirate ship, can **fight the pirate** once a turn, as armies fight the robber (the army's die against a d6): win and move the pirate, lose and give up a resource. Crews can't chase it any more.
+- **Harbor settlements defend like cities**: a d12, plus walls, and they drop to a settlement when beaten.`,
+    },
+    {
       id: 'soldiers-ck',
       module: M,
       section: 'rules',
