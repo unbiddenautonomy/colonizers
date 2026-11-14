@@ -105,7 +105,13 @@ export const COMMODITY_MARKET: Record<string, Resource> = {
   paper: 'lumber',
   cloth: 'wool',
   coin: 'ore',
+  // Witches, Wizards & Dragons and Church, Faith & Reformation.
+  crystal: 'brick',
+  bread: 'grain',
 };
+
+/** Dearer commodities cost more than their resource: Crystal 2 more than brick, Bread 1 more than grain. */
+export const COMMODITY_PREMIUM: Record<string, number> = { crystal: 2, bread: 1 };
 
 /** The resource whose rate a card goes by. */
 export const marketOf = (card: string): string => COMMODITY_MARKET[card] ?? card;
@@ -120,7 +126,7 @@ export const isTradable = (ctx: Ctx, c: unknown): c is string =>
   typeof c === 'string' && tradables(ctx).includes(c);
 
 export const rateOf = (ctx: Ctx, card: string) =>
-  investorsData(ctx).rates[marketOf(card)] ?? RATE_START;
+  (investorsData(ctx).rates[marketOf(card)] ?? RATE_START) + (COMMODITY_PREMIUM[card] ?? 0);
 
 export const clampRate = (n: number) => Math.max(RATE_MIN, Math.min(RATE_MAX, n));
 
