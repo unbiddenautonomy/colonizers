@@ -103,7 +103,7 @@ export const churchRules: RulebookModule = {
 - Each player may make one city a **Diocese**. Only a Diocese opens Religion.
 - **Beer** buys **festivals** that shut down a rival's piece for a round.
 - The event die has ten faces: five ships, a gate for each of the four tracks, and a **joker**.
-- You may hold five progress cards. Owning the Science metropolis stops your Religion at level 3, and owning the Religion metropolis stops your Science at level 3.
+- You may hold five progress cards. Once you have level 4 in Science or Religion (or Magic, with Witches, Wizards & Dragons), the others stop at level 3. If you lose that level 4, you may take another track to level 4 instead.
 
 The first to {setting:vpTarget} points wins.`,
     },
@@ -120,7 +120,9 @@ The first to {setting:vpTarget} points wins.`,
 - When its city collects from a grain field, it takes 1 grain and 1 **Bread** instead of 2 grain.
 - You need a Diocese to improve Religion or draw Religion cards. Without one, a Religion gate gives you nothing.
 
-If your Diocese's city is lost to the barbarians, the Diocese goes with it and you may found a new one later.`,
+If your Diocese's city is lost to the barbarians, the Diocese goes with it and you may found a new one later.
+
+With Witches, Wizards & Dragons, a city can be a Diocese or a Citadel, not both.`,
     },
     {
       id: 'church-beer',
@@ -148,7 +150,7 @@ The festival ends when your next turn begins.`,
       title: 'The ten-sided event die',
       summary: 'Five ships, four gates and a joker.',
       tags: ['joker', 'event die', 'gate', 'ship'],
-      body: `This expansion's event die has ten faces: five barbarian ships, a gate for each of Science, Trade, Politics and Religion, and a **joker**.
+      body: `This expansion's event die has ten faces: five barbarian ships, a gate for each of Science, Trade, Politics and Religion, and a **joker**. With Witches, Wizards & Dragons as well it has twelve: six ships, five gates (Magic too) and the joker.
 
 When the joker comes up, the player who rolled picks which gate opens. Everyone then draws from that deck as usual, if their improvements reach the red die.`,
     },

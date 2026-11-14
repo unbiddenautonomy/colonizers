@@ -236,10 +236,10 @@ export function describe(e: GameEvent, names: string[]): string | null {
     case 'jokerPicked':
       return `🃏 ${n(e.player)} opened the ${TRACK[e.deck as string] ?? e.deck} gate.`;
     // ---- Church, Faith & Reformation ----
-    case 'dioceseBuilt':
-      return `⛪ ${n(e.player)} founded a Diocese.`;
-    case 'dioceseLost':
-      return `⛪ ${n(e.player)} lost their Diocese with the city.`;
+    case 'citySeatBuilt':
+      return `${nameOf(e.seat as string).icon ?? ''} ${n(e.player)} made a city their ${nameOf(e.seat as string).name}.`.trim();
+    case 'citySeatLost':
+      return `${n(e.player)} lost their ${nameOf(e.seat as string).name} with the city.`;
     case 'churchFestival':
       return `🍻 ${n(e.player)} held a festival on ${n(e.target)}'s ${e.kind as string}: it stops until ${n(e.player)}'s next turn.`;
     case 'churchFestivalOver':

@@ -6,6 +6,7 @@ import { greedWealthPowerModule } from '@colonizers/module-greed-wealth-power';
 import { worldWondersModule } from '@colonizers/module-world-wonders';
 import { civilisationsModule } from '@colonizers/module-civilisations';
 import { churchModule } from '@colonizers/module-church';
+import { witchesModule } from '@colonizers/module-witches';
 import { generateBoard, generateSeaBoard } from '@colonizers/maps';
 import { chooseAction, newMemory, type BotConfig, type BotMemory } from '../src/index.ts';
 
@@ -15,6 +16,7 @@ export const lib = new ModuleLibrary([
   worldWondersModule,
   citiesKnightsModule,
   churchModule,
+  witchesModule,
   greedWealthPowerModule,
   civilisationsModule,
 ]);
