@@ -33,3 +33,41 @@ export const LOAN_PENALTY: Record<LoanTerm, number> = { 1: 1, 3: 1, 5: 2, 7: 2, 
 
 /** One loan of a kind at a time, but up to this many of it in the turn it is taken. */
 export const SAME_KIND_LOANS = 5;
+
+/** Town loans: a settlement or city built free, paid back later. */
+export const TOWN_TERMS = [3, 5, 7, 10] as const;
+export type TownTerm = (typeof TOWN_TERMS)[number];
+export const TOWN_ITEMS = ['settlement', 'city'] as const;
+export type TownItem = (typeof TOWN_ITEMS)[number];
+
+/**
+ * What a town loan costs back, in whole buildings, and whether 2 cards of one
+ * more building's cost are added (the "and a half").
+ */
+export const TOWN_REPAY: Record<TownTerm, { times: number; half: boolean }> = {
+  3: { times: 1, half: true },
+  5: { times: 1, half: true },
+  7: { times: 2, half: false },
+  10: { times: 2, half: true },
+};
+
+/** Bad debt points for an unpaid town loan (the building stays). */
+export const TOWN_PENALTY: Record<TownTerm, number> = { 3: 3, 5: 4, 7: 4, 10: 5 };
+
+/** Town loan markers in the box: this many open for settlements, and as many for cities. */
+export const TOWN_MARKERS = 10;
+
+/** Derivatives each player holds. */
+export const DERIVATIVES = 5;
+/** A derivative costs 2 cards of one kind. */
+export const DERIVATIVE_COST = 2;
+
+/**
+ * Loans a derivative can be placed on: the term, how many turns must still be
+ * left, and the points it pays its holder if the loan isn't paid back.
+ */
+export const DERIVATIVE_TERMS: Record<number, { minLeft: number; pays: number }> = {
+  5: { minLeft: 4, pays: 1 },
+  7: { minLeft: 6, pays: 1 },
+  10: { minLeft: 8, pays: 2 },
+};

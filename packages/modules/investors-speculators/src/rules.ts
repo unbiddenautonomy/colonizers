@@ -7,6 +7,8 @@ import {
   RATE_START,
   type LoanTerm,
   type SavingsTerm,
+  type TownItem,
+  type TownTerm,
 } from './constants.ts';
 
 export type Resource = (typeof RESOURCES)[number];
@@ -25,8 +27,15 @@ export interface Savings {
 export interface Loan {
   id: string;
   seat: number;
-  card: Resource;
-  term: LoanTerm;
+  /** The resource borrowed, or 'settlement' / 'city' for a town loan. */
+  card: Resource | TownItem;
+  term: LoanTerm | TownTerm;
+  /** Bad debt points if it isn't paid back. */
+  penalty: number;
+  /** Loans that stand or fall together for derivatives: same kind, term and turn. */
+  group: string;
+  /** For a town loan, what the building cost when it was built. */
+  cost?: Cards;
   /** The borrower's turns left until it comes due; 0 means due this turn. */
   left: number;
   /** The turn number it was taken in. */
@@ -40,12 +49,25 @@ export interface InvestorsData {
   loans: Loan[];
   /** Bad debt points per seat. */
   debt: Record<string, number>;
+  /** Points won with derivatives, per seat. */
+  bonus: Record<string, number>;
+  derivatives: Derivative[];
   /** Finance actions used this turn. */
   actions: number;
   actionsTurn: number;
   nextId: number;
   /** The exchange being set after a 7. */
   seven: SevenState | null;
+}
+
+/** A bet that a loan (or a group of loans) won't be paid back. */
+export interface Derivative {
+  id: string;
+  holder: number;
+  group: string;
+  /** Points it pays when a loan in the group defaults (once). */
+  pays: number;
+  paid: boolean;
 }
 
 export interface SevenState {
@@ -65,6 +87,8 @@ export function investorsData(ctx: Ctx): InvestorsData {
   d.savings ??= [];
   d.loans ??= [];
   d.debt ??= {};
+  d.bonus ??= {};
+  d.derivatives ??= [];
   d.actions ??= 0;
   d.actionsTurn ??= 0;
   d.nextId ??= 1;
@@ -107,3 +131,5 @@ export const onlyActive = (ctx: Ctx, a: Action) =>
   a.player === ctx.active ? null : 'Not your turn';
 
 export const total = (c: Cards) => Object.values(c).reduce((s, n) => s + (n ?? 0), 0);
+
+export const isTownLoan = (l: Loan) => l.card === 'settlement' || l.card === 'city';
