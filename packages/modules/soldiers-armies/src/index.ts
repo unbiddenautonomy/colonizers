@@ -46,11 +46,13 @@ import { answerBattleCall, attack, battleRetreat, battleRoll } from './battle.ts
 import { capitulate, checkLastStanding, skipIfOut } from './fate.ts';
 import { buyNuke, detonateNuke } from './nuke.ts';
 import { barbarianSieges, ckActions, ckWraps, unitStrength, withCk } from './ck.ts';
+import { progressUnitActions, progressUnitWraps } from './progress.ts';
 
 export { nukeOf, nukeTargets } from './nuke.ts';
 export { beaten } from './fate.ts';
 export { loseMetropolis, unitStrength } from './ck.ts';
 export type { BattlePhase } from './battle.ts';
+export { intrigueArmies, musterCorners, stepUps } from './progress.ts';
 
 /**
  * Soldiers & Armies (Soldaten & Armeen, from siedlerinsel.wordpress.com), a
@@ -393,6 +395,7 @@ export const soldiersModule: GameModule = {
     detonateNuke,
     capitulate,
     ...ckActions,
+    ...progressUnitActions,
   },
   wrapActions: {
     buyDevCard: notBought,
@@ -404,6 +407,7 @@ export const soldiersModule: GameModule = {
     buildShip: noRoutePastArmies('sea'),
     placeFreeShip: noRoutePastArmies('sea'),
     ...ckWraps,
+    ...progressUnitWraps,
   },
   hooks: {
     init(ctx) {
