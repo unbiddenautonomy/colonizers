@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { MODES as MODE_IDS, type ModeId } from '@colonizers/modes';
+import { modesFor } from '../game/modeFlags.ts';
 import { MODES, PRESETS, SEA_SCENARIOS, SPECIAL_MAPS } from '@colonizers/maps';
 import {
   TURN_TIMERS,
@@ -235,42 +237,36 @@ function Lobby({
       : null;
   const noCk = specialPick?.noCitiesKnights === true;
   const needsCk = specialPick?.needsCitiesKnights === true;
-  const ck = (s.citiesKnights || needsCk) && !noCk;
-  const gwp = ck && s.greedWealthPower && !specialPick;
-  const wonders = s.worldWonders && !specialPick;
-  const civs = gwp && s.civilisations;
-  const church = ck && !gwp && s.church && !specialPick;
-  const witches = ck && !gwp && s.witches && !specialPick;
-  const princesMap = s.map.kind !== 'special';
-  const princesOk = princesMap && !gwp && !church && !witches && !wonders;
-  const princes = s.princes && princesOk;
-  const soldiersOk =
-    !gwp &&
-    !wonders &&
-    (!specialPick || specialPick.group === 'explorers' || specialPick.group === 'traders');
-  const soldiers = s.soldiers && soldiersOk;
-  const investorsOk =
-    !specialPick || specialPick.group === 'explorers' || specialPick.group === 'traders';
-  const kingdomsOk =
-    !gwp && !church && !witches && !princes && !soldiers && !wonders && !specialPick;
-  const kingdoms = s.kingdoms && kingdomsOk;
   const fog =
     s.map.kind === 'scenario' &&
     SEA_SCENARIOS.find((x) => x.id === (s.map as { id: string }).id)?.fog === true;
-  const landWaterOk =
-    !gwp &&
-    !church &&
-    !witches &&
-    !princes &&
-    !soldiers &&
-    !s.investors &&
-    !kingdoms &&
-    !wonders &&
-    !specialPick &&
-    !fog;
-  const landWater = s.landWater && landWaterOk;
-  const strategistOk = ck && !gwp && !landWater;
-  const strategist = s.strategist && strategistOk;
+  // The same rule as the server and the local new-game screen.
+  const { on, status } = modesFor(
+    s.map.kind === 'scenario' ? 'seafarers' : specialPick ? 'special' : 'usual',
+    specialPick?.group ?? null,
+    fog,
+    needsCk,
+    noCk,
+    Object.fromEntries(MODE_IDS.map((m) => [m, s[m] === true])) as Record<ModeId, boolean>,
+  );
+  const can = (m: ModeId) => status[m].state !== 'blocked';
+  const ck = on.citiesKnights;
+  const gwp = on.greedWealthPower;
+  const wonders = on.worldWonders;
+  const civs = on.civilisations;
+  const church = on.church;
+  const witches = on.witches;
+  const princesOk = can('princes');
+  const princes = on.princes;
+  const soldiersOk = can('soldiers');
+  const soldiers = on.soldiers;
+  const investorsOk = can('investors');
+  const kingdomsOk = can('kingdoms');
+  const kingdoms = on.kingdoms;
+  const landWaterOk = can('landWater');
+  const landWater = on.landWater;
+  const strategistOk = can('strategist');
+  const strategist = on.strategist;
   const bonus = vpBonus(
     ck,
     specialPick?.id ?? null,

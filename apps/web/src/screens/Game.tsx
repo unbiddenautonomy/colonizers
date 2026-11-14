@@ -10,7 +10,6 @@ import {
 import { bankRatio, baseData, publicVp } from '@colonizers/module-base';
 import { nameOf, pageForError } from '@colonizers/rulebook';
 import { Board, noTargets, type Targets } from '../board/Board.tsx';
-import { describe } from '../game/describe.ts';
 import { play, setSound, soundFor, useSound } from '../game/sounds.ts';
 import { notifyHere } from '../online/push.ts';
 import { library } from '../game/library.ts';
@@ -44,6 +43,7 @@ import {
 } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
+import { GameLog } from '../ui/GameLog.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
 import {
   BarbarianTrack,
@@ -730,11 +730,6 @@ export function Game({
 
   const hiddenHand = !online && privateHands && actor !== null && revealedFor !== actor;
   const viewer = actor;
-
-  const logRef = useRef<HTMLOListElement>(null);
-  useEffect(() => {
-    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
-  }, [g.log.length]);
 
   // Sounds for new log lines, and a nudge when it becomes your turn.
   const heard = useRef(g.log.length);
@@ -1558,20 +1553,7 @@ export function Game({
           </div>
         )}
 
-        <details className="log-wrap" open>
-          <summary>Game log</summary>
-          <ol className="log" ref={logRef}>
-            {g.log.map((l, i) => {
-              const text = describe(l.event, names);
-              if (!text) return null;
-              return (
-                <li key={i} className={l.event.type === 'turnStarted' ? 'turn-line' : ''}>
-                  {text}
-                </li>
-              );
-            })}
-          </ol>
-        </details>
+        <GameLog log={g.log} names={names} players={theme.players} />
         {online && (
           <Chat
             messages={online.chat}

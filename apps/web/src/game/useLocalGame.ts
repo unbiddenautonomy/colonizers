@@ -91,7 +91,7 @@ export function useLocalGame(saved: SavedGame) {
           state: r.state,
           actions: [...current.actions, action],
           log: [...current.log, ...r.events.map((event) => ({ seq: r.state.seq, event }))].slice(
-            -300,
+            -1000,
           ),
         };
         gameRef.current = next;
