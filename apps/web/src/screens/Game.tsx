@@ -130,6 +130,7 @@ import {
   WitchesStats,
 } from './Witches.tsx';
 import {
+  knightGiveWayTargets,
   PRINCES_BOARD_PHASES,
   PrincesChoices,
   princesOn,
@@ -152,7 +153,8 @@ type Mode =
   | GwpMode
   | CkMode
   | CivMode
-  | ChurchMode;
+  | ChurchMode
+  | 'princesKnight';
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
@@ -221,6 +223,13 @@ function targetsFor(
   }
   if (PRINCES_BOARD_PHASES.includes(state.phase.id))
     return princesTargets(state, legal, selectedShip);
+  if (state.phase.id === 'main' && mode === 'princesKnight') {
+    t.corners = knightGiveWayTargets(state, legal);
+    return t;
+  }
+  // Moving the robber after a knight gave way: another knight takes it further.
+  if (state.phase.id === 'moveRobber' && state.phase.walk)
+    t.corners = knightGiveWayTargets(state, legal);
   const want = new Set<string>();
   const ph = state.phase.id;
   const pair = edgeChoices(state);
@@ -1210,7 +1219,19 @@ export function Game({
                   selectedShip={mode === 'sail' ? selectedShip : null}
                 />
               )}
-              {princesOn(state) && myTurnMain && (
+              {princesOn(state) && ck && myTurnMain && (
+                <button
+                  type="button"
+                  className={mode === 'princesKnight' ? 'on' : ''}
+                  aria-pressed={mode === 'princesKnight'}
+                  disabled={!has('knightRobberMove')}
+                  onClick={() => setMode(mode === 'princesKnight' ? null : 'princesKnight')}
+                  title="A knight gives way (a level down, or off the board) to move the robber"
+                >
+                  🛡️ Move robber
+                </button>
+              )}
+              {princesOn(state) && !ck && myTurnMain && (
                 <button
                   type="button"
                   disabled={!has('buyRobberMove')}

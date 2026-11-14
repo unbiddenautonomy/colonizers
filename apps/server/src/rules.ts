@@ -89,10 +89,18 @@ export function witchesOn(
   return ck && !gwp && settings.witches && settings.map.kind !== 'special';
 }
 
-/** Princes & Explorers goes on the base game's usual maps (not yet with Cities & Knights or Seafarers). */
-export function princesOn(settings: Pick<RoomSettings, 'princes' | 'map'>, ck: boolean): boolean {
+/**
+ * Princes & Explorers goes on the usual maps, on the base game or Cities & Knights, but not
+ * yet with Seafarers or the other fan expansions.
+ */
+export function princesOn(
+  settings: Pick<RoomSettings, 'princes' | 'map'>,
+  otherFan: boolean,
+): boolean {
   const kind = settings.map.kind;
-  return settings.princes && !ck && (kind === 'random' || kind === 'preset' || kind === 'custom');
+  return (
+    settings.princes && !otherFan && (kind === 'random' || kind === 'preset' || kind === 'custom')
+  );
 }
 
 /** Civilisations goes on top of Greed, Wealth & Power. */
@@ -111,7 +119,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const civs = civsOn(settings, gwp);
   const church = churchOn(settings, ck, gwp);
   const witches = witchesOn(settings, ck, gwp);
-  const princes = princesOn(settings, ck);
+  const princes = princesOn(settings, gwp || church || witches || wondersOn(settings));
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
     (princes ? PRINCES_EXTRA_VP : 0);

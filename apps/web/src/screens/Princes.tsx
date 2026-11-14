@@ -77,6 +77,9 @@ export function princesPrompt(
       return selected
         ? `${who}: tap the neighbouring number to swap with.`
         : `${who}: your explorers can swap two neighbouring numbers. Tap the first, or leave them.`;
+    case 'moveRobber':
+      if (!ph.walk || !mine) return null;
+      return `${who}: tap where the robber goes (up to ${ph.range as number} fields), or another knight to take it further.`;
     case 'princesRobber':
       return mine
         ? `${who}: you settled at the desert first. Tap a field for the robber.`
@@ -96,6 +99,13 @@ export function PrincesChoices({
   legal: Action[];
   act: (a: Action) => void;
 }) {
+  const robAll = legal.find((a) => a.type === 'bishopRobAll');
+  if (robAll)
+    return (
+      <button type="button" onClick={() => act(robAll)}>
+        Take a card from everyone
+      </button>
+    );
   if (state.phase.id !== 'explore') return null;
   const skip = legal.find((a) => a.type === 'exploreSwap' && a.hexes === null);
   if (!skip) return null;
@@ -104,6 +114,17 @@ export function PrincesChoices({
       Leave the numbers
     </button>
   );
+}
+
+/** With Cities & Knights: knights that can give way to move the robber (further). */
+export function knightGiveWayTargets(state: GameState, legal: Action[]): Map<CornerId, Action> {
+  const out = new Map<CornerId, Action>();
+  for (const a of legal) {
+    if (a.type !== 'knightRobberMove') continue;
+    const k = state.pieces[a.knight as string];
+    if (k?.at.kind === 'corner') out.set(k.at.id, a);
+  }
+  return out;
 }
 
 /** The princes on the board, drawn like the other neutral figures. */

@@ -139,7 +139,7 @@ describe('game options', () => {
     expect(gwp.modules).not.toContain('witches');
   });
 
-  it('adds Princes & Explorers to the base game (14 points, no Special Building Phase)', () => {
+  it('adds Princes & Explorers (14 points, 17 with Cities & Knights)', () => {
     const settings = cleanSettings({ ...DEFAULT_SETTINGS, princes: true });
     const four = buildConfig(settings, names(4), 'seed');
     expect(four.modules).toEqual(['base', 'variants', 'princes']);
@@ -148,9 +148,17 @@ describe('game options', () => {
     expect(six.settings?.turnMode).toBe('normal');
     const state = library.createGame(four).state;
     expect(Object.values(state.pieces).filter((p) => p.type === 'prince')).toHaveLength(4);
-    // Not with Cities & Knights or Seafarers yet.
+    // With Cities & Knights it plays to 17.
     const ck = buildConfig(cleanSettings({ ...settings, citiesKnights: true }), names(4), 'seed');
-    expect(ck.modules).not.toContain('princes');
+    expect(ck.modules).toEqual(['base', 'variants', 'cities-knights', 'princes']);
+    expect(ck.settings?.vpTarget).toBe(17);
+    // Not with the other fan expansions or Seafarers yet.
+    const gwp = buildConfig(
+      cleanSettings({ ...settings, citiesKnights: true, greedWealthPower: true }),
+      names(4),
+      'seed',
+    );
+    expect(gwp.modules).not.toContain('princes');
     const sea = buildConfig(
       cleanSettings({ ...settings, map: { kind: 'scenario', id: 'new-shores' } }),
       names(4),
