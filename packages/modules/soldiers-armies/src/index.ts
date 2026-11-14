@@ -47,6 +47,7 @@ import { capitulate, checkLastStanding, skipIfOut } from './fate.ts';
 import { buyNuke, detonateNuke } from './nuke.ts';
 import { barbarianSieges, ckActions, ckWraps, unitStrength, withCk } from './ck.ts';
 import { progressUnitActions, progressUnitWraps } from './progress.ts';
+import { princesWraps, unitRobberMove, withPrinces } from './princes.ts';
 
 export { nukeOf, nukeTargets } from './nuke.ts';
 export { beaten } from './fate.ts';
@@ -186,6 +187,7 @@ const drawFreeDevCard = action<object>({
   check(ctx, a) {
     const err = onlyActive(ctx, a);
     if (err) return err;
+    if (withPrinces(ctx)) return 'Princes & Explorers plays without development cards';
     if (turnFlag(ctx, 'bought')) return 'Only after a turn without buying anything';
     if ((ctx.player(a.player).data.devPlayedTurn as number | undefined) === ctx.state.turn.number)
       return 'Only after a turn without playing a development card';
@@ -206,7 +208,8 @@ const drawFreeDevCard = action<object>({
     });
     ctx.setPhase({ id: 'campaign' });
   },
-  enumerate: (ctx, player) => (player === ctx.active ? [{ type: 'drawFreeDevCard', player }] : []),
+  enumerate: (ctx, player) =>
+    player === ctx.active && !withPrinces(ctx) ? [{ type: 'drawFreeDevCard', player }] : [],
 });
 
 // ---- Marching ----
@@ -303,6 +306,7 @@ const attackRobber = action<{ army: string }>({
     if (err) return err;
     const army = ownArmy(ctx, a.player, a.army);
     if (!army) return 'That is not your army';
+    if (withPrinces(ctx)) return 'With Princes & Explorers the robber is neutral';
     if (turnFlag(ctx, 'robberFought')) return 'You have fought the robber this turn';
     return nextToRobber(ctx, army) ? null : 'The army is not next to the robber';
   },
@@ -318,7 +322,7 @@ const attackRobber = action<{ army: string }>({
     else if (ctx.handSize(a.player) > 0) ctx.setPhase({ id: 'robberToll' });
   },
   enumerate(ctx, player) {
-    if (player !== ctx.active) return [];
+    if (player !== ctx.active || withPrinces(ctx)) return [];
     return ctx
       .piecesOf(player, ARMY)
       .map((army) => ({ type: 'attackRobber', player, army: army.id }));
@@ -396,6 +400,7 @@ export const soldiersModule: GameModule = {
     capitulate,
     ...ckActions,
     ...progressUnitActions,
+    unitRobberMove,
   },
   wrapActions: {
     buyDevCard: notBought,
@@ -408,6 +413,7 @@ export const soldiersModule: GameModule = {
     placeFreeShip: noRoutePastArmies('sea'),
     ...ckWraps,
     ...progressUnitWraps,
+    ...princesWraps,
   },
   hooks: {
     init(ctx) {

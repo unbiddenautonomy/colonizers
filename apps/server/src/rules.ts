@@ -105,7 +105,8 @@ export function princesOn(
 
 /**
  * Soldiers & Armies goes on the usual maps and Seafarers, on the base game or
- * Cities & Knights. Its rules with the other fan expansions come later.
+ * Cities & Knights, and with Princes & Explorers. Its rules with the other
+ * fan expansions come later.
  */
 export function soldiersOn(
   settings: Pick<RoomSettings, 'soldiers' | 'map'>,
@@ -132,11 +133,12 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const church = churchOn(settings, ck, gwp);
   const witches = witchesOn(settings, ck, gwp);
   const princes = princesOn(settings, gwp || church || witches || wondersOn(settings));
-  const soldiers = soldiersOn(settings, gwp || church || witches || princes || wondersOn(settings));
+  const soldiers = soldiersOn(settings, gwp || church || witches || wondersOn(settings));
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
     (princes ? PRINCES_EXTRA_VP : 0) +
-    (soldiers ? SOLDIERS_EXTRA_VP : 0);
+    // With Princes & Explorers, its target stands (14, or 17 with Cities & Knights).
+    (soldiers && !princes ? SOLDIERS_EXTRA_VP : 0);
   const options = optionSettings(settings.options, n);
   // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
   if (princes) {
