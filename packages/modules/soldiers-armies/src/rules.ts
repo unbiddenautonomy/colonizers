@@ -4,6 +4,8 @@ import {
   ARMY,
   CITY_DIE,
   FREE_STEPS,
+  METROPOLIS_DIE,
+  POLITICS_STEPS,
   MODULE_ID,
   SETTLEMENT_DIE,
   UNIT_DIE,
@@ -25,6 +27,8 @@ export interface SoldiersData extends Record<string, unknown> {
   fought?: boolean;
   /** The active player has attacked the robber this turn. */
   robberFought?: boolean;
+  /** With Cities & Knights: the active player has attacked the merchant this turn. */
+  merchantFought?: boolean;
   /** Players out of the game, with the points they finish on. */
   out?: Record<string, { vp: number; to?: number }>;
   /** Players who have bought their one nuke. */
@@ -37,7 +41,7 @@ export function soldiersData(ctx: Ctx): SoldiersData {
   return ctx.data<SoldiersData>(MODULE_ID);
 }
 
-type Flag = 'bought' | 'fought' | 'robberFought';
+type Flag = 'bought' | 'fought' | 'robberFought' | 'merchantFought';
 
 /** This turn's flag, read without changing the state. */
 export function turnFlag(ctx: Ctx, flag: Flag): boolean {
@@ -52,6 +56,7 @@ export function setTurnFlag(ctx: Ctx, flag: Flag): void {
     d.bought = false;
     d.fought = false;
     d.robberFought = false;
+    d.merchantFought = false;
   }
   d[flag] = true;
 }
@@ -113,7 +118,8 @@ export const wallsOf = (b: Piece) => (typeof b.props.walls === 'number' ? b.prop
 
 /** The die a building defends with, before its walls. */
 export function buildingDie(b: Piece): number {
-  return b.type === 'settlement' ? SETTLEMENT_DIE : CITY_DIE;
+  if (b.type === 'settlement') return SETTLEMENT_DIE;
+  return typeof b.props.metropolis === 'string' ? METROPOLIS_DIE : CITY_DIE;
 }
 
 // ---- Marching ----
@@ -146,7 +152,19 @@ export function canStop(ctx: Ctx, corner: CornerId, seat: number): boolean {
 export function freeSteps(ctx: Ctx, army: Piece): number {
   const used =
     army.props.marchedTurn === ctx.state.turn.number ? (army.props.marched as number) : 0;
-  return Math.max(0, FREE_STEPS - (used ?? 0));
+  return Math.max(0, stepAllowance(ctx, army.owner) - (used ?? 0));
+}
+
+/** Corners an army marches free each turn: three, or five with the Politics metropolis. */
+export function stepAllowance(ctx: Ctx, seat: number | null): number {
+  const ck = ctx.state.data['cities-knights'] as CkView | undefined;
+  return seat !== null && ck?.metropolis?.politics?.seat === seat ? POLITICS_STEPS : FREE_STEPS;
+}
+
+/** What Soldiers & Armies reads of Cities & Knights' data. */
+export interface CkView {
+  metropolis?: Partial<Record<string, { seat: number; corner: CornerId }>>;
+  levels?: Record<string, Record<string, number>>;
 }
 
 /**

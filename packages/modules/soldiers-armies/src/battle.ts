@@ -1,5 +1,6 @@
 import type { Action, ActionDef, CornerId, Ctx, Piece } from '@colonizers/engine';
 import { ARMY } from './constants.ts';
+import { loseMetropolis } from './ck.ts';
 import { checkDestroyed } from './fate.ts';
 import {
   armyAt,
@@ -129,6 +130,12 @@ export const answerBattleCall = action<{ join: boolean }>({
 function damage(ctx: Ctx, b: Piece): boolean {
   if (!b.props.damaged) {
     b.props.damaged = true;
+    return false;
+  }
+  // A metropolis drops to a city first.
+  if (typeof b.props.metropolis === 'string') {
+    loseMetropolis(ctx, b);
+    delete b.props.damaged;
     return false;
   }
   if (b.type === 'settlement' || ctx.supplyLeft(b.owner as number, 'settlement') <= 0) return true;

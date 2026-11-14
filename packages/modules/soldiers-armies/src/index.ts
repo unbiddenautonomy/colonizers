@@ -12,7 +12,6 @@ import {
   ARMY,
   ARMY_STEP_COST,
   DEV_HOLD_MAX,
-  FREE_STEPS,
   HAND_LIMIT,
   MAX_WALLS,
   MODULE_ID,
@@ -41,13 +40,16 @@ import {
   unitsOf,
   wallsOf,
   isOut,
+  stepAllowance,
 } from './rules.ts';
 import { answerBattleCall, attack, battleRetreat, battleRoll } from './battle.ts';
 import { capitulate, checkLastStanding, skipIfOut } from './fate.ts';
 import { buyNuke, detonateNuke } from './nuke.ts';
+import { barbarianSieges, ckActions, ckWraps, unitStrength, withCk } from './ck.ts';
 
 export { nukeOf, nukeTargets } from './nuke.ts';
 export { beaten } from './fate.ts';
+export { loseMetropolis, unitStrength } from './ck.ts';
 export type { BattlePhase } from './battle.ts';
 
 /**
@@ -148,7 +150,7 @@ const buyUnit = action<{ unit: Unit; corner: CornerId }>({
   },
 });
 
-const buildWall = action<{ corner: CornerId }>({
+const buildCityWall = action<{ corner: CornerId }>({
   phases: ['main'],
   check(ctx, a) {
     const err = onlyActive(ctx, a);
@@ -168,7 +170,11 @@ const buildWall = action<{ corner: CornerId }>({
   },
   enumerate(ctx, player) {
     if (player !== ctx.active) return [];
-    return ownBuildingCorners(ctx, player).map((corner) => ({ type: 'buildWall', player, corner }));
+    return ownBuildingCorners(ctx, player).map((corner) => ({
+      type: 'buildCityWall',
+      player,
+      corner,
+    }));
   },
 });
 
@@ -251,7 +257,7 @@ const marchArmy = action<{ army: string; to: CornerId }>({
     const d = marchTargets(ctx, army, free + paidSteps(ctx, a.player)).get(a.to) as number;
     const extra = Math.max(0, d - free);
     if (extra) ctx.pay(a.player, stepCost(ctx, a.player, extra));
-    army.props.marched = FREE_STEPS - free + d;
+    army.props.marched = stepAllowance(ctx, a.player) - free + d;
     army.props.marchedTurn = ctx.state.turn.number;
     const from = cornerOf(army);
     ctx.move(army, { kind: 'corner', id: a.to });
@@ -373,7 +379,7 @@ export const soldiersModule: GameModule = {
   },
   actions: {
     buyUnit,
-    buildWall,
+    buildCityWall,
     drawFreeDevCard,
     takeTheField,
     marchArmy,
@@ -386,6 +392,7 @@ export const soldiersModule: GameModule = {
     buyNuke,
     detonateNuke,
     capitulate,
+    ...ckActions,
   },
   wrapActions: {
     buyDevCard: notBought,
@@ -396,6 +403,7 @@ export const soldiersModule: GameModule = {
   wrapActionsIfPresent: {
     buildShip: noRoutePastArmies('sea'),
     placeFreeShip: noRoutePastArmies('sea'),
+    ...ckWraps,
   },
   hooks: {
     init(ctx) {
@@ -433,6 +441,9 @@ export const soldiersModule: GameModule = {
     // A player who is out finishes on the points they left with.
     vp: (ctx, seat, value) => soldiersData(ctx).out?.[String(seat)]?.vp ?? value,
     canWin: (ctx, seat, value) => value && !isOut(ctx, seat),
+    // With Cities & Knights, units stand against the barbarians in place of knights.
+    defense: (ctx, seat, value) => (withCk(ctx) ? value + unitStrength(ctx, seat) : value),
+    barbarianLosses: barbarianSieges,
     // A nuked field makes nothing.
     hexBlocked: (ctx, hex, _piece, value) => value || !!soldiersData(ctx).nuked?.[hex.id],
     handLimit(ctx, seat, value) {

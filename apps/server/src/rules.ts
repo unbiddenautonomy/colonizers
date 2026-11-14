@@ -104,16 +104,15 @@ export function princesOn(
 }
 
 /**
- * Soldiers & Armies goes on the base game, on the usual maps and Seafarers. Its
- * rules for Cities & Knights and the other fan expansions come later.
+ * Soldiers & Armies goes on the usual maps and Seafarers, on the base game or
+ * Cities & Knights. Its rules with the other fan expansions come later.
  */
 export function soldiersOn(
   settings: Pick<RoomSettings, 'soldiers' | 'map'>,
-  ck: boolean,
   otherFan: boolean,
 ): boolean {
   const kind = settings.map.kind;
-  return settings.soldiers && !ck && !otherFan && kind !== 'special';
+  return settings.soldiers && !otherFan && kind !== 'special';
 }
 
 /** Civilisations goes on top of Greed, Wealth & Power. */
@@ -133,11 +132,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const church = churchOn(settings, ck, gwp);
   const witches = witchesOn(settings, ck, gwp);
   const princes = princesOn(settings, gwp || church || witches || wondersOn(settings));
-  const soldiers = soldiersOn(
-    settings,
-    ck,
-    gwp || church || witches || princes || wondersOn(settings),
-  );
+  const soldiers = soldiersOn(settings, gwp || church || witches || princes || wondersOn(settings));
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
     (princes ? PRINCES_EXTRA_VP : 0) +
@@ -287,6 +282,8 @@ const SAFE_ORDER = [
   'battleRetreat',
   'payRobberToll',
   'answerBattleCall',
+  'payMerchantToll',
+  'relocateMerchant',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',

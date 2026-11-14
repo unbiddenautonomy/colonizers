@@ -244,7 +244,8 @@ function Lobby({
   const princesMap = s.map.kind !== 'special';
   const princesOk = princesMap && !gwp && !church && !witches && !wonders;
   const princes = s.princes && princesOk;
-  const soldiersOk = !ck && !wonders && !princes && s.map.kind !== 'special';
+  const soldiersOk =
+    !gwp && !church && !witches && !wonders && !princes && s.map.kind !== 'special';
   const soldiers = s.soldiers && soldiersOk;
   const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church, witches, princes, soldiers);
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
@@ -509,9 +510,9 @@ function Lobby({
                 disabled={!soldiersOk}
                 onChange={(e) => setGame({ soldiers: e.target.checked })}
               />{' '}
-              ⚔️ Soldiers &amp; Armies (fan expansion for the base game on the usual maps and
-              Seafarers, not with Cities &amp; Knights or the other fan expansions yet; 3 points
-              more than usual)
+              ⚔️ Soldiers &amp; Armies (fan expansion for the usual maps and Seafarers, with or
+              without Cities &amp; Knights, not with the other fan expansions yet; 3 points more
+              than usual)
             </label>
             <label className="toggle">
               <input

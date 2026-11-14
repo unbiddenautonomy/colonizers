@@ -123,6 +123,23 @@ Players who are out sit their turns out. The game ends when someone reaches {set
       body: `Soldiers & Armies plays on the Seafarers maps with no other changes, to three points more than the scenario. Armies cross the sea along ships, whoever's they are, and a captured settlement takes the cut-off ships with it as well as roads. A rival can't build a ship on past a corner your army holds.`,
     },
     {
+      id: 'soldiers-ck',
+      module: M,
+      section: 'rules',
+      title: 'With Cities & Knights',
+      summary:
+        'Units replace knights; the barbarians besiege the weakest; metropolises roll a d20. 16 points.',
+      tags: ['cities', 'knights', 'barbarians', 'metropolis', 'merchant', 'politics'],
+      body: `Soldiers & Armies plays with Cities & Knights to 16 points.
+
+- There are **no knights**. Against the barbarians, and for Defender of Catan, each player counts their units: infantry 1, cavalry 2, artillery 3, a nuke 4.
+- When the barbarians win, each player with the least strength has one city attacked: the one most likely to hold. The barbarians roll a **d12** against the city's die and walls, once. If they win, the city becomes a settlement and loses its walls.
+- A **metropolis** defends with a **d20**. Beaten down to a city, its owner drops back to level 3 on that track, and the metropolis goes to whoever is furthest along it (the first in order of play on a tie).
+- An army next to a rival's **merchant** can attack it once a turn. The owner defends with a d10. Win, and move the merchant to any field; lose, and give its owner two cards.
+- The owner of the **Politics metropolis** marches each army five corners free.
+- These walls (three to a city) replace the Cities & Knights walls. Progress cards that name knights do nothing for now.`,
+    },
+    {
       id: 'soldiers-walls',
       module: M,
       section: 'rules',
