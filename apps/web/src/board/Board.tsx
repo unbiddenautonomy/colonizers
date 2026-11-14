@@ -29,6 +29,7 @@ import {
 import { churchMarkers } from '../screens/Church.tsx';
 import { seatMarkers } from '../screens/CitiesKnights.tsx';
 import { witchesMarkers } from '../screens/Witches.tsx';
+import { princesMarkers } from '../screens/Princes.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
@@ -1137,7 +1138,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         );
       })}
 
-      {neutralMarkers(state).map((m) => {
+      {[...neutralMarkers(state), ...princesMarkers(state)].map((m) => {
         const h = state.hexes[m.hex];
         if (!h) return null;
         const c = hexToPixel(h.q, h.r, S);
