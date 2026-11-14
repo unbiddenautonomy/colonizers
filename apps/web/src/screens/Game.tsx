@@ -675,6 +675,7 @@ export function Game({
     mode === 'civHarakiri' ||
     mode === 'lwMove' ||
     mode === 'lwChase' ||
+    mode === 'lwIntrigue' ||
     PRINCES_BOARD_PHASES.includes(state.phase.id) ||
     SOLDIERS_BOARD_PHASES.includes(state.phase.id)
       ? selectedShip
@@ -1371,7 +1372,7 @@ export function Game({
                   }}
                 />
               )}
-              {!ck && !ep && !princesOn(state) && !soldiersOn(state) && (
+              {(!ck || landWaterOn(state)) && !ep && !princesOn(state) && !soldiersOn(state) && (
                 <button
                   type="button"
                   disabled={!has('buyDevCard')}

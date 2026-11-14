@@ -349,16 +349,74 @@ function knightCheck(ctx: Ctx, a: Action): string | null {
   if (use === 'robber') return null;
   if (use === 'move') return ctx.state.phase.id === 'main' ? null : 'Move after rolling';
   if (use !== 'chase') return 'Pick what the knight does';
-  const v = pieceOf(ctx, a.target);
-  if (!v || v.owner === null || v.owner === a.player) return "Pick a rival's train or ship";
+  return chaseBlock(ctx, a.player, a.target, a.to);
+}
+
+/** Can the player chase this vehicle (to this field, when it has somewhere to go)? */
+export function chaseBlock(ctx: Ctx, seat: number, target: unknown, to: unknown): string | null {
+  const v = pieceOf(ctx, target);
+  if (!v || v.owner === null || v.owner === seat || !isVehicle(v.type))
+    return "Pick a rival's train or ship";
   if (v.type !== 'train' && v.type !== 'ferry') return 'Planes can not be chased';
   if (v.at.kind !== 'hex') return 'Only vehicles in a field can be chased';
-  const to = chaseTargets(ctx, v);
-  if (to.length && !to.includes(a.to as HexId)) return 'Pick a field next to it';
+  const options = chaseTargets(ctx, v);
+  if (options.length && !options.includes(to as HexId)) return 'Pick a field next to it';
   return null;
 }
 
-function roadBuildingCheck(ctx: Ctx, a: Action): string | null {
+/** Chases a rival vehicle to the next field, or off the board when there's nowhere to go. */
+export function chaseVehicle(ctx: Ctx, seat: number, target: string, to: unknown): void {
+  const v = pieceOf(ctx, target) as Piece;
+  if (chaseTargets(ctx, v).length) {
+    ctx.move(v, { kind: 'hex', id: to as HexId });
+    ctx.emit({ type: 'vehicleChased', player: seat, owner: v.owner, piece: v.type, to });
+  } else {
+    ctx.remove(v);
+    ctx.emit({ type: 'vehicleSunk', player: seat, owner: v.owner, piece: v.type });
+  }
+}
+
+/** Free movement points for the player this turn (a knight, or the Diplomat). */
+export function speedUp(ctx: Ctx, seat: number, points: number): void {
+  const d = lwData(ctx);
+  d.boost = { turn: ctx.state.turn.number, seat, points: boostLeft(ctx, seat) + points };
+  ctx.emit({ type: 'knightSpeed', player: seat, points });
+}
+
+/** Every chase a player could make, for bots and hints. */
+export function chaseOptions(ctx: Ctx, seat: number): { target: string; to?: HexId }[] {
+  const out: { target: string; to?: HexId }[] = [];
+  for (const p of ctx.state.players) {
+    if (p.seat === seat) continue;
+    for (const v of vehiclesOf(ctx, p.seat)) {
+      if (v.type === 'plane' || v.at.kind !== 'hex') continue;
+      const to = chaseTargets(ctx, v);
+      if (!to.length) out.push({ target: v.id });
+      for (const h of to) out.push({ target: v.id, to: h });
+    }
+  }
+  return out;
+}
+
+/** Every free vehicle a player could build (Road Building), for bots and hints. */
+export function freeVehicleOptions(ctx: Ctx, seat: number): Record<string, unknown>[] {
+  return buildingCorners(ctx, seat).flatMap((corner) => [
+    { vehicle: 'train', corner },
+    { vehicle: 'ferry', corner },
+    { vehicle: 'plane', corner, save: { ore: 1, brick: 1, grain: 1 } },
+  ]);
+}
+
+/** Builds the free vehicle that Road Building gives. */
+export function buildFreeVehicle(ctx: Ctx, seat: number, a: Action): void {
+  const type = a.vehicle as Vehicle;
+  const bill =
+    type === 'plane' ? planeBill(ctx, seat, (a.save ?? {}) as Record<string, number>) : {};
+  ctx.pay(seat, bill);
+  placeVehicle(ctx, seat, type, a.corner as CornerId, bill);
+}
+
+export function roadBuildingCheck(ctx: Ctx, a: Action): string | null {
   const type = a.vehicle as Vehicle;
   if (!isVehicle(type)) return 'Pick a vehicle to build';
   if (ctx.state.phase.id !== 'main') return 'Build after rolling';
@@ -419,36 +477,12 @@ const wrapPlayDev = (prev: ActionDef): ActionDef => ({
     prev.apply(ctx, a);
     if (a.card === 'knight' && a.use && a.use !== 'robber') {
       ctx.setPhase(before);
-      if (a.use === 'move') {
-        const d = lwData(ctx);
-        const points = boostLeft(ctx, a.player) + KNIGHT_MOVES;
-        d.boost = { turn: ctx.state.turn.number, seat: a.player, points };
-        ctx.emit({ type: 'knightSpeed', player: a.player, points: KNIGHT_MOVES });
-      } else {
-        const v = pieceOf(ctx, a.target) as Piece;
-        const to = chaseTargets(ctx, v);
-        if (to.length) {
-          ctx.move(v, { kind: 'hex', id: a.to as HexId });
-          ctx.emit({
-            type: 'vehicleChased',
-            player: a.player,
-            owner: v.owner,
-            piece: v.type,
-            to: a.to,
-          });
-        } else {
-          ctx.remove(v);
-          ctx.emit({ type: 'vehicleSunk', player: a.player, owner: v.owner, piece: v.type });
-        }
-      }
+      if (a.use === 'move') speedUp(ctx, a.player, KNIGHT_MOVES);
+      else chaseVehicle(ctx, a.player, a.target as string, a.to);
     }
     if (a.card === 'roadBuilding') {
       ctx.setPhase(before);
-      const type = a.vehicle as Vehicle;
-      const bill =
-        type === 'plane' ? planeBill(ctx, a.player, (a.save ?? {}) as Record<string, number>) : {};
-      ctx.pay(a.player, bill);
-      placeVehicle(ctx, a.player, type, a.corner as CornerId, bill);
+      buildFreeVehicle(ctx, a.player, a);
     }
   },
   enumerate(ctx, player) {
@@ -458,36 +492,10 @@ const wrapPlayDev = (prev: ActionDef): ActionDef => ({
     if (player !== ctx.active) return out;
     out.push({ type: 'playDevCard', player, card: 'knight', use: 'robber' });
     out.push({ type: 'playDevCard', player, card: 'knight', use: 'move' });
-    for (const p of ctx.state.players) {
-      if (p.seat === player) continue;
-      for (const v of vehiclesOf(ctx, p.seat)) {
-        const to = chaseTargets(ctx, v);
-        if (!to.length)
-          out.push({ type: 'playDevCard', player, card: 'knight', use: 'chase', target: v.id });
-        for (const h of to)
-          out.push({
-            type: 'playDevCard',
-            player,
-            card: 'knight',
-            use: 'chase',
-            target: v.id,
-            to: h,
-          });
-      }
-    }
-    const corners = buildingCorners(ctx, player);
-    for (const corner of corners) {
-      out.push({ type: 'playDevCard', player, card: 'roadBuilding', vehicle: 'train', corner });
-      out.push({ type: 'playDevCard', player, card: 'roadBuilding', vehicle: 'ferry', corner });
-      out.push({
-        type: 'playDevCard',
-        player,
-        card: 'roadBuilding',
-        vehicle: 'plane',
-        corner,
-        save: { ore: 1, brick: 1, grain: 1 },
-      });
-    }
+    for (const c of chaseOptions(ctx, player))
+      out.push({ type: 'playDevCard', player, card: 'knight', use: 'chase', ...c });
+    for (const f of freeVehicleOptions(ctx, player))
+      out.push({ type: 'playDevCard', player, card: 'roadBuilding', ...f });
     return out;
   },
 });
@@ -602,3 +610,4 @@ export const landWaterModule: GameModule = {
 };
 
 export * from './rules.ts';
+export { landWaterCkModule, LW_CK_ID, SHIP_ROLLS_BEFORE_SAILING } from './ck.ts';

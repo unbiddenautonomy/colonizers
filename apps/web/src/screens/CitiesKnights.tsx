@@ -332,17 +332,22 @@ export function CkBuild({
   const lv = levels(ctx, actor);
   return (
     <>
-      {btn('knight', 'Knight', 'buildKnight', ctx.cost('knight', actor))}
-      {btn('activate', 'Activate', 'activateKnight', ctx.cost('activate', actor))}
-      {btn('promote', 'Promote', 'promoteKnight', ctx.cost('promote', actor))}
-      {btn('knightAct', '⚔️ Use knight', [
-        'moveKnight',
-        'displaceKnight',
-        'chaseRobber',
-        'crossKnight',
-        'roamKnight',
-        'fightDragon',
-      ])}
+      {/* Land & Water plays knight cards in place of knight pieces. */}
+      {!ctx.state.modules.includes('landwater') && (
+        <>
+          {btn('knight', 'Knight', 'buildKnight', ctx.cost('knight', actor))}
+          {btn('activate', 'Activate', 'activateKnight', ctx.cost('activate', actor))}
+          {btn('promote', 'Promote', 'promoteKnight', ctx.cost('promote', actor))}
+          {btn('knightAct', '⚔️ Use knight', [
+            'moveKnight',
+            'displaceKnight',
+            'chaseRobber',
+            'crossKnight',
+            'roamKnight',
+            'fightDragon',
+          ])}
+        </>
+      )}
       {btn('wall', 'City wall', 'buildWall', ctx.cost('wall', actor))}
       {citySeats(ctx)
         .filter((def) => seatOf(ctx, def.id, actor) === null)

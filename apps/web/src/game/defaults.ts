@@ -48,8 +48,8 @@ export function vpBonus(
     (soldiers && !princes ? 3 : 0) +
     // Kingdoms & Warriors plays to 2 more.
     (kingdoms ? 2 : 0) +
-    // Land & Water plays to 12.
-    (landWater ? 2 : 0) +
+    // Land & Water plays to 12, or 14 with Cities & Knights.
+    (landWater ? (citiesKnights ? 1 : 2) : 0) +
     (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) +
     ckAdjust
   );
