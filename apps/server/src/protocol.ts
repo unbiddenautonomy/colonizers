@@ -129,6 +129,8 @@ export function moduleList(
     'soldiers',
     // After those, so its robber wrapper comes outermost (a 7's robber steals nothing).
     'investors',
+    // After the base game, so its end-of-turn battles come before the turn passes.
+    'kingdoms',
     // After Cities & Knights (and Seafarers), so their production changes come last.
     // Witches first, so the Wizard's guard against the robber doesn't lift a festival.
     'witches',
@@ -190,6 +192,8 @@ export interface RoomSettings {
   soldiers: boolean;
   /** Add Investors & Speculators (SiedlerInsel) to the base game on the usual maps. */
   investors: boolean;
+  /** Add Kingdoms & Warriors (SiedlerInsel) to the base game on the usual maps and Seafarers. */
+  kingdoms: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
   maxPlayers: number;
@@ -212,6 +216,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   princes: false,
   soldiers: false,
   investors: false,
+  kingdoms: false,
   turnTimer: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
@@ -350,6 +355,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     princes: s.princes === true,
     soldiers: s.soldiers === true,
     investors: s.investors === true,
+    kingdoms: s.kingdoms === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),

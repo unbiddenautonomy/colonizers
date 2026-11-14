@@ -1,0 +1,23 @@
+{
+  "name": "@colonizers/module-kingdoms-warriors",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kingdoms & Warriors (SiedlerInsel): kingdom markers spread out from your cities, produce like settlements, are worth a point for every three joined together, and can be fought over with your knights.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}

@@ -32,6 +32,7 @@ export function vpBonus(
   witches = false,
   princes = false,
   soldiers = false,
+  kingdoms = false,
 ): number {
   const ckAdjust =
     citiesKnights && specialId ? (TDA_CK_ADJUST[specialId as keyof typeof TDA_CK_ADJUST] ?? 0) : 0;
@@ -44,6 +45,8 @@ export function vpBonus(
     expansion +
     (princes ? 4 : 0) +
     (soldiers && !princes ? 3 : 0) +
+    // Kingdoms & Warriors plays to 2 more.
+    (kingdoms ? 2 : 0) +
     (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) +
     ckAdjust
   );

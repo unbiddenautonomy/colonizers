@@ -14,6 +14,7 @@ import { witchesRules } from './witches.ts';
 import { princesRules } from './princes.ts';
 import { soldiersRules } from './soldiers.ts';
 import { investorsRules } from './investors.ts';
+import { kingdomsRules } from './kingdoms.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -33,6 +34,7 @@ export const RULEBOOKS: RulebookModule[] = [
   princesRules,
   soldiersRules,
   investorsRules,
+  kingdomsRules,
   worldWondersRules,
   civilisationsRules,
   variantsRules,
@@ -140,6 +142,8 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/robber|steal/i, 'robber'],
   [/discard/i, 'robber'],
   [/town loan|settlement loans|city loans/i, 'investors-town'],
+  [/kingdom marker|beside one of your cities or kingdom markers|free marker/i, 'kingdoms-markers'],
+  [/battle a turn|battles a turn|markers are safe|fought over/i, 'kingdoms-battles'],
   [/derivative/i, 'investors-derivatives'],
   [/finance actions|loan|borrow|save for|pay back/i, 'investors-bank'],
   [/show \d of your|cheaper|dearer|keep one of the cards/i, 'investors-seven'],

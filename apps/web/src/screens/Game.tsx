@@ -141,6 +141,14 @@ import {
   townLabel,
 } from './Investors.tsx';
 import {
+  KINGDOM_MODES,
+  KingdomsActions,
+  kingdomsOn,
+  KingdomsStats,
+  kingdomTargets,
+  type KingdomMode,
+} from './Kingdoms.tsx';
+import {
   knightGiveWayTargets,
   PRINCES_BOARD_PHASES,
   PrincesChoices,
@@ -176,6 +184,7 @@ type Mode =
   | ChurchMode
   | 'princesKnight'
   | SoldiersMode
+  | KingdomMode
   | `loan:${string}`;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'finance' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
@@ -255,6 +264,8 @@ function targetsFor(
     }
     return t;
   }
+  if (state.phase.id === 'main' && mode && KINGDOM_MODES.includes(mode))
+    return kingdomTargets(legal, mode as KingdomMode);
   if (PRINCES_BOARD_PHASES.includes(state.phase.id))
     return princesTargets(state, legal, selectedShip);
   const soldiers = soldiersOn(state) ? soldiersTargets(state, legal, mode, selectedShip) : null;
@@ -879,6 +890,7 @@ export function Game({
                 {tda && <TdaPlayerStats ctx={ctx} seat={p.seat} />}
                 <DuelStats ctx={ctx} seat={p.seat} />
                 {investors && <InvestorsStats ctx={ctx} seat={p.seat} />}
+                {kingdomsOn(state) && <KingdomsStats ctx={ctx} seat={p.seat} />}
                 <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
                 {data.longestRoad === p.seat && (
                   <span className="award">
@@ -1294,6 +1306,15 @@ export function Game({
                 >
                   Move robber <CostLine cost={ctx.cost('robberMove', actor)} />
                 </button>
+              )}
+              {kingdomsOn(state) && myTurnMain && (
+                <KingdomsActions
+                  ctx={ctx}
+                  actor={actor}
+                  legal={legal}
+                  mode={mode}
+                  setMode={setMode}
+                />
               )}
               {soldiersOn(state) && myTurnMain && (
                 <SoldiersActions

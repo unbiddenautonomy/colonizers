@@ -209,6 +209,7 @@ describe('Lobby', () => {
       princes: false,
       soldiers: false,
       investors: false,
+      kingdoms: false,
       turnTimer: 90,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,
