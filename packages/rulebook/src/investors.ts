@@ -22,7 +22,7 @@ export const investorsRules: RulebookModule = {
         'bank',
         'market',
       ],
-      body: `A fan expansion for the base game from the SiedlerInsel site. The bank becomes a market: prices move, cards can be saved for interest, and cards can be borrowed now and paid back later.
+      body: `A fan expansion from the SiedlerInsel site, for the base game, Seafarers and Cities & Knights. The bank becomes a market: prices move, cards can be saved for interest, and cards can be borrowed now and paid back later.
 
 - The bank trades each resource at **its own rate**, from 2:1 to 6:1. All start at 4:1.
 - A **7** robs no one. It sets the rates instead, and a 7 in the first round is thrown again.
@@ -128,6 +128,31 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
 - If the loan isn't paid back, the derivative pays **1 point** (5 and 7 turns) or **2 points** (10 turns). On your own loan, that softens the bad debt.
 - If it is paid back, the cards are gone. Either way the derivative comes back when the loan is settled.
 - One derivative a player on each loan. Loans of one resource taken in the same turn for the same term count as one: a derivative on them pays once if any of them isn't paid back, and you may place one for each loan in it.`,
+    },
+    {
+      id: 'investors-combos',
+      module: M,
+      section: 'rules',
+      title: 'With other expansions',
+      summary: 'Seafarers, Cities & Knights, and 5 or 6 players.',
+      tags: [
+        'seafarers',
+        'pirate',
+        'cities & knights',
+        'commodities',
+        'paper',
+        'cloth',
+        'coin',
+        'trading house',
+        'merchant',
+        '5 players',
+        '6 players',
+      ],
+      body: `**Seafarers.** On a 7 you move the robber or the pirate, steal nothing, and set the rates as usual. A settlement built on a town loan that earns extra points (a new island) holds those points until the loan is paid back; if it isn't, they are lost with it.
+
+**Cities & Knights.** Commodities trade, save and borrow at their resource's rate: paper with lumber, cloth with wool, coin with ore. On a 7 they count with their resource. The rates are set on every 7, even before the barbarians first land and the robber comes into play. The trading house, the merchant and the Merchant Fleet take 2 off a rate as a 2:1 harbor would. The game's own dice are used, so a first-round 7 isn't thrown again.
+
+**5 or 6 players.** On a 7 everyone may hold 3 more cards, and there are 20 settlement and 20 city loans.`,
     },
   ],
 };
