@@ -7,7 +7,6 @@ import {
   RATE_START,
   type LoanTerm,
   type SavingsTerm,
-  type TownItem,
   type TownTerm,
 } from './constants.ts';
 
@@ -17,7 +16,7 @@ export type Resource = (typeof RESOURCES)[number];
 export interface Savings {
   id: string;
   seat: number;
-  card: Resource;
+  card: string;
   term: SavingsTerm;
   /** The saver's turns left until it comes due. */
   left: number;
@@ -28,7 +27,7 @@ export interface Loan {
   id: string;
   seat: number;
   /** The resource borrowed, or 'settlement' / 'city' for a town loan. */
-  card: Resource | TownItem;
+  card: string;
   term: LoanTerm | TownTerm;
   /** Bad debt points if it isn't paid back. */
   penalty: number;
@@ -36,6 +35,8 @@ export interface Loan {
   group: string;
   /** For a town loan, what the building cost when it was built. */
   cost?: Cards;
+  /** Points the building brought beyond its own (an island bonus, say), held until it's paid. */
+  held?: number;
   /** The borrower's turns left until it comes due; 0 means due this turn. */
   left: number;
   /** The turn number it was taken in. */
@@ -79,6 +80,8 @@ export interface SevenState {
   drawn?: Record<string, Cards>;
   /** Resources moved up this time (they can't go down). */
   up?: Resource[];
+  /** The exchange has begun (the robber is done). */
+  started?: boolean;
 }
 
 export function investorsData(ctx: Ctx): InvestorsData {
@@ -96,7 +99,27 @@ export function investorsData(ctx: Ctx): InvestorsData {
   return d as InvestorsData;
 }
 
-export const rateOf = (ctx: Ctx, card: string) => investorsData(ctx).rates[card] ?? RATE_START;
+/** Commodities trade, save and borrow at the rate of the resource they come from. */
+export const COMMODITY_MARKET: Record<string, Resource> = {
+  paper: 'lumber',
+  cloth: 'wool',
+  coin: 'ore',
+};
+
+/** The resource whose rate a card goes by. */
+export const marketOf = (card: string): string => COMMODITY_MARKET[card] ?? card;
+
+/** Cards the bank trades, saves and lends in this game: the resources, and the commodities. */
+export const tradables = (ctx: Ctx): string[] => [
+  ...RESOURCES,
+  ...Object.keys(COMMODITY_MARKET).filter((c) => !!ctx.registry.cardTypes[c]),
+];
+
+export const isTradable = (ctx: Ctx, c: unknown): c is string =>
+  typeof c === 'string' && tradables(ctx).includes(c);
+
+export const rateOf = (ctx: Ctx, card: string) =>
+  investorsData(ctx).rates[marketOf(card)] ?? RATE_START;
 
 export const clampRate = (n: number) => Math.max(RATE_MIN, Math.min(RATE_MAX, n));
 

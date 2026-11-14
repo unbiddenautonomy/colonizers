@@ -224,20 +224,29 @@ describe('game options', () => {
       ).not.toContain('soldiers');
   });
 
-  it('adds Investors & Speculators on the base game, on the usual maps', () => {
+  it('adds Investors & Speculators on the usual maps, Seafarers and Cities & Knights', () => {
     const settings = cleanSettings({ ...DEFAULT_SETTINGS, investors: true });
     const four = buildConfig(settings, names(4), 'seed');
     expect(four.modules).toEqual(['base', 'variants', 'investors']);
     expect(four.settings?.vpTarget).toBe(10);
     const state = library.createGame(four).state;
     expect(state.data.investors).toMatchObject({ rates: { ore: 4, wool: 4 } });
-    // Not yet with Seafarers, Cities & Knights or the other expansions.
+    // With Cities & Knights (before it, so its dice win) and on the Seafarers scenarios.
+    const ck = buildConfig(cleanSettings({ ...settings, citiesKnights: true }), names(4), 'seed');
+    expect(ck.modules).toEqual(['base', 'variants', 'investors', 'cities-knights']);
+    const sea = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'scenario', id: 'new-shores' } }),
+      names(4),
+      'seed',
+    );
+    expect(sea.modules).toEqual(['base', 'seafarers', 'variants', 'investors']);
+    // Not yet with the special maps or the other fan expansions.
     for (const more of [
-      { citiesKnights: true },
       { soldiers: true },
       { princes: true },
       { worldWonders: true },
-      { map: { kind: 'scenario' as const, id: 'new-shores' } },
+      { citiesKnights: true, church: true },
+      { map: { kind: 'special' as const, id: 'fishermen' } },
     ])
       expect(
         buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,

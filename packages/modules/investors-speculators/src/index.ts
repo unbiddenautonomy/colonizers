@@ -1,15 +1,16 @@
 import type { ActionDef, GameModule } from '@colonizers/engine';
-import { RESOURCES } from '@colonizers/module-base';
 import { advanceBank, bankActions, settleDue } from './bank.ts';
-import { MODULE_ID } from './constants.ts';
+import { BIG_GAME_HAND, MODULE_ID } from './constants.ts';
 import {
   investorsDice,
   marketActions,
   marketRatio,
+  maybeStartExchange,
   wrapDiscard,
+  wrapMovePirate,
   wrapMoveRobber,
 } from './market.ts';
-import { investorsData, loansOf } from './rules.ts';
+import { investorsData, isTradable, loansOf } from './rules.ts';
 import { derivativeBlock, townActions, townCost, townMarkersOut } from './town.ts';
 
 /**
@@ -46,7 +47,11 @@ export {
   loansOf,
   rateOf,
   savingsOf,
+  COMMODITY_MARKET,
   isTownLoan,
+  isTradable,
+  marketOf,
+  tradables,
   type Derivative,
   type InvestorsData,
   type Loan,
@@ -72,8 +77,6 @@ const wrapEndTurn = (prev: ActionDef): ActionDef => ({
   },
 });
 
-const isResource = (c: string) => (RESOURCES as readonly string[]).includes(c);
-
 export const investorsModule: GameModule = {
   id: MODULE_ID,
   name: 'Investors & Speculators',
@@ -85,19 +88,29 @@ export const investorsModule: GameModule = {
     moveRobber: wrapMoveRobber,
     endTurn: wrapEndTurn,
   },
+  wrapActionsIfPresent: {
+    movePirate: wrapMovePirate,
+  },
   hooks: {
     init(ctx) {
       investorsData(ctx);
     },
+    afterAction(ctx) {
+      maybeStartExchange(ctx);
+    },
   },
   reducers: {
     swapRatio(ctx, seat, give, get, value) {
-      if (!isResource(get)) return value;
+      if (!isTradable(ctx, get)) return value;
       return marketRatio(ctx, seat, give, get);
     },
     vp(ctx, seat, value) {
       const d = investorsData(ctx);
-      return value - (d.debt[String(seat)] ?? 0) + (d.bonus[String(seat)] ?? 0);
+      const held = d.loans.reduce((n, l) => n + (l.seat === seat ? (l.held ?? 0) : 0), 0);
+      return value - (d.debt[String(seat)] ?? 0) + (d.bonus[String(seat)] ?? 0) - held;
+    },
+    handLimit(ctx, _seat, value) {
+      return ctx.playerCount >= 5 ? value + BIG_GAME_HAND : value;
     },
     cost(_ctx, item, _seat, value) {
       return townCost(item, value);

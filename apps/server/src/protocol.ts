@@ -122,13 +122,13 @@ export function moduleList(
     'traders-barbarians',
     'explorers-pirates',
     'variants',
+    // Before Cities & Knights, so its dice win (the first-round 7 is thrown again only without).
+    'investors',
     'cities-knights',
     // After the base game and Cities & Knights, so its robber wrapper comes outermost.
     'princes',
     // After the base game, so its turn and road wrappers come outermost.
     'soldiers',
-    // After the base game and its options, so its robber and roll wrappers come outermost.
-    'investors',
     // After Cities & Knights (and Seafarers), so their production changes come last.
     // Witches first, so the Wizard's guard against the robber doesn't lift a festival.
     'witches',

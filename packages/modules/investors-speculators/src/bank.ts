@@ -19,13 +19,14 @@ import {
   investorsData,
   isResource,
   isTownLoan,
+  isTradable,
+  tradables,
   loansOf,
   onlyActive,
   rateOf,
   total,
   useFinance,
   type Loan,
-  type Resource,
 } from './rules.ts';
 
 /**
@@ -43,12 +44,12 @@ export function financeLeft(ctx: Ctx): string | null {
     : `Only ${FINANCE_ACTIONS} finance actions a turn`;
 }
 
-export const saveCard = action<{ card: Resource; term: SavingsTerm }>({
+export const saveCard = action<{ card: string; term: SavingsTerm }>({
   phases: ['main'],
   check(ctx, a) {
     const err = onlyActive(ctx, a) ?? financeLeft(ctx);
     if (err) return err;
-    if (!isResource(a.card)) return 'Pick a resource';
+    if (!isTradable(ctx, a.card)) return 'Pick a card the bank trades';
     if (!(SAVINGS_TERMS as readonly unknown[]).includes(a.term)) return 'Save for 3 or 5 turns';
     return ctx.has(a.player, { [a.card]: 1 }) ? null : `You have no ${a.card}`;
   },
@@ -68,14 +69,14 @@ export const saveCard = action<{ card: Resource; term: SavingsTerm }>({
   enumerate(ctx, player) {
     if (player !== ctx.active || financeLeft(ctx)) return [];
     const hand = ctx.player(player).hand;
-    return RESOURCES.filter((r) => (hand[r] ?? 0) > 0).flatMap((card) =>
-      SAVINGS_TERMS.map((term) => ({ type: 'saveCard', player, card, term })),
-    );
+    return tradables(ctx)
+      .filter((r) => (hand[r] ?? 0) > 0)
+      .flatMap((card) => SAVINGS_TERMS.map((term) => ({ type: 'saveCard', player, card, term })));
   },
 });
 
 /** Why this player can't borrow this card now, or null. */
-export function borrowBlock(ctx: Ctx, seat: number, card: Resource): string | null {
+export function borrowBlock(ctx: Ctx, seat: number, card: string): string | null {
   const err = financeLeft(ctx);
   if (err) return err;
   if (!ctx.bankHas({ [card]: 1 })) return `The bank has no ${card} left`;
@@ -91,12 +92,12 @@ export function borrowBlock(ctx: Ctx, seat: number, card: Resource): string | nu
   return null;
 }
 
-export const borrowCard = action<{ card: Resource; term: LoanTerm }>({
+export const borrowCard = action<{ card: string; term: LoanTerm }>({
   phases: ['main'],
   check(ctx, a) {
     const err = onlyActive(ctx, a);
     if (err) return err;
-    if (!isResource(a.card)) return 'Pick a resource';
+    if (!isTradable(ctx, a.card)) return 'Pick a card the bank trades';
     if (!(LOAN_TERMS as readonly unknown[]).includes(a.term))
       return 'Borrow for 1, 3, 5, 7 or 10 turns';
     return borrowBlock(ctx, a.player, a.card);
@@ -119,9 +120,9 @@ export const borrowCard = action<{ card: Resource; term: LoanTerm }>({
   },
   enumerate(ctx, player) {
     if (player !== ctx.active) return [];
-    return RESOURCES.filter((card) => !borrowBlock(ctx, player, card)).flatMap((card) =>
-      LOAN_TERMS.map((term) => ({ type: 'borrowCard', player, card, term })),
-    );
+    return tradables(ctx)
+      .filter((card) => !borrowBlock(ctx, player, card))
+      .flatMap((card) => LOAN_TERMS.map((term) => ({ type: 'borrowCard', player, card, term })));
   },
 });
 
@@ -134,7 +135,9 @@ export function loanBill(loan: Loan): Cards {
 
 /** The cards of your choice a loan adds: one of any kind, or two from the building's cost. */
 export function extraCount(loan: Loan): number {
-  if (isTownLoan(loan)) return TOWN_REPAY[loan.term as TownTerm].half ? 2 : 0;
+  // The "half" is half a building's cost, rounded down: 2 cards for a settlement or city.
+  if (isTownLoan(loan))
+    return TOWN_REPAY[loan.term as TownTerm].half ? Math.floor(total(loan.cost ?? {}) / 2) : 0;
   return loan.term === 1 ? 1 : 0;
 }
 
@@ -148,7 +151,7 @@ function extraOk(loan: Loan, extra: Cards): boolean {
 function extraWording(loan: Loan): string {
   if (isTownLoan(loan))
     return extraCount(loan)
-      ? `Add 2 cards from the cost of one more ${loan.card}`
+      ? `Add ${extraCount(loan)} cards from the cost of one more ${loan.card}`
       : 'Pay just the loan';
   return loan.term === 1 ? 'A 1-turn loan also takes one card of any kind' : 'Pay just the loan';
 }
@@ -168,16 +171,23 @@ export function extraChoices(loan: Loan, hand: Cards): Cards[] {
   const town = isTownLoan(loan);
   const pool = town ? Object.keys(loan.cost ?? {}) : [...RESOURCES];
   const cap = (c: string) => Math.min(left[c] ?? 0, town ? (loan.cost?.[c] ?? 0) : n);
+  // Every way to pick n cards from the pool, each kind up to its cap.
   const out: Cards[] = [];
-  if (n === 1) for (const c of pool) if (cap(c) >= 1) out.push({ [c]: 1 });
-  if (n === 2)
-    for (let i = 0; i < pool.length; i++)
-      for (let j = i; j < pool.length; j++) {
-        const x = pool[i] as string;
-        const y = pool[j] as string;
-        if (x === y ? cap(x) >= 2 : cap(x) >= 1 && cap(y) >= 1)
-          out.push(x === y ? { [x]: 2 } : { [x]: 1, [y]: 1 });
-      }
+  const pick = (from: number, left: number, acc: Record<string, number>) => {
+    if (!left) {
+      out.push({ ...acc });
+      return;
+    }
+    for (let k = from; k < pool.length; k++) {
+      const c = pool[k] as string;
+      if ((acc[c] ?? 0) >= cap(c)) continue;
+      acc[c] = (acc[c] ?? 0) + 1;
+      pick(k, left - 1, acc);
+      acc[c] -= 1;
+      if (!acc[c]) delete acc[c];
+    }
+  };
+  pick(0, n, {});
   return out;
 }
 
@@ -257,7 +267,8 @@ export function settleDue(ctx: Ctx, seat: number): void {
   const due = d.loans.filter((x) => x.seat === seat && x.left <= 0);
   d.loans = d.loans.filter((x) => !(x.seat === seat && x.left <= 0));
   for (const l of due) {
-    d.debt[String(seat)] = (d.debt[String(seat)] ?? 0) + l.penalty;
+    // Held points (an island bonus on a town loan) are lost with it.
+    d.debt[String(seat)] = (d.debt[String(seat)] ?? 0) + l.penalty + (l.held ?? 0);
     ctx.emit({
       type: 'loanDefaulted',
       player: seat,
