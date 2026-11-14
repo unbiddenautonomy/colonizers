@@ -8,7 +8,9 @@ import {
   SAME_KIND_LOANS,
   SAVINGS_TERMS,
   savingsReturn,
+  TOWN_REPAY,
   type LoanTerm,
+  type TownTerm,
   type SavingsTerm,
 } from './constants.ts';
 import {
@@ -16,6 +18,7 @@ import {
   financeUsed,
   investorsData,
   isResource,
+  isTownLoan,
   loansOf,
   onlyActive,
   rateOf,
@@ -34,7 +37,7 @@ import {
 
 const inMain = (ctx: Ctx) => (ctx.state.phase.id === 'main' ? null : 'Only in your main turn');
 
-function financeLeft(ctx: Ctx): string | null {
+export function financeLeft(ctx: Ctx): string | null {
   return financeUsed(ctx) < FINANCE_ACTIONS
     ? null
     : `Only ${FINANCE_ACTIONS} finance actions a turn`;
@@ -76,7 +79,11 @@ export function borrowBlock(ctx: Ctx, seat: number, card: Resource): string | nu
   const err = financeLeft(ctx);
   if (err) return err;
   if (!ctx.bankHas({ [card]: 1 })) return `The bank has no ${card} left`;
-  const same = loansOf(ctx, seat).filter((l) => l.card === card);
+  const mine = loansOf(ctx, seat);
+  const turn = ctx.state.turn.number;
+  if (mine.some(isTownLoan) && !mine.some((l) => isTownLoan(l) && l.taken === turn))
+    return 'Pay back your town loans before borrowing cards';
+  const same = mine.filter((l) => l.card === card);
   if (same.some((l) => l.taken !== ctx.state.turn.number))
     return `Pay back your ${card} loan before borrowing more`;
   if (same.length >= SAME_KIND_LOANS)
@@ -104,6 +111,8 @@ export const borrowCard = action<{ card: Resource; term: LoanTerm }>({
       term: a.term,
       left: a.term,
       taken: ctx.state.turn.number,
+      penalty: LOAN_PENALTY[a.term],
+      group: `${a.player}:${a.card}:${ctx.state.turn.number}:${a.term}`,
     });
     useFinance(ctx);
     ctx.emit({ type: 'cardBorrowed', player: a.player, card: a.card, term: a.term });
@@ -116,18 +125,80 @@ export const borrowCard = action<{ card: Resource; term: LoanTerm }>({
   },
 });
 
-/** What paying back a loan costs (a 1-turn loan adds one card of any kind, given separately). */
+/** What paying back a loan costs, before any cards of your choice it adds. */
 export function loanBill(loan: Loan): Cards {
-  return { [loan.card]: LOAN_REPAY[loan.term] };
+  if (!isTownLoan(loan)) return { [loan.card]: LOAN_REPAY[loan.term as LoanTerm] };
+  const times = TOWN_REPAY[loan.term as TownTerm].times;
+  return Object.fromEntries(Object.entries(loan.cost ?? {}).map(([c, n]) => [c, (n ?? 0) * times]));
 }
 
-/** The extra cards a loan asks for beyond its bill. */
-const extraCount = (loan: Loan) => (loan.term === 1 ? 1 : 0);
+/** The cards of your choice a loan adds: one of any kind, or two from the building's cost. */
+export function extraCount(loan: Loan): number {
+  if (isTownLoan(loan)) return TOWN_REPAY[loan.term as TownTerm].half ? 2 : 0;
+  return loan.term === 1 ? 1 : 0;
+}
+
+function extraOk(loan: Loan, extra: Cards): boolean {
+  if (!Object.values(extra).every((n) => Number.isInteger(n) && (n ?? 0) >= 0)) return false;
+  if (total(extra) !== extraCount(loan)) return false;
+  if (!isTownLoan(loan)) return Object.keys(extra).every((c) => isResource(c));
+  return Object.entries(extra).every(([c, n]) => (n ?? 0) <= (loan.cost?.[c] ?? 0));
+}
+
+function extraWording(loan: Loan): string {
+  if (isTownLoan(loan))
+    return extraCount(loan)
+      ? `Add 2 cards from the cost of one more ${loan.card}`
+      : 'Pay just the loan';
+  return loan.term === 1 ? 'A 1-turn loan also takes one card of any kind' : 'Pay just the loan';
+}
 
 function payment(loan: Loan, extra: Cards | undefined): Cards {
   const out: Record<string, number> = { ...loanBill(loan) };
   for (const [c, n] of Object.entries(extra ?? {})) out[c] = (out[c] ?? 0) + (n ?? 0);
   return out;
+}
+
+/** Choices of extra cards this hand can add on top of the bill. */
+export function extraChoices(loan: Loan, hand: Cards): Cards[] {
+  const n = extraCount(loan);
+  if (!n) return [{}];
+  const left: Record<string, number> = { ...hand } as Record<string, number>;
+  for (const [c, k] of Object.entries(loanBill(loan))) left[c] = (left[c] ?? 0) - (k ?? 0);
+  const town = isTownLoan(loan);
+  const pool = town ? Object.keys(loan.cost ?? {}) : [...RESOURCES];
+  const cap = (c: string) => Math.min(left[c] ?? 0, town ? (loan.cost?.[c] ?? 0) : n);
+  const out: Cards[] = [];
+  if (n === 1) for (const c of pool) if (cap(c) >= 1) out.push({ [c]: 1 });
+  if (n === 2)
+    for (let i = 0; i < pool.length; i++)
+      for (let j = i; j < pool.length; j++) {
+        const x = pool[i] as string;
+        const y = pool[j] as string;
+        if (x === y ? cap(x) >= 2 : cap(x) >= 1 && cap(y) >= 1)
+          out.push(x === y ? { [x]: 2 } : { [x]: 1, [y]: 1 });
+      }
+  return out;
+}
+
+/** Once a group of loans is all settled, its derivatives go back to their holders. */
+export function releaseDerivatives(ctx: Ctx, group: string): void {
+  const d = investorsData(ctx);
+  if (d.loans.some((l) => l.group === group)) return;
+  d.derivatives = d.derivatives.filter((x) => x.group !== group);
+}
+
+/** A loan in the group defaulted: each holder's first unpaid derivative on it pays. */
+function payDerivatives(ctx: Ctx, loan: Loan): void {
+  const d = investorsData(ctx);
+  const seen = new Set<number>();
+  for (const x of d.derivatives) {
+    if (x.group !== loan.group || x.paid || seen.has(x.holder)) continue;
+    seen.add(x.holder);
+    x.paid = true;
+    d.bonus[String(x.holder)] = (d.bonus[String(x.holder)] ?? 0) + x.pays;
+    ctx.emit({ type: 'derivativePaid', player: x.holder, from: loan.seat, points: x.pays });
+  }
 }
 
 export const repayLoan = action<{ loan: string; extra?: Cards }>({
@@ -137,15 +208,8 @@ export const repayLoan = action<{ loan: string; extra?: Cards }>({
     if (err) return err;
     const loan = investorsData(ctx).loans.find((l) => l.id === a.loan && l.seat === a.player);
     if (!loan) return 'That is not your loan';
-    const extra = a.extra ?? {};
-    if (
-      !Object.entries(extra).every(([c, n]) => isResource(c) && Number.isInteger(n) && n >= 0) ||
-      total(extra) !== extraCount(loan)
-    )
-      return loan.term === 1
-        ? 'A 1-turn loan also takes one card of any kind'
-        : 'Pay just the loan';
-    return ctx.has(a.player, payment(loan, extra)) ? null : 'You can not pay that back yet';
+    if (!extraOk(loan, a.extra ?? {})) return extraWording(loan);
+    return ctx.has(a.player, payment(loan, a.extra)) ? null : 'You can not pay that back yet';
   },
   apply(ctx, a) {
     const d = investorsData(ctx);
@@ -153,23 +217,21 @@ export const repayLoan = action<{ loan: string; extra?: Cards }>({
     const paid = payment(loan, a.extra);
     ctx.pay(a.player, paid);
     d.loans = d.loans.filter((l) => l.id !== loan.id);
+    releaseDerivatives(ctx, loan.group);
     ctx.emit({ type: 'loanRepaid', player: a.player, card: loan.card, term: loan.term, paid });
   },
   enumerate(ctx, player) {
     if (player !== ctx.active || ctx.state.phase.id !== 'main') return [];
     const out: Action[] = [];
+    const hand = ctx.player(player).hand;
     for (const loan of loansOf(ctx, player)) {
-      const bill = loanBill(loan);
-      if (!ctx.has(player, bill)) continue;
-      if (!extraCount(loan)) {
-        out.push({ type: 'repayLoan', player, loan: loan.id });
-        continue;
-      }
-      const hand = { ...ctx.player(player).hand };
-      hand[loan.card] = (hand[loan.card] ?? 0) - (bill[loan.card] ?? 0);
-      for (const r of RESOURCES)
-        if ((hand[r] ?? 0) > 0)
-          out.push({ type: 'repayLoan', player, loan: loan.id, extra: { [r]: 1 } });
+      if (!ctx.has(player, loanBill(loan))) continue;
+      for (const extra of extraChoices(loan, hand))
+        out.push(
+          extraCount(loan)
+            ? { type: 'repayLoan', player, loan: loan.id, extra }
+            : { type: 'repayLoan', player, loan: loan.id },
+        );
     }
     return out;
   },
@@ -192,12 +254,20 @@ export function advanceBank(ctx: Ctx, seat: number): void {
 /** At the end of the turn, loans that came due and weren't paid turn into bad debt. */
 export function settleDue(ctx: Ctx, seat: number): void {
   const d = investorsData(ctx);
-  for (const l of d.loans.filter((x) => x.seat === seat && x.left <= 0)) {
-    const points = LOAN_PENALTY[l.term];
-    d.debt[String(seat)] = (d.debt[String(seat)] ?? 0) + points;
-    ctx.emit({ type: 'loanDefaulted', player: seat, card: l.card, term: l.term, points });
-  }
+  const due = d.loans.filter((x) => x.seat === seat && x.left <= 0);
   d.loans = d.loans.filter((x) => !(x.seat === seat && x.left <= 0));
+  for (const l of due) {
+    d.debt[String(seat)] = (d.debt[String(seat)] ?? 0) + l.penalty;
+    ctx.emit({
+      type: 'loanDefaulted',
+      player: seat,
+      card: l.card,
+      term: l.term,
+      points: l.penalty,
+    });
+    payDerivatives(ctx, l);
+  }
+  for (const g of new Set(due.map((l) => l.group))) releaseDerivatives(ctx, g);
 }
 
 export const bankActions = { saveCard, borrowCard, repayLoan };

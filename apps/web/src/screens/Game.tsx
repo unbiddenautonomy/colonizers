@@ -135,7 +135,9 @@ import {
   investorsOn,
   investorsPrompt,
   InvestorsStats,
+  loanMode,
   MarketStatus,
+  parseLoanMode,
 } from './Investors.tsx';
 import {
   knightGiveWayTargets,
@@ -172,7 +174,8 @@ type Mode =
   | CivMode
   | ChurchMode
   | 'princesKnight'
-  | SoldiersMode;
+  | SoldiersMode
+  | `loan:${string}`;
 type EdgeKind = 'road' | 'ship';
 type Dialog = null | 'bank' | 'finance' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
@@ -237,6 +240,13 @@ function targetsFor(
   if (seat) {
     for (const a of legal)
       if (a.type === 'buildCitySeat' && a.seat === seat) t.corners.set(a.corner as CornerId, a);
+    return t;
+  }
+  const loan = state.phase.id === 'main' ? parseLoanMode(mode) : null;
+  if (loan) {
+    for (const a of legal)
+      if (a.type === 'buildOnLoan' && a.item === loan.item && a.term === loan.term)
+        t.corners.set(a.corner as CornerId, a);
     return t;
   }
   if (PRINCES_BOARD_PHASES.includes(state.phase.id))
@@ -460,6 +470,10 @@ function prompt(
         return `${who}: tap a glowing corner on your roads for a new knight. Tap the button again to cancel.`;
       if (mode === 'wall')
         return `${who}: tap one of your cities for a wall. Tap the button again to cancel.`;
+      if (parseLoanMode(mode)) {
+        const l = parseLoanMode(mode)!;
+        return `${who}: tap a glowing spot for a ${l.item} on a ${l.term}-turn loan.`;
+      }
       if (mode)
         return `${who}: tap a glowing spot to build a ${mode}. Tap the button again to cancel.`;
       return `${who}: trade, build, or end your turn.`;
@@ -1552,6 +1566,11 @@ export function Game({
           legal={legal}
           act={act}
           onClose={() => setDialog(null)}
+          onLoanBuild={(item, term) => {
+            setMode(loanMode(item, term));
+            setDialog(null);
+          }}
+          names={promptNames}
         />
       )}
 

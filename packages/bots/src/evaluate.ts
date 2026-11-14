@@ -210,13 +210,20 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
  */
 function investorsHints(state: GameState, seat: number): number {
   const d = state.data.investors as
-    | { savings?: { seat: number }[]; loans?: { seat: number; left: number; term: number }[] }
+    | {
+        savings?: { seat: number }[];
+        loans?: { seat: number; left: number; penalty?: number }[];
+        derivatives?: { holder: number }[];
+      }
     | undefined;
   let score = 0;
   for (const s of d?.savings ?? []) if (s.seat === seat) score += 0.5;
+  for (const x of d?.derivatives ?? []) if (x.holder === seat) score += 0.3;
   for (const l of d?.loans ?? []) {
     if (l.seat !== seat) continue;
-    score -= l.left <= 0 ? 4 : 0.8 + 1.5 / l.left;
+    // Weighs as its bad debt when due, less while there's time to pay.
+    const penalty = l.penalty ?? 1;
+    score -= l.left <= 0 ? penalty * 2 : penalty * (0.6 + 1 / l.left);
   }
   return score;
 }

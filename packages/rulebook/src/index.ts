@@ -139,6 +139,8 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/knight/i, 'knights'],
   [/robber|steal/i, 'robber'],
   [/discard/i, 'robber'],
+  [/town loan|settlement loans|city loans/i, 'investors-town'],
+  [/derivative/i, 'investors-derivatives'],
   [/finance actions|loan|borrow|save for|pay back/i, 'investors-bank'],
   [/show \d of your|cheaper|dearer|keep one of the cards/i, 'investors-seven'],
   [/trade|offer|harbor|need \d/i, 'trading'],

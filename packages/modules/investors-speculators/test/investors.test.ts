@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { Ctx, ModuleLibrary, type Action, type GameState, type HexId } from '@colonizers/engine';
+import {
+  Ctx,
+  ModuleLibrary,
+  type Action,
+  type CornerId,
+  type GameState,
+  type HexId,
+} from '@colonizers/engine';
 import { baseModule, robber } from '@colonizers/module-base';
 import { generateBoard } from '@colonizers/maps';
 import {
@@ -201,7 +208,86 @@ describe('Investors & Speculators', () => {
     expect(c.reduce('canWin', 0, true)).toBe(true);
   });
 
+  it('builds a city on a town loan and takes it back at one and a half', () => {
+    let s = mainTurn((ctx) => {
+      const c = ctx.geometry.corners.find((x) => ctx.isLandCorner(x)) as CornerId;
+      ctx.place('settlement', 0, { kind: 'corner', id: c });
+      ctx.grant(0, { ore: 5, grain: 4 });
+    });
+    const corner = (
+      Object.values(s.pieces).find((p) => p.type === 'settlement')?.at as {
+        id: CornerId;
+      }
+    ).id;
+    s = act(s, { type: 'buildOnLoan', player: 0, item: 'city', corner, term: 3 } as Action);
+    expect(ctxOf(s).buildingAt(corner as never)?.type).toBe('city');
+    expect(s.players[0]?.hand).toMatchObject({ ore: 5, grain: 4 });
+    const loan = loansOf(ctxOf(s), 0)[0];
+    expect(loan).toMatchObject({ card: 'city', term: 3, penalty: 3, cost: { ore: 3, grain: 2 } });
+    // Cards can still be borrowed this turn, not later while the town loan is open.
+    s = act(s, { type: 'borrowCard', player: 0, card: 'wool', term: 3 } as Action);
+    const later = edit(s, (ctx) => {
+      ctx.state.turn.number = 9;
+    });
+    expect(() =>
+      act(later, { type: 'borrowCard', player: 0, card: 'brick', term: 3 } as Action),
+    ).toThrow(/town loans/);
+    expect(() => act(s, { type: 'repayLoan', player: 0, loan: loan?.id } as Action)).toThrow(
+      /2 cards from the cost/,
+    );
+    expect(() =>
+      act(s, { type: 'repayLoan', player: 0, loan: loan?.id, extra: { wool: 2 } } as Action),
+    ).toThrow(/2 cards from the cost/);
+    s = act(s, {
+      type: 'repayLoan',
+      player: 0,
+      loan: loan?.id,
+      extra: { ore: 1, grain: 1 },
+    } as Action);
+    expect(s.players[0]?.hand).toMatchObject({ ore: 1, grain: 1 });
+    expect(loansOf(ctxOf(s), 0).map((l) => l.card)).toEqual(['wool']);
+  });
+
+  it('pays derivatives when a loan is not paid back', () => {
+    let s = mainTurn((ctx) => ctx.grant(1, { lumber: 4, brick: 4 }));
+    s = act(s, { type: 'borrowCard', player: 0, card: 'ore', term: 5 } as Action);
+    s = act(s, { type: 'borrowCard', player: 0, card: 'ore', term: 5 } as Action);
+    s = act(s, { type: 'borrowCard', player: 0, card: 'grain', term: 3 } as Action);
+    const group = loansOf(ctxOf(s), 0)[0]?.group as string;
+    const short = loansOf(ctxOf(s), 0)[2]?.group as string;
+    s = edit(s, (ctx) => {
+      ctx.state.turn = { number: 6, player: 1, round: 1 };
+      for (const c of ['ore', 'grain']) {
+        const n = ctx.player(0).hand[c] ?? 0;
+        if (n) ctx.pay(0, { [c]: n });
+      }
+    });
+    expect(() =>
+      act(s, { type: 'buyDerivative', player: 1, group: short, card: 'lumber' } as Action),
+    ).toThrow(/safe from derivatives/);
+    // Two loans of ore taken together: up to two derivatives on them.
+    s = act(s, { type: 'buyDerivative', player: 1, group, card: 'lumber' } as Action);
+    s = act(s, { type: 'buyDerivative', player: 1, group, card: 'brick' } as Action);
+    expect(() =>
+      act(s, { type: 'buyDerivative', player: 1, group, card: 'lumber' } as Action),
+    ).toThrow(/already hold/);
+    expect(s.players[1]?.hand).toMatchObject({ lumber: 2, brick: 2 });
+    const vp0 = ctxOf(s).vp(0);
+    const vp1 = ctxOf(s).vp(1);
+    s = edit(s, (ctx) => {
+      ctx.state.turn = { number: 30, player: 0, round: 7 };
+      for (let i = 0; i < 5; i++) advanceBank(ctx, 0);
+    });
+    s = act(s, { type: 'endTurn', player: 0 });
+    const c = ctxOf(s);
+    // Both ore loans (2 each) and the grain loan (1) defaulted; each derivative paid 1.
+    expect(c.vp(0)).toBe(vp0 - 5);
+    expect(c.vp(1)).toBe(vp1 + 2);
+    expect(investorsData(c).derivatives).toEqual([]);
+  });
+
   it('plays out random games to a winner', () => {
+    const FINANCE = ['borrowCard', 'saveCard', 'buildOnLoan', 'buyDerivative'];
     const rand = rng(7);
     let s = game('investors-random');
     for (let i = 0; i < 20000 && s.winner === null; i++) {
@@ -211,13 +297,9 @@ describe('Investors & Speculators', () => {
       const pick =
         options.find((a) => a.type === 'buildSettlement' || a.type === 'buildCity') ??
         options.find((a) => a.type === 'repayLoan') ??
-        (rand() < 0.1
-          ? options.find((a) => a.type === 'borrowCard' || a.type === 'saveCard')
-          : undefined) ??
-        options.filter((a) => a.type !== 'borrowCard' && a.type !== 'saveCard')[
-          Math.floor(
-            rand() * options.filter((a) => a.type !== 'borrowCard' && a.type !== 'saveCard').length,
-          )
+        (rand() < 0.1 ? options.find((a) => FINANCE.includes(a.type)) : undefined) ??
+        options.filter((a) => !FINANCE.includes(a.type))[
+          Math.floor(rand() * options.filter((a) => !FINANCE.includes(a.type)).length)
         ] ??
         options[0];
       s = act(s, pick as Action);
