@@ -174,6 +174,16 @@ describe('Bots', () => {
     expect(r.winner).not.toBeNull();
   }, 240_000);
 
+  it('plays Soldiers & Armies with Seafarers', () => {
+    const r = play(
+      game('sa2', 4, 'sea', {}, ['soldiers']),
+      [medium, medium, medium, medium],
+      7,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+  }, 240_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');

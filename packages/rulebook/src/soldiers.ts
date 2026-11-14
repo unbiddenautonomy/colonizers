@@ -15,6 +15,7 @@ export const soldiersRules: RulebookModule = {
       note: '+1 to the city’s defence, and 2 more cards on a 7. Three a city.',
     },
     armyStep: { name: 'March further', note: 'Each corner past the three free ones, per army.' },
+    nukeBase: { name: 'Nuke', note: 'Plus 5 cards of any kind. Once a game.' },
   },
   names: {
     army: { name: 'Army', icon: '⚔️' },
@@ -70,6 +71,8 @@ The higher roll wins the round, and a **tie goes to the defender**. The loser pa
 - an army steps its best unit down (artillery to cavalry, cavalry to infantry); infantry leaves, and an army with no units is gone,
 - a building is first **damaged**, then drops a level: a city becomes a settlement (losing its walls), and a settlement falls.
 
+**Alliances:** your other armies next to the target can attack with the first. The defender's armies next to the attacked corner can join the defence, if they choose. Each side rolls the die of its best unit, and its losses come off that unit, whichever army it is in. A building's own defence comes last, once every defending army is gone.
+
 Keep rolling as long as you like. When you **break off**, your army falls back one corner and the damage stays. A fallen settlement is **captured**: it becomes yours, with the roads and ships joined to it that no longer reach one of the loser's buildings.`,
     },
     {
@@ -83,6 +86,41 @@ Keep rolling as long as you like. When you **break off**, your army falls back o
 
 - Win, and move the robber and steal a card as on a 7.
 - Lose, and hand over a resource of your choice.`,
+    },
+    {
+      id: 'soldiers-nuke',
+      module: M,
+      section: 'rules',
+      title: 'The nuke',
+      summary:
+        'Once a game: a field up to six away makes nothing again, and its buildings drop a level.',
+      tags: ['nuke', 'nuclear', 'bomb'],
+      body: `Each player may buy **one nuke** a game, for 6 ore, 5 grain and 5 more cards of any kind. It stands at one of your settlements or cities.
+
+In the field, set it off on a land field **up to six fields away**, across the sea if need be. The field makes nothing for the rest of the game, and every building on it drops a level: a city with walls loses a wall, a city becomes a settlement, and a settlement is gone. Units are spared.`,
+    },
+    {
+      id: 'soldiers-capitulation',
+      module: M,
+      section: 'rules',
+      title: 'Capitulation and defeat',
+      summary:
+        'Give up for half your points, or be wiped out for none. The last one standing wins.',
+      tags: ['capitulate', 'surrender', 'destroyed', 'out', 'last'],
+      body: `On your turn, or while you are being attacked, you may **capitulate** to another player (to the attacker, in a battle). Everything you have goes to them: buildings, roads, ships, units and cards. You leave the game and finish on **half your points**, rounded up.
+
+A player left with no settlement, city or unit is **wiped out**: they finish on 0 points, and whoever destroyed their last piece takes their cards.
+
+Players who are out sit their turns out. The game ends when someone reaches {setting:vpTarget} points, or when only one player is left.`,
+    },
+    {
+      id: 'soldiers-sea',
+      module: M,
+      section: 'rules',
+      title: 'With Seafarers',
+      summary: 'Armies cross the sea on anyone’s ships. Three points more than the scenario.',
+      tags: ['seafarers', 'ships', 'sea', 'islands'],
+      body: `Soldiers & Armies plays on the Seafarers maps with no other changes, to three points more than the scenario. Armies cross the sea along ships, whoever's they are, and a captured settlement takes the cut-off ships with it as well as roads. A rival can't build a ship on past a corner your army holds.`,
     },
     {
       id: 'soldiers-walls',

@@ -54,7 +54,11 @@ export function game(
       map: b.map,
       settings: {
         ...b.settings,
-        vpTarget: Number(b.settings.vpTarget) + (ck ? 3 : 0) + (extra.includes('princes') ? 4 : 0),
+        vpTarget:
+          Number(b.settings.vpTarget) +
+          (ck ? 3 : 0) +
+          (extra.includes('princes') ? 4 : 0) +
+          (extra.includes('soldiers') ? 3 : 0),
         ...settings,
       },
       fixedSeats: true,
