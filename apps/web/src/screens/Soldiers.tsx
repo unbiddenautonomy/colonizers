@@ -14,6 +14,7 @@ export const SOLDIERS_MODES = [
   'musterCavalry',
   'musterArtillery',
   'wall',
+  'nuke',
 ] as const;
 export type SoldiersMode = (typeof SOLDIERS_MODES)[number];
 
@@ -65,10 +66,13 @@ export function soldiersTargets(
   const ph = state.phase.id;
   if (ph === 'main' && isSoldiersMode(mode)) {
     for (const a of legal) {
-      if (
-        mode === 'wall' ? a.type === 'buildWall' : a.type === 'buyUnit' && a.unit === MUSTER[mode]
-      )
-        t.corners.set(a.corner as CornerId, a);
+      const want =
+        mode === 'wall'
+          ? a.type === 'buildWall'
+          : mode === 'nuke'
+            ? a.type === 'buyNuke'
+            : a.type === 'buyUnit' && a.unit === MUSTER[mode];
+      if (want) t.corners.set(a.corner as CornerId, a);
     }
     return t;
   }
@@ -82,6 +86,8 @@ export function soldiersTargets(
     (a) => a.type === 'marchArmy' || a.type === 'attack' || a.type === 'attackRobber',
   );
   const chosen = selected !== null && armyActions.some((a) => a.army === selected);
+  // Without an army picked, a field the nuke can reach sets it off.
+  if (!chosen) for (const a of legal) if (a.type === 'detonateNuke') t.hexes.set(a.hex as HexId, a);
   for (const a of armyActions) {
     if (!chosen) {
       const p = state.pieces[a.army as string];
@@ -91,6 +97,7 @@ export function soldiersTargets(
     }
     if (a.army !== selected) continue;
     if (a.type === 'marchArmy') t.corners.set(a.to as CornerId, a);
+    // With your other armies next to the target joining in, where they can.
     if (a.type === 'attack') t.corners.set((a.target as { corner: CornerId }).corner, a);
     if (a.type === 'attackRobber') {
       const r = Object.values(state.pieces).find((p) => p.type === 'robber');
@@ -111,19 +118,31 @@ export function soldiersPrompt(
   const ph = state.phase;
   const mine = actor === state.turn.player;
   const by = state.players[state.turn.player]?.name ?? 'A player';
-  if (ph.id === 'main' && mine && isSoldiersMode(mode))
-    return mode === 'wall'
-      ? `${who}: tap one of your cities to wall it (up to three walls).`
-      : `${who}: tap one of your settlements or cities to muster ${MUSTER[mode]} there.`;
+  if (ph.id === 'main' && mine && isSoldiersMode(mode)) {
+    if (mode === 'wall') return `${who}: tap one of your cities to wall it (up to three walls).`;
+    if (mode === 'nuke')
+      return `${who}: tap one of your settlements or cities for the nuke (6 ore, 5 grain and your 5 most plentiful other cards).`;
+    return `${who}: tap one of your settlements or cities to muster ${MUSTER[mode]} there.`;
+  }
+  const defending = ph.defender === actor && actor !== null;
   switch (ph.id) {
     case 'campaign':
       if (!mine) return `${by}'s armies are in the field.`;
       return selected
         ? `${who}: tap where the army marches, or a rival army or building next to it to attack.`
-        : `${who}: tap an army to march or attack with it, or end your turn.`;
+        : `${who}: tap an army to march or attack with it${
+            Object.values(state.pieces).some((p) => p.type === 'nuke' && p.owner === actor)
+              ? ', tap a field to set off your nuke'
+              : ''
+          }, or end your turn.`;
+    case 'battleCall':
+      return defending
+        ? `${who}: ${by} is attacking. Your armies next to the fight can join in.`
+        : `${by} is attacking. The defender is calling up their armies.`;
     case 'battle':
-      return mine
-        ? `${who}: roll again, or tap a corner to fall back.`
+      if (mine) return `${who}: roll again, or tap a corner to fall back.`;
+      return defending
+        ? `${by} is attacking you. Hold out, or capitulate.`
         : `${by} is fighting a battle.`;
     case 'robberToll':
       return mine ? `${who}: the robber won. Hand over a resource.` : `${by} lost to the robber.`;
@@ -181,6 +200,16 @@ export function SoldiersActions({
       </button>
       <button
         type="button"
+        className={mode === 'nuke' ? 'on' : ''}
+        aria-pressed={mode === 'nuke'}
+        disabled={!has('buyNuke')}
+        onClick={() => toggle('nuke')}
+        title="Once a game: set it off later on a field up to 6 away. The field makes nothing again, and its buildings drop a level."
+      >
+        ☢️ Nuke <small>(6 ore, 5 grain, +5 any)</small>
+      </button>
+      <button
+        type="button"
         disabled={!has('drawFreeDevCard')}
         onClick={() => act({ type: 'drawFreeDevCard', player: actor })}
         title="After a turn without buying or playing anything: draw a development card, then march"
@@ -199,20 +228,80 @@ export function SoldiersActions({
   );
 }
 
-/** Buttons for a battle and the robber's toll. */
+/** Give up to another player: everything goes to them, and you finish on half your points. */
+function Capitulate({
+  state,
+  actor,
+  to,
+  act,
+}: {
+  state: GameState;
+  actor: number;
+  to: number[];
+  act: (a: Action) => void;
+}) {
+  if (!to.length) return null;
+  return (
+    <details className="soldiers-capitulate">
+      <summary>🏳️ Capitulate</summary>
+      {to.map((seat) => (
+        <button
+          key={seat}
+          type="button"
+          onClick={() => act({ type: 'capitulate', player: actor, to: seat })}
+          title="Everything you have goes to them, and you finish on half your points"
+        >
+          to {state.players[seat]?.name ?? `Player ${seat + 1}`}
+        </button>
+      ))}
+    </details>
+  );
+}
+
+/** Buttons for a battle, the call to arms, the robber's toll and capitulating. */
 export function SoldiersChoices({
   state,
   legal,
   act,
+  actor,
 }: {
   state: GameState;
   legal: Action[];
   act: (a: Action) => void;
+  actor: number | null;
 }) {
+  if (!soldiersOn(state) || actor === null) return null;
+  const ph = state.phase;
+  const out = (state.data.soldiers as { out?: Record<string, unknown> } | undefined)?.out ?? {};
+  if ((ph.id === 'battle' || ph.id === 'battleCall') && ph.defender === actor) {
+    const calls = legal.filter((a) => a.type === 'answerBattleCall');
+    return (
+      <>
+        {calls.map((a) => (
+          <button
+            key={String(a.join)}
+            type="button"
+            className={a.join ? 'primary' : ''}
+            onClick={() => act(a)}
+          >
+            {a.join ? '⚔️ Join the fight' : 'Stay out'}
+          </button>
+        ))}
+        <Capitulate state={state} actor={actor} to={[state.turn.player]} act={act} />
+      </>
+    );
+  }
+  const others = state.players.map((p) => p.seat).filter((s) => s !== actor && !out[String(s)]);
+  const capitulate =
+    (ph.id === 'main' || ph.id === 'campaign') &&
+    actor === state.turn.player &&
+    !out[String(actor)] ? (
+      <Capitulate state={state} actor={actor} to={others} act={act} />
+    ) : null;
   if (state.phase.id === 'battle') {
     const roll = legal.find((a) => a.type === 'battleRoll');
     const hold = legal.find((a) => a.type === 'battleRetreat' && a.to === null);
-    const army = state.pieces[state.phase.army as string];
+    const army = state.pieces[(state.phase.attackers as string[] | undefined)?.[0] ?? ''];
     return (
       <>
         {army && <span className="soldiers-army">{armyLabel(army)}</span>}
@@ -231,11 +320,16 @@ export function SoldiersChoices({
   }
   if (state.phase.id === 'campaign') {
     const end = legal.find((a) => a.type === 'endTurn');
-    return end ? (
-      <button type="button" className="primary" onClick={() => act(end)}>
-        End turn
-      </button>
-    ) : null;
+    return (
+      <>
+        {end && (
+          <button type="button" className="primary" onClick={() => act(end)}>
+            End turn
+          </button>
+        )}
+        {capitulate}
+      </>
+    );
   }
   if (state.phase.id === 'robberToll')
     return (
@@ -249,7 +343,29 @@ export function SoldiersChoices({
           ))}
       </>
     );
-  return null;
+  return capitulate;
+}
+
+/** Fields a nuke turned over, drawn like the other markers on a field. */
+export function soldiersMarkers(state: GameState): {
+  id: string;
+  hex: HexId;
+  owner: number | null;
+  icon: string;
+  label: string;
+  dx: number;
+  dy: number;
+}[] {
+  const nuked = (state.data.soldiers as { nuked?: Record<string, boolean> } | undefined)?.nuked;
+  return Object.keys(nuked ?? {}).map((hex) => ({
+    id: `nuked-${hex}`,
+    hex: hex as HexId,
+    owner: null,
+    icon: '☢️',
+    label: 'Nuked: this field makes nothing for the rest of the game',
+    dx: 0,
+    dy: 0.5,
+  }));
 }
 
 /** An army beside its corner: a flag in its owner's colour, with how many units it has. */

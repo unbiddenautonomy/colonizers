@@ -25,6 +25,12 @@ export interface SoldiersData extends Record<string, unknown> {
   fought?: boolean;
   /** The active player has attacked the robber this turn. */
   robberFought?: boolean;
+  /** Players out of the game, with the points they finish on. */
+  out?: Record<string, { vp: number; to?: number }>;
+  /** Players who have bought their one nuke. */
+  nukeBought?: Record<string, boolean>;
+  /** Fields a nuke turned over: they produce nothing. */
+  nuked?: Record<string, boolean>;
 }
 
 export function soldiersData(ctx: Ctx): SoldiersData {
@@ -248,6 +254,40 @@ export function cutOffRoutes(ctx: Ctx, corner: CornerId, loser: number): Piece[]
     if (!reaches) out.push(...group);
   }
   return out;
+}
+
+export function isOut(ctx: Ctx, seat: number): boolean {
+  return !!soldiersData(ctx).out?.[String(seat)];
+}
+
+/** Hex distance between two fields. */
+export function hexDistance(ctx: Ctx, a: HexId, b: HexId): number {
+  const x = ctx.state.hexes[a];
+  const y = ctx.state.hexes[b];
+  if (!x || !y) return Infinity;
+  const dq = x.q - y.q;
+  const dr = x.r - y.r;
+  return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
+}
+
+/** Armies of one side, in the order they lose units: the one with the best unit first. */
+export function poolDie(ctx: Ctx, ids: readonly string[]): number {
+  let best = 0;
+  for (const id of ids) {
+    const a = ctx.state.pieces[id];
+    if (a) best = Math.max(best, armyDie(a));
+  }
+  return best;
+}
+
+/** A side loses a round: its best unit, wherever it stands, steps down. Returns the armies left. */
+export function poolLoses(ctx: Ctx, ids: readonly string[]): string[] {
+  const alive = ids.filter((id) => ctx.state.pieces[id]);
+  const worst = [...alive].sort(
+    (x, y) => armyDie(ctx.state.pieces[y] as Piece) - armyDie(ctx.state.pieces[x] as Piece),
+  )[0];
+  if (worst !== undefined) loseUnit(ctx, ctx.state.pieces[worst] as Piece);
+  return alive.filter((id) => ctx.state.pieces[id]);
 }
 
 export const isBuilding = (ctx: Ctx, p: Piece) => !!ctx.registry.pieceTypes[p.type]?.building;

@@ -30,7 +30,7 @@ import { churchMarkers } from '../screens/Church.tsx';
 import { seatMarkers } from '../screens/CitiesKnights.tsx';
 import { witchesMarkers } from '../screens/Witches.tsx';
 import { princesMarkers } from '../screens/Princes.tsx';
-import { ArmyFlag } from '../screens/Soldiers.tsx';
+import { ArmyFlag, soldiersMarkers } from '../screens/Soldiers.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
@@ -1139,7 +1139,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         );
       })}
 
-      {[...neutralMarkers(state), ...princesMarkers(state)].map((m) => {
+      {[...neutralMarkers(state), ...princesMarkers(state), ...soldiersMarkers(state)].map((m) => {
         const h = state.hexes[m.hex];
         if (!h) return null;
         const c = hexToPixel(h.q, h.r, S);
@@ -1215,6 +1215,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             p.type !== 'dragon' &&
             // Soldiers & Armies' armies stand beside the corner, drawn below.
             p.type !== 'army' &&
+            p.type !== 'nuke' &&
             // The Wizard shows as a marker beside its building.
             p.type !== 'wizard',
         )
@@ -1319,6 +1320,31 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { owner: p.owner, kind: p.type })}
             >
               {inner}
+            </g>
+          );
+        })}
+
+      {pieces
+        .filter((p) => p.type === 'nuke' && p.at.kind === 'corner')
+        .map((p) => {
+          const corner = (p.at as { id: CornerId }).id;
+          const c = cornerToPixel(corner, S);
+          const x = c.x - S * 0.24;
+          const y = c.y - S * 0.24;
+          return (
+            <g key={p.id} filter={fx}>
+              <circle
+                cx={x}
+                cy={y}
+                r={S * 0.14}
+                fill={color(p.owner)}
+                stroke={theme.outline}
+                strokeWidth={2}
+              />
+              <text x={x} y={y + S * 0.06} textAnchor="middle" fontSize={S * 0.17}>
+                ☢️
+              </text>
+              <title>Nuke: once, on a field up to 6 away</title>
             </g>
           );
         })}

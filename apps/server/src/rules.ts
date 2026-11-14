@@ -104,8 +104,8 @@ export function princesOn(
 }
 
 /**
- * Soldiers & Armies goes on the base game on the usual island maps. Its rules
- * for Cities & Knights, Seafarers and the other fan expansions come later.
+ * Soldiers & Armies goes on the base game, on the usual maps and Seafarers. Its
+ * rules for Cities & Knights and the other fan expansions come later.
  */
 export function soldiersOn(
   settings: Pick<RoomSettings, 'soldiers' | 'map'>,
@@ -113,7 +113,7 @@ export function soldiersOn(
   otherFan: boolean,
 ): boolean {
   const kind = settings.map.kind;
-  return settings.soldiers && !ck && !otherFan && kind !== 'special' && kind !== 'scenario';
+  return settings.soldiers && !ck && !otherFan && kind !== 'special';
 }
 
 /** Civilisations goes on top of Greed, Wealth & Power. */
@@ -207,6 +207,8 @@ export function timedSeats(state: GameState): number[] {
   if (state.phase.owed) {
     return Object.keys(state.phase.owed as Record<number, number>).map(Number);
   }
+  // Soldiers & Armies: the defender decides whether their armies join a battle.
+  if (state.phase.id === 'battleCall') return [state.phase.defender as number];
   return [state.turn.player];
 }
 
@@ -284,6 +286,7 @@ const SAFE_ORDER = [
   'placePrincesRobber',
   'battleRetreat',
   'payRobberToll',
+  'answerBattleCall',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',
@@ -314,6 +317,8 @@ export function timeoutAction(state: GameState, seat: number, rand: () => number
     if (type === 'civColony') options = options.filter((a) => a.civ !== 'redraw');
     // Nor swaps numbers for the explorers.
     if (type === 'exploreSwap') options = options.filter((a) => a.hexes === null);
+    // Nor calls up armies to a battle.
+    if (type === 'answerBattleCall') options = options.filter((a) => a.join === false);
     if (options.length) return options[Math.floor(rand() * options.length)] ?? null;
   }
   return null;

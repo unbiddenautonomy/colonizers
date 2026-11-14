@@ -11,7 +11,16 @@ import {
 } from '@colonizers/engine';
 import { baseModule, robber } from '@colonizers/module-base';
 import { generateBoard } from '@colonizers/maps';
-import { ARMY, armyAt, marchTargets, soldiersModule, unitsOf } from '../src/index.ts';
+import {
+  ARMY,
+  NUKE,
+  armyAt,
+  isOut,
+  marchTargets,
+  nukeTargets,
+  soldiersModule,
+  unitsOf,
+} from '../src/index.ts';
 
 const lib = new ModuleLibrary([baseModule, soldiersModule]);
 
@@ -341,7 +350,8 @@ describe('Soldiers & Armies', () => {
       for (let i = 0; i < 3000 && s.winner === null; i++) {
         const seat = lib.waitingOn(s)[0];
         expect(seat, `${s.phase.id} at step ${i}`).toBeDefined();
-        const options = lib.legalActions(s, seat as number);
+        // Nobody gives up in these games.
+        const options = lib.legalActions(s, seat as number).filter((a) => a.type !== 'capitulate');
         // Favour building, mustering and attacking, so the game moves along.
         const pick =
           options.find((a) => a.type === 'buildSettlement' || a.type === 'buildCity') ??
@@ -355,4 +365,123 @@ describe('Soldiers & Armies', () => {
     }
     expect([...seen].sort()).toEqual(['battle', 'campaign']);
   }, 60_000);
+
+  it('lets neighbouring armies fight together, on both sides', () => {
+    const start = standoff({ infantry: 1 }, { infantry: 1 });
+    const { mid, foe } = start;
+    let s = start.s;
+    let ally = '' as CornerId;
+    let guardAlly = '' as CornerId;
+    s = edit(s, (ctx) => {
+      // Another of seat 0's armies and another of seat 1's, both next to the target corner.
+      const free = near(ctx, foe).filter((c) => c !== mid);
+      ally = free[0] as CornerId;
+      guardAlly = free[1] as CornerId;
+      ctx.place(ARMY, 0, { kind: 'corner', id: ally }, { artillery: 1 });
+      ctx.place(ARMY, 1, { kind: 'corner', id: guardAlly }, { cavalry: 1 });
+    });
+    const lead = armyAt(ctxOf(s), mid) as Piece;
+    const withAllies = legal(s, 0, 'attack').find((a) => Array.isArray(a.allies)) as Action;
+    expect(withAllies.allies).toEqual([armyAt(ctxOf(s), ally)?.id]);
+    s = act(s, withAllies);
+    // The defender is asked whether its neighbouring army joins.
+    expect(s.phase.id).toBe('battleCall');
+    expect(lib.waitingOn(s)).toEqual([1]);
+    s = act(s, { type: 'answerBattleCall', player: 1, join: true });
+    expect(s.phase.id).toBe('battle');
+    expect(s.phase.attackers).toEqual([lead.id, armyAt(ctxOf(s), ally)?.id]);
+    expect((s.phase.defenders as string[]).length).toBe(2);
+    // The allied artillery sets the attacker's die.
+    const r = lib.apply(s, { type: 'battleRoll', player: 0 });
+    const round = r.events.find((e) => e.type === 'battleRound') as unknown as { dice: number[] };
+    expect(round.dice).toEqual([12, 10]);
+  });
+
+  it('nukes a field: no more production, and every building on it a level down', () => {
+    let hex = '' as HexId;
+    let s = edit(mainPhase(), (ctx) => {
+      const home = inlandCorner(ctx);
+      ctx.place('city', 0, { kind: 'corner', id: home });
+      hex = (ctx.geometry.cornerHexes.get(home) ?? [])[0] as HexId;
+      const corners = [...(ctx.geometry.hexCorners.get(hex) ?? [])].filter((c) => c !== home);
+      // Two corners apart from each other and from home.
+      const far = corners.filter((c) => !near(ctx, home).includes(c));
+      ctx.place('city', 1, { kind: 'corner', id: far[0] as CornerId }, { walls: 1 });
+      ctx.place('settlement', 2, { kind: 'corner', id: far[far.length - 1] as CornerId });
+      ctx.grant(0, { ore: 8, grain: 5, wool: 3 });
+    });
+    const home = inlandCorner(ctxOf(s));
+    const buy = legal(s, 0, 'buyNuke')[0] as Action;
+    expect(buy.cards).toEqual({ ore: 8, grain: 5, wool: 3 });
+    s = act(s, buy);
+    expect(Object.values(s.pieces).some((p) => p.type === NUKE && p.owner === 0)).toBe(true);
+    s = edit(s, (ctx) => ctx.grant(0, { ore: 8, grain: 5, wool: 3 }));
+    expect(() => act(s, { ...buy, corner: home })).toThrow(/one nuke a game/);
+    s = act(s, { type: 'takeTheField', player: 0 });
+    const ctx = ctxOf(s);
+    const nuke = Object.values(s.pieces).find((p) => p.type === NUKE) as Piece;
+    expect(nukeTargets(ctx, nuke)).toContain(hex);
+    s = act(s, { type: 'detonateNuke', player: 0, hex });
+    const after = ctxOf(s);
+    const at = (seat: number) =>
+      [...(after.geometry.hexCorners.get(hex) ?? [])]
+        .map((c) => after.buildingAt(c))
+        .filter((b) => b?.owner === seat);
+    expect(at(0).map((b) => b?.type)).toEqual(['settlement']);
+    expect(at(1).map((b) => [b?.type, b?.props.walls])).toEqual([['city', 0]]);
+    expect(at(2)).toEqual([]);
+    expect(Object.values(s.pieces).some((p) => p.type === NUKE)).toBe(false);
+    expect(after.reduce('hexBlocked', after.state.hexes[hex]!, at(0)[0]!, false)).toBe(true);
+    // Seat 2 lost its only building: completely destroyed.
+    expect(isOut(after, 2)).toBe(true);
+  });
+
+  it('captures the last settlement for a complete destruction, and the cards with it', () => {
+    const start = standoff({ artillery: 3, cavalry: 4, infantry: 7 });
+    const foe = start.foe;
+    let s = edit(start.s, (ctx) => ctx.grant(1, { brick: 2, ore: 1 }));
+    const army = armyOf(s, 0);
+    s = act(s, {
+      type: 'attack',
+      player: 0,
+      army: army.id,
+      target: { kind: 'building', corner: foe },
+    });
+    for (let i = 0; i < 40 && s.phase.id === 'battle'; i++)
+      s = act(s, { type: 'battleRoll', player: 0 });
+    const ctx = ctxOf(s);
+    expect(ctx.buildingAt(foe)?.owner).toBe(0);
+    expect(isOut(ctx, 1)).toBe(true);
+    expect(ctx.vp(1)).toBe(0);
+    expect(s.players[0]?.hand).toMatchObject({ brick: 2, ore: 1 });
+  });
+
+  it('hands everything over on capitulation, skips the player and ends with the last one standing', () => {
+    let s = edit(mainPhase(game('cap', 3)), (ctx) => {
+      const home = inlandCorner(ctx);
+      ctx.place('city', 0, { kind: 'corner', id: home });
+      const other = ctx.geometry.corners.find(
+        (c) => c !== home && !near(ctx, home).includes(c) && ctx.isLandCorner(c),
+      ) as CornerId;
+      ctx.place('city', 1, { kind: 'corner', id: other });
+      // Seat 2 keeps an army, so it is still in the game.
+      ctx.place(ARMY, 2, { kind: 'corner', id: near(ctx, home)[0] as CornerId }, { infantry: 1 });
+      ctx.grant(0, { wool: 3 });
+    });
+    const before = ctxOf(s).vp(0);
+    s = act(s, { type: 'capitulate', player: 0, to: 1 });
+    const ctx = ctxOf(s);
+    expect(isOut(ctx, 0)).toBe(true);
+    expect(ctx.vp(0)).toBe(Math.ceil(before / 2));
+    expect(ctx.piecesOf(0)).toEqual([]);
+    expect(s.players[1]?.hand.wool).toBe(3);
+    expect(s.turn.player).toBe(1);
+    // Seat 2 gives up too: seat 1 is the last one standing.
+    s = edit(s, (c) => {
+      c.state.turn.player = 2;
+      c.setPhase({ id: 'main' });
+    });
+    s = act(s, { type: 'capitulate', player: 2, to: 1 });
+    expect(s.winner).toBe(1);
+  });
 });

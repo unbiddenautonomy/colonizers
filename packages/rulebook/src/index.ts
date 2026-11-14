@@ -143,6 +143,8 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/can not attack|robber this turn|next to the robber/i, 'soldiers-battle'],
   [/walls? |a city takes at most/i, 'soldiers-walls'],
   [/not bought|quiet turn|without buying|without playing a development/i, 'soldiers'],
+  [/nuke/i, 'soldiers-nuke'],
+  [/capitulate|out of the game/i, 'soldiers-capitulation'],
 ];
 
 /** The page for a rule-check message, among the pages of the game's modules when given. */
