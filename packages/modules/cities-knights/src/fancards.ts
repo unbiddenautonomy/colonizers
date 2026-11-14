@@ -1,14 +1,17 @@
 import type { Action, ActionDef, Cards, Ctx, Phase } from '@colonizers/engine';
 import type { Track } from './constants.ts';
-import { indulgenceTiming } from './indulgence.ts';
+import { indulgenceTiming, playIndulgence, REROLLS } from './indulgence.ts';
 import { holdsProgress, resolvePlay, spendProgress } from './progress.ts';
 import {
   attack,
   barbarianStrength,
+  canPlaceKnight,
   ckData,
   continueRoll,
   defenseStrength,
+  drawProgress,
   giveProgress,
+  progressCount,
   progressHeld,
   takesProgress,
 } from './rules.ts';
@@ -41,6 +44,8 @@ export type Play = Action & {
 
 export interface FanCard {
   count: number;
+  /** The deck it belongs to, for a module whose cards fill several decks. */
+  deck?: Track;
   /** Only with this track in the game (Witch Burning needs Magic). */
   needs?: Track;
   /** When it can be played. Default: after rolling, on your turn. */
@@ -61,16 +66,23 @@ export const FAN_PHASES = ['indulgence', 'discard', 'beforeAttack'] as const;
 
 const MAIN: Phase = { id: 'main' };
 
-/** Every fan card by name, from every module that defined some. */
-const ALL = new Map<string, FanCard>();
+/** Each module's fan cards. Two modules may use one name (they never share a game). */
+const BY_MODULE = new Map<string, Record<string, FanCard>>();
 
 /** Lists a module's cards so the shared steps (the veto, the barbarian window) can find them. */
-export function defineFanCards<T extends Record<string, FanCard>>(cards: T): T {
-  for (const [name, def] of Object.entries(cards)) ALL.set(name, def);
+export function defineFanCards<T extends Record<string, FanCard>>(module: string, cards: T): T {
+  BY_MODULE.set(module, cards);
   return cards;
 }
 
-export const fanCard = (card: string): FanCard | undefined => ALL.get(card);
+/** A fan card of a module in this game. */
+export function fanCard(ctx: Ctx, card: string): FanCard | undefined {
+  for (const m of ctx.registry.modules) {
+    const def = BY_MODULE.get(m.id)?.[card];
+    if (def) return def;
+  }
+  return undefined;
+}
 
 /** A deck's card counts for the tracks in play. */
 export function fanDeck(
@@ -131,6 +143,124 @@ export function keepOne(ctx: Ctx, seat: number, pool: Pooled[], returnTo: Phase 
     return;
   }
   ctx.setPhase({ id: 'keepOne', by: seat, pool, returnTo });
+}
+
+/**
+ * A card lets a player off a 7's discard (Small Dragon, Intimidation): once
+ * nobody owes, the robber moves (unless it isn't in play yet).
+ */
+export function excuseDiscard(ctx: Ctx, seat: number): void {
+  const ph = ctx.state.phase;
+  const owed = { ...(ph.owed as Record<number, number>) };
+  delete owed[seat];
+  if (Object.keys(owed).length) ctx.setPhase({ ...ph, owed });
+  else if (ph.skipRobber) ctx.setPhase({ id: (ph.returnTo as string | undefined) ?? 'main' });
+  else ctx.setPhase({ id: 'moveRobber', returnTo: ph.returnTo });
+}
+
+// ---- Card rows the Religion decks share ----
+
+/** Dogma, Witch Burning: a random card of a deck from each other player; keep one. */
+export function takeFromEach(deck: Track, extra: Partial<FanCard> = {}): FanCard {
+  return {
+    count: 1,
+    needs: deck,
+    check(ctx, a) {
+      if (!takesProgress(ctx, a.player, deck)) return `You can not take ${deck} cards`;
+      return others(ctx, a.player).some((s) => heldIn(ctx, s, deck).length)
+        ? null
+        : `Nobody else has a ${deck} card`;
+    },
+    apply(ctx, a) {
+      const pool: Pooled[] = [];
+      for (const s of others(ctx, a.player)) {
+        const held = heldIn(ctx, s, deck);
+        if (!held.length) continue;
+        const card = held[ctx.rng.int(0, held.length - 1)] as string;
+        takeHeld(ctx, s, deck, card);
+        pool.push({ card, deck });
+        ctx.emit({ type: 'progressTaken', player: a.player, from: s, deck });
+      }
+      keepOne(ctx, a.player, pool);
+    },
+    ...extra,
+  };
+}
+
+/** Reformation: swap all your other progress cards, or make everyone else swap theirs. */
+export function reformationCard(extra: Partial<FanCard> = {}): FanCard {
+  return {
+    count: 1,
+    options: () => [{ option: 'mine' }, { option: 'others' }],
+    check(ctx, a) {
+      // The Reformation itself is still in hand while this is checked.
+      if (a.option === 'mine')
+        return progressCount(ctx, a.player) > 1 ? null : 'You have no other progress cards';
+      if (a.option === 'others')
+        return others(ctx, a.player).some((s) => progressCount(ctx, s) > 0)
+          ? null
+          : 'Nobody else has a progress card';
+      return 'Pick one';
+    },
+    apply(ctx, a) {
+      const seats = a.option === 'mine' ? [a.player] : others(ctx, a.player);
+      for (const s of seats) {
+        const had = progressHeld(ctx, s);
+        for (const h of had) returnHeld(ctx, s, h.deck, h.card);
+        for (const h of had) drawProgress(ctx, s, h.deck);
+      }
+      ctx.emit({ type: 'churchReformation', player: a.player, option: a.option });
+    },
+    ...extra,
+  };
+}
+
+/** Crusader: an active basic knight on a free corner along your roads. */
+export function crusaderCard(count: number, extra: Partial<FanCard> = {}): FanCard {
+  return {
+    count,
+    check(ctx, a) {
+      if (ctx.supplyLeft(a.player, 'knight1') <= 0) return 'No basic knights left';
+      return ctx.geometry.corners.some((c) => !canPlaceKnight(ctx, a.player, c))
+        ? null
+        : 'There is no spot for a knight';
+    },
+    apply(ctx) {
+      ctx.setPhase({ id: 'placeDeserter', knightType: 'knight1', active: true, returnTo: MAIN });
+    },
+    ...extra,
+  };
+}
+
+/** Indulgence: throw some of the dice again, right after any roll. */
+export function indulgenceCard(count: number, extra: Partial<FanCard> = {}): FanCard {
+  return {
+    count,
+    when: 'indulgence',
+    options: () => REROLLS.map((option) => ({ option })),
+    check: (_ctx, a) => (REROLLS.includes(a.option ?? '') ? null : 'Pick the dice to throw again'),
+    apply(ctx, a) {
+      playIndulgence(ctx, a.player, a.option as string);
+    },
+    ...extra,
+  };
+}
+
+/** Refuge: your cities are safe from the next attack. On your turn, or when the ship lands. */
+export function refugeCard(count: number, extra: Partial<FanCard> = {}): FanCard {
+  return {
+    count,
+    when: ['beforeOrAfter', 'attack'],
+    check(ctx, a) {
+      if (ckData(ctx).refuge?.includes(a.player)) return 'Your cities are already safe';
+      return attackHeld(ctx) ? 'The knights hold the barbarians off' : null;
+    },
+    apply(ctx, a) {
+      (ckData(ctx).refuge ??= []).push(a.player);
+      ctx.emit({ type: 'churchRefuge', player: a.player });
+    },
+    ...extra,
+  };
 }
 
 // ---- Timing ----
@@ -280,7 +410,7 @@ const answerVeto: ActionDef = {
       ctx.emit({ type: 'vetoed', player: a.player, by: play.player, card: play.card });
       return;
     }
-    const def = fanCard(play.card);
+    const def = fanCard(ctx, play.card);
     if (def) def.apply(ctx, play);
     else resolvePlay(ctx, play);
   },
@@ -303,7 +433,7 @@ export function attackWindow(ctx: Ctx): Record<number, number> {
   const out: Record<number, number> = {};
   for (const p of ctx.state.players) {
     const ready = progressHeld(ctx, p.seat).some(({ card }) => {
-      const def = fanCard(card);
+      const def = fanCard(ctx, card);
       if (!def || !timings(def).includes('attack')) return false;
       return !def.check?.(ctx, { type: 'playProgress', player: p.seat, card });
     });

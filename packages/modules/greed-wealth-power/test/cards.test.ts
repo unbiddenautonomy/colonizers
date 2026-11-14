@@ -91,7 +91,9 @@ describe('New progress cards', () => {
       if (def.when === 'roll' || def.when === 'beforeOrAfter')
         s = edit(s, (ctx) => ctx.setPhase({ id: def.when === 'roll' ? 'roll' : 'main' }));
       if (def.when === 'discard')
-        s = edit(s, (ctx) => ctx.setPhase({ id: 'discard', owed: { 0: 4 }, returnTo: 'main' }));
+        s = edit(s, (ctx) =>
+          ctx.setPhase({ id: 'discard', owed: { 0: 4 }, returnTo: 'main', seven: true }),
+        );
       const options = lib
         .legalActions(s, 0)
         .filter((a) => a.type === 'playProgress' && a.card === card);
@@ -104,9 +106,10 @@ describe('New progress cards', () => {
       expect(['main', 'roll', 'moveRobber'], card).toContain(s.phase.id);
       expect(progressCount(ctxOf(s), 0), card).toBeLessThanOrEqual(5);
     }
-    // Ghost Ship needs ships (Seafarers). Indulgence waits for a roll, and Land Deed for a
+    // Ghost Ship needs ships (Seafarers). Crusader needs a free corner on your roads, and
+    // the busy board has none for player 1. Indulgence waits for a roll, and Land Deed for a
     // spot two roads out; both are in indulgence.test.ts.
-    expect(skipped).toEqual(['ghostShip', 'indulgence', 'landDeed']);
+    expect(skipped).toEqual(['ghostShip', 'crusader', 'indulgence', 'landDeed']);
   });
 
   it('Witch’s Night takes a card from everyone else', () => {
@@ -191,7 +194,9 @@ describe('New progress cards', () => {
 
   it('Intimidation skips your discard on a 7', () => {
     let s = hold(busy(), 2, 'wealth', 'intimidation');
-    s = edit(s, (ctx) => ctx.setPhase({ id: 'discard', owed: { 2: 5 }, returnTo: 'main' }));
+    s = edit(s, (ctx) =>
+      ctx.setPhase({ id: 'discard', owed: { 2: 5 }, returnTo: 'main', seven: true }),
+    );
     s = play(s, 2, 'intimidation');
     expect(s.phase.id).toBe('moveRobber');
   });
@@ -202,9 +207,9 @@ describe('New progress cards', () => {
     expect(s.phase.id).toBe('magicRitual');
     for (const seat of [1, 2, 3])
       s = act(s, lib.legalActions(s, seat).find((a) => a.type === 'ritualGive') as Action);
-    expect(s.phase.id).toBe('keepProgress');
+    expect(s.phase.id).toBe('keepOne');
     const held = progressCount(ctxOf(s), 0);
-    s = act(s, { type: 'keepProgress', player: 0, index: 0 });
+    s = act(s, { type: 'keepOne', player: 0, index: 0 });
     expect(progressCount(ctxOf(s), 0)).toBe(held + 1);
     expect(s.phase.id).toBe('main');
   });
