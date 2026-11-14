@@ -45,7 +45,8 @@ export function checkDestroyed(ctx: Ctx, seat: number | null | undefined, by: nu
 
 /** The last player still in the game wins. */
 export function checkLastStanding(ctx: Ctx): void {
-  if (ctx.state.winner !== null) return;
+  // With Princes & Explorers the game is won on points only.
+  if (ctx.state.winner !== null || ctx.state.modules.includes('princes')) return;
   const left = ctx.state.players.map((p) => p.seat).filter((s) => !isOut(ctx, s));
   if (left.length !== 1) return;
   const seat = left[0] as number;

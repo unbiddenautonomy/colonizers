@@ -1235,19 +1235,23 @@ export function Game({
                   selectedShip={mode === 'sail' ? selectedShip : null}
                 />
               )}
-              {princesOn(state) && ck && myTurnMain && (
+              {princesOn(state) && (ck || soldiersOn(state)) && myTurnMain && (
                 <button
                   type="button"
                   className={mode === 'princesKnight' ? 'on' : ''}
                   aria-pressed={mode === 'princesKnight'}
-                  disabled={!has('knightRobberMove')}
+                  disabled={!has('knightRobberMove') && !has('unitRobberMove')}
                   onClick={() => setMode(mode === 'princesKnight' ? null : 'princesKnight')}
-                  title="A knight gives way (a level down, or off the board) to move the robber"
+                  title={
+                    soldiersOn(state)
+                      ? 'An army gives way (its best unit a level down, or an infantry off the board) to move the robber'
+                      : 'A knight gives way (a level down, or off the board) to move the robber'
+                  }
                 >
-                  🛡️ Move robber
+                  {soldiersOn(state) ? '⚔️' : '🛡️'} Move robber
                 </button>
               )}
-              {princesOn(state) && !ck && myTurnMain && (
+              {princesOn(state) && !ck && !soldiersOn(state) && myTurnMain && (
                 <button
                   type="button"
                   disabled={!has('buyRobberMove')}

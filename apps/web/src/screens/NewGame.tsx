@@ -149,11 +149,11 @@ export function NewGame({
   const princesOk = princesMap && !gwp && !church && !witches && !wonders;
   const princes = princesWanted && princesOk;
   // Soldiers & Armies goes on the base game on the usual island maps, for now.
-  const soldiersOk =
-    !gwp && !church && !witches && !wonders && !princes && effective.kind !== 'special';
+  const soldiersOk = !gwp && !church && !witches && !wonders && effective.kind !== 'special';
   const soldiers = soldiersWanted && soldiersOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
-  const extraVp = (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) + (princes ? 4 : 0) + (soldiers ? 3 : 0);
+  const extraVp =
+    (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) + (princes ? 4 : 0) + (soldiers && !princes ? 3 : 0);
   const fanName =
     church && witches
       ? 'Church and Witches'
@@ -580,7 +580,7 @@ export function NewGame({
             <strong>🤴 Princes &amp; Explorers</strong>
             <small>
               {!princesOk
-                ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights (not with the special maps or the other fan expansions yet).'
+                ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights and Princes & Explorers (not with the special maps or the other fan expansions yet).'
                 : `Fan expansion: four princes make buildings worth more, the robber takes points, and explorers swap numbers. Plays to 4 points more than usual.`}
             </small>
           </button>
@@ -595,7 +595,9 @@ export function NewGame({
             <small>
               {!soldiersOk
                 ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights (not with the special maps or the other fan expansions yet).'
-                : 'Fan expansion: muster armies, march them, and fight for your rivals’ settlements and cities. Plays to 3 points more than usual.'}
+                : princes
+                  ? 'Fan expansion: muster armies, march them, and fight for your rivals’ settlements and cities. With Princes & Explorers, units give way to move the robber, and the princes’ target stands.'
+                  : 'Fan expansion: muster armies, march them, and fight for your rivals’ settlements and cities. Plays to 3 points more than usual.'}
             </small>
           </button>
           <button
