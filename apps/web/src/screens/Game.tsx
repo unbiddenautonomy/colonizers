@@ -138,6 +138,7 @@ import {
   loanMode,
   MarketStatus,
   parseLoanMode,
+  townLabel,
 } from './Investors.tsx';
 import {
   knightGiveWayTargets,
@@ -244,9 +245,14 @@ function targetsFor(
   }
   const loan = state.phase.id === 'main' ? parseLoanMode(mode) : null;
   if (loan) {
-    for (const a of legal)
-      if (a.type === 'buildOnLoan' && a.item === loan.item && a.term === loan.term)
-        t.corners.set(a.corner as CornerId, a);
+    for (const a of legal) {
+      if (a.type !== 'buildOnLoan' || a.item !== loan.item || a.term !== loan.term) continue;
+      if (typeof a.corner === 'string') t.corners.set(a.corner as CornerId, a);
+      // A settler goes onto a harbor or a ship: tap where that piece stands.
+      const at = typeof a.at === 'string' ? state.pieces[a.at]?.at : undefined;
+      if (at?.kind === 'corner') t.corners.set(at.id, a);
+      else if (at?.kind === 'edge') t.edges.set(at.id, a);
+    }
     return t;
   }
   if (PRINCES_BOARD_PHASES.includes(state.phase.id))
@@ -472,7 +478,7 @@ function prompt(
         return `${who}: tap one of your cities for a wall. Tap the button again to cancel.`;
       if (parseLoanMode(mode)) {
         const l = parseLoanMode(mode)!;
-        return `${who}: tap a glowing spot for a ${l.item} on a ${l.term}-turn loan.`;
+        return `${who}: tap a glowing spot for ${townLabel(l.item)} on a ${l.term}-turn loan.`;
       }
       if (mode)
         return `${who}: tap a glowing spot to build a ${mode}. Tap the button again to cancel.`;

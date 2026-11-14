@@ -18,7 +18,7 @@ import {
   marketRatio,
   upChoices,
 } from '../src/index.ts';
-import { investorsDice } from '../src/market.ts';
+import { wrapInvestorsDice } from '../src/market.ts';
 
 const lib = new ModuleLibrary([baseModule, investorsModule]);
 
@@ -90,7 +90,13 @@ describe('Investors & Speculators', () => {
       ctx.state.turn = { number: 1, player: 0, round: 0 };
     });
     const c = ctxOf(s);
-    for (let i = 0; i < 300; i++) expect(investorsDice(c).total).not.toBe(7);
+    const dice = wrapInvestorsDice((ctx) => {
+      const a = ctx.rng.int(1, 6);
+      const b = ctx.rng.int(1, 6);
+      return { dice: { white1: a, white2: b }, total: a + b };
+    });
+    for (let i = 0; i < 300; i++) expect(dice(c).total).not.toBe(7);
+    expect(c.registry.dice).not.toBeNull();
   });
 
   it('sets the rates on a 7 instead of robbing', () => {

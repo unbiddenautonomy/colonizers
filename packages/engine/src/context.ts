@@ -1,7 +1,7 @@
 import { buildGeometry, type Geometry } from './board.ts';
 import { RuleError } from './errors.ts';
 import type { CornerId, EdgeId, HexId } from './hex.ts';
-import type { DiceResult, Hooks, Reducers, Registry } from './module.ts';
+import { plainDice, type DiceResult, type Hooks, type Reducers, type Registry } from './module.ts';
 import { Rng } from './rng.ts';
 import type { Cards, GameEvent, GameState, Location, Phase, Piece, PlayerState } from './types.ts';
 
@@ -100,10 +100,7 @@ export class Ctx {
   }
 
   rollDice(): DiceResult {
-    if (this.registry.dice) return this.registry.dice(this);
-    const a = this.rng.int(1, 6);
-    const b = this.rng.int(1, 6);
-    return { dice: { white1: a, white2: b }, total: a + b };
+    return (this.registry.dice ?? plainDice)(this);
   }
 
   vp(seat: number): number {
