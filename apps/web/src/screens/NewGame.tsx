@@ -97,6 +97,7 @@ export function NewGame({
   const [soldiersWanted, setSoldiers] = useState(false);
   const [investorsWanted, setInvestors] = useState(false);
   const [kingdomsWanted, setKingdoms] = useState(false);
+  const [landWaterWanted, setLandWater] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -174,12 +175,19 @@ export function NewGame({
     !wonders &&
     effective.kind !== 'special';
   const kingdoms = kingdomsWanted && kingdomsOk;
+  // Land & Water goes on the base game, on the usual maps and Seafarers without fog, for now.
+  const fog =
+    effective.kind === 'scenario' && SEA_SCENARIOS.find((x) => x.id === effective.id)?.fog === true;
+  const landWaterOk =
+    !ck && !princes && !soldiers && !investors && !kingdoms && !wonders && !specialId && !fog;
+  const landWater = landWaterWanted && landWaterOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
     (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) +
     (princes ? 4 : 0) +
     (soldiers && !princes ? 3 : 0) +
-    (kingdoms ? 2 : 0);
+    (kingdoms ? 2 : 0) +
+    (landWater ? 2 : 0);
   const fanName =
     church && witches
       ? 'Church and Witches'
@@ -188,12 +196,23 @@ export function NewGame({
         : witches
           ? 'Witches, Wizards & Dragons'
           : 'Cities & Knights';
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}:${investors}:${kingdoms}`;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}:${investors}:${kingdoms}:${landWater}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
-  const bonus = vpBonus(ck, specialId, gwp, civs, church, witches, princes, soldiers, kingdoms);
+  const bonus = vpBonus(
+    ck,
+    specialId,
+    gwp,
+    civs,
+    church,
+    witches,
+    princes,
+    soldiers,
+    kingdoms,
+    landWater,
+  );
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const special = useMemo(
     () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
@@ -245,6 +264,7 @@ export function NewGame({
               ...(soldiers ? ['soldiers'] : []),
               ...(investors ? ['investors'] : []),
               ...(kingdoms ? ['kingdoms'] : []),
+              ...(landWater ? ['landwater'] : []),
             ],
             ck,
             gwp,
@@ -656,6 +676,20 @@ export function NewGame({
               {!kingdomsOk
                 ? 'Fan expansion for the usual maps and Seafarers, with or without Cities & Knights and Investors & Speculators (not with the other fan expansions yet).'
                 : 'Fan expansion: kingdoms spread out from your cities, take their fields’ resources, score a point for every 3 joined, and are fought over with your knights. Plays to 2 points more.'}
+            </small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${landWater ? 'on' : ''}`}
+            aria-pressed={landWater}
+            disabled={!landWaterOk}
+            onClick={() => setLandWater(!landWater)}
+          >
+            <strong>🚂 Land &amp; Water</strong>
+            <small>
+              {!landWaterOk
+                ? 'Fan expansion for the base game, on the usual maps and Seafarers without fog (not with Cities & Knights or the other expansions yet).'
+                : 'Fan expansion: no roads. Trains, ships and planes travel through the fields, collect their yields, fish and trade at harbors, and found new settlements. Plays to 12.'}
             </small>
           </button>
           <button
