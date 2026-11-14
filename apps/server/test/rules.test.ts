@@ -189,8 +189,12 @@ describe('game options', () => {
       'seed',
     );
     expect(sea.modules).toEqual(['base', 'seafarers', 'variants', 'soldiers']);
-    // Not with Cities & Knights or Princes & Explorers yet.
-    for (const more of [{ citiesKnights: true }, { princes: true }])
+    // With Cities & Knights, to 16.
+    const ck = buildConfig(cleanSettings({ ...settings, citiesKnights: true }), names(4), 'seed');
+    expect(ck.modules).toEqual(['base', 'variants', 'cities-knights', 'soldiers']);
+    expect(ck.settings?.vpTarget).toBe(16);
+    // Not with Princes & Explorers yet.
+    for (const more of [{ princes: true }])
       expect(
         buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
       ).not.toContain('soldiers');

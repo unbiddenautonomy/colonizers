@@ -1,5 +1,6 @@
 import type { Action, ActionDef, Cards, CornerId, HexId, Piece } from '@colonizers/engine';
 import { NUKE, NUKE_ANY, NUKE_COST, NUKE_RANGE } from './constants.ts';
+import { loseMetropolis } from './ck.ts';
 import { checkDestroyed } from './fate.ts';
 import { hexDistance, setTurnFlag, soldiersData, wallsOf } from './rules.ts';
 import type { Ctx } from '@colonizers/engine';
@@ -90,6 +91,7 @@ export const buyNuke = action<{ corner: CornerId; cards: Cards }>({
 function blast(ctx: Ctx, b: Piece): void {
   const walls = wallsOf(b);
   if (walls > 0) b.props.walls = walls - 1;
+  else if (typeof b.props.metropolis === 'string') loseMetropolis(ctx, b);
   else if (b.type !== 'settlement' && ctx.supplyLeft(b.owner as number, 'settlement') > 0) {
     const s = ctx.upgrade(b, 'settlement');
     delete s.props.damaged;

@@ -7,13 +7,13 @@ import { CostLine } from '../ui/Cards.tsx';
 export const soldiersOn = (state: GameState) => state.modules.includes('soldiers');
 
 /** Steps where the player taps the board. */
-export const SOLDIERS_BOARD_PHASES = ['campaign', 'battle'];
+export const SOLDIERS_BOARD_PHASES = ['campaign', 'battle', 'relocateMerchant'];
 
 export const SOLDIERS_MODES = [
   'musterInfantry',
   'musterCavalry',
   'musterArtillery',
-  'wall',
+  'cityWall',
   'nuke',
 ] as const;
 export type SoldiersMode = (typeof SOLDIERS_MODES)[number];
@@ -67,8 +67,8 @@ export function soldiersTargets(
   if (ph === 'main' && isSoldiersMode(mode)) {
     for (const a of legal) {
       const want =
-        mode === 'wall'
-          ? a.type === 'buildWall'
+        mode === 'cityWall'
+          ? a.type === 'buildCityWall'
           : mode === 'nuke'
             ? a.type === 'buyNuke'
             : a.type === 'buyUnit' && a.unit === MUSTER[mode];
@@ -81,9 +81,17 @@ export function soldiersTargets(
       if (a.type === 'battleRetreat' && a.to) t.corners.set(a.to as CornerId, a);
     return t;
   }
+  if (ph === 'relocateMerchant') {
+    for (const a of legal) if (a.type === 'relocateMerchant') t.hexes.set(a.hex as HexId, a);
+    return t;
+  }
   if (ph !== 'campaign') return null;
   const armyActions = legal.filter(
-    (a) => a.type === 'marchArmy' || a.type === 'attack' || a.type === 'attackRobber',
+    (a) =>
+      a.type === 'marchArmy' ||
+      a.type === 'attack' ||
+      a.type === 'attackRobber' ||
+      a.type === 'attackMerchant',
   );
   const chosen = selected !== null && armyActions.some((a) => a.army === selected);
   // Without an army picked, a field the nuke can reach sets it off.
@@ -99,8 +107,9 @@ export function soldiersTargets(
     if (a.type === 'marchArmy') t.corners.set(a.to as CornerId, a);
     // With your other armies next to the target joining in, where they can.
     if (a.type === 'attack') t.corners.set((a.target as { corner: CornerId }).corner, a);
-    if (a.type === 'attackRobber') {
-      const r = Object.values(state.pieces).find((p) => p.type === 'robber');
+    if (a.type === 'attackRobber' || a.type === 'attackMerchant') {
+      const kind = a.type === 'attackRobber' ? 'robber' : 'merchant';
+      const r = Object.values(state.pieces).find((p) => p.type === kind);
       if (r?.at.kind === 'hex') t.hexes.set(r.at.id, a);
     }
   }
@@ -119,7 +128,8 @@ export function soldiersPrompt(
   const mine = actor === state.turn.player;
   const by = state.players[state.turn.player]?.name ?? 'A player';
   if (ph.id === 'main' && mine && isSoldiersMode(mode)) {
-    if (mode === 'wall') return `${who}: tap one of your cities to wall it (up to three walls).`;
+    if (mode === 'cityWall')
+      return `${who}: tap one of your cities to wall it (up to three walls).`;
     if (mode === 'nuke')
       return `${who}: tap one of your settlements or cities for the nuke (6 ore, 5 grain and your 5 most plentiful other cards).`;
     return `${who}: tap one of your settlements or cities to muster ${MUSTER[mode]} there.`;
@@ -144,6 +154,14 @@ export function soldiersPrompt(
       return defending
         ? `${by} is attacking you. Hold out, or capitulate.`
         : `${by} is fighting a battle.`;
+    case 'relocateMerchant':
+      return mine
+        ? `${who}: the merchant is beaten. Tap a field to move it to.`
+        : `${by} beat the merchant.`;
+    case 'merchantToll':
+      return mine
+        ? `${who}: the merchant held. Give its owner two cards.`
+        : `${by} lost to the merchant.`;
     case 'robberToll':
       return mine ? `${who}: the robber won. Hand over a resource.` : `${by} lost to the robber.`;
     default:
@@ -190,10 +208,10 @@ export function SoldiersActions({
       })}
       <button
         type="button"
-        className={mode === 'wall' ? 'on' : ''}
-        aria-pressed={mode === 'wall'}
-        disabled={!has('buildWall')}
-        onClick={() => toggle('wall')}
+        className={mode === 'cityWall' ? 'on' : ''}
+        aria-pressed={mode === 'cityWall'}
+        disabled={!has('buildCityWall')}
+        onClick={() => toggle('cityWall')}
         title="A wall adds 1 to a city's defence and keeps 2 more cards on a 7"
       >
         🧱 Wall <CostLine cost={ctx.cost('wall', actor)} />
@@ -330,6 +348,17 @@ export function SoldiersChoices({
         {capitulate}
       </>
     );
+  }
+  if (state.phase.id === 'merchantToll') {
+    const pay = legal.find((a) => a.type === 'payMerchantToll');
+    return pay ? (
+      <button type="button" className="primary" onClick={() => act(pay)}>
+        Give{' '}
+        {Object.entries(pay.cards as Record<string, number>)
+          .map(([c, n]) => `${n} ${c}`)
+          .join(' and ')}
+      </button>
+    ) : null;
   }
   if (state.phase.id === 'robberToll')
     return (
