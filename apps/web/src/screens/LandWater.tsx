@@ -26,7 +26,13 @@ import { CostLine } from '../ui/Cards.tsx';
 export const landWaterOn = (state: GameState) => state.modules.includes('landwater');
 
 export type LandWaterMode =
-  `lw:${Vehicle}` | `lwFree:${Vehicle}` | 'lwMove' | 'lwActivate' | 'lwChase';
+  | `lw:${Vehicle}`
+  | `lwFree:${Vehicle}`
+  | `lwProg:${Vehicle}`
+  | 'lwMove'
+  | 'lwActivate'
+  | 'lwChase'
+  | 'lwIntrigue';
 export const LW_MODES: readonly string[] = [
   'lw:train',
   'lw:ferry',
@@ -37,7 +43,22 @@ export const LW_MODES: readonly string[] = [
   'lwMove',
   'lwActivate',
   'lwChase',
+  'lwProg:train',
+  'lwProg:ferry',
+  'lwProg:plane',
+  'lwIntrigue',
 ];
+
+/** A free vehicle: Road Building as a development card, or as a progress card. */
+const isFree = (a: Action, mode: string) =>
+  a.card === 'roadBuilding' &&
+  ((mode === `lwFree:${a.vehicle as string}` && a.type === 'playDevCard') ||
+    (mode === `lwProg:${a.vehicle as string}` && a.type === 'playProgress'));
+
+/** A chase: a knight card, or the Intrigue progress card. */
+const isChase = (a: Action, mode: string) =>
+  (mode === 'lwChase' && a.type === 'playDevCard' && a.use === 'chase') ||
+  (mode === 'lwIntrigue' && a.type === 'playProgress' && a.card === 'intrigue');
 
 export const VEHICLE_ICON: Record<Vehicle, string> = { train: '🚂', ferry: '⛴️', plane: '✈️' };
 export const VEHICLE_NAME: Record<Vehicle, string> = {
@@ -76,13 +97,7 @@ export function landWaterTargets(
   for (const a of legal) {
     if (mode.startsWith('lw:') && a.type === 'buildVehicle' && `lw:${a.vehicle}` === mode)
       t.corners.set(a.corner as CornerId, a);
-    else if (
-      mode.startsWith('lwFree:') &&
-      a.type === 'playDevCard' &&
-      a.card === 'roadBuilding' &&
-      `lwFree:${a.vehicle}` === mode
-    )
-      t.corners.set(a.corner as CornerId, a);
+    else if (isFree(a, mode)) t.corners.set(a.corner as CornerId, a);
     else if (mode === 'lwActivate' && a.type === 'activateVehicle')
       mark(t, state.pieces[a.piece as string]?.at, a);
     else if (mode === 'lwMove' && a.type === 'moveVehicle') {
@@ -90,7 +105,7 @@ export function landWaterTargets(
       if (selected === null)
         mark(t, state.pieces[a.piece as string]?.at, select(a, a.piece as string));
       else if (a.piece === selected) mark(t, a.to as Piece['at'], a);
-    } else if (mode === 'lwChase' && a.type === 'playDevCard' && a.use === 'chase') {
+    } else if (isChase(a, mode)) {
       if (selected === null)
         mark(t, state.pieces[a.target as string]?.at, select(a, a.target as string));
       else if (a.target === selected) {
@@ -106,16 +121,18 @@ export function landWaterTargets(
 export function landWaterPrompt(who: string, mode: string, selected: string | null): string | null {
   if (mode.startsWith('lw:'))
     return `${who}: tap one of your ${mode === 'lw:plane' ? 'cities' : mode === 'lw:ferry' ? 'settlements or cities on the coast' : 'settlements or cities'} to build a ${VEHICLE_NAME[mode.slice(3) as Vehicle].toLowerCase()} there.`;
-  if (mode.startsWith('lwFree:'))
-    return `${who}: Road Building. Tap a settlement or city to build a ${VEHICLE_NAME[mode.slice(7) as Vehicle].toLowerCase()} there${mode === 'lwFree:plane' ? ', saving 3 of its cards' : ' for free'}.`;
+  if (mode.startsWith('lwFree:') || mode.startsWith('lwProg:')) {
+    const v = mode.slice(mode.indexOf(':') + 1) as Vehicle;
+    return `${who}: Road Building. Tap a settlement or city to build a ${VEHICLE_NAME[v].toLowerCase()} there${v === 'plane' ? ', saving 3 of its cards' : ' for free'}.`;
+  }
   if (mode === 'lwMove')
     return selected === null
       ? `${who}: tap one of your active vehicles to move it.`
       : `${who}: tap where it goes. Each step goes into a field or out to one of its corners.`;
   if (mode === 'lwActivate') return `${who}: tap a passive vehicle to turn it active again.`;
-  if (mode === 'lwChase')
+  if (mode === 'lwChase' || mode === 'lwIntrigue')
     return selected === null
-      ? `${who}: tap a rival's train or ship in a field to chase it out with a knight.`
+      ? `${who}: tap a rival's train or ship in a field to chase it out${mode === 'lwChase' ? ' with a knight' : ''}.`
       : `${who}: tap the field it goes to.`;
   return null;
 }
@@ -224,18 +241,22 @@ export function LandWaterActions({
           : 'A train, built at a settlement or city: it collects the yield of the field it stands in',
     ),
   );
-  const free = (['train', 'ferry', 'plane'] as const)
-    .filter((v) => can('playDevCard', (a) => a.card === 'roadBuilding' && a.vehicle === v))
-    .map((v) =>
-      button(
-        `lwFree:${v}`,
-        <>🛤️ Free {VEHICLE_NAME[v].toLowerCase()}</>,
-        true,
-        v === 'plane'
-          ? 'Road Building: a plane for 3 cards less'
-          : `Road Building: a free ${VEHICLE_NAME[v].toLowerCase()}`,
+  const free = (['playDevCard', 'playProgress'] as const).flatMap((type) =>
+    (['train', 'ferry', 'plane'] as const)
+      .filter((v) => can(type, (a) => a.card === 'roadBuilding' && a.vehicle === v))
+      .map((v) =>
+        button(
+          `${type === 'playDevCard' ? 'lwFree' : 'lwProg'}:${v}`,
+          <>
+            {type === 'playDevCard' ? '🛤️' : '📜'} Free {VEHICLE_NAME[v].toLowerCase()}
+          </>,
+          true,
+          v === 'plane'
+            ? 'Road Building: a plane for 3 cards less'
+            : `Road Building: a free ${VEHICLE_NAME[v].toLowerCase()}`,
+        ),
       ),
-    );
+  );
   const boost = boostLeft(ctx, actor);
   return (
     <>
@@ -269,6 +290,13 @@ export function LandWaterActions({
           true,
           "Play a knight to chase a rival's train or ship out of its field",
         )}
+      {can('playProgress', (a) => a.card === 'intrigue' && typeof a.target === 'string') &&
+        button(
+          'lwIntrigue',
+          <>📜 Intrigue: chase</>,
+          true,
+          "Play Intrigue to chase a rival's train or ship out of its field",
+        )}
       {free}
     </>
   );
@@ -278,12 +306,17 @@ export function LandWaterActions({
 export function LandWaterStats({ ctx, seat }: { ctx: Ctx; seat: number }) {
   const vs = vehiclesOf(ctx, seat);
   const most = lwData(ctx).mostVehicles === seat;
-  if (!vs.length && !most) return null;
+  // With Cities & Knights, played knight cards are the army against the barbarians.
+  const knights = ctx.state.modules.includes('cities-knights')
+    ? (ctx.player(seat).played.knight ?? 0)
+    : 0;
+  if (!vs.length && !most && !knights) return null;
   const count = (t: Vehicle) => vs.filter((v) => v.type === t).length;
   return (
     <small className="muted" title="Trains, ships and planes; Most Vehicles is worth 2 points">
       🚂 {count('train')} ⛴️ {count('ferry')} ✈️ {count('plane')}
       {most ? ' · 🏅 Most Vehicles' : ''}
+      {knights ? ` · ⚔️ ${knights}` : ''}
     </small>
   );
 }

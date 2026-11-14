@@ -175,11 +175,21 @@ export function NewGame({
     !wonders &&
     effective.kind !== 'special';
   const kingdoms = kingdomsWanted && kingdomsOk;
-  // Land & Water goes on the base game, on the usual maps and Seafarers without fog, for now.
+  // Land & Water goes on the base game or Cities & Knights, on the usual maps and Seafarers
+  // without fog, for now.
   const fog =
     effective.kind === 'scenario' && SEA_SCENARIOS.find((x) => x.id === effective.id)?.fog === true;
   const landWaterOk =
-    !ck && !princes && !soldiers && !investors && !kingdoms && !wonders && !specialId && !fog;
+    !gwp &&
+    !church &&
+    !witches &&
+    !princes &&
+    !soldiers &&
+    !investors &&
+    !kingdoms &&
+    !wonders &&
+    !specialId &&
+    !fog;
   const landWater = landWaterWanted && landWaterOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
@@ -187,7 +197,8 @@ export function NewGame({
     (princes ? 4 : 0) +
     (soldiers && !princes ? 3 : 0) +
     (kingdoms ? 2 : 0) +
-    (landWater ? 2 : 0);
+    // With Cities & Knights it plays to 14, one more than that expansion's 13.
+    (landWater ? (ck ? 1 : 2) : 0);
   const fanName =
     church && witches
       ? 'Church and Witches'
@@ -688,8 +699,8 @@ export function NewGame({
             <strong>🚂 Land &amp; Water</strong>
             <small>
               {!landWaterOk
-                ? 'Fan expansion for the base game, on the usual maps and Seafarers without fog (not with Cities & Knights or the other expansions yet).'
-                : 'Fan expansion: no roads. Trains, ships and planes travel through the fields, collect their yields, fish and trade at harbors, and found new settlements. Plays to 12.'}
+                ? 'Fan expansion for the base game or Cities & Knights, on the usual maps and Seafarers without fog (not with the other expansions yet).'
+                : 'Fan expansion: no roads. Trains, ships and planes travel through the fields, collect their yields, fish and trade at harbors, and found new settlements. Plays to 12 (14 with Cities & Knights).'}
             </small>
           </button>
           <button

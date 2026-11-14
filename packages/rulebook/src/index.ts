@@ -98,6 +98,7 @@ export const ERROR_PAGES: [RegExp, string][] = [
   ],
   [/planes can not be chased|chased|pick what the knight does/i, 'landwater-cards'],
   [/two generic harbors/i, 'landwater-yields'],
+  [/no knight pieces in land|only knight cards are played/i, 'landwater-ck'],
   [/diocese/i, 'church-diocese'],
   [/festival|beer/i, 'church-beer'],
   [/^lent|anathema/i, 'church-cards'],

@@ -708,6 +708,10 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🦸 ${n(e.player)} has a level 4 knight: Hero of Catan, +1 point!`;
     case 'barbariansAdvance':
       return null;
+    case 'barbariansWait':
+      return `⛵ The barbarian ship stays in port (${e.rolls as number} of 3): it sets sail on the third ship.`;
+    case 'knightCardDeserted':
+      return `${n(e.player)} won over one of ${n(e.from)}'s knights.`;
     case 'barbarianAttack':
       return e.defended
         ? `⚔️ The barbarians attack (${e.cities as number}) and the knights (${e.knights as number}) hold them off!`

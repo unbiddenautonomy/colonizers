@@ -44,6 +44,8 @@ export const MOST_VEHICLES_VP = 2;
 export const HAND_LIMIT_EXTRA = 3;
 /** Land & Water plays to 12, 2 points more than usual. */
 export const LAND_WATER_EXTRA_VP = 2;
+/** With Cities & Knights it plays to 14, 1 more than that expansion's 13. */
+export const LAND_WATER_CK_EXTRA_VP = 1;
 
 export interface LandWaterData {
   /** Holder of the Most Vehicles card. */
