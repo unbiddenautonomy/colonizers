@@ -20,6 +20,8 @@ import {
   startingHexes,
   swapNumbers,
   swapPairs,
+  isDesert,
+  withSea,
 } from './rules.ts';
 
 /**
@@ -43,6 +45,10 @@ import {
  *
  * With Cities & Knights (list it after Cities & Knights), knights give way
  * to move the robber and the Bishop goes six fields: see ck.ts. Play to 17.
+ *
+ * With Seafarers, princes and the robber cross the sea along the mover's
+ * closed ship lines, the princes start apart on the home island, and the
+ * robber comes in on the first 7 onto a settled field.
  */
 
 export * from './constants.ts';
@@ -245,11 +251,11 @@ function afterSettlement(ctx: Ctx, a: Action): void {
     steps.push('prince');
     if (princesAtCorner(ctx, corner) > 0) steps.push('explore');
   }
-  const atDesert = (ctx.geometry.cornerHexes.get(corner as never) ?? []).some((h) => {
-    const hex = ctx.state.hexes[h];
-    return !!hex && ctx.isLand(h) && !ctx.registry.hexTypes[hex.type]?.produces;
-  });
-  if (atDesert && !robber(ctx) && !princesData(ctx).robberIn) steps.push('robber');
+  // With Seafarers the robber waits for the first 7 instead.
+  const atDesert = (ctx.geometry.cornerHexes.get(corner as never) ?? []).some((h) =>
+    isDesert(ctx, h),
+  );
+  if (atDesert && !withSea(ctx) && !robber(ctx) && !princesData(ctx).robberIn) steps.push('robber');
   if (steps.length) nextStep(ctx, a.player, steps, ctx.state.phase);
 }
 

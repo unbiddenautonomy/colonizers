@@ -90,17 +90,15 @@ export function witchesOn(
 }
 
 /**
- * Princes & Explorers goes on the usual maps, on the base game or Cities & Knights, but not
- * yet with Seafarers or the other fan expansions.
+ * Princes & Explorers goes on the usual maps and Seafarers, on the base game or Cities &
+ * Knights, but not yet with the special maps or the other fan expansions.
  */
 export function princesOn(
   settings: Pick<RoomSettings, 'princes' | 'map'>,
   otherFan: boolean,
 ): boolean {
   const kind = settings.map.kind;
-  return (
-    settings.princes && !otherFan && (kind === 'random' || kind === 'preset' || kind === 'custom')
-  );
+  return settings.princes && !otherFan && kind !== 'special';
 }
 
 /** Civilisations goes on top of Greed, Wealth & Power. */

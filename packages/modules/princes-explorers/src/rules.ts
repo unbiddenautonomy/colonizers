@@ -1,4 +1,4 @@
-import type { Ctx, EdgeId, HexId, HexState, Piece } from '@colonizers/engine';
+import type { CornerId, Ctx, EdgeId, HexId, HexState, Piece } from '@colonizers/engine';
 import { robber } from '@colonizers/module-base';
 import { CUT_ROAD, MODULE_ID, PRINCE, PRINCE_COUNT, ROBBER_RANGE } from './constants.ts';
 
@@ -48,26 +48,111 @@ export function openBetween(ctx: Ctx, a: HexId, b: HexId, seat: number): boolean
     .some((p) => p.type === 'road' && p.owner !== null && p.owner !== seat);
 }
 
-/** Land hexes next to this one that a piece moved by `seat` can step onto. */
-function steps(ctx: Ctx, from: HexId, seat: number, blocked: Set<HexId>): HexId[] {
-  return (ctx.geometry.hexNeighbours.get(from) ?? []).filter(
-    (h) => landHex(ctx, h) && !blocked.has(h) && openBetween(ctx, from, h, seat),
+export const withSea = (ctx: Ctx) => ctx.state.modules.includes('seafarers');
+
+/** A field with no number that makes nothing: the desert. */
+export function isDesert(ctx: Ctx, h: HexId): boolean {
+  const hex = ctx.state.hexes[h];
+  return (
+    !!hex &&
+    landHex(ctx, h) &&
+    hex.token === undefined &&
+    !ctx.registry.hexTypes[hex.type]?.produces
   );
+}
+
+type Links = Map<HexId, Set<HexId>>;
+
+/**
+ * Seafarers: fields on two islands joined by one of the player's closed ship
+ * lines (ships from one of their buildings to another). A prince or the
+ * robber crosses the sea along it in one step.
+ */
+export function shipLinks(ctx: Ctx, seat: number): Links {
+  const links: Links = new Map();
+  if (!withSea(ctx)) return links;
+  const ships = new Set<EdgeId>();
+  for (const p of ctx.piecesOf(seat, 'ship')) if (p.at.kind === 'edge') ships.add(p.at.id);
+  if (!ships.size) return links;
+  const mine = (c: CornerId) => ctx.buildingAt(c)?.owner === seat;
+  const land = (c: CornerId) =>
+    (ctx.geometry.cornerHexes.get(c) ?? []).filter((h) => landHex(ctx, h));
+  for (const p of ctx.piecesOf(seat)) {
+    if (p.at.kind !== 'corner' || !ctx.registry.pieceTypes[p.type]?.building) continue;
+    const start = p.at.id;
+    const seen = new Set<CornerId>([start]);
+    const queue = [start];
+    while (queue.length) {
+      const c = queue.shift() as CornerId;
+      for (const e of ctx.geometry.cornerEdges.get(c) ?? []) {
+        if (!ships.has(e)) continue;
+        const next = (ctx.geometry.edgeCorners.get(e) ?? []).find((x) => x !== c);
+        if (!next || seen.has(next)) continue;
+        seen.add(next);
+        // A line ends at a building; one that reaches another of theirs is closed.
+        if (mine(next)) {
+          for (const a of land(start))
+            for (const b of land(next)) {
+              if (a === b) continue;
+              if (!links.has(a)) links.set(a, new Set());
+              links.get(a)?.add(b);
+              if (!links.has(b)) links.set(b, new Set());
+              links.get(b)?.add(a);
+            }
+        } else queue.push(next);
+      }
+    }
+  }
+  return links;
+}
+
+/** Fields a piece moved by `seat` can step onto: a neighbour, or across a ship line. */
+function steps(
+  ctx: Ctx,
+  from: HexId,
+  seat: number,
+  blocked: Set<HexId>,
+  links: Links = new Map(),
+): HexId[] {
+  const out = new Set(
+    (ctx.geometry.hexNeighbours.get(from) ?? []).filter(
+      (h) => landHex(ctx, h) && !blocked.has(h) && openBetween(ctx, from, h, seat),
+    ),
+  );
+  for (const h of links.get(from) ?? []) if (landHex(ctx, h) && !blocked.has(h)) out.add(h);
+  return [...out];
 }
 
 // ---- The princes ----
 
 /** Where the princes start: a desert, the 2, the 12, and a 3 or 11, as far as the map has them. */
 export function startingHexes(ctx: Ctx): HexId[] {
-  const hexes = Object.values(ctx.state.hexes).filter((h) => landHex(ctx, h.id));
+  // With Seafarers: on the home island, and well apart from each other.
+  const sea = withSea(ctx);
+  const home = sea ? ctx.setting<HexId[] | null>('setupHexes') : null;
+  const hexes = Object.values(ctx.state.hexes).filter(
+    (h) => landHex(ctx, h.id) && (!home?.length || home.includes(h.id)),
+  );
+  const apart = (h: HexState) =>
+    Math.min(
+      Infinity,
+      ...[...taken].map((t) => {
+        const o = ctx.state.hexes[t] as HexState;
+        return (Math.abs(h.q - o.q) + Math.abs(h.r - o.r) + Math.abs(h.q + h.r - o.q - o.r)) / 2;
+      }),
+    );
   const pick = (list: HexState[]): HexId | null => {
-    const free = list.filter((h) => !taken.has(h.id));
+    let free = list.filter((h) => !taken.has(h.id));
     if (!free.length) return null;
+    if (sea && taken.size) {
+      const best = Math.max(...free.map(apart));
+      free = free.filter((h) => apart(h) === best);
+    }
     return (free[ctx.rng.int(0, free.length - 1)] as HexState).id;
   };
   const taken = new Set<HexId>();
   const groups: HexState[][] = [
-    hexes.filter((h) => h.token === undefined && !ctx.registry.hexTypes[h.type]?.produces),
+    hexes.filter((h) => isDesert(ctx, h.id)),
     hexes.filter((h) => h.token === 2),
     hexes.filter((h) => h.token === 12),
     hexes.filter((h) => h.token === 3 || h.token === 11),
@@ -85,11 +170,12 @@ export function startingHexes(ctx: Ctx): HexId[] {
 export function princeMoves(ctx: Ctx, seat: number): { prince: string; hex: HexId }[] {
   const out: { prince: string; hex: HexId }[] = [];
   const r = robberHex(ctx);
+  const links = shipLinks(ctx, seat);
   const blocked = new Set(princeHexes(ctx));
   if (r) blocked.add(r);
   for (const p of princes(ctx)) {
     if (p.at.kind !== 'hex') continue;
-    for (const hex of steps(ctx, p.at.id, seat, blocked)) out.push({ prince: p.id, hex });
+    for (const hex of steps(ctx, p.at.id, seat, blocked, links)) out.push({ prince: p.id, hex });
   }
   return out;
 }
@@ -113,14 +199,20 @@ export function robberAtCorner(ctx: Ctx, corner: string, r = robberHex(ctx)): bo
 export function robberTargets(ctx: Ctx, seat: number, range = ROBBER_RANGE): HexId[] {
   const pr = princeHexes(ctx);
   const start = robberHex(ctx);
+  // With Seafarers it comes in on a field someone has settled.
+  const settled = (h: HexId) =>
+    !withSea(ctx) || (ctx.geometry.hexCorners.get(h) ?? []).some((c) => !!ctx.buildingAt(c));
   if (!start)
-    return (Object.keys(ctx.state.hexes) as HexId[]).filter((h) => landHex(ctx, h) && !pr.has(h));
+    return (Object.keys(ctx.state.hexes) as HexId[]).filter(
+      (h) => landHex(ctx, h) && !pr.has(h) && settled(h),
+    );
+  const links = shipLinks(ctx, seat);
   const reached = new Set<HexId>();
   let frontier = new Set<HexId>([start]);
   for (let i = 0; i < range; i++) {
     const next = new Set<HexId>();
     for (const h of frontier)
-      for (const n of steps(ctx, h, seat, pr)) {
+      for (const n of steps(ctx, h, seat, pr, links)) {
         reached.add(n);
         next.add(n);
       }

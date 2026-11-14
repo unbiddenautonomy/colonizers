@@ -144,6 +144,16 @@ describe('Bots', () => {
     expect(princes).toHaveLength(4);
   }, 240_000);
 
+  it('plays Princes & Explorers with Seafarers', () => {
+    const r = play(
+      game('pf3', 4, 'sea', {}, ['princes']),
+      [medium, medium, medium, medium],
+      6,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+  }, 240_000);
+
   it('plays Princes & Explorers with Cities & Knights', () => {
     const r = play(
       game('pf2', 4, 'ck', { vpTarget: 17 }, ['princes']),
