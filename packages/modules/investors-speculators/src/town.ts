@@ -1,4 +1,4 @@
-import type { Action, Cards, CornerId, Ctx } from '@colonizers/engine';
+import type { Action, Cards, Ctx } from '@colonizers/engine';
 import { RESOURCES } from '@colonizers/module-base';
 import { financeLeft } from './bank.ts';
 import {
@@ -29,12 +29,12 @@ import {
  * loan (anyone's, yours too) won't be paid back, and pay points if it isn't.
  */
 
-/** While true, settlements and cities cost nothing: a town loan is building them. */
+/** While true, town-loan buildings cost nothing: a town loan is building them. */
 let financing = false;
 
 /** The cost reducer's part: nothing while a town loan builds. */
 export function townCost(item: string, value: Cards): Cards {
-  return financing && (TOWN_ITEMS as readonly string[]).includes(item) ? {} : value;
+  return financing && Object.hasOwn(TOWN_ITEMS, item) ? {} : value;
 }
 
 function withFinancing<T>(fn: () => T): T {
@@ -47,40 +47,52 @@ function withFinancing<T>(fn: () => T): T {
   }
 }
 
-const buildType = (item: TownItem) => (item === 'settlement' ? 'buildSettlement' : 'buildCity');
+/** What can go on a town loan in this game. */
+export const townItems = (ctx: Ctx): string[] =>
+  Object.keys(TOWN_ITEMS).filter((item) => !!ctx.registry.actions[TOWN_ITEMS[item]!.action]);
 
 /** Town loan markers of each kind in the box. */
 export const townMarkers = (ctx: Ctx) => (ctx.playerCount >= 5 ? TOWN_MARKERS_BIG : TOWN_MARKERS);
 
-/** Town loans of this kind open across the table. */
-export const townMarkersOut = (ctx: Ctx, item: TownItem) =>
-  investorsData(ctx).loans.filter((l) => l.card === item).length;
+/** Town loans open across the table that took this item's kind of marker. */
+export const townMarkersOut = (ctx: Ctx, item: string) => {
+  const marker = TOWN_ITEMS[item]?.marker;
+  return investorsData(ctx).loans.filter((l) => TOWN_ITEMS[l.card]?.marker === marker).length;
+};
 
-export const buildOnLoan = action<{ item: TownItem; corner: CornerId; term: TownTerm }>({
+/** The build action a town loan goes through, with the loan's own fields taken off. */
+function underlying(a: Action): Action {
+  const { item, term, ...rest } = a as Action & { item: string; term: number };
+  void term;
+  const def = TOWN_ITEMS[item];
+  return { ...rest, type: def?.action ?? '', ...(def?.unit ? { unit: def.unit } : {}) };
+}
+
+export const buildOnLoan = action<{ item: TownItem; term: TownTerm }>({
   phases: ['main'],
   check(ctx, a) {
     const err = onlyActive(ctx, a) ?? financeLeft(ctx);
     if (err) return err;
-    if (!(TOWN_ITEMS as readonly unknown[]).includes(a.item)) return 'Build a settlement or a city';
+    if (typeof a.item !== 'string' || !townItems(ctx).includes(a.item))
+      return 'That can not be built on a loan';
     if (!(TOWN_TERMS as readonly unknown[]).includes(a.term))
       return 'Town loans run 3, 5, 7 or 10 turns';
     if (townMarkersOut(ctx, a.item) >= townMarkers(ctx))
-      return `All ${townMarkers(ctx)} ${a.item} loans are taken`;
-    const def = ctx.registry.actions[buildType(a.item)];
+      return `All ${townMarkers(ctx)} ${TOWN_ITEMS[a.item]!.marker} loans are taken`;
+    const build = underlying(a);
+    const def = ctx.registry.actions[build.type];
     if (!def) return 'Can not build that';
-    return withFinancing(() =>
-      def.check(ctx, { type: buildType(a.item), player: a.player, corner: a.corner }),
-    );
+    return withFinancing(() => def.check(ctx, build));
   },
   apply(ctx, a) {
-    const def = ctx.registry.actions[buildType(a.item)];
+    const build = underlying(a);
+    const def = ctx.registry.actions[build.type];
     const cost = ctx.cost(a.item, a.player);
     const before = ctx.vp(a.player);
-    withFinancing(() =>
-      def?.apply(ctx, { type: buildType(a.item), player: a.player, corner: a.corner }),
-    );
-    // A settlement or city is worth a point more; anything beyond waits on the loan.
-    const held = Math.max(0, ctx.vp(a.player) - before - 1);
+    withFinancing(() => def?.apply(ctx, build));
+    // The building's own point (if any) stays; anything beyond waits on the loan.
+    const own = a.item === 'settlement' || a.item === 'city' || a.item === 'harbor' ? 1 : 0;
+    const held = Math.max(0, ctx.vp(a.player) - before - own);
     const d = investorsData(ctx);
     const id = `l${d.nextId++}`;
     d.loans.push({
@@ -101,15 +113,25 @@ export const buildOnLoan = action<{ item: TownItem; corner: CornerId; term: Town
   enumerate(ctx, player) {
     if (player !== ctx.active || financeLeft(ctx)) return [];
     const out: Action[] = [];
-    for (const item of TOWN_ITEMS) {
+    for (const item of townItems(ctx)) {
       if (townMarkersOut(ctx, item) >= townMarkers(ctx)) continue;
-      const def = ctx.registry.actions[buildType(item)];
-      const corners = withFinancing(() =>
-        (def?.enumerate?.(ctx, player) ?? []).map((x) => x.corner as CornerId),
+      const spec = TOWN_ITEMS[item]!;
+      const def = ctx.registry.actions[spec.action];
+      const builds = withFinancing(() => def?.enumerate?.(ctx, player) ?? []).filter(
+        (b) => !spec.unit || b.unit === spec.unit,
       );
-      for (const corner of new Set(corners))
+      const seen = new Set<string>();
+      for (const b of builds) {
+        const { type, player: _p, unit: _u, ...rest } = b;
+        void type;
+        void _p;
+        void _u;
+        const key = JSON.stringify(rest);
+        if (seen.has(key)) continue;
+        seen.add(key);
         for (const term of TOWN_TERMS)
-          out.push({ type: 'buildOnLoan', player, item, corner, term });
+          out.push({ type: 'buildOnLoan', player, item, term, ...rest });
+      }
     }
     return out;
   },

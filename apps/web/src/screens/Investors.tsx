@@ -21,7 +21,7 @@ import {
   savingsReturn,
   SEVEN_SHOW,
   sevenCounts,
-  TOWN_ITEMS,
+  townItems,
   TOWN_PENALTY,
   TOWN_REPAY,
   TOWN_TERMS,
@@ -205,10 +205,10 @@ export function FinanceDialog({
           );
         })}
       </div>
-      {TOWN_ITEMS.map((item) => (
+      {townItems(ctx).map((item) => (
         <div key={item}>
           <p>
-            Build a {item} on a loan (free now; paid back as 1½ to 2½ of its cost,{' '}
+            Build {townLabel(item)} on a loan (free now; paid back as 1½ to 2½ of its cost,{' '}
             {cardsText(ctx.cost(item, actor))}):
           </p>
           <div className="row wrap">
@@ -439,10 +439,22 @@ function ShowDialog({
   );
 }
 
+const TOWN_LABEL: Record<string, string> = {
+  settlement: 'a settlement',
+  city: 'a city',
+  harbor: 'a harbor settlement',
+  settler: 'a settler',
+  cavalry: 'a cavalry unit',
+  artillery: 'an artillery unit',
+};
+
+/** "a settlement", "an artillery unit": what a town loan builds, in words. */
+export const townLabel = (item: string) => TOWN_LABEL[item] ?? `a ${item}`;
+
 /** A board mode for building on a town loan: `loan:<item>:<term>`. */
 export const loanMode = (item: string, term: number) => `loan:${item}:${term}` as const;
 
 export function parseLoanMode(mode: string | null): { item: string; term: number } | null {
-  const m = mode?.match(/^loan:(settlement|city):(\d+)$/);
+  const m = mode?.match(/^loan:(\w+):(\d+)$/);
   return m ? { item: m[1] as string, term: Number(m[2]) } : null;
 }

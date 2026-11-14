@@ -1,17 +1,17 @@
 import type { ActionDef, GameModule } from '@colonizers/engine';
 import { advanceBank, bankActions, settleDue } from './bank.ts';
-import { BIG_GAME_HAND, MODULE_ID } from './constants.ts';
+import { BIG_GAME_HAND, goldPrice, MODULE_ID } from './constants.ts';
 import {
-  investorsDice,
   marketActions,
   marketRatio,
   maybeStartExchange,
   wrapDiscard,
   wrapMovePirate,
+  wrapInvestorsDice,
   wrapMoveRobber,
 } from './market.ts';
-import { investorsData, isTradable, loansOf } from './rules.ts';
-import { derivativeBlock, townActions, townCost, townMarkersOut } from './town.ts';
+import { investorsData, isTradable, loansOf, rateOf } from './rules.ts';
+import { derivativeBlock, townActions, townCost, townItems, townMarkersOut } from './town.ts';
 
 /**
  * Investors & Speculators (Investoren und Spekulanten, a fan expansion from
@@ -39,7 +39,7 @@ import { derivativeBlock, townActions, townCost, townMarkersOut } from './town.t
 
 export * from './constants.ts';
 export { borrowBlock, extraChoices, extraCount, loanBill, advanceBank, settleDue } from './bank.ts';
-export { derivativeBlock, townMarkersOut };
+export { derivativeBlock, townItems, townMarkersOut };
 export { downChoices, keepChoices, marketRatio, sevenCounts, upChoices } from './market.ts';
 export {
   financeUsed,
@@ -59,16 +59,6 @@ export {
   type SevenState,
 } from './rules.ts';
 
-const wrapRoll = (prev: ActionDef): ActionDef => ({
-  ...prev,
-  apply(ctx, a) {
-    prev.apply(ctx, a);
-    const last = (ctx.state.data.base as { lastRoll?: { total: number } } | undefined)?.lastRoll;
-    if (last?.total === 7) investorsData(ctx).seven = { discarded: {} };
-    advanceBank(ctx, ctx.active);
-  },
-});
-
 const wrapEndTurn = (prev: ActionDef): ActionDef => ({
   ...prev,
   apply(ctx, a) {
@@ -80,10 +70,9 @@ const wrapEndTurn = (prev: ActionDef): ActionDef => ({
 export const investorsModule: GameModule = {
   id: MODULE_ID,
   name: 'Investors & Speculators',
-  dice: investorsDice,
+  wrapDice: wrapInvestorsDice,
   actions: { ...bankActions, ...marketActions, ...townActions },
   wrapActions: {
-    roll: wrapRoll,
     discard: wrapDiscard,
     moveRobber: wrapMoveRobber,
     endTurn: wrapEndTurn,
@@ -96,6 +85,12 @@ export const investorsModule: GameModule = {
       investorsData(ctx);
     },
     afterAction(ctx) {
+      // After the dice (whichever action threw them): the bank moves on, and a 7 opens the market.
+      const rolled = ctx.events.find((e) => e.type === 'rolled');
+      if (rolled) {
+        if (rolled.total === 7) investorsData(ctx).seven = { discarded: {} };
+        advanceBank(ctx, ctx.active);
+      }
       maybeStartExchange(ctx);
     },
   },
@@ -112,7 +107,9 @@ export const investorsModule: GameModule = {
     handLimit(ctx, _seat, value) {
       return ctx.playerCount >= 5 ? value + BIG_GAME_HAND : value;
     },
-    cost(_ctx, item, _seat, value) {
+    cost(ctx, item, _seat, value) {
+      // Explorers & Pirates' gold goes by the market too: 3, 2 or 1 for a resource by its rate.
+      if (item.startsWith('goldBuy:')) return { gold: goldPrice(rateOf(ctx, item.slice(8))) };
       return townCost(item, value);
     },
     canWin(ctx, seat, value) {

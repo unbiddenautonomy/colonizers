@@ -18,7 +18,10 @@
   "devDependencies": {
     "@colonizers/maps": "workspace:*",
     "@colonizers/module-cities-knights": "workspace:*",
+    "@colonizers/module-explorers-pirates": "workspace:*",
+    "@colonizers/module-princes-explorers": "workspace:*",
     "@colonizers/module-seafarers": "workspace:*",
+    "@colonizers/module-soldiers-armies": "workspace:*",
     "typescript": "~6.0.3",
     "vitest": "~4.1.12"
   }

@@ -231,19 +231,30 @@ describe('game options', () => {
     expect(four.settings?.vpTarget).toBe(10);
     const state = library.createGame(four).state;
     expect(state.data.investors).toMatchObject({ rates: { ore: 4, wool: 4 } });
-    // With Cities & Knights (before it, so its dice win) and on the Seafarers scenarios.
+    // With Cities & Knights and on the Seafarers scenarios.
     const ck = buildConfig(cleanSettings({ ...settings, citiesKnights: true }), names(4), 'seed');
-    expect(ck.modules).toEqual(['base', 'variants', 'investors', 'cities-knights']);
+    expect(ck.modules).toEqual(['base', 'variants', 'cities-knights', 'investors']);
     const sea = buildConfig(
       cleanSettings({ ...settings, map: { kind: 'scenario', id: 'new-shores' } }),
       names(4),
       'seed',
     );
     expect(sea.modules).toEqual(['base', 'seafarers', 'variants', 'investors']);
-    // Not yet with the special maps or the other fan expansions.
+    // With Princes & Explorers, Soldiers & Armies and the Explorers & Pirates scenarios.
+    const fan = buildConfig(
+      cleanSettings({ ...settings, princes: true, soldiers: true }),
+      names(4),
+      'seed',
+    );
+    expect(fan.modules).toEqual(['base', 'variants', 'princes', 'soldiers', 'investors']);
+    const ep = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'special', id: 'pirate-lairs' } }),
+      names(3),
+      'seed',
+    );
+    expect(ep.modules).toContain('investors');
+    // Not yet with the other special maps or fan expansions.
     for (const more of [
-      { soldiers: true },
-      { princes: true },
       { worldWonders: true },
       { citiesKnights: true, church: true },
       { map: { kind: 'special' as const, id: 'fishermen' } },

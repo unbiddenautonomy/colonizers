@@ -436,9 +436,18 @@ importers:
       '@colonizers/module-cities-knights':
         specifier: workspace:*
         version: link:../cities-knights
+      '@colonizers/module-explorers-pirates':
+        specifier: workspace:*
+        version: link:../explorers-pirates
+      '@colonizers/module-princes-explorers':
+        specifier: workspace:*
+        version: link:../princes-explorers
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../seafarers
+      '@colonizers/module-soldiers-armies':
+        specifier: workspace:*
+        version: link:../soldiers-armies
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
