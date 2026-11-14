@@ -1,0 +1,23 @@
+{
+  "name": "@colonizers/module-princes-explorers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Princes & Explorers (SiedlerInsel): four princes that make buildings worth more, a robber that takes points instead of cards, and explorers that swap numbers.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@colonizers/engine": "workspace:*",
+    "@colonizers/module-base": "workspace:*"
+  },
+  "devDependencies": {
+    "@colonizers/maps": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.12"
+  }
+}

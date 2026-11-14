@@ -30,6 +30,7 @@ export function vpBonus(
   civs = false,
   church = false,
   witches = false,
+  princes = false,
 ): number {
   const ckAdjust =
     citiesKnights && specialId ? (TDA_CK_ADJUST[specialId as keyof typeof TDA_CK_ADJUST] ?? 0) : 0;
@@ -37,7 +38,8 @@ export function vpBonus(
   // Witches to 15, both to 17.
   const fan = church && witches ? 7 : church || witches ? 5 : 3;
   const expansion = citiesKnights ? (gwp ? (civs ? 10 : 8) : fan) : 0;
-  return expansion + (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) + ckAdjust;
+  // Princes & Explorers plays to 14 with the usual 10.
+  return expansion + (princes ? 4 : 0) + (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) + ckAdjust;
 }
 
 export function hasRobber(specialId: string | null): boolean {

@@ -93,6 +93,7 @@ export function NewGame({
   const [civsWanted, setCivs] = useState(false);
   const [churchWanted, setChurch] = useState(false);
   const [witchesWanted, setWitches] = useState(false);
+  const [princesWanted, setPrinces] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -141,8 +142,12 @@ export function NewGame({
   const church = ck && churchWanted && !gwp && !specialId;
   // Witches, Wizards & Dragons likewise, alone or with Church.
   const witches = ck && witchesWanted && !gwp && !specialId;
+  // Princes & Explorers goes on the base game's usual maps (not Seafarers or the special maps yet).
+  const princesMap =
+    effective.kind === 'random' || effective.kind === 'preset' || effective.kind === 'custom';
+  const princes = !ck && princesWanted && princesMap;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
-  const extraVp = civs ? 10 : gwp ? 8 : ck ? fanVp : 0;
+  const extraVp = (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) + (princes ? 4 : 0);
   const fanName =
     church && witches
       ? 'Church and Witches'
@@ -151,12 +156,12 @@ export function NewGame({
         : witches
           ? 'Witches, Wizards & Dragons'
           : 'Cities & Knights';
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}`;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
-  const bonus = vpBonus(ck, specialId, gwp, civs, church, witches);
+  const bonus = vpBonus(ck, specialId, gwp, civs, church, witches, princes);
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
@@ -191,12 +196,25 @@ export function NewGame({
   const start = () => {
     const players = names.slice(0, count).map((n, i) => n.trim() || `Player ${i + 1}`);
     const opts = optionSettings(options, count);
+    // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
+    if (princes) {
+      if (opts.turnMode === 'specialBuild') opts.turnMode = 'normal';
+      opts.friendlyRobber = false;
+    }
     const make = (extraModules: string[], map: MapSpec, own: Record<string, unknown>) =>
       onStart({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
           players,
-          modules: moduleList(extraModules, ck, gwp, wonders, civs, church, witches),
+          modules: moduleList(
+            [...extraModules, ...(princes ? ['princes'] : [])],
+            ck,
+            gwp,
+            wonders,
+            civs,
+            church,
+            witches,
+          ),
           map,
           settings: { ...opts, ...own },
           fixedSeats: true,
@@ -542,6 +560,20 @@ export function NewGame({
                 : ck && !specialId
                   ? 'Fan expansion for Cities & Knights: a Magic track, Citadels, Crystal, the Wizard and dragons. 15 points (17 with Church).'
                   : 'Fan expansion that goes on top of Cities & Knights, on the usual maps or Seafarers.'}
+            </small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${princes ? 'on' : ''}`}
+            aria-pressed={princes}
+            disabled={ck || !princesMap}
+            onClick={() => setPrinces(!princes)}
+          >
+            <strong>🤴 Princes &amp; Explorers</strong>
+            <small>
+              {ck || !princesMap
+                ? 'Fan expansion for the base game on the usual maps (not with Cities & Knights or Seafarers yet).'
+                : 'Fan expansion: four princes make buildings worth more, the robber takes points, and explorers swap numbers. 14 points.'}
             </small>
           </button>
           <button

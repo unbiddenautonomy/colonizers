@@ -139,6 +139,26 @@ describe('game options', () => {
     expect(gwp.modules).not.toContain('witches');
   });
 
+  it('adds Princes & Explorers to the base game (14 points, no Special Building Phase)', () => {
+    const settings = cleanSettings({ ...DEFAULT_SETTINGS, princes: true });
+    const four = buildConfig(settings, names(4), 'seed');
+    expect(four.modules).toEqual(['base', 'variants', 'princes']);
+    expect(four.settings?.vpTarget).toBe(14);
+    const six = buildConfig(settings, names(6), 'seed');
+    expect(six.settings?.turnMode).toBe('normal');
+    const state = library.createGame(four).state;
+    expect(Object.values(state.pieces).filter((p) => p.type === 'prince')).toHaveLength(4);
+    // Not with Cities & Knights or Seafarers yet.
+    const ck = buildConfig(cleanSettings({ ...settings, citiesKnights: true }), names(4), 'seed');
+    expect(ck.modules).not.toContain('princes');
+    const sea = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'scenario', id: 'new-shores' } }),
+      names(4),
+      'seed',
+    );
+    expect(sea.modules).not.toContain('princes');
+  });
+
   it('builds Traders & Barbarians scenarios on the base game only', () => {
     for (const id of ['fishermen', 'rivers']) {
       const settings = cleanSettings({

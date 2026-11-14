@@ -129,6 +129,13 @@ import {
   witchesPrompt,
   WitchesStats,
 } from './Witches.tsx';
+import {
+  PRINCES_BOARD_PHASES,
+  PrincesChoices,
+  princesOn,
+  princesPrompt,
+  princesTargets,
+} from './Princes.tsx';
 
 type Mode =
   | null
@@ -212,6 +219,8 @@ function targetsFor(
       if (a.type === 'buildCitySeat' && a.seat === seat) t.corners.set(a.corner as CornerId, a);
     return t;
   }
+  if (PRINCES_BOARD_PHASES.includes(state.phase.id))
+    return princesTargets(state, legal, selectedShip);
   const want = new Set<string>();
   const ph = state.phase.id;
   const pair = edgeChoices(state);
@@ -370,6 +379,8 @@ function prompt(
   }
   const duel = duelPrompt(state, who ?? '');
   if (duel) return duel;
+  const princes = princesPrompt(state, who ?? '', actor, picked);
+  if (princes) return princes;
   if (mode && (CIV_MODES as readonly string[]).includes(mode))
     return civModePrompt(who ?? '', mode as CivMode, picked);
   const civ = civPrompt(state, names, actor);
@@ -579,7 +590,8 @@ export function Game({
     (mode !== null && GWP_MODES.includes(mode)) ||
     mode === 'civHarbor' ||
     mode === 'civTiticaca' ||
-    mode === 'civHarakiri'
+    mode === 'civHarakiri' ||
+    PRINCES_BOARD_PHASES.includes(state.phase.id)
       ? selectedShip
       : null;
   const targets = useMemo(
@@ -982,6 +994,7 @@ export function Game({
               ))}
             </div>
           )}
+          <PrincesChoices state={state} legal={legal} act={act} />
           {has('ckDone') && CK_BOARD_PHASES.includes(state.phase.id) && (
             <button type="button" onClick={() => act({ type: 'ckDone', player: actor! })}>
               Done
@@ -1197,7 +1210,17 @@ export function Game({
                   selectedShip={mode === 'sail' ? selectedShip : null}
                 />
               )}
-              {!ck && !ep && (
+              {princesOn(state) && myTurnMain && (
+                <button
+                  type="button"
+                  disabled={!has('buyRobberMove')}
+                  onClick={() => act({ type: 'buyRobberMove', player: actor })}
+                  title="Move the robber one to three fields without a 7"
+                >
+                  Move robber <CostLine cost={ctx.cost('robberMove', actor)} />
+                </button>
+              )}
+              {!ck && !ep && !princesOn(state) && (
                 <button
                   type="button"
                   disabled={!has('buyDevCard')}

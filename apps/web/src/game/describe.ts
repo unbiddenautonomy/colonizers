@@ -269,6 +269,12 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return e.card === 'barbarians'
         ? `🛑 ${n(e.player)} played Magic Veto: their cities are safe from the barbarians.`
         : `🛑 ${n(e.player)} turned away ${n(e.by)}'s ${nameOf(e.card as string).name} with a Magic Veto.`;
+    case 'princeMoved':
+      return `🤴 ${n(e.player)} moved a prince.`;
+    case 'explorersSwapped':
+      return `🧭 ${n(e.player)}'s explorers swapped two numbers.`;
+    case 'robberBought':
+      return `${n(e.player)} paid to move the robber.`;
     case 'wizardPlaced':
       return `🧙 ${n(e.player)} put the Wizard at their building.`;
     case 'wizardGone':
