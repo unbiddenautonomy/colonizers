@@ -13,6 +13,7 @@ import { churchRules } from './church.ts';
 import { witchesRules } from './witches.ts';
 import { princesRules } from './princes.ts';
 import { soldiersRules } from './soldiers.ts';
+import { investorsRules } from './investors.ts';
 import type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
 
 export type { CardGlossaryEntry, RulebookModule, RulePage } from './types.ts';
@@ -31,6 +32,7 @@ export const RULEBOOKS: RulebookModule[] = [
   witchesRules,
   princesRules,
   soldiersRules,
+  investorsRules,
   worldWondersRules,
   civilisationsRules,
   variantsRules,
@@ -137,6 +139,8 @@ export const ERROR_PAGES: [RegExp, string][] = [
   [/knight/i, 'knights'],
   [/robber|steal/i, 'robber'],
   [/discard/i, 'robber'],
+  [/finance actions|loan|borrow|save for|pay back/i, 'investors-bank'],
+  [/show \d of your|cheaper|dearer|keep one of the cards/i, 'investors-seven'],
   [/trade|offer|harbor|need \d/i, 'trading'],
   // Soldiers & Armies last, so its broad words don't catch other expansions' messages.
   [/\barmy\b|armies|muster|march|fall back|fighting has begun/i, 'soldiers-armies'],

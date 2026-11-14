@@ -184,6 +184,7 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
   if (state.modules.includes('explorers-pirates')) score += epHints(state, ctx, seat, blocked);
   if (state.modules.includes('world-wonders')) score += wonderHints(ctx, seat, vp, target);
   if (state.modules.includes('soldiers')) score += soldiersHints(state, ctx, seat);
+  if (state.modules.includes('investors')) score += investorsHints(state, seat);
   if (ctx.registry.pieceTypes.ship) score += ctx.piecesOf(seat, 'ship').length * 0.15;
 
   // Other players: their production and points count against us, the leader most.
@@ -197,6 +198,26 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
     worst = Math.max(worst, theirVp);
   }
   score -= worst * 1.2;
+  return score;
+}
+
+// ---- Investors & Speculators ----
+
+/**
+ * Savings pay back, loans must: an open loan weighs more as it comes due, and
+ * one due now weighs as much as the bad debt it turns into. (Bad debt itself
+ * is already off the points.)
+ */
+function investorsHints(state: GameState, seat: number): number {
+  const d = state.data.investors as
+    | { savings?: { seat: number }[]; loans?: { seat: number; left: number; term: number }[] }
+    | undefined;
+  let score = 0;
+  for (const s of d?.savings ?? []) if (s.seat === seat) score += 0.5;
+  for (const l of d?.loans ?? []) {
+    if (l.seat !== seat) continue;
+    score -= l.left <= 0 ? 4 : 0.8 + 1.5 / l.left;
+  }
   return score;
 }
 

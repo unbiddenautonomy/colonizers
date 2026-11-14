@@ -14,6 +14,7 @@ import { churchModule } from '@colonizers/module-church';
 import { witchesModule } from '@colonizers/module-witches';
 import { princesModule } from '@colonizers/module-princes-explorers';
 import { soldiersModule } from '@colonizers/module-soldiers-armies';
+import { investorsModule } from '@colonizers/module-investors-speculators';
 
 /** Every rules module the web app knows. Expansions are added here as they ship. */
 export const library = new ModuleLibrary([
@@ -30,6 +31,7 @@ export const library = new ModuleLibrary([
   witchesModule,
   princesModule,
   soldiersModule,
+  investorsModule,
   greedWealthPowerModule,
   civilisationsModule,
 ]);
