@@ -122,6 +122,23 @@ describe('game options', () => {
     expect(both.modules).not.toContain('church');
   });
 
+  it('adds Witches, Wizards & Dragons alone (15) or with Church (17)', () => {
+    const settings = cleanSettings({ ...DEFAULT_SETTINGS, citiesKnights: true, witches: true });
+    const alone = buildConfig(settings, names(4), 'seed');
+    expect(alone.modules).toEqual(['base', 'variants', 'cities-knights', 'witches']);
+    expect(alone.settings?.vpTarget).toBe(15);
+    expect(library.createGame(alone).state.decks.magic).toHaveLength(18);
+    const both = buildConfig(cleanSettings({ ...settings, church: true }), names(4), 'seed');
+    expect(both.modules).toEqual(['base', 'variants', 'cities-knights', 'witches', 'church']);
+    expect(both.settings?.vpTarget).toBe(17);
+    const gwp = buildConfig(
+      cleanSettings({ ...settings, greedWealthPower: true }),
+      names(4),
+      'seed',
+    );
+    expect(gwp.modules).not.toContain('witches');
+  });
+
   it('builds Traders & Barbarians scenarios on the base game only', () => {
     for (const id of ['fishermen', 'rivers']) {
       const settings = cleanSettings({

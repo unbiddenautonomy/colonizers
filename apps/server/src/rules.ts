@@ -45,8 +45,16 @@ export const CK_EXTRA_VP = 3;
 export const GWP_EXTRA_VP = 8;
 /** Civilisations plays to 20 with the usual 10. */
 export const CIV_EXTRA_VP = 10;
-/** Church, Faith & Reformation plays to 15 with the usual 10. */
+/** Church, Faith & Reformation plays to 15 with the usual 10, and so does Witches, Wizards & Dragons. */
 export const CHURCH_EXTRA_VP = 5;
+/** Both together play to 17. */
+export const CHURCH_WITCHES_EXTRA_VP = 7;
+
+/** Extra points for the Church and Witches fan expansions (Cities & Knights' 3 when neither). */
+export function fanExtraVp(church: boolean, witches: boolean): number {
+  if (church && witches) return CHURCH_WITCHES_EXTRA_VP;
+  return church || witches ? CHURCH_EXTRA_VP : CK_EXTRA_VP;
+}
 
 /** Greed, Wealth & Power goes on top of Cities & Knights, on the usual maps and Seafarers. */
 export function gwpOn(
@@ -70,6 +78,15 @@ export function churchOn(
   return ck && !gwp && settings.church && settings.map.kind !== 'special';
 }
 
+/** Witches, Wizards & Dragons goes on top of Cities & Knights, in place of Greed, Wealth & Power. */
+export function witchesOn(
+  settings: Pick<RoomSettings, 'witches' | 'map'>,
+  ck: boolean,
+  gwp: boolean,
+): boolean {
+  return ck && !gwp && settings.witches && settings.map.kind !== 'special';
+}
+
 /** Civilisations goes on top of Greed, Wealth & Power. */
 export function civsOn(settings: Pick<RoomSettings, 'civilisations'>, gwp: boolean): boolean {
   return gwp && settings.civilisations;
@@ -85,15 +102,8 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const gwp = gwpOn(settings, ck);
   const civs = civsOn(settings, gwp);
   const church = churchOn(settings, ck, gwp);
-  const extraVp = civs
-    ? CIV_EXTRA_VP
-    : gwp
-      ? GWP_EXTRA_VP
-      : church
-        ? CHURCH_EXTRA_VP
-        : ck
-          ? CK_EXTRA_VP
-          : 0;
+  const witches = witchesOn(settings, ck, gwp);
+  const extraVp = civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0;
   const options = optionSettings(settings.options, n);
   const config = (
     extra: string[],
@@ -102,7 +112,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   ): GameConfig => ({
     seed,
     players: names,
-    modules: moduleList(extra, ck, gwp, wondersOn(settings), civs, church),
+    modules: moduleList(extra, ck, gwp, wondersOn(settings), civs, church, witches),
     map,
     settings: { ...options, ...own },
     fixedSeats: true,
@@ -211,8 +221,12 @@ const SAFE_ORDER = [
   'civColony',
   'civRaidCity',
   'pickJoker',
-  'churchKeep',
+  'keepOne',
   'churchTaxPay',
+  'passAttack',
+  'answerVeto',
+  'formulaGive',
+  'magicPick',
   'roll',
   'placeSetupSettlement',
   'placeSetupRoad',
@@ -237,6 +251,8 @@ export function timeoutAction(state: GameState, seat: number, rand: () => number
     // The timer keeps Greece's dice and lets the roller place their own robber.
     if (type === 'civDemocracy') options = options.filter((a) => a.dice === 'keep');
     if (type === 'civMuscovy') options = options.filter((a) => a.use === false);
+    // Nor uses a Magic Veto.
+    if (type === 'answerVeto') options = options.filter((a) => a.use === false);
     if (type === 'civCurse') options = options.filter((a) => a.target === null);
     if (type === 'civColony') options = options.filter((a) => a.civ !== 'redraw');
     if (options.length) return options[Math.floor(rand() * options.length)] ?? null;

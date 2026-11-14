@@ -240,7 +240,8 @@ function Lobby({
   const wonders = s.worldWonders && !specialPick;
   const civs = gwp && s.civilisations;
   const church = ck && !gwp && s.church && !specialPick;
-  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church);
+  const witches = ck && !gwp && s.witches && !specialPick;
+  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church, witches);
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
   const seaPick =
@@ -474,6 +475,16 @@ function Lobby({
               />{' '}
               ⛪ Church, Faith &amp; Reformation (fan expansion on top of Cities &amp; Knights, not
               with Greed, Wealth &amp; Power; 15 points)
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={witches}
+                disabled={!ck || gwp || !!specialPick}
+                onChange={(e) => setGame({ witches: e.target.checked })}
+              />{' '}
+              🧙 Witches, Wizards &amp; Dragons (fan expansion on top of Cities &amp; Knights, not
+              with Greed, Wealth &amp; Power; 15 points, 17 with Church)
             </label>
             <label className="toggle">
               <input

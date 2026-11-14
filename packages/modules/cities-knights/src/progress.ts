@@ -50,6 +50,7 @@ import {
   isAway,
   shielded,
 } from './rules.ts';
+import { askVeto, type Play as FanPlay } from './fancards.ts';
 
 const MAIN: Phase = { id: 'main' };
 
@@ -295,10 +296,23 @@ function checkPlay(ctx: Ctx, a: Action & Play): string | null {
   }
 }
 
+/** Cards that aim at one player: Magic Veto can turn them away. */
+const AIMED = ['masterMerchant', 'deserter', 'spy'];
+
 function applyPlay(ctx: Ctx, a: Action & Play): void {
+  useCard(ctx, a.player, a.card);
+  if (AIMED.includes(a.card) && askVeto(ctx, a as FanPlay)) return;
+  resolvePlay(ctx, a);
+}
+
+/** What a played card does (it has been spent already). */
+export function resolvePlay(ctx: Ctx, a: Action): void {
+  playEffect(ctx, a as Action & Play);
+}
+
+function playEffect(ctx: Ctx, a: Action & Play): void {
   const seat = a.player;
   const d = ckData(ctx);
-  useCard(ctx, seat, a.card);
   const turn = ctx.state.turn.number;
   switch (a.card) {
     case 'alchemist':

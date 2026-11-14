@@ -1,4 +1,5 @@
 import { seatAllows, seatForTrack } from './seats.ts';
+import { attackWindow } from './fancards.ts';
 import type {
   ActionDef,
   Cards,
@@ -71,6 +72,10 @@ export interface CkData extends Record<string, unknown> {
   forcedEvent?: EventFace | null;
   /** How far the next barbarian ship face moves the ship (World Wonders' Great Wall), else 1. */
   shipSteps?: number | null;
+  /** The ship has landed and the attack waits for cards played at that moment. */
+  attackPending?: boolean;
+  /** The step to go back to after an attack outside a roll (Magic Current). */
+  attackReturn?: Phase | null;
   /** Seats whose cities the next attack can't take (Greed, Wealth & Power's Refuge). */
   refuge?: number[];
   /**
@@ -653,7 +658,7 @@ export function startRoll(ctx: Ctx, player: number): void {
   if (event === 'ship' || event === 'wild') {
     d.barbarian += steps;
     ctx.emit({ type: 'barbariansAdvance', at: d.barbarian, of: barbarianTrack(ctx), steps });
-    if (d.barbarian >= barbarianTrack(ctx)) attack(ctx);
+    if (d.barbarian >= barbarianTrack(ctx)) d.attackPending = true;
     // The ship is worked out first, then everyone picks a deck their levels allow.
     if (event === 'wild') {
       d.wildRed = red;
@@ -668,9 +673,30 @@ export function startRoll(ctx: Ctx, player: number): void {
   continueRoll(ctx);
 }
 
+/**
+ * The ship lands outside a roll (Magic Current): the attack is worked out,
+ * then play goes back to `returnTo`.
+ */
+export function landBarbarians(ctx: Ctx, returnTo: Phase): void {
+  const d = ckData(ctx);
+  d.attackPending = true;
+  d.attackReturn = returnTo;
+  continueRoll(ctx);
+}
+
 /** Asks for any choices the event die left, then pays production. */
 export function continueRoll(ctx: Ctx): void {
   const d = ckData(ctx);
+  if (d.attackPending) {
+    // Anyone holding a card for this moment (Refuge, Magic Power) gets to play it first.
+    const owed = attackWindow(ctx);
+    if (Object.keys(owed).length) {
+      ctx.setPhase({ id: 'beforeAttack', owed });
+      return;
+    }
+    d.attackPending = false;
+    attack(ctx);
+  }
   if (d.pendingLoss.length) {
     ctx.setPhase({ id: 'loseCity', owed: Object.fromEntries(d.pendingLoss.map((s) => [s, 1])) });
     return;
@@ -682,6 +708,12 @@ export function continueRoll(ctx: Ctx): void {
       id: 'defenderPick',
       owed: Object.fromEntries(d.pendingDefender.map((s) => [s, 1])),
     });
+    return;
+  }
+  if (d.attackReturn) {
+    const back = d.attackReturn;
+    d.attackReturn = null;
+    ctx.setPhase(back);
     return;
   }
   if (d.pendingJoker !== null && d.pendingJoker !== undefined) {
@@ -712,6 +744,8 @@ function finishRoll(ctx: Ctx): void {
   d.forcedRoll = null;
 
   if (total === 7) {
+    // Marked, so cards for a 7 (Small Dragon) know this discard is the robber's.
+    if (ctx.state.phase.id === 'discard') ctx.setPhase({ ...ctx.state.phase, seven: true });
     if (!d.robberActive) {
       if (ctx.state.phase.id === 'moveRobber') ctx.setPhase({ id: 'main' });
       else if (ctx.state.phase.id === 'discard')

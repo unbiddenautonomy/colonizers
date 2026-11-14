@@ -2,23 +2,32 @@ import type { Action, ActionDef, Cards, CornerId, Ctx, Phase, Piece } from '@col
 import { RESOURCES } from '@colonizers/module-base';
 import {
   activeTracks,
+  attackHeld,
   canPlaceKnight,
   ckData,
+  defineFanCards,
   drawProgress,
-  giveProgress,
-  holdsProgress,
+  fanDeck,
+  heldIn,
   INDULGENCE,
   INDULGENCE_REROLLS,
-  indulgenceTiming,
   isActive,
+  keepOne,
   knightsOf,
   levels,
+  others,
+  pickTarget,
   playIndulgence,
   progressCount,
   progressHeld,
+  returnHeld,
   seatAt,
-  spendProgress,
+  takeHeld,
   takesProgress,
+  targets,
+  type FanCard,
+  type FanPlay as Play,
+  type Pooled,
   type Track,
 } from '@colonizers/module-cities-knights';
 import { MODULE_ID } from './constants.ts';
@@ -30,45 +39,8 @@ import { churchData, churchView } from './rules.ts';
  * be played, the choices it offers, and what it does.
  */
 
-const MAIN: Phase = { id: 'main' };
-const back = (ctx: Ctx) => ctx.setPhase(ctx.state.phase.returnTo as Phase);
-
-type Play = Action & { card: string; target?: number; option?: string; cards?: Cards };
-type When = 'main' | 'beforeOrAfter' | 'indulgence';
-
-interface CardDef {
-  count: number;
-  /** Only with this track in the game (Witch Burning needs Magic). */
-  needs?: Track;
-  when?: When;
-  options?(ctx: Ctx, seat: number): Partial<Play>[];
-  check?(ctx: Ctx, a: Play): string | null;
-  apply(ctx: Ctx, a: Play): void;
-}
-
-const others = (ctx: Ctx, seat: number) =>
-  ctx.state.players.map((p) => p.seat).filter((s) => s !== seat);
-
-const heldIn = (ctx: Ctx, seat: number, deck: Track) =>
-  (ctx.player(seat).held[deck] ?? []).map((h) => h.card);
-
-function returnHeld(ctx: Ctx, seat: number, deck: Track, card: string): void {
-  const held = ctx.player(seat).held[deck] ?? [];
-  const i = held.findIndex((h) => h.card === card);
-  if (i < 0) return;
-  held.splice(i, 1);
-  (ctx.state.decks[deck] ??= []).push(card);
-}
-
-const pickTarget = (ctx: Ctx, a: Play): string | null =>
-  Number.isInteger(a.target) && a.target !== a.player && ctx.state.players[a.target as number]
-    ? null
-    : 'Pick another player';
-
-const targets = (ctx: Ctx, seat: number) => others(ctx, seat).map((target) => ({ target }));
-
 /** Dogma and Witch Burning: a card of that deck from each other player; keep one. */
-function takeFromEach(deck: Track): CardDef {
+function takeFromEach(deck: Track): FanCard {
   return {
     count: 1,
     ...(deck === 'magic' ? { needs: 'magic' as Track } : {}),
@@ -79,22 +51,16 @@ function takeFromEach(deck: Track): CardDef {
         : `Nobody else has a ${deck} card`;
     },
     apply(ctx, a) {
-      const pool: { card: string; deck: Track }[] = [];
+      const pool: Pooled[] = [];
       for (const s of others(ctx, a.player)) {
         const held = heldIn(ctx, s, deck);
         if (!held.length) continue;
         const card = held[ctx.rng.int(0, held.length - 1)] as string;
-        const list = ctx.player(s).held[deck] ?? [];
-        list.splice(
-          list.findIndex((h) => h.card === card),
-          1,
-        );
+        takeHeld(ctx, s, deck, card);
         pool.push({ card, deck });
         ctx.emit({ type: 'progressTaken', player: a.player, from: s, deck });
       }
-      if (pool.length === 1) giveProgress(ctx, a.player, deck, pool[0]!.card);
-      else if (pool.length > 1)
-        ctx.setPhase({ id: 'churchKeep', by: a.player, pool, returnTo: MAIN });
+      keepOne(ctx, a.player, pool);
     },
   };
 }
@@ -130,9 +96,10 @@ function threeOf(cards: string[]): Cards[] {
 const banTracks = (ctx: Ctx): Track[] =>
   (['science', 'magic'] as Track[]).filter((t) => activeTracks(ctx).includes(t));
 
-export const CARDS: Record<string, CardDef> = {
+export const CARDS = defineFanCards({
   superstition: {
     count: 1,
+    aims: true,
     options: targets,
     check(ctx, a) {
       const e = pickTarget(ctx, a);
@@ -196,6 +163,7 @@ export const CARDS: Record<string, CardDef> = {
   },
   lent: {
     count: 1,
+    aims: true,
     when: 'beforeOrAfter',
     options: targets,
     check: (ctx, a) =>
@@ -215,12 +183,16 @@ export const CARDS: Record<string, CardDef> = {
     apply(ctx, a) {
       churchData(ctx).inquisitor = a.option as CornerId;
       syncInquisitor(ctx);
+      // The Inquisitor drives off a Wizard standing there (Witches, Wizards & Dragons).
+      for (const p of ctx.piecesAt({ kind: 'corner', id: a.option as CornerId }))
+        if (p.type === 'wizard') ctx.remove(p);
       const owner = ctx.buildingAt(a.option as CornerId)?.owner;
       ctx.emit({ type: 'churchInquisitor', player: a.player, target: owner, at: a.option });
     },
   },
   anathema: {
     count: 2,
+    aims: true,
     options(ctx, seat) {
       const out: Partial<Play>[] = [];
       for (const target of others(ctx, seat)) {
@@ -311,24 +283,21 @@ export const CARDS: Record<string, CardDef> = {
   },
   refuge: {
     count: 1,
-    when: 'beforeOrAfter',
-    check: (ctx, a) =>
-      ckData(ctx).refuge?.includes(a.player) ? 'Your cities are already safe' : null,
+    // Also when the ship lands, on anyone's turn.
+    when: ['beforeOrAfter', 'attack'],
+    check(ctx, a) {
+      if (ckData(ctx).refuge?.includes(a.player)) return 'Your cities are already safe';
+      return attackHeld(ctx) ? 'The knights hold the barbarians off' : null;
+    },
     apply(ctx, a) {
       (ckData(ctx).refuge ??= []).push(a.player);
       ctx.emit({ type: 'churchRefuge', player: a.player });
     },
   },
-};
+} satisfies Record<string, FanCard>);
 
 /** The Religion deck for the tracks in play. */
-export function religionDeck(tracks: readonly string[]): Record<string, number> {
-  return Object.fromEntries(
-    Object.entries(CARDS)
-      .filter(([, d]) => !d.needs || tracks.includes(d.needs))
-      .map(([c, d]) => [c, d.count]),
-  );
-}
+export const religionDeck = (tracks: readonly string[]) => fanDeck(CARDS, tracks);
 
 // ---- Helpers for the cards ----
 
@@ -372,86 +341,10 @@ function censusOwed(ctx: Ctx, seat: number): Record<number, number> {
   return out;
 }
 
-// ---- Playing ----
-
-const isChurchCard = (c: unknown): c is string => typeof c === 'string' && c in CARDS;
-
-function timing(ctx: Ctx, a: Play, def: CardDef): string | null {
-  const ph = ctx.state.phase;
-  if (def.when === 'indulgence') return indulgenceTiming(ctx, a.player);
-  if (ph.id === 'indulgence') return 'Not while a roll waits for an Indulgence';
-  if (a.player !== ctx.active) return 'Not your turn';
-  const when = def.when ?? 'main';
-  if (when === 'main' && ph.id !== 'main') return 'Progress cards are played after rolling';
-  if (when === 'beforeOrAfter' && ph.id !== 'roll' && ph.id !== 'main') return 'Not now';
-  return null;
-}
-
-function checkCard(ctx: Ctx, a: Play): string | null {
-  const def = CARDS[a.card] as CardDef;
-  if (!holdsProgress(ctx, a.player, a.card)) return 'You do not hold that card';
-  return timing(ctx, a, def) ?? def.check?.(ctx, a) ?? null;
-}
-
-/** Adds the Religion cards to playProgress. */
-export function wrapCards(prev: ActionDef): ActionDef {
-  return {
-    ...prev,
-    phases: [...(prev.phases ?? []), 'indulgence'],
-    check(ctx, a) {
-      if (isChurchCard(a.card)) return checkCard(ctx, a as Play);
-      if (ctx.state.phase.id === 'indulgence') return 'Not while a roll waits for an Indulgence';
-      return prev.check(ctx, a);
-    },
-    apply(ctx, a) {
-      if (!isChurchCard(a.card)) return prev.apply(ctx, a);
-      spendProgress(ctx, a.player, a.card);
-      (CARDS[a.card] as CardDef).apply(ctx, a as Play);
-    },
-    enumerate(ctx, player) {
-      const out =
-        ctx.state.phase.id === 'indulgence'
-          ? []
-          : (prev.enumerate?.(ctx, player) ?? []).filter((a) => !isChurchCard(a.card));
-      const seen = new Set<string>();
-      for (const { card } of progressHeld(ctx, player)) {
-        if (seen.has(card) || !isChurchCard(card)) continue;
-        seen.add(card);
-        for (const o of CARDS[card]!.options?.(ctx, player) ?? [{}]) {
-          const a = { type: 'playProgress', player, card, ...o } as Play;
-          if (!checkCard(ctx, a)) out.push(a);
-        }
-      }
-      return out;
-    },
-  };
-}
-
 // ---- Steps after playing a card ----
 
-const churchKeep: ActionDef = {
-  phases: ['churchKeep'],
-  check(ctx, a) {
-    const ph = ctx.state.phase;
-    if (a.player !== ph.by) return 'Not you';
-    return Number.isInteger(a.index) && (ph.pool as unknown[])[a.index as number]
-      ? null
-      : 'Pick a card';
-  },
-  apply(ctx, a) {
-    const pool = ctx.state.phase.pool as { card: string; deck: Track }[];
-    pool.forEach((p, i) => {
-      if (i === a.index) giveProgress(ctx, a.player, p.deck, p.card);
-      else (ctx.state.decks[p.deck] ??= []).push(p.card);
-    });
-    back(ctx);
-  },
-  enumerate(ctx, player) {
-    const ph = ctx.state.phase;
-    if (player !== ph.by) return [];
-    return (ph.pool as unknown[]).map((_, index) => ({ type: 'churchKeep', player, index }));
-  },
-};
+const MAIN: Phase = { id: 'main' };
+const back = (ctx: Ctx) => ctx.setPhase(ctx.state.phase.returnTo as Phase);
 
 /** Church Tax: each other player hands over a resource of their choice. */
 const churchTaxPay: ActionDef = {
@@ -534,6 +427,6 @@ export function debtOf(ctx: Ctx, seat: number, debt: string): Cards | null {
   return v.bans?.find((b) => b.target === seat && b.track === debt)?.owed ?? null;
 }
 
-export const cardActions: Record<string, ActionDef> = { churchKeep, churchTaxPay, churchPay };
+export const cardActions: Record<string, ActionDef> = { churchTaxPay, churchPay };
 
 export { MODULE_ID };

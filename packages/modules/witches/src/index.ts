@@ -1,6 +1,24 @@
 import type { Ctx, GameModule } from '@colonizers/engine';
 import { RESOURCES } from '@colonizers/module-base';
-import { commodityBank, hasAbility, type CitySeat } from '@colonizers/module-cities-knights';
+import {
+  commodityBank,
+  hasAbility,
+  wrapFanCards,
+  type CitySeat,
+} from '@colonizers/module-cities-knights';
+import { CARDS, cardActions, magicDeck, wrapActivate } from './cards.ts';
+import {
+  endFortune,
+  endPower,
+  fortuneCost,
+  magicDefense,
+  syncSpell,
+  syncWizard,
+  witchesData,
+  wizardOwner,
+  wizardRobbable,
+  wizardUnblocks,
+} from './rules.ts';
 import {
   CITADEL,
   CITADEL_COST,
@@ -11,6 +29,7 @@ import {
   MODULE_ID,
   WITCHES_PROGRESS_LIMIT,
   WITCHES_VP_TARGET,
+  WIZARD,
 } from './constants.ts';
 
 /**
@@ -29,11 +48,28 @@ import {
  *   five progress cards in hand, and level 4 in Science or Magic (or
  *   Religion) stopping the others at level 3.
  *
+ * - The **Magic deck**: eighteen cards, among them the **Wizard**, who guards
+ *   one of your settlements or cities from the robber and is worth a point,
+ *   and **Magic Veto**, which turns away a card aimed at you.
+ *
  * Cities & Knights holds the shared parts (the extra track, the die, the city
- * seat), so this plays alone or next to Church, Faith & Reformation.
+ * seat, the card engine), so this plays alone or next to Church, Faith &
+ * Reformation. List it before Church, so the Wizard's guard against the robber
+ * doesn't lift a festival.
  */
 
 export * from './constants.ts';
+export { CARDS as MAGIC_CARDS, magicDeck, pickSpots, PICK_CARDS } from './cards.ts';
+export {
+  inquisitorAt,
+  spellOn,
+  witchesData,
+  witchesView,
+  wizardOwner,
+  wizardPiece,
+  wizardSpots,
+  type WitchesData,
+} from './rules.ts';
 
 const commodity = { category: 'commodity', countsForHandLimit: true, bank: commodityBank };
 
@@ -72,9 +108,34 @@ export const witchesModule: GameModule = {
   },
   cardTypes: { [CRYSTAL]: commodity },
   costs: { [CITADEL]: CITADEL_COST },
+  decks: { magic: { cards: () => magicDeck() } },
+  pieceTypes: { [WIZARD]: { on: 'corner' } },
+  actions: cardActions,
+  wrapActions: {
+    playProgress: wrapFanCards(CARDS),
+    activateKnight: wrapActivate,
+  },
+  hooks: {
+    init(ctx) {
+      witchesData(ctx);
+    },
+    afterAction(ctx) {
+      syncWizard(ctx);
+      syncSpell(ctx);
+      endPower(ctx);
+      endFortune(ctx);
+    },
+  },
   reducers: {
     swapRatio(ctx, seat, give, get, value) {
       return kitchenSwap(ctx, seat, give, get) ? 1 : value;
     },
+    vp(ctx, seat, value) {
+      return wizardOwner(ctx) === seat ? value + 1 : value;
+    },
+    hexBlocked: wizardUnblocks,
+    robbable: wizardRobbable,
+    defense: magicDefense,
+    cost: fortuneCost,
   },
 };

@@ -264,6 +264,33 @@ export function describe(e: GameEvent, names: string[]): string | null {
         : `${n(e.player)} played Reformation: everyone else swaps their progress cards.`;
     case 'churchRefuge':
       return `${n(e.player)} found Refuge: their cities are safe from the next barbarian attack.`;
+    // ---- Witches, Wizards & Dragons ----
+    case 'vetoed':
+      return e.card === 'barbarians'
+        ? `🛑 ${n(e.player)} played Magic Veto: their cities are safe from the barbarians.`
+        : `🛑 ${n(e.player)} turned away ${n(e.by)}'s ${nameOf(e.card as string).name} with a Magic Veto.`;
+    case 'wizardPlaced':
+      return `🧙 ${n(e.player)} put the Wizard at their building.`;
+    case 'wizardGone':
+      return '🧙 The Wizard left the board.';
+    case 'spellLifted':
+      return `🧹 The witch's spell on ${n(e.player)}'s knights has lifted.`;
+    case 'smallDragon':
+      return `🦎 ${n(e.player)}'s Small Dragon keeps their cards.`;
+    case 'magicFortune':
+      return `🍀 ${n(e.player)}'s next settlement costs ${cards(e.cards as Record<string, number>)} less.`;
+    case 'magicPower':
+      return `✨ ${n(e.player)}'s knights count double in the next attack.`;
+    case 'greatDragon':
+      return `🐉 ${n(e.player)}'s Great Dragon takes ${n(e.target)}'s top ${TRACK[e.track as string] ?? e.track} improvement.`;
+    case 'lightning':
+      return `⚡ ${n(e.player)}'s lightning turned a field into desert.`;
+    case 'landSwapped':
+      return `🗺️ ${n(e.player)} swapped two fields.`;
+    case 'magicMove':
+      return `🌀 ${n(e.player)} moved a ${e.piece as string} by magic.`;
+    case 'unicornDance':
+      return `🦄 ${n(e.player)} danced with the unicorns: the event die will show ${TRACK[e.face as string] ?? e.face}.`;
     // ---- Greed, Wealth & Power ----
     case 'gwpBuilt':
       return `${n(e.player)} built a ${GWP_BUILDING[e.building as string] ?? e.building}.`;
