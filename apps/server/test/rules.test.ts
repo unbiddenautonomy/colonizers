@@ -286,7 +286,7 @@ describe('game options', () => {
     ).not.toContain('investors');
   });
 
-  it('adds Kingdoms & Warriors on the base game, 2 points more', () => {
+  it('adds Kingdoms & Warriors, 2 points more', () => {
     const settings = cleanSettings({ ...DEFAULT_SETTINGS, kingdoms: true });
     const four = buildConfig(settings, names(4), 'seed');
     expect(four.modules).toEqual(['base', 'variants', 'kingdoms']);
@@ -299,8 +299,15 @@ describe('game options', () => {
       'seed',
     );
     expect(sea.modules).toContain('kingdoms');
-    // Not yet with Cities & Knights or the other fan expansions.
-    for (const more of [{ citiesKnights: true }, { princes: true }, { investors: true }])
+    // With Cities & Knights and Investors & Speculators.
+    const ck = buildConfig(
+      cleanSettings({ ...settings, citiesKnights: true, investors: true }),
+      names(4),
+      'seed',
+    );
+    expect(ck.modules).toEqual(expect.arrayContaining(['cities-knights', 'investors', 'kingdoms']));
+    // Not yet with the other fan expansions.
+    for (const more of [{ princes: true }, { soldiers: true }, { worldWonders: true }])
       expect(
         buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
       ).not.toContain('kingdoms');
