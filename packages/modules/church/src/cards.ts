@@ -2,32 +2,25 @@ import type { Action, ActionDef, Cards, CornerId, Ctx, Phase, Piece } from '@col
 import { RESOURCES } from '@colonizers/module-base';
 import {
   activeTracks,
-  attackHeld,
-  canPlaceKnight,
   ckData,
+  crusaderCard,
   defineFanCards,
-  drawProgress,
   fanDeck,
-  heldIn,
   INDULGENCE,
-  INDULGENCE_REROLLS,
+  indulgenceCard,
   isActive,
-  keepOne,
   knightsOf,
   levels,
   others,
   pickTarget,
-  playIndulgence,
   progressCount,
-  progressHeld,
-  returnHeld,
+  reformationCard,
+  refugeCard,
   seatAt,
-  takeHeld,
-  takesProgress,
+  takeFromEach,
   targets,
   type FanCard,
   type FanPlay as Play,
-  type Pooled,
   type Track,
 } from '@colonizers/module-cities-knights';
 import { MODULE_ID } from './constants.ts';
@@ -38,32 +31,6 @@ import { churchData, churchView } from './rules.ts';
  * Dragons, which adds Witch Burning). Each card is a row in CARDS: when it can
  * be played, the choices it offers, and what it does.
  */
-
-/** Dogma and Witch Burning: a card of that deck from each other player; keep one. */
-function takeFromEach(deck: Track): FanCard {
-  return {
-    count: 1,
-    ...(deck === 'magic' ? { needs: 'magic' as Track } : {}),
-    check: (ctx, a) => {
-      if (!takesProgress(ctx, a.player, deck)) return `You can not take ${deck} cards`;
-      return others(ctx, a.player).some((s) => heldIn(ctx, s, deck).length)
-        ? null
-        : `Nobody else has a ${deck} card`;
-    },
-    apply(ctx, a) {
-      const pool: Pooled[] = [];
-      for (const s of others(ctx, a.player)) {
-        const held = heldIn(ctx, s, deck);
-        if (!held.length) continue;
-        const card = held[ctx.rng.int(0, held.length - 1)] as string;
-        takeHeld(ctx, s, deck, card);
-        pool.push({ card, deck });
-        ctx.emit({ type: 'progressTaken', player: a.player, from: s, deck });
-      }
-      keepOne(ctx, a.player, pool);
-    },
-  };
-}
 
 /** Resources a player's buildings touch: the most Anathema can ask for. */
 export function producible(ctx: Ctx, seat: number): string[] {
@@ -96,7 +63,7 @@ function threeOf(cards: string[]): Cards[] {
 const banTracks = (ctx: Ctx): Track[] =>
   (['science', 'magic'] as Track[]).filter((t) => activeTracks(ctx).includes(t));
 
-export const CARDS = defineFanCards({
+export const CARDS = defineFanCards(MODULE_ID, {
   superstition: {
     count: 1,
     aims: true,
@@ -124,16 +91,7 @@ export const CARDS = defineFanCards({
       });
     },
   },
-  [INDULGENCE]: {
-    count: 1,
-    when: 'indulgence',
-    options: () => INDULGENCE_REROLLS.map((option) => ({ option })),
-    check: (_ctx, a) =>
-      INDULGENCE_REROLLS.includes(a.option ?? '') ? null : 'Pick the dice to throw again',
-    apply(ctx, a) {
-      playIndulgence(ctx, a.player, a.option as string);
-    },
-  },
+  [INDULGENCE]: indulgenceCard(1),
   bookBurning: {
     count: 1,
     check: (ctx) =>
@@ -235,40 +193,8 @@ export const CARDS = defineFanCards({
       ctx.setPhase({ id: 'churchTax', owed, by: a.player, returnTo: MAIN });
     },
   },
-  crusader: {
-    count: 2,
-    check: (ctx, a) => {
-      if (ctx.supplyLeft(a.player, 'knight1') <= 0) return 'No basic knights left';
-      return ctx.geometry.corners.some((c) => !canPlaceKnight(ctx, a.player, c))
-        ? null
-        : 'There is no spot for a knight';
-    },
-    apply(ctx) {
-      ctx.setPhase({ id: 'placeDeserter', knightType: 'knight1', active: true, returnTo: MAIN });
-    },
-  },
-  reformation: {
-    count: 1,
-    options: () => [{ option: 'mine' }, { option: 'others' }],
-    check(ctx, a) {
-      if (a.option === 'mine')
-        return progressCount(ctx, a.player) > 0 ? null : 'You have no other progress cards';
-      if (a.option === 'others')
-        return others(ctx, a.player).some((s) => progressCount(ctx, s) > 0)
-          ? null
-          : 'Nobody else has a progress card';
-      return 'Pick one';
-    },
-    apply(ctx, a) {
-      const seats = a.option === 'mine' ? [a.player] : others(ctx, a.player);
-      for (const s of seats) {
-        const had = progressHeld(ctx, s);
-        for (const h of had) returnHeld(ctx, s, h.deck, h.card);
-        for (const h of had) drawProgress(ctx, s, h.deck);
-      }
-      ctx.emit({ type: 'churchReformation', player: a.player, option: a.option });
-    },
-  },
+  crusader: crusaderCard(2),
+  reformation: reformationCard(),
   census: {
     count: 1,
     check: (ctx, a) => (Object.keys(censusOwed(ctx, a.player)).length ? null : 'Nobody owes'),
@@ -281,19 +207,7 @@ export const CARDS = defineFanCards({
       });
     },
   },
-  refuge: {
-    count: 1,
-    // Also when the ship lands, on anyone's turn.
-    when: ['beforeOrAfter', 'attack'],
-    check(ctx, a) {
-      if (ckData(ctx).refuge?.includes(a.player)) return 'Your cities are already safe';
-      return attackHeld(ctx) ? 'The knights hold the barbarians off' : null;
-    },
-    apply(ctx, a) {
-      (ckData(ctx).refuge ??= []).push(a.player);
-      ctx.emit({ type: 'churchRefuge', player: a.player });
-    },
-  },
+  refuge: refugeCard(1),
 } satisfies Record<string, FanCard>);
 
 /** The Religion deck for the tracks in play. */

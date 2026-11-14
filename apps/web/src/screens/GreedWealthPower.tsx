@@ -451,10 +451,6 @@ export function gwpOptionLabel(a: Action, names: string[], state?: GameState): s
       return card(a.card);
     case 'passIndulgence':
       return 'Let the roll stand';
-    case 'keepProgress': {
-      const pool = (state?.phase.pool as { card: string }[] | undefined) ?? [];
-      return card(pool[a.index as number]?.card);
-    }
     case 'playProgress':
       break;
     default:
@@ -547,12 +543,6 @@ export function GwpChoices({
       );
     case 'magicRitual':
       return list(['ritualGive'], 'Magic Ritual', `Give ${by} one of your progress cards.`);
-    case 'keepProgress':
-      return list(
-        ['keepProgress'],
-        'Keep one',
-        'Keep one of these cards. The rest go under their decks.',
-      );
     case 'espionage':
       return list(['espionageTake'], 'Espionage', 'The top card of each deck. Take one.');
     case 'indulgence': {
@@ -595,8 +585,6 @@ export function gwpCardPrompt(state: GameState, who: string, names: string[]): s
       return `${by} played the Brothel: waiting for an answer.`;
     case 'magicRitual':
       return `${by} played Magic Ritual: waiting for progress cards.`;
-    case 'keepProgress':
-      return `${by} is keeping one card.`;
     case 'espionage':
       return `${who}: take the top card of one deck.`;
     case 'indulgence':
