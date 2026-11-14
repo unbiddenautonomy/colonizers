@@ -9,6 +9,9 @@ export const soldiersOn = (state: GameState) => state.modules.includes('soldiers
 /** Steps where the player taps the board. */
 export const SOLDIERS_BOARD_PHASES = ['campaign', 'battle', 'relocateMerchant'];
 
+/** Cities & Knights card steps that move units here instead of knights. */
+const CARD_PHASES = ['freeUnit', 'placeDeserterUnit', 'smith', 'intrigue', 'freeWall'];
+
 export const SOLDIERS_MODES = [
   'musterInfantry',
   'musterCavalry',
@@ -73,6 +76,18 @@ export function soldiersTargets(
             ? a.type === 'buyNuke'
             : a.type === 'buyUnit' && a.unit === MUSTER[mode];
       if (want) t.corners.set(a.corner as CornerId, a);
+    }
+    return t;
+  }
+  if (CARD_PHASES.includes(ph)) {
+    // A free unit or wall taps a building; Smith's step-ups also tap the army
+    // (infantry first: the buttons offer cavalry too); Intrigue taps a rival army.
+    for (const a of legal) {
+      const army = state.pieces[a.army as string];
+      const at =
+        typeof a.corner === 'string' ? a.corner : army?.at.kind === 'corner' ? army.at.id : null;
+      if (!at || (a.type === 'stepUpUnit' && t.corners.has(at as CornerId))) continue;
+      t.corners.set(at as CornerId, a);
     }
     return t;
   }
@@ -164,6 +179,28 @@ export function soldiersPrompt(
         : `${by} lost to the merchant.`;
     case 'robberToll':
       return mine ? `${who}: the robber won. Hand over a resource.` : `${by} lost to the robber.`;
+    case 'freeUnit':
+      return mine
+        ? `${who}: tap one of your settlements or cities to muster a free infantry.`
+        : `${by} is mustering a free infantry.`;
+    case 'placeDeserterUnit':
+      return mine
+        ? `${who}: tap one of your settlements or cities for the deserting ${ph.unit as string}.`
+        : `${by} is placing a deserter.`;
+    case 'smith':
+      return mine
+        ? `${who}: step one of your units up a level, or tap a settlement or city for a free infantry.`
+        : `${by} is at the smithy.`;
+    case 'intrigue':
+      return mine
+        ? `${who}: tap a rival army on your roads to take an infantry from it.`
+        : `${by} is plotting an intrigue.`;
+    case 'desertKnight':
+      return (ph.owed as Record<number, number> | undefined)?.[actor ?? -1]
+        ? `${who}: pick one of your units to desert to ${by}.`
+        : 'Waiting for a unit to desert.';
+    case 'freeWall':
+      return mine ? `${who}: tap one of your cities for a free wall.` : `${by} is building a wall.`;
     default:
       return null;
   }
@@ -359,6 +396,33 @@ export function SoldiersChoices({
           .join(' and ')}
       </button>
     ) : null;
+  }
+  if (state.phase.id === 'smith' || state.phase.id === 'desertKnight') {
+    const picks = legal.filter((a) => a.type === 'stepUpUnit' || a.type === 'desertUnit');
+    return (
+      <>
+        {picks.map((a) => {
+          const army = state.pieces[a.army as string];
+          const unit = a.unit as string;
+          const to = unit === 'infantry' ? 'cavalry' : 'artillery';
+          const label =
+            a.type === 'stepUpUnit'
+              ? `${UNIT_ICON[unit]} → ${UNIT_ICON[to]} ${UNIT_NAME[unit]} to ${to}`
+              : `${UNIT_ICON[unit]} Give up ${unit}`;
+          return (
+            <button
+              key={`${a.army as string}-${unit}`}
+              type="button"
+              onClick={() => act(a)}
+              title={army ? armyLabel(army) : undefined}
+            >
+              {label}
+              {army && <small> ({armyLabel(army).replace('Army: ', '')})</small>}
+            </button>
+          );
+        })}
+      </>
+    );
   }
   if (state.phase.id === 'robberToll')
     return (
