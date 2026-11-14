@@ -1,3 +1,5 @@
+import type { ModeId } from '@colonizers/modes';
+import { modesFor } from '../game/modeFlags.ts';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   analyzeMap,
@@ -136,66 +138,73 @@ export function NewGame({
   const specialId = effective.kind === 'special' ? effective.id : null;
   const noCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.noCitiesKnights === true;
   const needsCk = SPECIAL_MAPS.find((x) => x.id === specialId)?.needsCitiesKnights === true;
-  const ck = (ckWanted || needsCk) && !noCk;
-  // Greed, Wealth & Power goes on top of Cities & Knights, on the usual maps and Seafarers.
-  const gwp = ck && gwpWanted && !specialId;
-  // World Wonders goes on the usual maps and Seafarers, with or without Cities & Knights.
-  const wonders = wondersWanted && !specialId;
-  // Civilisations goes on top of Greed, Wealth & Power, and plays to 20.
-  const civs = gwp && civsWanted;
-  // Church, Faith & Reformation goes on top of Cities & Knights in place of Greed, Wealth & Power.
-  const church = ck && churchWanted && !gwp && !specialId;
-  // Witches, Wizards & Dragons likewise, alone or with Church.
-  const witches = ck && witchesWanted && !gwp && !specialId;
-  // Princes & Explorers goes on the usual maps and Seafarers (not the special maps yet).
-  const princesMap = effective.kind !== 'special';
-  // Not yet with the other fan expansions.
-  const princesOk = princesMap && !gwp && !church && !witches && !wonders;
-  const princes = princesWanted && princesOk;
-  // Soldiers & Armies goes on the base game on the usual island maps, for now.
-  // On the usual maps, Seafarers and the Explorers & Pirates scenarios.
-  const soldiersMap =
-    effective.kind !== 'special' ||
-    SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
-  const soldiersOk = !gwp && !church && !witches && !wonders && soldiersMap;
-  const soldiers = soldiersWanted && soldiersOk;
-  // Investors & Speculators goes with every expansion, on the usual maps, Seafarers and the
-  // Explorers & Pirates and Traders & Barbarians maps.
   const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
-  const investorsOk = !specialId || isExplorers || isTraders;
-  const investors = investorsWanted && investorsOk;
-  // Kingdoms & Warriors goes on the usual maps and Seafarers, on the base game or Cities &
-  // Knights, and with Investors & Speculators.
-  const kingdomsOk =
-    !gwp &&
-    !church &&
-    !witches &&
-    !princes &&
-    !soldiers &&
-    !wonders &&
-    effective.kind !== 'special';
-  const kingdoms = kingdomsWanted && kingdomsOk;
-  // Land & Water goes on the base game or Cities & Knights, on the usual maps and Seafarers
-  // without fog, for now.
   const fog =
     effective.kind === 'scenario' && SEA_SCENARIOS.find((x) => x.id === effective.id)?.fog === true;
-  const landWaterOk =
-    !gwp &&
-    !church &&
-    !witches &&
-    !princes &&
-    !soldiers &&
-    !investors &&
-    !kingdoms &&
-    !wonders &&
-    !specialId &&
-    !fog;
-  const landWater = landWaterWanted && landWaterOk;
-  // Strategist & Commander goes on Cities & Knights; Greed, Wealth & Power has its own Duke and
-  // Scholar, and Land & Water has no knight pieces.
-  const strategistOk = ck && !gwp && !landWater;
-  const strategist = strategistWanted && strategistOk;
+  // One rule for every mix, shared with the server.
+  const modeKind =
+    effective.kind === 'scenario'
+      ? 'seafarers'
+      : effective.kind === 'special'
+        ? 'special'
+        : 'usual';
+  const modeGroup = SPECIAL_MAPS.find((x) => x.id === specialId)?.group ?? null;
+  const { on, status } = useMemo(
+    () =>
+      modesFor(modeKind, modeGroup, fog, needsCk, noCk, {
+        citiesKnights: ckWanted,
+        greedWealthPower: gwpWanted,
+        civilisations: civsWanted,
+        church: churchWanted,
+        witches: witchesWanted,
+        worldWonders: wondersWanted,
+        princes: princesWanted,
+        soldiers: soldiersWanted,
+        investors: investorsWanted,
+        kingdoms: kingdomsWanted,
+        landWater: landWaterWanted,
+        strategist: strategistWanted,
+      }),
+    [
+      modeKind,
+      modeGroup,
+      fog,
+      needsCk,
+      noCk,
+      ckWanted,
+      gwpWanted,
+      civsWanted,
+      churchWanted,
+      witchesWanted,
+      wondersWanted,
+      princesWanted,
+      soldiersWanted,
+      investorsWanted,
+      kingdomsWanted,
+      landWaterWanted,
+      strategistWanted,
+    ],
+  );
+  const can = (m: ModeId) => status[m].state !== 'blocked';
+  const ck = on.citiesKnights;
+  const gwp = on.greedWealthPower;
+  const wonders = on.worldWonders;
+  const civs = on.civilisations;
+  const church = on.church;
+  const witches = on.witches;
+  const princesOk = can('princes');
+  const princes = on.princes;
+  const soldiersOk = can('soldiers');
+  const soldiers = on.soldiers;
+  const investorsOk = can('investors');
+  const investors = on.investors;
+  const kingdomsOk = can('kingdoms');
+  const kingdoms = on.kingdoms;
+  const landWaterOk = can('landWater');
+  const landWater = on.landWater;
+  const strategistOk = can('strategist');
+  const strategist = on.strategist;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
     (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) +
