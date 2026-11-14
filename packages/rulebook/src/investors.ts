@@ -134,7 +134,8 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
       module: M,
       section: 'rules',
       title: 'With other expansions',
-      summary: 'Seafarers, Cities & Knights, and 5 or 6 players.',
+      summary:
+        'Seafarers, Cities & Knights, Explorers & Pirates, Soldiers & Armies, Princes & Explorers, and 5 or 6 players.',
       tags: [
         'seafarers',
         'pirate',
@@ -145,12 +146,26 @@ The building stays even if the loan isn't paid back. There are 10 settlement loa
         'coin',
         'trading house',
         'merchant',
+        'explorers & pirates',
+        'gold',
+        'harbor settlement',
+        'settler',
+        'soldiers & armies',
+        'cavalry',
+        'artillery',
+        'princes & explorers',
         '5 players',
         '6 players',
       ],
       body: `**Seafarers.** On a 7 you move the robber or the pirate, steal nothing, and set the rates as usual. A settlement built on a town loan that earns extra points (a new island) holds those points until the loan is paid back; if it isn't, they are lost with it.
 
 **Cities & Knights.** Commodities trade, save and borrow at their resource's rate: paper with lumber, cloth with wool, coin with ore. On a 7 they count with their resource. The rates are set on every 7, even before the barbarians first land and the robber comes into play. The trading house, the merchant and the Merchant Fleet take 2 off a rate as a 2:1 harbor would. The game's own dice are used, so a first-round 7 isn't thrown again.
+
+**Explorers & Pirates.** Gold buys a resource for 3 if its rate is 5:1 or 6:1, 2 at 3:1 or 4:1, and 1 at 2:1. Harbor settlements and settlers can be taken on a town loan as well, at their own cost. On a 7 the pirate steals nothing.
+
+**Soldiers & Armies.** Cavalry and artillery can be mustered on a town loan, paid back at their cost like a building. Infantry can't.
+
+**Princes & Explorers.** On a 7 the robber moves by the princes' rules but steals nothing, and the rates are set as usual. Buying a robber move outside a 7 still robs.
 
 **5 or 6 players.** On a 7 everyone may hold 3 more cards, and there are 20 settlement and 20 city loans.`,
     },

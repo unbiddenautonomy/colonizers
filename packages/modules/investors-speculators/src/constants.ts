@@ -37,8 +37,20 @@ export const SAME_KIND_LOANS = 5;
 /** Town loans: a settlement or city built free, paid back later. */
 export const TOWN_TERMS = [3, 5, 7, 10] as const;
 export type TownTerm = (typeof TOWN_TERMS)[number];
-export const TOWN_ITEMS = ['settlement', 'city'] as const;
-export type TownItem = (typeof TOWN_ITEMS)[number];
+/**
+ * What can be built on a town loan (where its expansion is in the game): the
+ * build action it goes through, and the marker it takes from the box. A settler
+ * takes a settlement marker.
+ */
+export const TOWN_ITEMS: Record<string, { action: string; marker: string; unit?: string }> = {
+  settlement: { action: 'buildSettlement', marker: 'settlement' },
+  city: { action: 'buildCity', marker: 'city' },
+  harbor: { action: 'buildHarbor', marker: 'harbor' },
+  settler: { action: 'buildSettler', marker: 'settlement' },
+  cavalry: { action: 'buyUnit', marker: 'cavalry', unit: 'cavalry' },
+  artillery: { action: 'buyUnit', marker: 'artillery', unit: 'artillery' },
+};
+export type TownItem = string;
 
 /**
  * What a town loan costs back, in whole buildings, and whether 2 cards of one
@@ -76,3 +88,6 @@ export const DERIVATIVE_TERMS: Record<number, { minLeft: number; pays: number }>
   7: { minLeft: 6, pays: 1 },
   10: { minLeft: 8, pays: 2 },
 };
+
+/** Gold for one resource with Explorers & Pirates, by the resource's market rate. */
+export const goldPrice = (rate: number) => (rate >= 5 ? 3 : rate >= 3 ? 2 : 1);

@@ -6,7 +6,7 @@ import { seafarersModule } from '@colonizers/module-seafarers';
 import { generateBoard, generateSeaBoard } from '@colonizers/maps';
 import { investorsData, investorsModule, marketRatio, sevenCounts } from '../src/index.ts';
 
-const lib = new ModuleLibrary([baseModule, seafarersModule, investorsModule, citiesKnightsModule]);
+const lib = new ModuleLibrary([baseModule, seafarersModule, citiesKnightsModule, investorsModule]);
 
 const ctxOf = (s: GameState) => new Ctx(s, lib.registry(s.modules));
 const act = (s: GameState, a: Action) => lib.apply(s, a).state;
@@ -29,7 +29,7 @@ function ckGame(): GameState {
   return lib.createGame({
     seed: 'inv-ck',
     players: ['A', 'B', 'C', 'D'],
-    modules: ['base', 'investors', 'cities-knights'],
+    modules: ['base', 'cities-knights', 'investors'],
     map: board.map,
     settings: { vpTarget: 13 },
     fixedSeats: true,
