@@ -156,12 +156,11 @@ export function NewGame({
     SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
   const soldiersOk = !gwp && !church && !witches && !wonders && soldiersMap;
   const soldiers = soldiersWanted && soldiersOk;
-  // Investors & Speculators goes on the usual maps, Seafarers and the Explorers & Pirates and
-  // Traders & Barbarians maps, with Cities & Knights (Witches, Church), Princes or Soldiers,
-  // not with Greed, Wealth & Power or World Wonders yet.
+  // Investors & Speculators goes with every expansion, on the usual maps, Seafarers and the
+  // Explorers & Pirates and Traders & Barbarians maps.
   const isExplorers = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
   const isTraders = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'traders';
-  const investorsOk = !gwp && !wonders && (!specialId || isExplorers || isTraders);
+  const investorsOk = !specialId || isExplorers || isTraders;
   const investors = investorsWanted && investorsOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
@@ -625,7 +624,7 @@ export function NewGame({
             <strong>📈 Investors &amp; Speculators</strong>
             <small>
               {!investorsOk
-                ? 'Fan expansion for the usual maps, Seafarers, Explorers & Pirates and Traders & Barbarians, with or without Cities & Knights (and Witches or Church), Princes & Explorers and Soldiers & Armies (not with Treasures, Dragons & Adventurers, Greed, Wealth & Power or World Wonders yet).'
+                ? 'Fan expansion for the usual maps, Seafarers, Explorers & Pirates and Traders & Barbarians (not the Treasures, Dragons & Adventurers maps yet).'
                 : 'Fan expansion: an exchange market whose rates move on every 7, savings that pay interest, and loans that cost points if you can’t pay them back.'}
             </small>
           </button>

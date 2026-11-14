@@ -512,10 +512,14 @@ export const greedWealthPowerModule: GameModule = {
     swapRatio(ctx, seat, give, get, value) {
       let best = exchangeRatio(ctx, seat, give, get, value);
       if (!isResource(give) || !isResource(get)) return best;
+      // On Investors & Speculators' market these take as much off the card's rate instead.
+      const market = ctx.state.modules.includes('investors');
       // Magic Kitchen: brick for any other resource, 1:1.
-      if (give === 'brick' && hasAbility(ctx, seat, 'magic')) best = Math.min(best, 1);
+      if (give === 'brick' && hasAbility(ctx, seat, 'magic'))
+        best = Math.min(best, market ? Math.max(1, value - 3) : 1);
       // Marketplace: any resource for another, 2:1.
-      if (hasAbility(ctx, seat, 'wealth')) best = Math.min(best, 2);
+      if (hasAbility(ctx, seat, 'wealth'))
+        best = Math.min(best, market ? Math.max(1, value - 2) : 2);
       return best;
     },
   },

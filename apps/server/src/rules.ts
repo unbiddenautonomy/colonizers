@@ -123,18 +123,15 @@ export function soldiersOn(
 /**
  * Investors & Speculators goes on the usual maps, Seafarers, the Explorers &
  * Pirates and Traders & Barbarians scenarios, with or without Cities & Knights
- * (and Witches or Church on it), Princes & Explorers and Soldiers & Armies.
- * Its rules with Greed, Wealth & Power and World Wonders come later.
+ * (and Witches, Church or Greed, Wealth & Power on it), World Wonders,
+ * Princes & Explorers and Soldiers & Armies.
  */
-export function investorsOn(
-  settings: Pick<RoomSettings, 'investors' | 'map'>,
-  otherFan: boolean,
-): boolean {
+export function investorsOn(settings: Pick<RoomSettings, 'investors' | 'map'>): boolean {
   const map = settings.map;
   const special = map.kind === 'special' ? specialMapById(map.id) : undefined;
   const ok =
     map.kind !== 'special' || special?.group === 'explorers' || special?.group === 'traders';
-  return settings.investors && !otherFan && ok;
+  return settings.investors && ok;
 }
 
 /** Civilisations goes on top of Greed, Wealth & Power. */
@@ -155,7 +152,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const witches = witchesOn(settings, ck, gwp);
   const princes = princesOn(settings, gwp || church || witches || wondersOn(settings));
   const soldiers = soldiersOn(settings, gwp || church || witches || wondersOn(settings));
-  const investors = investorsOn(settings, gwp || wondersOn(settings));
+  const investors = investorsOn(settings);
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
     (princes ? PRINCES_EXTRA_VP : 0) +
