@@ -62,6 +62,9 @@ importers:
       '@colonizers/module-greed-wealth-power':
         specifier: workspace:*
         version: link:../../packages/modules/greed-wealth-power
+      '@colonizers/module-princes-explorers':
+        specifier: workspace:*
+        version: link:../../packages/modules/princes-explorers
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../../packages/modules/seafarers
@@ -132,6 +135,9 @@ importers:
       '@colonizers/module-greed-wealth-power':
         specifier: workspace:*
         version: link:../../packages/modules/greed-wealth-power
+      '@colonizers/module-princes-explorers':
+        specifier: workspace:*
+        version: link:../../packages/modules/princes-explorers
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../../packages/modules/seafarers
@@ -209,6 +215,9 @@ importers:
       '@colonizers/module-greed-wealth-power':
         specifier: workspace:*
         version: link:../modules/greed-wealth-power
+      '@colonizers/module-princes-explorers':
+        specifier: workspace:*
+        version: link:../modules/princes-explorers
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../modules/seafarers
@@ -390,6 +399,25 @@ importers:
       '@colonizers/module-seafarers':
         specifier: workspace:*
         version: link:../seafarers
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ~4.1.12
+        version: 4.1.12(@types/node@22.20.5)(vite@8.3.6(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/modules/princes-explorers:
+    dependencies:
+      '@colonizers/engine':
+        specifier: workspace:*
+        version: link:../../engine
+      '@colonizers/module-base':
+        specifier: workspace:*
+        version: link:../base
+    devDependencies:
+      '@colonizers/maps':
+        specifier: workspace:*
+        version: link:../../maps
       typescript:
         specifier: ~6.0.3
         version: 6.0.3

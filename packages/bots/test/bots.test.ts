@@ -132,6 +132,18 @@ describe('Bots', () => {
     expect(Object.keys(d.seats?.citadel ?? {}).length).toBeGreaterThan(0);
   }, 240_000);
 
+  it('plays Princes & Explorers', () => {
+    const r = play(
+      game('pf1', 4, 'base', { vpTarget: 14 }, ['princes']),
+      [medium, medium, medium, medium],
+      3,
+      9000,
+    );
+    expect(r.winner).not.toBeNull();
+    const princes = Object.values(r.state.pieces).filter((p) => p.type === 'prince');
+    expect(princes).toHaveLength(4);
+  }, 240_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');

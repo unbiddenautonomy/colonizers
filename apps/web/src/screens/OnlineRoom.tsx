@@ -241,7 +241,9 @@ function Lobby({
   const civs = gwp && s.civilisations;
   const church = ck && !gwp && s.church && !specialPick;
   const witches = ck && !gwp && s.witches && !specialPick;
-  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church, witches);
+  const princesMap = s.map.kind === 'random' || s.map.kind === 'preset' || s.map.kind === 'custom';
+  const princes = !ck && s.princes && princesMap;
+  const bonus = vpBonus(ck, specialPick?.id ?? null, gwp, civs, church, witches, princes);
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
   const seaPick =
@@ -485,6 +487,16 @@ function Lobby({
               />{' '}
               🧙 Witches, Wizards &amp; Dragons (fan expansion on top of Cities &amp; Knights, not
               with Greed, Wealth &amp; Power; 15 points, 17 with Church)
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={princes}
+                disabled={ck || !princesMap}
+                onChange={(e) => setGame({ princes: e.target.checked })}
+              />{' '}
+              🤴 Princes &amp; Explorers (fan expansion for the base game on the usual maps, not
+              with Cities &amp; Knights or Seafarers yet; 14 points)
             </label>
             <label className="toggle">
               <input
