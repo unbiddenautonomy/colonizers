@@ -19,13 +19,16 @@
     "@colonizers/maps": "workspace:*",
     "@colonizers/module-church": "workspace:*",
     "@colonizers/module-cities-knights": "workspace:*",
+    "@colonizers/module-civilisations": "workspace:*",
     "@colonizers/module-explorers-pirates": "workspace:*",
+    "@colonizers/module-greed-wealth-power": "workspace:*",
     "@colonizers/module-princes-explorers": "workspace:*",
     "@colonizers/module-seafarers": "workspace:*",
     "@colonizers/module-soldiers-armies": "workspace:*",
     "@colonizers/module-traders-barbarians": "workspace:*",
     "@colonizers/module-variants": "workspace:*",
     "@colonizers/module-witches": "workspace:*",
+    "@colonizers/module-world-wonders": "workspace:*",
     "typescript": "~6.0.3",
     "vitest": "~4.1.12"
   }
