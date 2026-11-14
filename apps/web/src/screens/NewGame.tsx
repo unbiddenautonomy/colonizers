@@ -95,6 +95,7 @@ export function NewGame({
   const [witchesWanted, setWitches] = useState(false);
   const [princesWanted, setPrinces] = useState(false);
   const [soldiersWanted, setSoldiers] = useState(false);
+  const [investorsWanted, setInvestors] = useState(false);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -155,6 +156,15 @@ export function NewGame({
     SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'explorers';
   const soldiersOk = !gwp && !church && !witches && !wonders && soldiersMap;
   const soldiers = soldiersWanted && soldiersOk;
+  // Investors & Speculators goes on the base game on the usual maps, for now.
+  const investorsOk =
+    !ck &&
+    !wonders &&
+    !princes &&
+    !soldiers &&
+    effective.kind !== 'special' &&
+    effective.kind !== 'scenario';
+  const investors = investorsWanted && investorsOk;
   const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
   const extraVp =
     (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) + (princes ? 4 : 0) + (soldiers && !princes ? 3 : 0);
@@ -166,7 +176,7 @@ export function NewGame({
         : witches
           ? 'Witches, Wizards & Dragons'
           : 'Cities & Knights';
-  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}`;
+  const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}:${investors}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
@@ -219,7 +229,12 @@ export function NewGame({
           seed: `${seed}-${Date.now().toString(36)}`,
           players,
           modules: moduleList(
-            [...extraModules, ...(princes ? ['princes'] : []), ...(soldiers ? ['soldiers'] : [])],
+            [
+              ...extraModules,
+              ...(princes ? ['princes'] : []),
+              ...(soldiers ? ['soldiers'] : []),
+              ...(investors ? ['investors'] : []),
+            ],
             ck,
             gwp,
             wonders,
@@ -602,6 +617,20 @@ export function NewGame({
                 : princes
                   ? 'Fan expansion: muster armies, march them, and fight for your rivals’ settlements and cities. With Princes & Explorers, units give way to move the robber, and the princes’ target stands.'
                   : 'Fan expansion: muster armies, march them, and fight for your rivals’ settlements and cities. Plays to 3 points more than usual.'}
+            </small>
+          </button>
+          <button
+            type="button"
+            className={`expansion ${investors ? 'on' : ''}`}
+            aria-pressed={investors}
+            disabled={!investorsOk}
+            onClick={() => setInvestors(!investors)}
+          >
+            <strong>📈 Investors &amp; Speculators</strong>
+            <small>
+              {!investorsOk
+                ? 'Fan expansion for the base game on the usual maps (not with Seafarers, Cities & Knights or the other expansions yet).'
+                : 'Fan expansion: an exchange market whose rates move on every 7, savings that pay interest, and loans that cost points if you can’t pay them back.'}
             </small>
           </button>
           <button

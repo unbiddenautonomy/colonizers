@@ -289,6 +289,30 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🪖 ${n(e.player)}'s army went aboard a ship.`;
     case 'armyLanded':
       return `🪖 ${n(e.player)}'s army went ashore.`;
+    case 'cardSaved':
+      return `🏦 ${n(e.player)} saved ${cards({ [e.card as string]: 1 })} for ${String(e.term)} turns.`;
+    case 'savingsPaid':
+      return `🏦 ${n(e.player)}'s savings paid out ${cards({ [e.card as string]: Number(e.cards) })}.`;
+    case 'cardBorrowed':
+      return `🧾 ${n(e.player)} borrowed ${cards({ [e.card as string]: 1 })} for ${String(e.term)} ${e.term === 1 ? 'turn' : 'turns'}.`;
+    case 'loanRepaid':
+      return `🧾 ${n(e.player)} paid back a loan with ${cards(e.paid as Record<string, number>)}.`;
+    case 'loanDefaulted':
+      return `📉 ${n(e.player)} could not pay back a loan: ${String(e.points)} ${e.points === 1 ? 'point' : 'points'} of bad debt.`;
+    case 'sevenDrawn':
+      return `📈 ${n(e.player)} showed ${cards(e.shown as Record<string, number>)}; drawn from the others: ${
+        Object.entries(e.drawn as Record<string, Record<string, number>>)
+          .map(([seat, c]) => `${n(Number(seat))} ${cards(c)}`)
+          .join('; ') || 'nothing'
+      }.`;
+    case 'ratesSet':
+      return `📈 ${n(e.player)} set the market: ${(e.up as string[]).join(' and ')} cheaper${
+        (e.down as string[]).length ? `, ${(e.down as string[]).join(' and ')} dearer` : ''
+      }.`;
+    case 'sevenKept':
+      return e.card
+        ? `📈 ${n(e.player)} kept ${cards({ [e.card as string]: 1 })} of ${n(e.from)}'s.`
+        : `📈 ${n(e.player)} kept one of ${n(e.from)}'s cards.`;
     case 'unitsLanded':
       return `🏴‍☠️ ${n(e.player)} put an army ashore on a pirate lair (${String(e.points)} points).`;
     case 'heroPaid':

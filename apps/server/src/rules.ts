@@ -14,6 +14,7 @@ import { churchModule } from '@colonizers/module-church';
 import { witchesModule } from '@colonizers/module-witches';
 import { princesModule, PRINCES_EXTRA_VP } from '@colonizers/module-princes-explorers';
 import { soldiersModule, SOLDIERS_EXTRA_VP } from '@colonizers/module-soldiers-armies';
+import { investorsModule } from '@colonizers/module-investors-speculators';
 import {
   generateBoard,
   generateSeaBoard,
@@ -41,6 +42,7 @@ export const library = new ModuleLibrary([
   civilisationsModule,
   princesModule,
   soldiersModule,
+  investorsModule,
 ]);
 
 /** Cities & Knights adds metropolises and defender points, so games go 3 points longer. */
@@ -118,6 +120,19 @@ export function soldiersOn(
   return settings.soldiers && !otherFan && ok;
 }
 
+/**
+ * Investors & Speculators goes on the base game, on the usual maps. Its rules
+ * with Seafarers, Cities & Knights and the other expansions come later.
+ */
+export function investorsOn(
+  settings: Pick<RoomSettings, 'investors' | 'map'>,
+  ck: boolean,
+  otherFan: boolean,
+): boolean {
+  const kind = settings.map.kind;
+  return settings.investors && !ck && !otherFan && kind !== 'special' && kind !== 'scenario';
+}
+
 /** Civilisations goes on top of Greed, Wealth & Power. */
 export function civsOn(settings: Pick<RoomSettings, 'civilisations'>, gwp: boolean): boolean {
   return gwp && settings.civilisations;
@@ -136,6 +151,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const witches = witchesOn(settings, ck, gwp);
   const princes = princesOn(settings, gwp || church || witches || wondersOn(settings));
   const soldiers = soldiersOn(settings, gwp || church || witches || wondersOn(settings));
+  const investors = investorsOn(settings, ck, princes || soldiers || wondersOn(settings));
   const extraVp =
     (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
     (princes ? PRINCES_EXTRA_VP : 0) +
@@ -157,7 +173,12 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
     seed,
     players: names,
     modules: moduleList(
-      [...extra, ...(princes ? ['princes'] : []), ...(soldiers ? ['soldiers'] : [])],
+      [
+        ...extra,
+        ...(princes ? ['princes'] : []),
+        ...(soldiers ? ['soldiers'] : []),
+        ...(investors ? ['investors'] : []),
+      ],
       ck,
       gwp,
       wondersOn(settings),
@@ -288,6 +309,9 @@ const SAFE_ORDER = [
   'placePrincesRobber',
   'battleRetreat',
   'seaBattleBreak',
+  'sevenShow',
+  'sevenRates',
+  'sevenKeep',
   'payRobberToll',
   'answerBattleCall',
   'payMerchantToll',
