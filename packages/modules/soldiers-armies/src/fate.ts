@@ -27,11 +27,12 @@ function handOverCards(ctx: Ctx, from: number, to: number): void {
 
 /** Nothing left to stand on: no settlement, city or unit. */
 export function beaten(ctx: Ctx, seat: number): boolean {
-  return !ctx
-    .piecesOf(seat)
-    .some(
-      (p) => p.at.kind === 'corner' && (isBuilding(ctx, p) || p.type === ARMY || p.type === NUKE),
-    );
+  return !ctx.piecesOf(seat).some(
+    (p) =>
+      (p.at.kind === 'corner' && (isBuilding(ctx, p) || p.type === ARMY || p.type === NUKE)) ||
+      // An army aboard a ship (Explorers & Pirates).
+      (p.type === 'ship' && !!p.props.army),
+  );
 }
 
 /** Complete destruction: the player is out on 0 points, and `by` takes their cards. */

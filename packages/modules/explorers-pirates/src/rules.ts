@@ -31,7 +31,14 @@ export const SHIP_MOVES = 4;
 export const BOOST_MOVES = 2;
 /** Room in a ship's hold or a harbor's dock: a settler fills it; a crew, fish or spice takes half. */
 export const HOLD = 2;
-export const CARGO_SIZE: Record<string, number> = { settler: 2, crew: 1, fish: 1, spice: 1 };
+/** Hold space each load takes. An army (Soldiers & Armies) fills the hold. */
+export const CARGO_SIZE: Record<string, number> = {
+  settler: 2,
+  crew: 1,
+  fish: 1,
+  spice: 1,
+  army: 2,
+};
 /** Settlers each player can have out at once. */
 export const SETTLERS = 2;
 /** Gold buys a resource for this much, this many times a turn. */

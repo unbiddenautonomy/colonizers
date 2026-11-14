@@ -108,12 +108,19 @@ function HouseShape({
 /** The neutral builders in two-player duel games: white and black. */
 const NEUTRAL_COLORS = ['#f4f1ea', '#2f2f35'];
 
-const CARGO_ICON: Record<string, string> = { settler: '🧑‍🌾', crew: '⚔️', fish: '🐟', spice: '🌶️' };
+const CARGO_ICON: Record<string, string> = {
+  settler: '🧑‍🌾',
+  crew: '⚔️',
+  fish: '🐟',
+  spice: '🌶️',
+  army: '🪖',
+};
 const CARGO_NAME: Record<string, string> = {
   settler: 'a settler',
   crew: 'a crew',
   fish: 'a fish',
   spice: 'a sack of spice',
+  army: 'an army',
 };
 
 /** What a ship or harbor settlement carries (Explorers & Pirates). */

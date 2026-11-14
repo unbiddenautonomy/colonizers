@@ -203,6 +203,20 @@ describe('game options', () => {
       'seed',
     );
     expect(both.settings?.vpTarget).toBe(17);
+    // On the Explorers & Pirates scenarios, but not the other special maps.
+    const ep = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'special', id: 'pirate-lairs' } }),
+      names(3),
+      'seed',
+    );
+    expect(ep.modules).toContain('soldiers');
+    expect(ep.modules).toContain('explorers-pirates');
+    const tb = buildConfig(
+      cleanSettings({ ...settings, map: { kind: 'special', id: 'fishermen' } }),
+      names(4),
+      'seed',
+    );
+    expect(tb.modules).not.toContain('soldiers');
     // Not with the other fan expansions yet.
     for (const more of [{ worldWonders: true }])
       expect(

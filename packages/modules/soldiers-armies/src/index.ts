@@ -48,6 +48,7 @@ import { buyNuke, detonateNuke } from './nuke.ts';
 import { barbarianSieges, ckActions, ckWraps, unitStrength, withCk } from './ck.ts';
 import { progressUnitActions, progressUnitWraps } from './progress.ts';
 import { princesWraps, unitRobberMove, withPrinces } from './princes.ts';
+import { epActions, epWraps, sailIsCampaign, withEp } from './ep.ts';
 
 export { nukeOf, nukeTargets } from './nuke.ts';
 export { beaten } from './fate.ts';
@@ -401,6 +402,7 @@ export const soldiersModule: GameModule = {
     ...ckActions,
     ...progressUnitActions,
     unitRobberMove,
+    ...epActions,
   },
   wrapActions: {
     buyDevCard: notBought,
@@ -414,6 +416,7 @@ export const soldiersModule: GameModule = {
     ...ckWraps,
     ...progressUnitWraps,
     ...princesWraps,
+    ...epWraps,
   },
   hooks: {
     init(ctx) {
@@ -443,11 +446,15 @@ export const soldiersModule: GameModule = {
         ctx.events.some((e) => BOUGHT.has(e.type) && e.player === ctx.active)
       )
         setTurnFlag(ctx, 'bought');
+      sailIsCampaign(ctx);
       checkLastStanding(ctx);
     },
     turnStarted: skipIfOut,
   },
   reducers: {
+    // Explorers & Pirates has no cities, but here everyone starts with one.
+    supply: (ctx, _seat, type, value) =>
+      type === 'city' && withEp(ctx) ? Math.max(value, 1) : value,
     // A player who is out finishes on the points they left with.
     vp: (ctx, seat, value) => soldiersData(ctx).out?.[String(seat)]?.vp ?? value,
     canWin: (ctx, seat, value) => value && !isOut(ctx, seat),
