@@ -7,7 +7,7 @@ import {
   type GameState,
   type HexId,
 } from '@colonizers/engine';
-import { baseData, publicVp } from '@colonizers/module-base';
+import { bankRatio, baseData, publicVp } from '@colonizers/module-base';
 import { nameOf, pageForError } from '@colonizers/rulebook';
 import { Board, noTargets, type Targets } from '../board/Board.tsx';
 import { describe } from '../game/describe.ts';
@@ -130,6 +130,14 @@ import {
   WitchesStats,
 } from './Witches.tsx';
 import {
+  FinanceDialog,
+  InvestorsChoices,
+  investorsOn,
+  investorsPrompt,
+  InvestorsStats,
+  MarketStatus,
+} from './Investors.tsx';
+import {
   knightGiveWayTargets,
   PRINCES_BOARD_PHASES,
   PrincesChoices,
@@ -166,7 +174,7 @@ type Mode =
   | 'princesKnight'
   | SoldiersMode;
 type EdgeKind = 'road' | 'ship';
-type Dialog = null | 'bank' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
+type Dialog = null | 'bank' | 'finance' | 'offer' | 'gift' | 'yearOfPlenty' | 'monopoly';
 
 const EVENT_ICON: Record<string, string> = {
   ship: '⛵',
@@ -475,6 +483,7 @@ function prompt(
         gwpCardPrompt(state, who ?? '', names) ??
         churchPrompt(state, who ?? '', actor) ??
         witchesPrompt(state, who ?? '', actor) ??
+        investorsPrompt(state, who ?? '', actor) ??
         ''
       );
   }
@@ -553,6 +562,7 @@ export function Game({
   const civs = civsOn(state);
   const church = churchOn(state);
   const witches = witchesOn(state);
+  const investors = investorsOn(state);
   const cardKinds = handCards(state.modules);
   const promptSeat = seated && !owedMe && !goldOwed && !owedPhase ? actorOf(state) : actor;
   const seafarers = state.modules.includes('seafarers');
@@ -848,6 +858,7 @@ export function Game({
                 {tb && <TbPlayerStats ctx={ctx} seat={p.seat} viewer={seat ?? actor} />}
                 {tda && <TdaPlayerStats ctx={ctx} seat={p.seat} />}
                 <DuelStats ctx={ctx} seat={p.seat} />
+                {investors && <InvestorsStats ctx={ctx} seat={p.seat} />}
                 <span title="Longest road">🛣️ {ctx.longestRoute(p.seat)}</span>
                 {data.longestRoad === p.seat && (
                   <span className="award">
@@ -872,6 +883,7 @@ export function Game({
         {ck && <BarbarianTrack ctx={ctx} />}
         {tda && <TdaStatus ctx={ctx} />}
         {ep && <EpStatus ctx={ctx} />}
+        {investors && <MarketStatus ctx={ctx} />}
       </aside>
 
       <main className="board-wrap">
@@ -1296,6 +1308,11 @@ export function Game({
                   Bank trade
                 </button>
               )}
+              {investors && myTurnMain && (
+                <button type="button" onClick={() => setDialog('finance')} title="Save and borrow">
+                  🏦 Bank &amp; loans
+                </button>
+              )}
               {myTurnMain && (
                 <button
                   type="button"
@@ -1518,6 +1535,25 @@ export function Game({
       {witches && actor !== null && (
         <WitchesChoices state={state} legal={legal} act={act} names={promptNames} />
       )}
+      {investors && actor !== null && (
+        <InvestorsChoices
+          state={state}
+          ctx={ctx}
+          actor={actor}
+          legal={legal}
+          act={act}
+          names={promptNames}
+        />
+      )}
+      {dialog === 'finance' && actor !== null && investors && myTurnMain && (
+        <FinanceDialog
+          ctx={ctx}
+          actor={actor}
+          legal={legal}
+          act={act}
+          onClose={() => setDialog(null)}
+        />
+      )}
 
       {state.phase.id === 'steal' && legal.some((a) => a.type === 'steal') && (
         <Modal title="Steal a card">
@@ -1539,6 +1575,9 @@ export function Game({
           cards={cardKinds}
           legal={legal.filter((a) => a.type === 'bankTrade')}
           ratio={(card) => ctx.reduce('tradeRatio', actor, card, 4)}
+          {...(investors
+            ? { swap: (give: string, get: string) => bankRatio(ctx, actor, give, get) }
+            : {})}
           onTrade={(a) => act(a)}
           onClose={() => setDialog(null)}
         />
@@ -1746,12 +1785,15 @@ function BankDialog({
   cards,
   legal,
   ratio,
+  swap,
   onTrade,
   onClose,
 }: {
   cards: readonly string[];
   legal: Action[];
   ratio: (card: string) => number;
+  /** The rate for one exact swap, when it depends on the card received. */
+  swap?: (give: string, get: string) => number;
   onTrade: (a: Action) => void;
   onClose: () => void;
 }) {
@@ -1769,7 +1811,8 @@ function BankDialog({
             disabled={!gives.includes(r)}
             onClick={() => setGive(r)}
           >
-            {ratio(r)} × <ResourceCard card={r} />
+            {swap ? null : `${ratio(r)} × `}
+            <ResourceCard card={r} />
           </button>
         ))}
       </div>
@@ -1781,6 +1824,7 @@ function BankDialog({
               .filter((a) => a.give === give)
               .map((a) => (
                 <button key={a.get as string} type="button" onClick={() => onTrade(a)}>
+                  {swap ? `${swap(give, a.get as string)} × ${nameOf(give).name} → ` : null}
                   <ResourceCard card={a.get as string} />
                 </button>
               ))}

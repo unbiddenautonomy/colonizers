@@ -224,6 +224,26 @@ describe('game options', () => {
       ).not.toContain('soldiers');
   });
 
+  it('adds Investors & Speculators on the base game, on the usual maps', () => {
+    const settings = cleanSettings({ ...DEFAULT_SETTINGS, investors: true });
+    const four = buildConfig(settings, names(4), 'seed');
+    expect(four.modules).toEqual(['base', 'variants', 'investors']);
+    expect(four.settings?.vpTarget).toBe(10);
+    const state = library.createGame(four).state;
+    expect(state.data.investors).toMatchObject({ rates: { ore: 4, wool: 4 } });
+    // Not yet with Seafarers, Cities & Knights or the other expansions.
+    for (const more of [
+      { citiesKnights: true },
+      { soldiers: true },
+      { princes: true },
+      { worldWonders: true },
+      { map: { kind: 'scenario' as const, id: 'new-shores' } },
+    ])
+      expect(
+        buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
+      ).not.toContain('investors');
+  });
+
   it('builds Traders & Barbarians scenarios on the base game only', () => {
     for (const id of ['fishermen', 'rivers']) {
       const settings = cleanSettings({
