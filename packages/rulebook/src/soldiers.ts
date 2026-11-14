@@ -123,6 +123,21 @@ Players who are out sit their turns out. The game ends when someone reaches {set
       body: `Soldiers & Armies plays on the Seafarers maps with no other changes, to three points more than the scenario. Armies cross the sea along ships, whoever's they are, and a captured settlement takes the cut-off ships with it as well as roads. A rival can't build a ship on past a corner your army holds.`,
     },
     {
+      id: 'soldiers-princes',
+      module: M,
+      section: 'rules',
+      title: 'With Princes & Explorers',
+      summary:
+        'Armies give way to move the robber; no development cards; points decide. 14 points.',
+      tags: ['princes', 'explorers', 'robber', 'points'],
+      body: `Soldiers & Armies plays with Princes & Explorers to its target: 14 points, or 17 with Cities & Knights.
+
+- The **princes and the robber are neutral**. Armies can't attack them, and they change points only, never walls or units.
+- The robber can't be bought. Instead one of your **armies gives way**: its best unit drops a level, or an infantry leaves the board, and the robber moves one to three fields. More armies can give way to take it three fields further each time, but it still can't end where it began.
+- There are **no development cards** at all, so no free card after a quiet turn.
+- The game is won on **points only**: being the last player standing doesn't end it.`,
+    },
+    {
       id: 'soldiers-ck',
       module: M,
       section: 'rules',

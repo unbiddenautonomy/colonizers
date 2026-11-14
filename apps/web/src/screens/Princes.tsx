@@ -79,7 +79,7 @@ export function princesPrompt(
         : `${who}: your explorers can swap two neighbouring numbers. Tap the first, or leave them.`;
     case 'moveRobber':
       if (!ph.walk || !mine) return null;
-      return `${who}: tap where the robber goes (up to ${ph.range as number} fields), or another knight to take it further.`;
+      return `${who}: tap where the robber goes (up to ${ph.range as number} fields), or another ${state.modules.includes('soldiers') ? 'army' : 'knight'} to take it further.`;
     case 'princesRobber':
       return mine
         ? `${who}: you settled at the desert first. Tap a field for the robber.`
@@ -116,12 +116,15 @@ export function PrincesChoices({
   );
 }
 
-/** With Cities & Knights: knights that can give way to move the robber (further). */
+/**
+ * Knights (with Cities & Knights) or armies (with Soldiers & Armies) that can
+ * give way to move the robber (further).
+ */
 export function knightGiveWayTargets(state: GameState, legal: Action[]): Map<CornerId, Action> {
   const out = new Map<CornerId, Action>();
   for (const a of legal) {
-    if (a.type !== 'knightRobberMove') continue;
-    const k = state.pieces[a.knight as string];
+    if (a.type !== 'knightRobberMove' && a.type !== 'unitRobberMove') continue;
+    const k = state.pieces[(a.knight ?? a.army) as string];
     if (k?.at.kind === 'corner') out.set(k.at.id, a);
   }
   return out;

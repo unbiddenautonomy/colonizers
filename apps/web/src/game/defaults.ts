@@ -39,11 +39,11 @@ export function vpBonus(
   // Witches to 15, both to 17.
   const fan = church && witches ? 7 : church || witches ? 5 : 3;
   const expansion = citiesKnights ? (gwp ? (civs ? 10 : 8) : fan) : 0;
-  // Princes & Explorers plays to 14 with the usual 10, Soldiers & Armies to 13.
+  // Princes & Explorers plays to 14 with the usual 10, Soldiers & Armies to 13, both to 14.
   return (
     expansion +
     (princes ? 4 : 0) +
-    (soldiers ? 3 : 0) +
+    (soldiers && !princes ? 3 : 0) +
     (specialId ? (TB_VP_BONUS[specialId] ?? 0) : 0) +
     ckAdjust
   );

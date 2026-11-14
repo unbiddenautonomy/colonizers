@@ -193,8 +193,18 @@ describe('game options', () => {
     const ck = buildConfig(cleanSettings({ ...settings, citiesKnights: true }), names(4), 'seed');
     expect(ck.modules).toEqual(['base', 'variants', 'cities-knights', 'soldiers']);
     expect(ck.settings?.vpTarget).toBe(16);
-    // Not with Princes & Explorers yet.
-    for (const more of [{ princes: true }])
+    // With Princes & Explorers, to its 14 (17 with Cities & Knights).
+    const princes = buildConfig(cleanSettings({ ...settings, princes: true }), names(4), 'seed');
+    expect(princes.modules).toEqual(['base', 'variants', 'princes', 'soldiers']);
+    expect(princes.settings?.vpTarget).toBe(14);
+    const both = buildConfig(
+      cleanSettings({ ...settings, princes: true, citiesKnights: true }),
+      names(4),
+      'seed',
+    );
+    expect(both.settings?.vpTarget).toBe(17);
+    // Not with the other fan expansions yet.
+    for (const more of [{ worldWonders: true }])
       expect(
         buildConfig(cleanSettings({ ...settings, ...more }), names(4), 'seed').modules,
       ).not.toContain('soldiers');
