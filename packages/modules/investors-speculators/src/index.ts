@@ -1,6 +1,7 @@
 import type { ActionDef, GameModule } from '@colonizers/engine';
 import { advanceBank, bankActions, settleDue } from './bank.ts';
 import { BIG_GAME_HAND, goldPrice, MODULE_ID } from './constants.ts';
+import { checkEndings, isOut, wrapCapitulate } from './endings.ts';
 import {
   marketActions,
   marketRatio,
@@ -35,6 +36,9 @@ import { derivativeBlock, townActions, townCost, townItems, townMarkersOut } fro
  * - **Derivatives**: pay 2 cards of one kind to bet that a loan of 5 turns or
  *   more (anyone's) won't be paid back; it pays 1 or 2 points if it isn't.
  * - At most 5 finance actions (cards saved, loans taken, derivatives) a turn.
+ *
+ * With other expansions: see market.ts (commodities, the pirate, barbarians),
+ * town.ts (harbors, settlers, units) and endings.ts (leaving with loans open).
  */
 
 export * from './constants.ts';
@@ -79,6 +83,7 @@ export const investorsModule: GameModule = {
   },
   wrapActionsIfPresent: {
     movePirate: wrapMovePirate,
+    capitulate: wrapCapitulate,
   },
   hooks: {
     init(ctx) {
@@ -91,7 +96,11 @@ export const investorsModule: GameModule = {
         if (rolled.total === 7) investorsData(ctx).seven = { discarded: {} };
         advanceBank(ctx, ctx.active);
       }
+      // Traders & Barbarians: the barbarian moved on a 7 takes no card either.
+      const s = investorsData(ctx).seven;
+      if (ctx.state.phase.id === 'tbBarbarian' && s && !s.started) ctx.state.phase.steal = false;
       maybeStartExchange(ctx);
+      checkEndings(ctx);
     },
   },
   reducers: {
@@ -100,6 +109,8 @@ export const investorsModule: GameModule = {
       return marketRatio(ctx, seat, give, get);
     },
     vp(ctx, seat, value) {
+      // A player out of the game (Soldiers & Armies) finishes on what they left with, at least 0.
+      if (isOut(ctx, seat)) return Math.max(0, value);
       const d = investorsData(ctx);
       const held = d.loans.reduce((n, l) => n + (l.seat === seat ? (l.held ?? 0) : 0), 0);
       return value - (d.debt[String(seat)] ?? 0) + (d.bonus[String(seat)] ?? 0) - held;
