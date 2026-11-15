@@ -2185,8 +2185,11 @@ button.ready {
   padding: 28px 24px 64px;
 }
 
-body:has(.setup-page) {
-  background: var(--shell-bg);
+html:has(.setup-page),
+body:has(.setup-page),
+.setup-page {
+  background-color: var(--shell-bg);
+  background-image: var(--shell-motif);
 }
 
 .setup-page h1,
@@ -2719,4 +2722,822 @@ body:has(.setup-page) {
   box-shadow: none;
   transform: none;
   border-color: var(--dash);
+}
+
+/* ---------- Grand Saloon: a 1930s ocean liner's first-class saloon ---------- */
+/* Stepped corners outlined in gold leaf, metallic gold controls, letter-spaced capitals. */
+
+:root[data-look='deco'] .setup-page {
+  --gold: linear-gradient(135deg, #8c6a26 0%, #f1d998 28%, #c99a3e 52%, #fff0bd 70%, #a37b2c 100%);
+}
+
+:root[data-look='deco'] .setup-page h1 {
+  font-size: 2.8rem;
+  letter-spacing: 0.08em;
+  background: var(--gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+:root[data-look='deco'] .setup-page h2,
+:root[data-look='deco'] .setup-page .section-title {
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+:root[data-look='deco'] .setup-page .card > h2::after,
+:root[data-look='deco'] .setup-summary > h2::after,
+:root[data-look='deco'] .setup-page .section-title::after {
+  content: '';
+  flex: 1;
+  height: 9px;
+  background:
+    linear-gradient(var(--shell-ink), var(--shell-ink)) 0 0 / 100% 1px no-repeat,
+    linear-gradient(var(--shell-ink), var(--shell-ink)) 0 100% / 100% 1px no-repeat,
+    linear-gradient(45deg, transparent 40%, var(--shell-ink) 40% 60%, transparent 60%) 0 50% / 9px
+      9px no-repeat;
+  opacity: 0.7;
+}
+
+:root[data-look='deco'] .setup-page .subhead,
+:root[data-look='deco'] .fan-tag,
+:root[data-look='deco'] .setup-page button {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* Panels: a gold stepped outline drawn on two layers behind the content. */
+:root[data-look='deco'] .setup-page .card,
+:root[data-look='deco'] .setup-summary,
+:root[data-look='deco'] .fan-card {
+  --step: 14px;
+  --face: var(--card);
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-look='deco'] .setup-summary {
+  position: sticky;
+}
+
+:root[data-look='deco'] .setup-page .card::before,
+:root[data-look='deco'] .setup-summary::before,
+:root[data-look='deco'] .fan-card::before,
+:root[data-look='deco'] .setup-page .card::after,
+:root[data-look='deco'] .setup-summary::after,
+:root[data-look='deco'] .fan-card::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  --s: var(--step);
+  --h: calc(var(--step) / 2);
+  clip-path: polygon(
+    var(--s) 0,
+    calc(100% - var(--s)) 0,
+    calc(100% - var(--s)) var(--h),
+    calc(100% - var(--h)) var(--h),
+    calc(100% - var(--h)) var(--s),
+    100% var(--s),
+    100% calc(100% - var(--s)),
+    calc(100% - var(--h)) calc(100% - var(--s)),
+    calc(100% - var(--h)) calc(100% - var(--h)),
+    calc(100% - var(--s)) calc(100% - var(--h)),
+    calc(100% - var(--s)) 100%,
+    var(--s) 100%,
+    var(--s) calc(100% - var(--h)),
+    var(--h) calc(100% - var(--h)),
+    var(--h) calc(100% - var(--s)),
+    0 calc(100% - var(--s)),
+    0 var(--s),
+    var(--h) var(--s),
+    var(--h) var(--h),
+    var(--s) var(--h)
+  );
+}
+
+:root[data-look='deco'] .setup-page .card::before,
+:root[data-look='deco'] .setup-summary::before,
+:root[data-look='deco'] .fan-card::before {
+  inset: 0;
+  background: var(--gold);
+}
+
+:root[data-look='deco'] .setup-page .card::after,
+:root[data-look='deco'] .setup-summary::after,
+:root[data-look='deco'] .fan-card::after {
+  inset: 1.5px;
+  background: var(--face);
+  box-shadow: none;
+}
+
+:root[data-look='deco'] .setup-page .card,
+:root[data-look='deco'] .setup-summary {
+  padding: 32px;
+  filter: drop-shadow(0 18px 30px rgb(0 0 0 / 0.25));
+}
+
+:root[data-look='deco'] .fan-card {
+  --step: 10px;
+  --face: var(--sunk);
+}
+
+:root[data-look='deco'] .fan-card h4 {
+  font-family: var(--shell-heading);
+  font-weight: 400;
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+}
+
+:root[data-look='deco'] .fan-card.picked {
+  --face: var(--raised);
+}
+
+:root[data-look='deco'] .fan-card.picked::after {
+  inset: 3px;
+}
+
+:root[data-look='deco'] .fan-card.blocked {
+  opacity: 0.55;
+}
+
+:root[data-look='deco'] .fan-card.blocked::before {
+  background: var(--dash);
+}
+
+:root[data-look='deco'] .fan-tag {
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.68rem;
+  padding: 0;
+}
+
+:root[data-look='deco'] .fan-tag::before,
+:root[data-look='deco'] .fan-tag::after {
+  content: ' ◆ ';
+  font-size: 0.5rem;
+  vertical-align: middle;
+}
+
+:root[data-look='deco'] .fan-card.picked .fan-tag,
+:root[data-look='deco'] .fan-card.pair .fan-tag {
+  background: transparent;
+  color: var(--shell-pop);
+}
+
+:root[data-look='deco'] .fan-card.blocked .fan-tag {
+  color: var(--faint);
+  border: 0;
+}
+
+/* Controls: hairline gold frames; the main action is a bar of gold leaf. */
+:root[data-look='deco'] .setup-page button {
+  border-radius: 0;
+  border: 1px solid var(--shell-ink);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--shell-body);
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding-inline: 16px;
+}
+
+:root[data-look='deco'] .setup-page button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--shell-ink) 12%, transparent);
+  transform: none;
+}
+
+:root[data-look='deco'] .setup-page button.primary {
+  border: 0;
+  background: var(--gold);
+  background-size: 200% 100%;
+  color: #1a1406;
+  transition: background-position 0.5s ease;
+}
+
+:root[data-look='deco'] .setup-page button.primary:hover:not(:disabled) {
+  background: var(--gold);
+  background-size: 200% 100%;
+  background-position: 100% 0;
+}
+
+:root[data-look='deco'] .setup-page button.primary:disabled {
+  background: var(--dash);
+  color: var(--muted);
+}
+
+:root[data-look='deco'] .setup-page button.on {
+  border: 1px solid var(--shell-pop);
+  background: color-mix(in srgb, var(--shell-ink) 18%, transparent);
+  box-shadow:
+    inset 0 0 0 3px var(--card),
+    inset 0 0 0 4px var(--shell-ink);
+}
+
+:root[data-look='deco'] .setup-page input,
+:root[data-look='deco'] .setup-page select {
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid var(--shell-ink);
+  background: transparent;
+  letter-spacing: 0.04em;
+}
+
+:root[data-look='deco'] .stepper {
+  gap: 0;
+}
+
+:root[data-look='deco'] .stepper button {
+  border: 0;
+  border-bottom: 1px solid var(--dash);
+  background: transparent;
+  color: var(--faint);
+  padding: 8px 18px;
+  box-shadow: none;
+}
+
+:root[data-look='deco'] .stepper button.done {
+  color: var(--soft);
+  border: 0;
+  border-bottom: 1px solid var(--shell-ink);
+  background: transparent;
+}
+
+:root[data-look='deco'] .stepper button.on {
+  color: var(--shell-pop);
+  border: 0;
+  border-bottom: 3px double var(--shell-pop);
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-look='deco'] .weight-bar {
+  gap: 3px;
+}
+
+:root[data-look='deco'] .weight-bar span {
+  height: 14px;
+  border-radius: 0;
+  background: var(--sunk);
+  box-shadow: inset 0 0 0 1px var(--dash);
+}
+
+:root[data-look='deco'] .weight-bar .fine {
+  background: var(--good);
+}
+
+:root[data-look='deco'] .weight-bar .heavy {
+  background: var(--gold);
+}
+
+:root[data-look='deco'] .setup-warnings {
+  border-radius: 0;
+  background: transparent;
+  border: 1px solid var(--shell-ink);
+}
+
+:root[data-look='deco'] .why-pop {
+  border-radius: 0;
+  border: 1px solid var(--shell-ink);
+}
+
+/* ---------- Wonderland: a tea party behind the looking-glass ---------- */
+/* Panels are playing cards with suit pips, buttons are luggage tags, the steps are a fanned hand. */
+
+:root[data-look='wonderland'] .setup-page h1 {
+  font-size: 2.6rem;
+  font-weight: 700;
+}
+
+:root[data-look='wonderland'] .setup-page h2 {
+  font-weight: 700;
+}
+
+:root[data-look='wonderland'] .setup-page .card,
+:root[data-look='wonderland'] .setup-summary {
+  position: relative;
+  border-radius: 18px;
+  border: 1.5px solid var(--shell-ink);
+  box-shadow:
+    inset 0 0 0 7px var(--card),
+    inset 0 0 0 8px var(--accent),
+    var(--shell-shadow);
+  padding: 34px 34px 30px;
+}
+
+:root[data-look='wonderland'] .setup-summary {
+  position: sticky;
+}
+
+:root[data-look='wonderland'] .setup-page .card::before,
+:root[data-look='wonderland'] .setup-summary::before,
+:root[data-look='wonderland'] .setup-page .card::after,
+:root[data-look='wonderland'] .setup-summary::after {
+  position: absolute;
+  font-family: var(--shell-heading);
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--accent);
+}
+
+:root[data-look='wonderland'] .setup-page .card::before,
+:root[data-look='wonderland'] .setup-summary::before {
+  content: '♥';
+  top: 14px;
+  left: 16px;
+}
+
+:root[data-look='wonderland'] .setup-page .card::after,
+:root[data-look='wonderland'] .setup-summary::after {
+  content: '♥';
+  bottom: 14px;
+  right: 16px;
+  transform: rotate(180deg);
+}
+
+:root[data-look='wonderland'] .setup-summary::before,
+:root[data-look='wonderland'] .setup-summary::after {
+  content: '♠';
+  color: var(--shell-ink);
+}
+
+/* Fan expansions: a spread of cards, each its own suit, a little crooked. */
+:root[data-look='wonderland'] .fan-card {
+  position: relative;
+  border-radius: 14px;
+  border: 1.5px solid var(--shell-ink);
+  background: var(--sunk);
+  padding: 30px 20px 20px;
+  transform: rotate(-1deg);
+  transition: transform 0.25s ease;
+}
+
+:root[data-look='wonderland'] .fan-card:nth-child(2n) {
+  transform: rotate(1.2deg);
+}
+
+:root[data-look='wonderland'] .fan-card:nth-child(3n) {
+  transform: rotate(-0.4deg);
+}
+
+:root[data-look='wonderland'] .fan-card:hover {
+  transform: rotate(0) translateY(-3px);
+}
+
+:root[data-look='wonderland'] .fan-card::before {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 1rem;
+  color: var(--accent);
+  content: '♥';
+}
+
+:root[data-look='wonderland'] .fan-card:nth-child(4n + 2)::before {
+  content: '♠';
+  color: var(--shell-ink);
+}
+
+:root[data-look='wonderland'] .fan-card:nth-child(4n + 3)::before {
+  content: '♦';
+}
+
+:root[data-look='wonderland'] .fan-card:nth-child(4n)::before {
+  content: '♣';
+  color: var(--shell-ink);
+}
+
+:root[data-look='wonderland'] .fan-card h4 {
+  font-family: var(--shell-heading);
+  font-size: 1.05rem;
+}
+
+:root[data-look='wonderland'] .fan-card p {
+  font-size: 1rem;
+}
+
+:root[data-look='wonderland'] .fan-card.picked {
+  background: var(--raised);
+  box-shadow:
+    inset 0 0 0 5px var(--raised),
+    inset 0 0 0 6px var(--accent),
+    0 10px 22px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+:root[data-look='wonderland'] .fan-card.pair {
+  box-shadow:
+    inset 0 0 0 5px var(--sunk),
+    inset 0 0 0 6px var(--shell-pop);
+}
+
+/* A blocked card shows its back: a lattice, as if it was dealt face down. */
+:root[data-look='wonderland'] .fan-card.blocked {
+  opacity: 0.75;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent 0 10px,
+      color-mix(in srgb, var(--accent) 9%, transparent) 10px 11px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 10px,
+      color-mix(in srgb, var(--accent) 9%, transparent) 10px 11px
+    ),
+    var(--sunk);
+}
+
+:root[data-look='wonderland'] .fan-tag {
+  font-family: var(--shell-body);
+  font-style: italic;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--accent);
+  padding: 0;
+}
+
+:root[data-look='wonderland'] .fan-card.pair .fan-tag {
+  color: var(--shell-pop);
+}
+
+:root[data-look='wonderland'] .fan-card.picked .fan-tag {
+  color: var(--accent);
+}
+
+:root[data-look='wonderland'] .fan-card.blocked .fan-tag {
+  color: var(--faint);
+  border: 0;
+}
+
+/* Buttons: hand-written luggage tags with a punched hole. */
+:root[data-look='wonderland'] .setup-page button {
+  border-radius: 999px;
+  border: 1.5px solid var(--shell-ink);
+  background: var(--sunk);
+  font-family: var(--shell-body);
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+:root[data-look='wonderland'] .setup-page button.primary {
+  --hole: radial-gradient(circle at 14px 50%, var(--card) 0 4px, transparent 4.5px);
+  border: 0;
+  border-radius: 0 10px 10px 0;
+  padding-left: 30px;
+  background: var(--hole), var(--accent);
+  color: var(--accent-text);
+  font-style: italic;
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 50%);
+  filter: drop-shadow(0 2px 0 var(--shell-ink));
+}
+
+:root[data-look='wonderland'] .setup-page button.primary:disabled {
+  background: var(--hole), var(--dash);
+  color: var(--muted);
+}
+
+:root[data-look='wonderland'] .setup-page button.on {
+  background: var(--shell-pop);
+  color: var(--card);
+  border-color: var(--shell-ink);
+  box-shadow: none;
+}
+
+:root[data-look='wonderland'] .setup-page input,
+:root[data-look='wonderland'] .setup-page select {
+  border-radius: 10px;
+  border: 1.5px solid var(--shell-ink);
+  background: var(--sunk);
+  font-family: var(--shell-body);
+  font-size: 1rem;
+}
+
+/* The steps: a hand of cards fanned out, the current one lifted. */
+:root[data-look='wonderland'] .stepper {
+  gap: 4px;
+  padding: 8px 4px 4px;
+}
+
+:root[data-look='wonderland'] .stepper button {
+  border-radius: 10px;
+  border: 1.5px solid var(--shell-ink);
+  border-style: solid;
+  background: var(--card);
+  color: var(--muted);
+  min-height: 52px;
+  padding: 6px 18px;
+  font-family: var(--shell-heading);
+  font-size: 0.9rem;
+  transform: rotate(-3deg);
+}
+
+:root[data-look='wonderland'] .stepper button:nth-child(2) {
+  transform: rotate(-1deg);
+}
+
+:root[data-look='wonderland'] .stepper button:nth-child(3) {
+  transform: rotate(1deg);
+}
+
+:root[data-look='wonderland'] .stepper button:nth-child(4) {
+  transform: rotate(3deg);
+}
+
+:root[data-look='wonderland'] .stepper button.done {
+  color: var(--soft);
+  background: var(--card);
+}
+
+:root[data-look='wonderland'] .stepper button.on {
+  transform: translateY(-8px) rotate(0);
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--shell-ink);
+  box-shadow: 0 8px 0 -4px var(--shell-ink);
+}
+
+/* The weight is a clock face's ticks. */
+:root[data-look='wonderland'] .weight-bar {
+  gap: 6px;
+}
+
+:root[data-look='wonderland'] .weight-bar span {
+  height: 14px;
+  border-radius: 999px 999px 2px 2px;
+  border: 1.5px solid var(--shell-ink);
+  background: var(--sunk);
+}
+
+:root[data-look='wonderland'] .weight-bar .fine {
+  background: var(--good);
+}
+
+:root[data-look='wonderland'] .weight-bar .heavy {
+  background: var(--shell-pop);
+}
+
+:root[data-look='wonderland'] .weight-bar .chaos {
+  background: var(--accent);
+}
+
+:root[data-look='wonderland'] .setup-warnings {
+  border-radius: 12px;
+  border: 1.5px dashed var(--accent);
+  background: transparent;
+  font-style: italic;
+}
+
+:root[data-look='wonderland'] .why-pop {
+  border-radius: 12px;
+  border: 1.5px solid var(--shell-ink);
+  font-size: 0.95rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-look='wonderland'] .fan-card,
+  :root[data-look='wonderland'] .stepper button {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ---------- Grand Line: pirate crews ---------- */
+/* Rope-bound panels, wanted-poster cards, swallowtail flags for actions, pennants for the steps. */
+
+:root[data-look='grandline'] .setup-page {
+  --rope: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M0 12 L12 0' stroke='%23000' stroke-opacity='0.35' stroke-width='3'/%3E%3C/svg%3E");
+}
+
+:root[data-look='grandline'] .setup-page h1 {
+  font-size: 3rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+:root[data-look='grandline'] .setup-page h2,
+:root[data-look='grandline'] .setup-page .section-title {
+  font-weight: 400;
+  font-size: 1.9rem;
+}
+
+:root[data-look='grandline'] .setup-page .card,
+:root[data-look='grandline'] .setup-summary {
+  position: relative;
+  border-radius: 6px;
+  border: 0;
+  padding: 30px;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    var(--rope) 0 0 / 12px 12px,
+    linear-gradient(var(--shell-pop), var(--shell-pop)) border-box;
+  border: 6px solid transparent;
+  box-shadow: var(--shell-shadow);
+}
+
+:root[data-look='grandline'] .setup-summary {
+  position: sticky;
+}
+
+/* Fan expansions are wanted posters: a heavy frame and a coloured header band. */
+:root[data-look='grandline'] .fan-card {
+  border-radius: 2px;
+  border: 2px solid var(--shell-ink);
+  background:
+    linear-gradient(var(--accent), var(--accent)) 0 0 / 100% 8px no-repeat,
+    var(--sunk);
+  padding-top: 24px;
+  box-shadow: 3px 4px 0 var(--shell-ink);
+}
+
+:root[data-look='grandline'] .fan-card h4 {
+  font-family: var(--shell-heading);
+  font-weight: 400;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+:root[data-look='grandline'] .fan-card.picked {
+  background:
+    linear-gradient(var(--accent), var(--accent)) 0 0 / 100% 8px no-repeat,
+    var(--raised);
+  box-shadow: 5px 6px 0 var(--accent);
+}
+
+:root[data-look='grandline'] .fan-card.pair {
+  box-shadow: 4px 5px 0 var(--shell-pop);
+}
+
+:root[data-look='grandline'] .fan-card.blocked {
+  opacity: 0.6;
+  box-shadow: none;
+  background:
+    linear-gradient(var(--dash), var(--dash)) 0 0 / 100% 8px no-repeat,
+    var(--sunk);
+}
+
+:root[data-look='grandline'] .fan-tag {
+  border-radius: 0;
+  background: var(--shell-ink);
+  color: var(--card);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+:root[data-look='grandline'] .fan-card.pair .fan-tag {
+  background: var(--shell-pop);
+  color: var(--shell-ink);
+}
+
+:root[data-look='grandline'] .fan-card.picked .fan-tag {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+:root[data-look='grandline'] .fan-card.blocked .fan-tag {
+  background: transparent;
+  color: var(--faint);
+  border: 1px solid var(--dash);
+}
+
+:root[data-look='grandline'] .setup-page button {
+  border-radius: 4px;
+  border: 2px solid var(--shell-ink);
+  background: var(--sunk);
+  font-weight: 800;
+}
+
+:root[data-look='grandline'] .setup-page button.primary {
+  border: 0;
+  border-radius: 0;
+  padding-inline: 22px 30px;
+  background: var(--accent);
+  color: var(--accent-text);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 50%, 100% 100%, 0 100%);
+  font-family: var(--shell-heading);
+  font-weight: 400;
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
+}
+
+:root[data-look='grandline'] .setup-page button.primary:disabled {
+  background: var(--dash);
+  color: var(--muted);
+}
+
+:root[data-look='grandline'] .setup-page button.on {
+  background: var(--shell-pop);
+  color: var(--shell-ink);
+  box-shadow: 2px 3px 0 var(--shell-ink);
+}
+
+:root[data-look='grandline'] .setup-page input,
+:root[data-look='grandline'] .setup-page select {
+  border-radius: 4px;
+  border: 2px solid var(--shell-ink);
+  background: var(--sunk);
+}
+
+/* Steps: pennants on a line. */
+:root[data-look='grandline'] .stepper {
+  gap: 6px;
+  padding-top: 10px;
+  background: linear-gradient(var(--shell-ink), var(--shell-ink)) 0 8px / 100% 2px no-repeat;
+}
+
+:root[data-look='grandline'] .stepper button {
+  border: 0;
+  border-radius: 0;
+  min-height: 56px;
+  padding: 8px 18px 18px;
+  background: var(--dash);
+  color: var(--soft);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  font-weight: 800;
+}
+
+:root[data-look='grandline'] .stepper button.done {
+  background: var(--shell-pop);
+  color: var(--shell-ink);
+  border: 0;
+}
+
+:root[data-look='grandline'] .stepper button.on {
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 0;
+  box-shadow: none;
+}
+
+:root[data-look='grandline'] .weight-bar {
+  gap: 0;
+  border: 2px solid var(--shell-ink);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+:root[data-look='grandline'] .weight-bar span {
+  height: 12px;
+  border-radius: 0;
+  border-right: 1px solid var(--shell-ink);
+}
+
+:root[data-look='grandline'] .weight-bar .heavy {
+  background: var(--shell-pop);
+}
+
+:root[data-look='grandline'] .weight-bar .chaos {
+  background: var(--accent);
+}
+
+:root[data-look='grandline'] .setup-warnings {
+  border-radius: 4px;
+  border: 2px solid var(--shell-ink);
+  background: color-mix(in srgb, var(--shell-pop) 22%, transparent);
+}
+
+:root[data-look='grandline'] .why-pop {
+  border-radius: 4px;
+  border: 2px solid var(--shell-ink);
+  box-shadow: 4px 5px 0 var(--shell-ink);
+}
+
+:root[data-look='deco'] .look-art,
+:root[data-look='wonderland'] .look-art,
+:root[data-look='grandline'] .look-art {
+  display: block;
+  width: min(360px, 100%);
+  height: auto;
+}
+
+:root[data-look='deco'] .setup-page .expansion small,
+:root[data-look='deco'] .setup-page .why-btn {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.85rem;
+}
+
+:root[data-look='wonderland'] .setup-page button.expansion {
+  border-radius: 12px;
+}
+
+:root[data-look='wonderland'] .setup-page button.expansion.on {
+  background: var(--raised);
+  color: var(--text);
+  box-shadow:
+    inset 0 0 0 3px var(--card),
+    inset 0 0 0 4px var(--accent);
+}
+
+:root[data-look='grandline'] .setup-page button.on {
+  color: #16121a;
 }
