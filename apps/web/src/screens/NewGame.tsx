@@ -8,6 +8,7 @@ import {
   type WeightLevel,
 } from '@colonizers/modes';
 import { modesFor } from '../game/modeFlags.ts';
+import { LookPicker } from '../theme/looks.tsx';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   analyzeMap,
@@ -404,6 +405,7 @@ export function NewGame({
           <button type="button" className="ghost" onClick={onRules}>
             📖 Rulebook
           </button>
+          <LookPicker />
           <ThemePicker />
           <DicePicker />
         </div>
@@ -781,14 +783,10 @@ export function NewGame({
                           <ul>
                             {(st.reasons ?? []).map((r) => (
                               <li key={r.text}>
-                                {r.text}
+                                {r.kind === 'notYet' && r.mode
+                                  ? `With ${MODE_INFO[r.mode].name}: this pairing isn't built yet.`
+                                  : r.text}
                                 {r.fix && <span className="why-fix"> {r.fix}</span>}
-                                {r.kind === 'notYet' && (
-                                  <span className="why-fix">
-                                    {' '}
-                                    Not built yet, not a rules clash.
-                                  </span>
-                                )}
                               </li>
                             ))}
                           </ul>
