@@ -2571,3 +2571,152 @@ body:has(.setup-page) {
   opacity: 1;
   z-index: 4;
 }
+
+/* ---------- Tabletop Pop: drawn with a thick pen ---------- */
+
+:root[data-look='pop'] .setup-page h1,
+:root[data-look='pop'] .setup-page h2,
+:root[data-look='pop'] .setup-page .section-title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+:root[data-look='pop'] .setup-page .card,
+:root[data-look='pop'] .setup-summary {
+  border: 2px solid var(--shell-ink);
+  border-radius: 24px;
+  box-shadow: 6px 6px 0 var(--shell-ink);
+}
+
+:root[data-look='pop'] .setup-page button {
+  border: 2px solid var(--shell-ink);
+  border-radius: 14px;
+  font-weight: 600;
+}
+
+:root[data-look='pop'] .setup-page button.primary {
+  box-shadow: 3px 3px 0 var(--shell-ink);
+}
+
+:root[data-look='pop'] .setup-page button:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--shell-ink);
+}
+
+:root[data-look='pop'] .setup-page button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--shell-ink);
+}
+
+:root[data-look='pop'] .setup-page button.on {
+  background: var(--shell-pop);
+  color: var(--shell-ink);
+  box-shadow: 3px 3px 0 var(--shell-ink);
+}
+
+:root[data-look='pop'] .setup-page input,
+:root[data-look='pop'] .setup-page select {
+  border: 2px solid var(--shell-ink);
+  border-radius: 12px;
+}
+
+:root[data-look='pop'] .stepper button {
+  border: 2px dashed var(--dash);
+}
+
+:root[data-look='pop'] .stepper button.done {
+  border: 2px solid var(--shell-ink);
+}
+
+:root[data-look='pop'] .stepper button.on {
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 2px solid var(--shell-ink);
+  box-shadow: 3px 3px 0 var(--shell-ink);
+}
+
+:root[data-look='pop'] .fan-card {
+  border: 2px solid var(--shell-ink);
+  border-radius: 20px;
+  background: var(--card);
+}
+
+:root[data-look='pop'] .fan-card.picked {
+  background: var(--raised);
+  box-shadow: 5px 5px 0 var(--accent);
+}
+
+:root[data-look='pop'] .fan-card.pair {
+  box-shadow: 4px 4px 0 var(--shell-pop);
+}
+
+:root[data-look='pop'] .fan-card.pair .fan-tag {
+  background: var(--shell-pop);
+  color: var(--shell-ink);
+}
+
+:root[data-look='pop'] .fan-card.blocked {
+  border-color: var(--dash);
+  background: var(--sunk);
+}
+
+:root[data-look='pop'] .weight-bar {
+  border: 2px solid var(--shell-ink);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+:root[data-look='pop'] .weight-bar span {
+  height: 10px;
+  border-radius: 999px;
+}
+
+:root[data-look='pop'] .weight-bar .heavy {
+  background: var(--shell-pop);
+}
+
+:root[data-look='pop'] .why-pop {
+  border: 2px solid var(--shell-ink);
+  box-shadow: 4px 4px 0 var(--shell-ink);
+}
+
+.look-art {
+  display: none;
+}
+
+:root[data-look='pop'] .look-art {
+  display: block;
+  width: min(360px, 100%);
+  height: auto;
+}
+
+.setup-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.setup-hero > div {
+  flex: 1 1 380px;
+  min-width: 0;
+}
+
+:root[data-look='pop'] .fan-tag {
+  background: var(--bg);
+  color: var(--text);
+  border: 2px solid var(--shell-ink);
+}
+
+:root[data-look='pop'] .fan-card.blocked .fan-tag {
+  border: 2px dashed var(--dash);
+}
+
+:root[data-look='pop'] .setup-page button:disabled,
+:root[data-look='pop'] .setup-page button:disabled:hover {
+  box-shadow: none;
+  transform: none;
+  border-color: var(--dash);
+}

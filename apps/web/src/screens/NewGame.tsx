@@ -9,6 +9,7 @@ import {
 } from '@colonizers/modes';
 import { modesFor } from '../game/modeFlags.ts';
 import { LookPicker } from '../theme/looks.tsx';
+import { LookArt } from '../ui/LookArt.tsx';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   analyzeMap,
@@ -391,23 +392,30 @@ export function NewGame({
     <main className="setup-page">
       <header>
         {account}
-        <h1 className="brand">
-          <img className="brand-mark" src="/logo.svg" alt="" width="56" height="56" />
-          Colonizers
-        </h1>
-        <p className="muted">Play online with friends, or on one device passed around the table.</p>
-        <div className="row">
-          {canResume && (
-            <button type="button" className="primary" onClick={onResume}>
-              Resume saved game
-            </button>
-          )}
-          <button type="button" className="ghost" onClick={onRules}>
-            📖 Rulebook
-          </button>
-          <LookPicker />
-          <ThemePicker />
-          <DicePicker />
+        <div className="setup-hero">
+          <div>
+            <h1 className="brand">
+              <img className="brand-mark" src="/logo.svg" alt="" width="56" height="56" />
+              Colonizers
+            </h1>
+            <p className="muted">
+              Play online with friends, or on one device passed around the table.
+            </p>
+            <div className="row">
+              {canResume && (
+                <button type="button" className="primary" onClick={onResume}>
+                  Resume saved game
+                </button>
+              )}
+              <button type="button" className="ghost" onClick={onRules}>
+                📖 Rulebook
+              </button>
+              <LookPicker />
+              <ThemePicker />
+              <DicePicker />
+            </div>
+          </div>
+          <LookArt />
         </div>
       </header>
 

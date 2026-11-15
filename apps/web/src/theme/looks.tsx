@@ -32,6 +32,10 @@ export interface Look {
     heading: string;
     body: string;
     shadow: string;
+    /** Outline colour for looks that draw pieces of the page with a pen. */
+    ink?: string;
+    /** A second accent. */
+    pop?: string;
   };
 }
 
@@ -91,7 +95,129 @@ const atelier: Look = {
   },
 };
 
-export const LOOKS: Look[] = [night, atelier];
+const POP_TYPE = {
+  heading: "'Space Grotesk', system-ui, sans-serif",
+  body: 'Inter, system-ui, sans-serif',
+};
+
+/** Tabletop Pop: chunky outlines, offset shadows and bright flat colour, in four schemes. */
+const grape: Look = {
+  id: 'pop-grape',
+  family: 'pop',
+  familyName: 'Tabletop Pop',
+  name: 'Grape Soda',
+  dark: false,
+  board: 'pop-grape',
+  tokens: {
+    bg: '#f3f1fa',
+    card: '#ffffff',
+    raised: '#ece9ff',
+    sunk: '#ffffff',
+    text: '#17152b',
+    soft: '#3d3b55',
+    muted: '#55536b',
+    faint: '#6b6984',
+    accent: '#5b4bff',
+    accentText: '#ffffff',
+    border: '#17152b',
+    dash: '#c9c6dc',
+    good: '#3fbf73',
+    bad: '#d6304a',
+    ...POP_TYPE,
+    shadow: '6px 6px 0 #17152b',
+    ink: '#17152b',
+    pop: '#ffb547',
+  },
+};
+
+const sorbet: Look = {
+  id: 'pop-sorbet',
+  family: 'pop',
+  familyName: 'Tabletop Pop',
+  name: 'Sorbet',
+  dark: false,
+  board: 'pop-sorbet',
+  tokens: {
+    bg: '#fff1ea',
+    card: '#ffffff',
+    raised: '#ffe0e6',
+    sunk: '#fffaf7',
+    text: '#2b1620',
+    soft: '#4a2f3a',
+    muted: '#6a4d58',
+    faint: '#86697a',
+    accent: '#d6336c',
+    accentText: '#ffffff',
+    border: '#2b1620',
+    dash: '#e7c7cf',
+    good: '#2fa58a',
+    bad: '#b3261e',
+    ...POP_TYPE,
+    shadow: '6px 6px 0 #2b1620',
+    ink: '#2b1620',
+    pop: '#7fe0c5',
+  },
+};
+
+const citrus: Look = {
+  id: 'pop-citrus',
+  family: 'pop',
+  familyName: 'Tabletop Pop',
+  name: 'Citrus Club',
+  dark: false,
+  board: 'pop-citrus',
+  tokens: {
+    bg: '#f4f8e4',
+    card: '#ffffff',
+    raised: '#e3f4d0',
+    sunk: '#fbfdf3',
+    text: '#14231c',
+    soft: '#2f4338',
+    muted: '#4b5f53',
+    faint: '#66796d',
+    accent: '#16795f',
+    accentText: '#ffffff',
+    border: '#14231c',
+    dash: '#c7d6b4',
+    good: '#16795f',
+    bad: '#c2410c',
+    ...POP_TYPE,
+    shadow: '6px 6px 0 #14231c',
+    ink: '#14231c',
+    pop: '#ffd23f',
+  },
+};
+
+const arcade: Look = {
+  id: 'pop-arcade',
+  family: 'pop',
+  familyName: 'Tabletop Pop',
+  name: 'Arcade Night',
+  dark: true,
+  board: 'pop-arcade',
+  tokens: {
+    bg: '#141029',
+    card: '#221c46',
+    raised: '#2f2760',
+    sunk: '#1a1536',
+    text: '#f6f2ff',
+    soft: '#d6cff5',
+    muted: '#b3a9e0',
+    faint: '#9489c4',
+    accent: '#ff5fb8',
+    accentText: '#1a0b16',
+    border: '#000000',
+    dash: '#463c80',
+    good: '#3df5d0',
+    bad: '#ff7a7a',
+    ...POP_TYPE,
+    shadow: '6px 6px 0 #000000',
+    ink: '#000000',
+    pop: '#3df5d0',
+  },
+};
+
+export const LOOKS: Look[] = [night, atelier, grape, sorbet, citrus, arcade];
 
 /** Picks that aren't a single look: BasicBench following the device's light or dark setting. */
 export const AUTO = 'basicbench-auto';
@@ -185,6 +311,8 @@ export function LookStyles() {
     set('heading', t.heading);
     set('body', t.body);
     set('shadow', t.shadow);
+    set('ink', t.ink ?? t.border);
+    set('pop', t.pop ?? t.accent);
     set('scheme', look.dark ? 'dark' : 'light');
     root.dataset.look = look.family;
     root.dataset.lookId = look.id;
