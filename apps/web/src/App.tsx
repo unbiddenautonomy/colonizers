@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { clearSavedGame, loadSavedGame, type SavedGame } from './game/useLocalGame.ts';
-import { afterGoogle, loadAccount, verifyEmail } from './online/account.ts';
+import { afterGoogle, loadAccount, loadSite, verifyEmail } from './online/account.ts';
 import {
   AccountBar,
   CrewPage,
@@ -82,6 +82,7 @@ export function App() {
     const link = linkParams();
     if (link.signin === 'google') void afterGoogle();
     else void loadAccount();
+    void loadSite();
     if (link.verify)
       verifyEmail(link.verify).then(
         () =>
