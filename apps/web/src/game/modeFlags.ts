@@ -1,6 +1,8 @@
 import {
   MODES as MODE_IDS,
   modeStatus,
+  warnings,
+  weightOf,
   resolve,
   type BoardInfo,
   type ModeId,
@@ -26,5 +28,11 @@ export function modesFor(
     MODE_IDS.filter((m) => wanted[m]),
   );
   const picked = Object.fromEntries(MODE_IDS.map((m) => [m, on.has(m)])) as Record<ModeId, boolean>;
-  return { on: picked, status: modeStatus(board, [...on]) };
+  const list = [...on];
+  return {
+    on: picked,
+    status: modeStatus(board, list),
+    weight: weightOf(board, list),
+    warn: (vpTarget: number) => warnings(board, list, vpTarget),
+  };
 }

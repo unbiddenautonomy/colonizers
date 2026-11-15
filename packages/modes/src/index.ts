@@ -336,6 +336,43 @@ export function weightLevel(weight: number): WeightLevel {
 
 // ---- Status of each mode ----
 
+export interface BlockReason {
+  text: string;
+  kind: 'map' | 'needs' | 'conflict' | 'notYet';
+  /** The picked mode behind it, or the one it needs. */
+  mode?: ModeId;
+  /** What would clear this one reason, if anything can. */
+  fix: string | null;
+}
+
+/** Every reason a mode can't join what's picked, not only the first. */
+function allReasons(board: BoardInfo, picked: Set<ModeId>, m: ModeId): BlockReason[] {
+  const out: BlockReason[] = [];
+  const b = boardBlock(board, m);
+  if (b) out.push({ text: b, kind: 'map', fix: 'Pick another map.' });
+  const need = REQUIRES[m];
+  if (need && !picked.has(need) && !(need === 'citiesKnights' && board.needsCk)) {
+    const needBlocked = boardBlock(board, need);
+    out.push({
+      text: `Needs ${MODE_INFO[need].name}.`,
+      kind: 'needs',
+      mode: need,
+      fix: needBlocked ? null : `Add ${MODE_INFO[need].name} first.`,
+    });
+  }
+  for (const p of picked) {
+    const c = clash(m, p);
+    if (c)
+      out.push({
+        text: c.reason,
+        kind: c.kind,
+        mode: p,
+        fix: board.needsCk && p === 'citiesKnights' ? null : `Remove ${MODE_INFO[p].name}.`,
+      });
+  }
+  return out;
+}
+
 export interface ModeStatus {
   id: ModeId;
   /** picked; blocked (can't join); pair (goes well with what's picked); ok. */
@@ -344,6 +381,8 @@ export interface ModeStatus {
   reason: string | null;
   /** A block that only waits on more work, not a clash in the rules. */
   notYet?: boolean;
+  /** For a blocked mode, every reason it can't join, each with what would clear it. */
+  reasons?: BlockReason[];
   /** The total weight with this mode added (or as it stands, for a picked one). */
   weightWith: number;
 }
@@ -361,7 +400,14 @@ export function modeStatus(board: BoardInfo, picked: Picked): Record<ModeId, Mod
     const weightWith = base + MODE_INFO[m].weight;
     const block = blockReason(board, set, m);
     if (block) {
-      out[m] = { id: m, state: 'blocked', reason: block.reason, weightWith };
+      const reasons = allReasons(board, set, m);
+      out[m] = {
+        id: m,
+        state: 'blocked',
+        reason: block.reason,
+        weightWith,
+        reasons: reasons.length ? reasons : [{ text: block.reason, kind: block.kind, fix: null }],
+      };
       if (block.kind === 'notYet') out[m].notYet = true;
       continue;
     }

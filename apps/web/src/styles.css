@@ -2153,3 +2153,421 @@ button.ready {
 .civ-tile p {
   margin: 0.3rem 0;
 }
+
+/* ---------- App shell: the screens around the game ---------- */
+/* Every screen outside the board takes the look's --shell-* tokens (theme/looks.ts), so buttons,
+   cards and inputs follow without their own rules. */
+
+.setup-page {
+  --bg: var(--shell-bg);
+  --card: var(--shell-card);
+  --raised: var(--shell-raised);
+  --sunk: var(--shell-sunk);
+  --text: var(--shell-text);
+  --soft: var(--shell-soft);
+  --muted: var(--shell-muted);
+  --faint: var(--shell-faint);
+  --accent: var(--shell-accent);
+  --accent-text: var(--shell-accent-text);
+  --accent-soft: color-mix(in srgb, var(--shell-accent) 14%, transparent);
+  --accent-line: color-mix(in srgb, var(--shell-accent) 45%, transparent);
+  --border: var(--shell-border);
+  --dash: var(--shell-dash);
+  --good: var(--shell-good);
+  --danger: var(--shell-bad);
+  --heading: var(--shell-heading);
+  color-scheme: var(--shell-scheme);
+  font-family: var(--shell-body);
+  background: var(--bg);
+  color: var(--text);
+  max-width: 1180px;
+  min-height: 100vh;
+  padding: 28px 24px 64px;
+}
+
+body:has(.setup-page) {
+  background: var(--shell-bg);
+}
+
+.setup-page h1,
+.setup-page h2,
+.setup-page .section-title {
+  font-family: var(--heading);
+  font-weight: 400;
+}
+
+.setup-page h2 {
+  font-size: 1.6rem;
+}
+
+.setup-page .card {
+  border-radius: 20px;
+  padding: 24px;
+  margin: 0 0 16px;
+  box-shadow: var(--shell-shadow);
+}
+
+.setup-page button {
+  border-radius: 12px;
+  transition:
+    transform 0.12s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.setup-page button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.setup-page button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.setup-page button.on {
+  outline: 0;
+  background: var(--raised);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.setup-page input,
+.setup-page select {
+  background: var(--sunk);
+  border-color: var(--border);
+  border-radius: 10px;
+}
+
+.setup-page input:focus-visible,
+.setup-page select:focus-visible,
+.setup-page button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.setup-page .subhead {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 20px 0 10px;
+}
+
+.small {
+  font-size: 0.88rem;
+}
+
+.stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+
+.stepper button {
+  border-radius: 999px;
+  border: 1px dashed var(--dash);
+  background: transparent;
+  color: var(--faint);
+  min-height: 38px;
+  padding: 6px 16px;
+}
+
+.stepper button.done {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--soft);
+}
+
+.stepper button.on {
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.step-num {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.setup-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.setup-steps {
+  flex: 999 1 560px;
+  min-width: 0;
+}
+
+.setup-summary {
+  flex: 1 1 300px;
+  min-width: 0;
+  position: sticky;
+  top: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.setup-summary dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.setup-summary dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setup-summary dt {
+  color: var(--muted);
+}
+
+.setup-summary dd {
+  margin: 0;
+  text-align: right;
+}
+
+.weight {
+  display: grid;
+  gap: 8px;
+}
+
+.weight-head {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.weight-head span {
+  color: var(--muted);
+}
+
+.weight-heavy {
+  color: var(--accent);
+}
+
+.weight-chaos {
+  color: var(--danger);
+}
+
+.weight-bar {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+}
+
+.weight-bar span {
+  height: 8px;
+  border-radius: 3px;
+  background: var(--sunk);
+}
+
+.weight-bar .fine {
+  background: var(--good);
+}
+
+.weight-bar .heavy {
+  background: var(--accent);
+}
+
+.weight-bar .chaos {
+  background: var(--danger);
+}
+
+.weight p {
+  margin: 0;
+}
+
+.setup-warnings {
+  margin: 0;
+  padding: 12px 14px 12px 30px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  font-size: 0.9rem;
+  display: grid;
+  gap: 4px;
+}
+
+.setup-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.setup-nav button {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.setup-nav button.primary {
+  flex-basis: 100%;
+  min-height: 48px;
+  font-size: 1.05rem;
+}
+
+.fan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.fan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.setup-page .fan-card {
+  background: var(--sunk);
+}
+
+.fan-card h4 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.fan-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--soft);
+}
+
+.fan-card button {
+  margin-top: auto;
+  align-self: stretch;
+  justify-content: center;
+}
+
+.fan-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--soft);
+}
+
+.fan-card.picked {
+  background: var(--raised);
+  border: 2px solid var(--accent);
+}
+
+.fan-card.picked .fan-tag {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.fan-card.pair {
+  border-color: var(--accent-line);
+}
+
+.fan-card.pair .fan-tag {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.fan-card.blocked {
+  opacity: 0.6;
+}
+
+.fan-card.blocked .fan-tag {
+  background: transparent;
+  border: 1px solid var(--dash);
+  color: var(--faint);
+}
+
+.setup-step[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-page button {
+    transition: none;
+  }
+  .setup-page button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+.setup-page .fan-card button:disabled {
+  background: transparent;
+  color: var(--faint);
+  border: 1px dashed var(--dash);
+  opacity: 1;
+}
+
+.fan-card {
+  position: relative;
+}
+
+.setup-page .why-btn {
+  min-height: 0;
+  padding: 2px 10px;
+  font-size: 0.78rem;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+
+.why-pop {
+  display: none;
+  position: absolute;
+  z-index: 5;
+  left: 10px;
+  min-width: min(300px, calc(100vw - 48px));
+  top: calc(100% - 8px);
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--raised, var(--card));
+  border: 1px solid var(--accent);
+  box-shadow: var(--shell-shadow);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.why-pop ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.why-fix {
+  color: var(--muted);
+}
+
+.fan-card.blocked:hover .why-pop,
+.fan-card.blocked:focus-within .why-pop,
+.why-pop.open {
+  display: block;
+}
+
+.fan-card.blocked:hover,
+.fan-card.blocked:focus-within {
+  opacity: 1;
+  z-index: 4;
+}

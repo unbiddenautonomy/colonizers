@@ -71,6 +71,18 @@ describe('mode compatibility', () => {
     expect(modeStatus(b, []).church.reason).toBe('Needs Cities & Knights.');
   });
 
+  it('lists every reason a mode is blocked, with what clears it', () => {
+    const b = BOARDS.usual as BoardInfo;
+    const s = modeStatus(b, ['citiesKnights', 'church', 'worldWonders']);
+    expect(s.princes.reasons?.map((r) => r.mode)).toEqual(['church', 'worldWonders']);
+    expect(s.princes.reasons?.[0]?.fix).toBe('Remove Church, Faith & Reformation.');
+    const civ = modeStatus(b, ['citiesKnights', 'church']).civilisations;
+    expect(civ.reasons?.[0]).toMatchObject({ kind: 'needs', mode: 'greedWealthPower' });
+    for (const board of Object.values(BOARDS))
+      for (const st of Object.values(modeStatus(board, [])))
+        if (st.state === 'blocked') expect(st.reasons?.length).toBeGreaterThan(0);
+  });
+
   it('highlights Cities & Knights on Seafarers', () => {
     expect(modeStatus(BOARDS.seafarers as BoardInfo, []).citiesKnights.state).toBe('pair');
     expect(modeStatus(BOARDS.usual as BoardInfo, []).citiesKnights.state).toBe('ok');
