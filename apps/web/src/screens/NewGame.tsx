@@ -147,6 +147,7 @@ export function NewGame({
   const [landWaterWanted, setLandWater] = useState(false);
   const [strategistWanted, setStrategist] = useState(false);
   const [step, setStep] = useState(0);
+  const [why, setWhy] = useState<ModeId | null>(null);
   // Points and options belong to one game type: picking another map or
   // expansion starts again from that type's defaults.
   const [vpPick, setVpPick] = useState({ key: '', base: DEFAULT_VP_BASE });
@@ -758,6 +759,42 @@ export function NewGame({
                     <h4>
                       <span aria-hidden="true">{FAN_ICON[m]}</span> {info.name}
                     </h4>
+                    {st.state === 'blocked' && (
+                      <div className="why">
+                        <button
+                          type="button"
+                          className="why-btn"
+                          aria-expanded={why === m}
+                          aria-controls={`why-${m}`}
+                          onClick={() => setWhy(why === m ? null : m)}
+                        >
+                          {st.reasons && st.reasons.length > 1
+                            ? `Why? ${st.reasons.length} reasons`
+                            : 'Why?'}
+                        </button>
+                        <div
+                          id={`why-${m}`}
+                          role="tooltip"
+                          className={`why-pop ${why === m ? 'open' : ''}`}
+                        >
+                          <strong>{info.name} can&rsquo;t join because:</strong>
+                          <ul>
+                            {(st.reasons ?? []).map((r) => (
+                              <li key={r.text}>
+                                {r.text}
+                                {r.fix && <span className="why-fix"> {r.fix}</span>}
+                                {r.kind === 'notYet' && (
+                                  <span className="why-fix">
+                                    {' '}
+                                    Not built yet, not a rules clash.
+                                  </span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
                     <p>
                       {st.state === 'blocked' ? st.reason : info.blurb}
                       {!picked && st.state !== 'blocked' && weightLevel(st.weightWith) !== 'fine'
