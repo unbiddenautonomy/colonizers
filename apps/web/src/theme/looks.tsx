@@ -217,7 +217,38 @@ const arcade: Look = {
   },
 };
 
-export const LOOKS: Look[] = [night, atelier, grape, sorbet, citrus, arcade];
+/** Atlas: an explorer's chart table. Parchment, sepia ink, wax-seal red, cut corners and stamps. */
+const atlas: Look = {
+  id: 'atlas',
+  family: 'atlas',
+  familyName: 'Atlas',
+  name: 'Chart Table',
+  dark: false,
+  board: 'atlas',
+  tokens: {
+    bg: '#e9dcc0',
+    card: '#f6eedb',
+    raised: '#efe2c4',
+    sunk: '#f9f3e4',
+    text: '#2b2118',
+    soft: '#45372a',
+    muted: '#5e4d3b',
+    faint: '#7a6750',
+    accent: '#8c2f1e',
+    accentText: '#fbf3e2',
+    border: '#7a6750',
+    dash: '#b9a582',
+    good: '#3e7c74',
+    bad: '#8c2f1e',
+    heading: "'IM Fell English SC', 'IM Fell English', Georgia, serif",
+    body: 'Spectral, Georgia, serif',
+    shadow: '0 1px 0 #fff8 inset, 0 10px 24px rgb(60 40 20 / 0.18)',
+    ink: '#2b2118',
+    pop: '#c08a2e',
+  },
+};
+
+export const LOOKS: Look[] = [night, atelier, grape, sorbet, citrus, arcade, atlas];
 
 /** Picks that aren't a single look: BasicBench following the device's light or dark setting. */
 export const AUTO = 'basicbench-auto';

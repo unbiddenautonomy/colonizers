@@ -2720,3 +2720,356 @@ body:has(.setup-page) {
   transform: none;
   border-color: var(--dash);
 }
+
+/* ---------- Atlas: an explorer's chart table ---------- */
+/* Parchment with foxing, sepia ink, cut corners, folder-flag tabs, stamped labels and a
+   wax-seal red. Nothing here is a plain rounded rectangle. */
+
+:root[data-look='atlas'] body,
+:root[data-look='atlas'] .setup-page {
+  background:
+    radial-gradient(ellipse at 12% 8%, rgb(255 250 235 / 0.7), transparent 40%),
+    radial-gradient(ellipse at 88% 92%, rgb(120 80 30 / 0.16), transparent 45%),
+    radial-gradient(circle at 70% 20%, rgb(140 100 50 / 0.07) 0 2px, transparent 3px) 0 0 / 46px
+      46px,
+    linear-gradient(180deg, #ecdfc3, #e3d3b2);
+}
+
+:root[data-look='atlas'] .setup-page {
+  letter-spacing: 0.005em;
+}
+
+:root[data-look='atlas'] .setup-page h1 {
+  font-size: 2.6rem;
+}
+
+:root[data-look='atlas'] .setup-page h2,
+:root[data-look='atlas'] .setup-page .section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+:root[data-look='atlas'] .setup-page .section-title::after,
+:root[data-look='atlas'] .setup-page .card > h2::after,
+:root[data-look='atlas'] .setup-summary > h2::after {
+  content: '';
+  flex: 1;
+  height: 7px;
+  border-top: 1px solid var(--shell-ink);
+  border-bottom: 3px double var(--shell-ink);
+  opacity: 0.55;
+}
+
+/* Panels: chamfered corners and a double ink rule just inside the edge, drawn on a layer behind
+   so nothing inside (like a Why? note) is clipped. */
+:root[data-look='atlas'] .setup-page .card,
+:root[data-look='atlas'] .setup-summary {
+  --cut: 18px;
+  --paper: var(--card);
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  padding: 30px 30px 28px;
+}
+
+:root[data-look='atlas'] .setup-page .card::before,
+:root[data-look='atlas'] .setup-summary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--paper);
+  clip-path: polygon(
+    var(--cut) 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut)),
+    0 var(--cut)
+  );
+  box-shadow:
+    inset 0 0 0 6px var(--card),
+    inset 0 0 0 7px var(--shell-ink),
+    inset 0 0 0 10px var(--card),
+    inset 0 0 0 11px color-mix(in srgb, var(--shell-ink) 45%, transparent);
+}
+
+/* The summary is a ledger page: ruled lines and a compass rose watermark. */
+:root[data-look='atlas'] .setup-summary {
+  position: sticky;
+  --paper:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%232b2118' stroke-opacity='0.09'%3E%3Ccircle cx='50' cy='50' r='44'/%3E%3Ccircle cx='50' cy='50' r='36'/%3E%3Cpath d='M50 4 L56 50 L50 96 L44 50 Z M4 50 L50 44 L96 50 L50 56 Z' fill='%232b2118' fill-opacity='0.06'/%3E%3C/g%3E%3C/svg%3E")
+      right -40px bottom -40px / 220px no-repeat,
+    repeating-linear-gradient(180deg, transparent 0 27px, rgb(122 103 80 / 0.18) 27px 28px),
+    var(--card);
+}
+
+:root[data-look='atlas'] .setup-summary dl > div {
+  border-bottom: 1px dotted var(--dash);
+  padding-bottom: 4px;
+}
+
+/* Buttons: ink-ruled plaques; the main action is a red ribbon with notched ends. */
+:root[data-look='atlas'] .setup-page button {
+  border-radius: 2px;
+  border: 1px solid var(--shell-ink);
+  background: var(--sunk);
+  box-shadow:
+    inset 0 0 0 2px var(--sunk),
+    inset 0 0 0 3px color-mix(in srgb, var(--shell-ink) 35%, transparent);
+  font-family: var(--shell-body);
+  font-weight: 600;
+}
+
+:root[data-look='atlas'] .setup-page button.primary {
+  --notch: 12px;
+  border: 0;
+  border-radius: 0;
+  padding-inline: 26px;
+  background: linear-gradient(180deg, #a13a26, #7e2919);
+  color: var(--accent-text);
+  box-shadow: none;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    calc(100% - var(--notch)) 50%,
+    100% 100%,
+    0 100%,
+    var(--notch) 50%
+  );
+  font-family: var(--shell-heading);
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+}
+
+:root[data-look='atlas'] .setup-page button.primary:disabled {
+  background: var(--dash);
+  color: var(--soft);
+}
+
+:root[data-look='atlas'] .setup-page button.on {
+  background: var(--raised);
+  box-shadow:
+    inset 0 0 0 2px var(--raised),
+    inset 0 0 0 3px var(--accent);
+  border-color: var(--accent);
+}
+
+:root[data-look='atlas'] .setup-page input,
+:root[data-look='atlas'] .setup-page select {
+  border: 0;
+  border-bottom: 2px solid var(--shell-ink);
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--shell-body);
+  font-style: italic;
+}
+
+/* Steps: folder flags along the top of a drawer. */
+:root[data-look='atlas'] .stepper {
+  gap: 0;
+  border-bottom: 2px solid var(--shell-ink);
+  margin-bottom: 0;
+}
+
+:root[data-look='atlas'] .stepper button {
+  border: 1px solid var(--shell-ink);
+  border-bottom: 0;
+  border-radius: 0;
+  margin-right: -6px;
+  padding: 8px 26px 6px;
+  background: var(--raised);
+  color: var(--faint);
+  box-shadow: none;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 100%, 0 100%);
+  font-family: var(--shell-heading);
+}
+
+:root[data-look='atlas'] .stepper button.done {
+  color: var(--soft);
+  background: var(--card);
+}
+
+:root[data-look='atlas'] .stepper button.on {
+  position: relative;
+  z-index: 1;
+  background: var(--card);
+  color: var(--text);
+  padding-top: 12px;
+  transform: none;
+}
+
+:root[data-look='atlas'] .setup-flow {
+  margin-top: 0;
+  padding-top: 20px;
+}
+
+/* Fan expansions: charts pinned to the table, each a little askew. */
+:root[data-look='atlas'] .fan-card {
+  --cut: 12px;
+  --paper: var(--sunk);
+  --rule: inset 0 0 0 1px var(--shell-ink);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  isolation: isolate;
+  transform: rotate(-0.6deg);
+}
+
+/* The paper is drawn on a layer behind, so the cut corners never clip the Why? note. */
+:root[data-look='atlas'] .fan-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--paper);
+  box-shadow: var(--rule);
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
+}
+
+:root[data-look='atlas'] .fan-card:nth-child(2n) {
+  transform: rotate(0.5deg);
+}
+
+:root[data-look='atlas'] .fan-card:nth-child(3n) {
+  transform: rotate(-0.2deg);
+}
+
+:root[data-look='atlas'] .fan-card h4 {
+  font-family: var(--shell-heading);
+  font-size: 1.15rem;
+  font-weight: 400;
+}
+
+:root[data-look='atlas'] .fan-card.picked {
+  --paper: var(--raised);
+  --rule:
+    inset 0 0 0 2px var(--accent), inset 0 0 0 5px var(--raised), inset 0 0 0 6px var(--accent);
+}
+
+:root[data-look='atlas'] .fan-card.pair {
+  --rule:
+    inset 0 0 0 1px var(--shell-ink), inset 0 0 0 4px var(--sunk), inset 0 0 0 5px var(--shell-pop);
+}
+
+:root[data-look='atlas'] .fan-card.blocked {
+  opacity: 0.72;
+  --paper:
+    repeating-linear-gradient(-45deg, transparent 0 9px, rgb(122 103 80 / 0.12) 9px 10px),
+    var(--sunk);
+}
+
+:root[data-look='atlas'] .fan-card.blocked:hover,
+:root[data-look='atlas'] .fan-card.blocked:focus-within {
+  opacity: 1;
+}
+
+/* Labels are rubber stamps. */
+:root[data-look='atlas'] .fan-tag {
+  border-radius: 2px;
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid currentColor;
+  box-shadow:
+    inset 0 0 0 1px var(--sunk),
+    inset 0 0 0 2px currentColor;
+  padding: 3px 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.68rem;
+  transform: rotate(-2deg);
+  font-family: var(--shell-body);
+}
+
+:root[data-look='atlas'] .fan-card.pair .fan-tag {
+  color: #8a5f12;
+}
+
+:root[data-look='atlas'] .fan-card.picked .fan-tag {
+  color: var(--accent-text);
+  background: var(--accent);
+  box-shadow: none;
+}
+
+:root[data-look='atlas'] .fan-card.blocked .fan-tag {
+  color: var(--faint);
+}
+
+/* The weight is a route on the chart: waypoints joined by a dotted line. */
+:root[data-look='atlas'] .weight-bar {
+  gap: 0;
+  align-items: center;
+  background: radial-gradient(circle, var(--shell-ink) 1px, transparent 1.5px) 0 50% / 8px 8px
+    repeat-x;
+}
+
+:root[data-look='atlas'] .weight-bar span {
+  justify-self: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--shell-ink);
+  background: var(--card);
+}
+
+:root[data-look='atlas'] .weight-bar .fine {
+  background: var(--good);
+}
+
+:root[data-look='atlas'] .weight-bar .heavy {
+  background: var(--shell-pop);
+}
+
+:root[data-look='atlas'] .weight-bar .chaos {
+  background: var(--accent);
+}
+
+:root[data-look='atlas'] .setup-warnings {
+  border-radius: 0;
+  border: 0;
+  border-left: 3px double var(--accent);
+  background: transparent;
+  font-style: italic;
+}
+
+:root[data-look='atlas'] .why-pop {
+  border-radius: 0;
+  border: 1px solid var(--shell-ink);
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 3px var(--card),
+    inset 0 0 0 4px var(--shell-ink),
+    6px 8px 0 rgb(60 40 20 / 0.2);
+}
+
+:root[data-look='atlas'] .setup-page .why-btn {
+  font-style: italic;
+  box-shadow: none;
+  border-style: dashed;
+}
+
+:root[data-look='atlas'] .look-art {
+  display: block;
+  width: min(340px, 100%);
+  height: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-look='atlas'] .fan-card {
+    transform: none;
+  }
+}
