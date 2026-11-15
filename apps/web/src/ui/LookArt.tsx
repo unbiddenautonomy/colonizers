@@ -1,8 +1,21 @@
+import { useLook } from '../theme/looks.tsx';
+import { DecoArt, SeaArt, WonderArt } from './LookArtMore.tsx';
+
+/** Header art for the looks that have it, drawn in the look's own colours. */
+export function LookArt() {
+  const { look } = useLook();
+  if (look.family === 'pop') return <PopArt />;
+  if (look.family === 'deco') return <DecoArt />;
+  if (look.family === 'wonderland') return <WonderArt />;
+  if (look.family === 'grandline') return <SeaArt crew={look.id} />;
+  return null;
+}
+
 /**
  * Spot art for the looks that draw (Tabletop Pop). Plain shapes in the look's own colours, so
  * every scheme recolours it: a little island of hexes, a house, a boat on the waves and two dice.
  */
-export function LookArt() {
+function PopArt() {
   const ink = 'var(--shell-ink)';
   const line = { stroke: ink, strokeWidth: 3, strokeLinejoin: 'round' as const };
   const hex = (cx: number, cy: number, r: number) =>
