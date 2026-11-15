@@ -43,14 +43,14 @@ export async function loadSite(): Promise<SiteSettings> {
     site: { look: null, board: null },
   }));
   setForcedLook(r.site.look);
-  setForcedTheme(r.site.look ? r.site.board : null);
+  setForcedTheme(r.site.board);
   return r.site;
 }
 
 export async function saveSite(site: SiteSettings): Promise<SiteSettings> {
   const r = await call<{ site: SiteSettings }>('/api/site', 'PATCH', site);
   setForcedLook(r.site.look);
-  setForcedTheme(r.site.look ? r.site.board : null);
+  setForcedTheme(r.site.board);
   return r.site;
 }
 
