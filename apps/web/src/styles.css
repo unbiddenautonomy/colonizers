@@ -2228,6 +2228,16 @@ body:has(.setup-page),
   color: var(--accent-text);
 }
 
+.setup-page button:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  background: transparent;
+  color: var(--muted);
+  border-style: dashed;
+  border-color: var(--dash);
+  box-shadow: none;
+}
+
 .setup-page button.on {
   outline: 0;
   background: var(--raised);
@@ -2293,7 +2303,6 @@ body:has(.setup-page),
 
 .step-num {
   font-variant-numeric: tabular-nums;
-  opacity: 0.8;
 }
 
 .setup-flow {
@@ -2491,8 +2500,18 @@ body:has(.setup-page),
   color: var(--accent);
 }
 
-.fan-card.blocked {
-  opacity: 0.6;
+.fan-card.blocked h4 {
+  color: var(--soft);
+}
+
+.fan-card.blocked p {
+  color: var(--muted);
+}
+
+/* Faded by colour, not opacity, so the reasons stay readable; only the picture is greyed. */
+.fan-card.blocked h4 span {
+  filter: grayscale(1);
+  opacity: 0.7;
 }
 
 .fan-card.blocked .fan-tag {
@@ -2728,24 +2747,39 @@ body:has(.setup-page),
 /* Stepped corners outlined in gold leaf, metallic gold controls, letter-spaced capitals. */
 
 :root[data-look='deco'] .setup-page {
-  --gold: linear-gradient(135deg, #8c6a26 0%, #f1d998 28%, #c99a3e 52%, #fff0bd 70%, #a37b2c 100%);
+  --gold: linear-gradient(135deg, #b8903f 0%, #f1d998 28%, #d4ab52 52%, #fff0bd 70%, #c29645 100%);
 }
 
+/* Bodoni titles: the name large in gold (navy on ivory), section titles in spaced capitals. */
 :root[data-look='deco'] .setup-page h1 {
-  font-size: 2.8rem;
-  letter-spacing: 0.08em;
+  font-size: 3rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
   background: var(--gold);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
+:root[data-look-id='deco-ivory'] .setup-page h1 {
+  background: none;
+  color: var(--accent);
+}
+
 :root[data-look='deco'] .setup-page h2,
 :root[data-look='deco'] .setup-page .section-title {
-  letter-spacing: 0.08em;
+  font-weight: 600;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+:root[data-look='deco'] .setup-hero > div > h2 {
+  font-size: 1.5rem;
 }
 
 :root[data-look='deco'] .setup-page .card > h2::after,
@@ -2850,9 +2884,9 @@ body:has(.setup-page),
 
 :root[data-look='deco'] .fan-card h4 {
   font-family: var(--shell-heading);
-  font-weight: 400;
-  font-size: 1.1rem;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  font-size: 1.15rem;
+  letter-spacing: 0;
 }
 
 :root[data-look='deco'] .fan-card.picked {
@@ -2861,10 +2895,6 @@ body:has(.setup-page),
 
 :root[data-look='deco'] .fan-card.picked::after {
   inset: 3px;
-}
-
-:root[data-look='deco'] .fan-card.blocked {
-  opacity: 0.55;
 }
 
 :root[data-look='deco'] .fan-card.blocked::before {
@@ -2893,7 +2923,7 @@ body:has(.setup-page),
 }
 
 :root[data-look='deco'] .fan-card.blocked .fan-tag {
-  color: var(--faint);
+  color: var(--muted);
   border: 0;
 }
 
@@ -2929,7 +2959,8 @@ body:has(.setup-page),
 }
 
 :root[data-look='deco'] .setup-page button.primary:disabled {
-  background: var(--dash);
+  background: transparent;
+  border: 1px dashed var(--shell-ink);
   color: var(--muted);
 }
 
@@ -2958,7 +2989,7 @@ body:has(.setup-page),
   border: 0;
   border-bottom: 1px solid var(--dash);
   background: transparent;
-  color: var(--faint);
+  color: var(--muted);
   padding: 8px 18px;
   box-shadow: none;
 }
@@ -2971,9 +3002,9 @@ body:has(.setup-page),
 }
 
 :root[data-look='deco'] .stepper button.on {
-  color: var(--shell-pop);
+  color: var(--text);
   border: 0;
-  border-bottom: 3px double var(--shell-pop);
+  border-bottom: 3px double var(--shell-ink);
   background: transparent;
   box-shadow: none;
 }
@@ -3012,12 +3043,20 @@ body:has(.setup-page),
 /* Panels are playing cards with suit pips, buttons are luggage tags, the steps are a fanned hand. */
 
 :root[data-look='wonderland'] .setup-page h1 {
-  font-size: 2.6rem;
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+:root[data-look='wonderland'] .setup-page h2,
+:root[data-look='wonderland'] .setup-page .section-title {
   font-weight: 700;
 }
 
-:root[data-look='wonderland'] .setup-page h2 {
-  font-weight: 700;
+:root[data-look='wonderland'] .setup-page h2 em,
+:root[data-look='wonderland'] .setup-page h1 em {
+  font-style: italic;
+  font-weight: 600;
 }
 
 :root[data-look='wonderland'] .setup-page .card,
@@ -3116,11 +3155,12 @@ body:has(.setup-page),
 
 :root[data-look='wonderland'] .fan-card h4 {
   font-family: var(--shell-heading);
-  font-size: 1.05rem;
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
 :root[data-look='wonderland'] .fan-card p {
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 :root[data-look='wonderland'] .fan-card.picked {
@@ -3139,7 +3179,6 @@ body:has(.setup-page),
 
 /* A blocked card shows its back: a lattice, as if it was dealt face down. */
 :root[data-look='wonderland'] .fan-card.blocked {
-  opacity: 0.75;
   background:
     repeating-linear-gradient(
       45deg,
@@ -3173,7 +3212,7 @@ body:has(.setup-page),
 }
 
 :root[data-look='wonderland'] .fan-card.blocked .fan-tag {
-  color: var(--faint);
+  color: var(--muted);
   border: 0;
 }
 
@@ -3183,8 +3222,8 @@ body:has(.setup-page),
   border: 1.5px solid var(--shell-ink);
   background: var(--sunk);
   font-family: var(--shell-body);
-  font-size: 1.02rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 :root[data-look='wonderland'] .setup-page button.primary {
@@ -3194,19 +3233,22 @@ body:has(.setup-page),
   padding-left: 30px;
   background: var(--hole), var(--accent);
   color: var(--accent-text);
-  font-style: italic;
+  font-family: var(--shell-heading);
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
   clip-path: polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 50%);
   filter: drop-shadow(0 2px 0 var(--shell-ink));
 }
 
 :root[data-look='wonderland'] .setup-page button.primary:disabled {
-  background: var(--hole), var(--dash);
+  background: var(--hole), var(--raised);
   color: var(--muted);
+  filter: drop-shadow(0 1.5px 0 var(--dash));
 }
 
 :root[data-look='wonderland'] .setup-page button.on {
   background: var(--shell-pop);
-  color: var(--card);
+  color: var(--shell-pop-text);
   border-color: var(--shell-ink);
   box-shadow: none;
 }
@@ -3234,8 +3276,8 @@ body:has(.setup-page),
   color: var(--muted);
   min-height: 52px;
   padding: 6px 18px;
-  font-family: var(--shell-heading);
-  font-size: 0.9rem;
+  font-family: var(--shell-body);
+  font-size: 0.92rem;
   transform: rotate(-3deg);
 }
 
@@ -3292,7 +3334,6 @@ body:has(.setup-page),
   border-radius: 12px;
   border: 1.5px dashed var(--accent);
   background: transparent;
-  font-style: italic;
 }
 
 :root[data-look='wonderland'] .why-pop {
@@ -3312,75 +3353,63 @@ body:has(.setup-page),
 /* ---------- Grand Line: pirate crews ---------- */
 /* Rope-bound panels, wanted-poster cards, swallowtail flags for actions, pennants for the steps. */
 
-:root[data-look='grandline'] .setup-page {
-  --rope: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M0 12 L12 0' stroke='%23000' stroke-opacity='0.35' stroke-width='3'/%3E%3C/svg%3E");
-}
-
 :root[data-look='grandline'] .setup-page h1 {
-  font-size: 3rem;
-  font-weight: 400;
-  letter-spacing: 0.02em;
+  font-size: 2.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 :root[data-look='grandline'] .setup-page h2,
 :root[data-look='grandline'] .setup-page .section-title {
-  font-weight: 400;
-  font-size: 1.9rem;
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: 0.05em;
+}
+
+/* Panels are posters pinned up on the dock: torn paper, a ruled border, a pin in each corner.
+   The frame is an image cut nine ways, so the content keeps its rectangle inside it. */
+:root[data-look='grandline'] .setup-page .card,
+:root[data-look='grandline'] .setup-summary,
+:root[data-look='grandline'] .fan-card {
+  position: relative;
+  border: 0 solid transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-image: var(--shell-frame) 100 fill / 100px / var(--shell-frame-outset) round;
+  filter: drop-shadow(0 10px 16px rgb(0 0 0 / 0.16));
 }
 
 :root[data-look='grandline'] .setup-page .card,
 :root[data-look='grandline'] .setup-summary {
-  position: relative;
-  border-radius: 6px;
-  border: 0;
-  padding: 30px;
-  background:
-    linear-gradient(var(--card), var(--card)) padding-box,
-    var(--rope) 0 0 / 12px 12px,
-    linear-gradient(var(--shell-pop), var(--shell-pop)) border-box;
-  border: 6px solid transparent;
-  box-shadow: var(--shell-shadow);
+  padding: 40px 40px 36px;
 }
 
 :root[data-look='grandline'] .setup-summary {
   position: sticky;
 }
 
-/* Fan expansions are wanted posters: a heavy frame and a coloured header band. */
 :root[data-look='grandline'] .fan-card {
-  border-radius: 2px;
-  border: 2px solid var(--shell-ink);
-  background:
-    linear-gradient(var(--accent), var(--accent)) 0 0 / 100% 8px no-repeat,
-    var(--sunk);
-  padding-top: 24px;
-  box-shadow: 3px 4px 0 var(--shell-ink);
+  border-image: var(--shell-frame-card) 100 fill / 72px / calc(var(--shell-frame-outset) * 0.72)
+    round;
+  padding: 30px 26px 26px;
+  filter: none;
 }
 
 :root[data-look='grandline'] .fan-card h4 {
   font-family: var(--shell-heading);
-  font-weight: 400;
-  font-size: 1.35rem;
-  line-height: 1.1;
+  font-weight: 700;
+  font-size: 1.02rem;
+  line-height: 1.25;
 }
 
 :root[data-look='grandline'] .fan-card.picked {
-  background:
-    linear-gradient(var(--accent), var(--accent)) 0 0 / 100% 8px no-repeat,
-    var(--raised);
-  box-shadow: 5px 6px 0 var(--accent);
-}
-
-:root[data-look='grandline'] .fan-card.pair {
-  box-shadow: 4px 5px 0 var(--shell-pop);
+  border-image-source: var(--shell-frame-picked);
+  filter: drop-shadow(0 6px 10px color-mix(in srgb, var(--accent) 30%, transparent));
 }
 
 :root[data-look='grandline'] .fan-card.blocked {
-  opacity: 0.6;
-  box-shadow: none;
-  background:
-    linear-gradient(var(--dash), var(--dash)) 0 0 / 100% 8px no-repeat,
-    var(--sunk);
+  border-image-source: var(--shell-frame-blocked);
 }
 
 :root[data-look='grandline'] .fan-tag {
@@ -3395,7 +3424,7 @@ body:has(.setup-page),
 
 :root[data-look='grandline'] .fan-card.pair .fan-tag {
   background: var(--shell-pop);
-  color: var(--shell-ink);
+  color: var(--shell-pop-text);
 }
 
 :root[data-look='grandline'] .fan-card.picked .fan-tag {
@@ -3405,7 +3434,7 @@ body:has(.setup-page),
 
 :root[data-look='grandline'] .fan-card.blocked .fan-tag {
   background: transparent;
-  color: var(--faint);
+  color: var(--muted);
   border: 1px solid var(--dash);
 }
 
@@ -3413,7 +3442,7 @@ body:has(.setup-page),
   border-radius: 4px;
   border: 2px solid var(--shell-ink);
   background: var(--sunk);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 :root[data-look='grandline'] .setup-page button.primary {
@@ -3424,19 +3453,20 @@ body:has(.setup-page),
   color: var(--accent-text);
   clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 50%, 100% 100%, 0 100%);
   font-family: var(--shell-heading);
-  font-weight: 400;
-  font-size: 1.15rem;
-  letter-spacing: 0.03em;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
 }
 
 :root[data-look='grandline'] .setup-page button.primary:disabled {
-  background: var(--dash);
+  background: var(--sunk);
   color: var(--muted);
+  border: 0;
 }
 
 :root[data-look='grandline'] .setup-page button.on {
   background: var(--shell-pop);
-  color: var(--shell-ink);
+  color: var(--shell-pop-text);
   box-shadow: 2px 3px 0 var(--shell-ink);
 }
 
@@ -3459,15 +3489,15 @@ body:has(.setup-page),
   border-radius: 0;
   min-height: 56px;
   padding: 8px 18px 18px;
-  background: var(--dash);
-  color: var(--soft);
+  background: var(--raised);
+  color: var(--text);
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
   font-weight: 800;
 }
 
 :root[data-look='grandline'] .stepper button.done {
   background: var(--shell-pop);
-  color: var(--shell-ink);
+  color: var(--shell-pop-text);
   border: 0;
 }
 
@@ -3538,6 +3568,270 @@ body:has(.setup-page),
     inset 0 0 0 4px var(--accent);
 }
 
-:root[data-look='grandline'] .setup-page button.on {
-  color: #16121a;
+/* ---------- Archipelago: every panel is an island on a sea chart ---------- */
+/* Content keeps its rectangle; around it, a coastline with depth lines, pebble buttons and a
+   path of stepping stones for the steps. */
+
+:root[data-look='isles'] .setup-page h1 {
+  font-size: 3.1rem;
+  font-weight: 700;
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1;
+  letter-spacing: -0.02em;
+}
+
+:root[data-look='isles'] .setup-page h2,
+:root[data-look='isles'] .setup-page .section-title {
+  font-weight: 600;
+  font-variation-settings: 'SOFT' 100;
+}
+
+:root[data-look='isles'] .setup-page .card,
+:root[data-look='isles'] .setup-summary,
+:root[data-look='isles'] .fan-card {
+  position: relative;
+  border: 0 solid transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-image: var(--shell-frame) 100 fill / 100px / var(--shell-frame-outset) round;
+}
+
+:root[data-look='isles'] .setup-page .card,
+:root[data-look='isles'] .setup-summary {
+  padding: 36px 38px 34px;
+  margin-bottom: 44px;
+}
+
+:root[data-look='isles'] .setup-flow {
+  gap: 44px;
+  margin-top: 8px;
+}
+
+:root[data-look='isles'] .setup-summary {
+  position: sticky;
+}
+
+:root[data-look='isles'] .fan-card {
+  border-image: var(--shell-frame-card) 100 fill / 62px / calc(var(--shell-frame-outset) * 0.62)
+    round;
+  padding: 24px 22px 22px;
+}
+
+:root[data-look='isles'] .fan-card.picked {
+  border-image-source: var(--shell-frame-picked);
+}
+
+:root[data-look='isles'] .fan-card.blocked {
+  border-image-source: var(--shell-frame-blocked);
+}
+
+:root[data-look='isles'] .fan-card h4 {
+  font-family: var(--shell-heading);
+  font-weight: 600;
+  font-size: 1.12rem;
+}
+
+/* Tags are map labels: spaced capitals, no box. */
+:root[data-look='isles'] .fan-tag {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+:root[data-look='isles'] .fan-card.pair .fan-tag {
+  color: var(--text);
+}
+
+:root[data-look='isles'] .fan-card.pair .fan-tag::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50% 40% 55% 45%;
+  background: var(--shell-pop);
+  vertical-align: 1px;
+}
+
+:root[data-look='isles'] .fan-card.blocked .fan-tag {
+  color: var(--muted);
+  border: 0;
+}
+
+/* Buttons are pebbles: no two quite the same shape. */
+:root[data-look='isles'] .setup-page button {
+  border: 2px solid var(--shell-ink);
+  border-radius: 20px 26px 18px 24px / 24px 18px 26px 20px;
+  background: var(--sunk);
+  color: var(--text);
+  font-weight: 700;
+  padding-inline: 18px;
+}
+
+:root[data-look='isles'] .setup-page button:nth-child(2n) {
+  border-radius: 26px 18px 24px 20px / 18px 26px 20px 24px;
+}
+
+:root[data-look='isles'] .setup-page button:nth-child(3n) {
+  border-radius: 22px 24px 16px 28px / 26px 20px 24px 18px;
+}
+
+:root[data-look='isles'] .setup-page button:hover:not(:disabled) {
+  transform: translateY(-1px) rotate(-1deg);
+}
+
+:root[data-look='isles'] .setup-page button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-family: var(--shell-heading);
+  font-weight: 600;
+  font-size: 1.08rem;
+  min-height: 48px;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 55%, var(--shell-ink));
+}
+
+:root[data-look='isles'] .setup-page button:disabled,
+:root[data-look='isles'] .setup-page button.primary:disabled {
+  background: transparent;
+  border: 2px dashed var(--faint);
+  color: var(--muted);
+  box-shadow: none;
+  font-family: var(--shell-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  transform: none;
+}
+
+:root[data-look='isles'] .setup-page button.on {
+  background: var(--shell-pop);
+  border-color: var(--shell-ink);
+  color: var(--shell-pop-text);
+  box-shadow: none;
+}
+
+:root[data-look='isles'] .setup-page button.expansion,
+:root[data-look='isles'] .setup-page button.expansion:nth-child(n) {
+  border-radius: 18px 22px 16px 24px;
+}
+
+:root[data-look='isles'] .setup-page button.expansion.on {
+  background: var(--raised);
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+:root[data-look='isles'] .setup-page input,
+:root[data-look='isles'] .setup-page select {
+  border-radius: 14px;
+  border: 2px solid var(--shell-ink);
+  background: var(--sunk);
+}
+
+/* The steps: stepping stones on a dotted route. */
+:root[data-look='isles'] .stepper {
+  gap: 18px;
+  padding: 6px 4px;
+  background: radial-gradient(circle, var(--shell-ink) 1.4px, transparent 1.8px) 0 50% / 12px 12px
+    repeat-x;
+}
+
+:root[data-look='isles'] .stepper button,
+:root[data-look='isles'] .stepper button:nth-child(n) {
+  border: 2px solid var(--shell-ink);
+  background: var(--card);
+  color: var(--text);
+  min-height: 48px;
+  padding: 8px 22px;
+  box-shadow: 0 3px 0 var(--shell-ink);
+}
+
+:root[data-look='isles'] .stepper button:nth-child(1) {
+  border-radius: 24px 30px 20px 28px / 28px 22px 30px 20px;
+}
+
+:root[data-look='isles'] .stepper button:nth-child(2) {
+  border-radius: 30px 22px 28px 24px / 22px 30px 20px 28px;
+}
+
+:root[data-look='isles'] .stepper button:nth-child(3) {
+  border-radius: 22px 28px 30px 20px / 30px 24px 26px 22px;
+}
+
+:root[data-look='isles'] .stepper button:nth-child(4) {
+  border-radius: 28px 24px 22px 30px / 20px 28px 24px 30px;
+}
+
+:root[data-look='isles'] .stepper button.done {
+  background: var(--raised);
+}
+
+:root[data-look='isles'] .stepper button.on {
+  background: var(--accent);
+  border-color: var(--shell-ink);
+  color: var(--accent-text);
+  transform: translateY(-3px);
+}
+
+:root[data-look='isles'] .weight-bar {
+  gap: 5px;
+}
+
+:root[data-look='isles'] .weight-bar span {
+  height: 14px;
+  border-radius: 50% 45% 55% 50%;
+  border: 1.5px solid var(--shell-ink);
+  background: var(--sunk);
+}
+
+:root[data-look='isles'] .weight-bar .fine {
+  background: var(--good);
+}
+
+:root[data-look='isles'] .weight-bar .heavy {
+  background: var(--shell-pop);
+}
+
+:root[data-look='isles'] .weight-bar .chaos {
+  background: var(--danger);
+}
+
+:root[data-look='isles'] .setup-warnings {
+  border-radius: 20px 26px 18px 24px;
+  border: 2px dashed var(--shell-pop);
+  background: transparent;
+}
+
+:root[data-look='isles'] .why-pop {
+  border-radius: 18px 24px 16px 22px;
+  border: 2px solid var(--shell-ink);
+}
+
+:root[data-look='isles'] .look-art {
+  display: block;
+  width: min(360px, 100%);
+  height: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-look='isles'] .setup-page button:hover:not(:disabled),
+  :root[data-look='isles'] .stepper button.on {
+    transform: none;
+  }
+}
+
+:root[data-look='wonderland'] .setup-page .expansion small {
+  line-height: 1.4;
+}
+
+:root[data-look='grandline'] .setup-page button.on small {
+  color: inherit;
 }
