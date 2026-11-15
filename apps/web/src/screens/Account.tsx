@@ -21,6 +21,8 @@ import {
   renewInvite,
   resendVerify,
   resetPassword,
+  saveSite,
+  loadSite,
   setPassword,
   signUp,
   updateProfile,
@@ -31,6 +33,7 @@ import {
   type MyStats,
 } from '../online/account.ts';
 import { Modal } from '../ui/Modal.tsx';
+import { LOOKS } from '../theme/looks.tsx';
 import { NotifyButton } from '../ui/NotifyButton.tsx';
 
 function message(e: unknown): string {
@@ -381,6 +384,7 @@ export function ProfilePage({
     <main className="setup-page">
       <TopBar onHome={onHome} title="Your profile" />
       <ProfileCard />
+      <SiteLookCard />
       <StatsCards />
       <CrewsCard onCrew={onCrew} />
       <HistoryCard onRoom={onRoom} onReplay={onReplay} />
@@ -406,6 +410,60 @@ function TopBar({ onHome, title }: { onHome: () => void; title: string }) {
       </button>
       <h1>{title}</h1>
     </header>
+  );
+}
+
+/** For admins: one look for everyone, or let each player choose. */
+function SiteLookCard() {
+  const { user } = useAccount();
+  const [look, setLook] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const task = useTask();
+  useEffect(() => {
+    if (!user?.admin) return;
+    void loadSite().then((s) => {
+      setLook(s.look);
+      setLoaded(true);
+    });
+  }, [user?.admin]);
+  if (!user?.admin) return null;
+  const pick = (id: string | null) =>
+    void task
+      .run(async () => {
+        const board = id ? (LOOKS.find((l) => l.id === id)?.board ?? null) : null;
+        const s = await saveSite({ look: id, board });
+        setLook(s.look);
+      })
+      .then((ok) => {
+        setSaved(ok);
+        if (ok) setTimeout(() => setSaved(false), 2500);
+      });
+  return (
+    <section className="card">
+      <h2>Site look</h2>
+      <p className="muted">
+        Let each player pick their own look and board, or set one for everyone. A set look hides the
+        pickers and comes with its own board skin.
+      </p>
+      <label>
+        Look for everyone{' '}
+        <select
+          value={look ?? ''}
+          disabled={!loaded || task.busy}
+          onChange={(e) => pick(e.target.value || null)}
+        >
+          <option value="">Players choose their own</option>
+          {LOOKS.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.familyName} · {l.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {saved && <p className="muted">Saved for everyone.</p>}
+      {task.error && <p className="error">{task.error}</p>}
+    </section>
   );
 }
 

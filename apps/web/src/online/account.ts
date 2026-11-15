@@ -7,10 +7,13 @@ import type {
   MyStats,
   PublicUser,
   Replay,
+  SiteSettings,
 } from '../../../server/src/accountTypes.ts';
 import { saveName, savedName, visitedRooms } from './identity.ts';
+import { setForcedLook } from '../theme/looks.tsx';
+import { setForcedTheme } from '../theme/themes.tsx';
 
-export type { CrewDetail, CrewSummary, HistoryGame, MyStats, PublicUser, Replay };
+export type { CrewDetail, CrewSummary, HistoryGame, MyStats, PublicUser, Replay, SiteSettings };
 
 export const AVATARS = ['🦊', '🐻', '🦉', '🐢', '🐙', '🦁', '🐺', '🦄', '🐝', '🐳', '🦜', '🐸'];
 
@@ -30,6 +33,25 @@ async function call<T>(path: string, method = 'GET', body?: unknown): Promise<T>
   const data = (await res.json().catch(() => ({}))) as { error?: string } & T;
   if (!res.ok) throw new Error(data.error ?? 'Something went wrong. Try again.');
   return data;
+}
+
+// ---- Site-wide look, set by an admin ----
+
+/** Fetches the admin's site-wide look, if any, and applies it. */
+export async function loadSite(): Promise<SiteSettings> {
+  const r = await call<{ site: SiteSettings }>('/api/site').catch(() => ({
+    site: { look: null, board: null },
+  }));
+  setForcedLook(r.site.look);
+  setForcedTheme(r.site.look ? r.site.board : null);
+  return r.site;
+}
+
+export async function saveSite(site: SiteSettings): Promise<SiteSettings> {
+  const r = await call<{ site: SiteSettings }>('/api/site', 'PATCH', site);
+  setForcedLook(r.site.look);
+  setForcedTheme(r.site.look ? r.site.board : null);
+  return r.site;
 }
 
 // ---- Signed-in user, shared by every screen ----

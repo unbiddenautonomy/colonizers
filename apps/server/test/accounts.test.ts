@@ -448,3 +448,18 @@ describe('Crews', () => {
     ).toBe(0);
   });
 });
+
+describe('Site settings', () => {
+  it('lets players choose until an admin sets a look for everyone', async () => {
+    expect((await api('/api/site')).data.site).toEqual({ look: null, board: null });
+    const body = { look: 'atlas', board: 'atlas' };
+    expect((await api('/api/site', { method: 'PATCH', body })).status).toBe(401);
+    const a = await signUp('Pat');
+    expect((await api('/api/site', { method: 'PATCH', body, cookie: a.cookie })).status).toBe(403);
+    const acc = env.ACCOUNTS.getByName('main');
+    await acc.setSiteSettings(body);
+    expect((await api('/api/site')).data.site).toEqual(body);
+    await acc.setSiteSettings({ look: null, board: null });
+    expect((await api('/api/site')).data.site).toEqual({ look: null, board: null });
+  });
+});
