@@ -26,6 +26,7 @@ import type {
   PublicUser,
   Replay,
   Result,
+  SiteSettings,
   Unlocked,
 } from './accountTypes.ts';
 import { isSubscription, sendPush, type VapidKeys } from './push.ts';
@@ -222,6 +223,10 @@ export class Accounts extends DurableObject<Env> {
         created INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS push_subs_user ON push_subs (user_id);
+      CREATE TABLE IF NOT EXISTS site_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS achievements (
         user_id TEXT NOT NULL,
         id TEXT NOT NULL,
@@ -245,6 +250,31 @@ export class Accounts extends DurableObject<Env> {
         // Already there.
       }
     }
+  }
+
+  // ---- Site settings (set by an admin) ----
+
+  /** The look and board skin everyone uses, or nulls to let each player choose. */
+  async siteSettings(): Promise<SiteSettings> {
+    const rows = this.sql
+      .exec<{ key: string; value: string }>('SELECT key, value FROM site_settings')
+      .toArray();
+    const get = (k: string) => rows.find((r) => r.key === k)?.value ?? null;
+    return { look: get('look'), board: get('board') };
+  }
+
+  async setSiteSettings(next: SiteSettings): Promise<SiteSettings> {
+    for (const key of ['look', 'board'] as const) {
+      const v = next[key];
+      if (v === null) this.sql.exec('DELETE FROM site_settings WHERE key = ?', key);
+      else
+        this.sql.exec(
+          'INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+          key,
+          v,
+        );
+    }
+    return this.siteSettings();
   }
 
   // ---- Users and sessions ----

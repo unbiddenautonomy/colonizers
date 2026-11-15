@@ -94,3 +94,9 @@ export interface Unlocked {
   seat: number;
   ids: string[];
 }
+
+/** Site-wide choices an admin makes. A null look lets each player pick their own. */
+export interface SiteSettings {
+  look: string | null;
+  board: string | null;
+}

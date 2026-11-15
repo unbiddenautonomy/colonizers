@@ -201,7 +201,7 @@ export async function accountRoutes(
   url: URL,
 ): Promise<Response | null> {
   const path = url.pathname;
-  if (!/^\/api\/(auth|me|crews|games|push)(\/|$)/.test(path)) return null;
+  if (!/^\/api\/(auth|me|crews|games|push|site)(\/|$)/.test(path)) return null;
   const method = request.method;
   const acc = accounts(env);
   const token = sessionToken(request);
@@ -213,6 +213,7 @@ export async function accountRoutes(
     return json({
       key: env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY ? env.VAPID_PUBLIC_KEY : null,
     });
+  if (method === 'GET' && path === '/api/site') return json({ site: await acc.siteSettings() });
   if (method === 'GET' && path === '/api/auth/config')
     return json({ google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) });
 
@@ -266,6 +267,17 @@ export async function accountRoutes(
     case 'POST /api/auth/reset': {
       const r = await acc.resetPassword(b.token, b.password);
       return r.ok ? signedIn(r.value) : error(r.error, r.status);
+    }
+    case 'PATCH /api/site': {
+      const user = token ? await acc.me(token) : null;
+      if (!user) return error('Sign in first', 401);
+      if (!isAdmin(env, user)) return error('Only an admin can change this', 403);
+      const id = (v: unknown) =>
+        v === null ? null : typeof v === 'string' && /^[a-z0-9-]{1,40}$/.test(v) ? v : undefined;
+      const look = id(b.look);
+      const board = id(b.board);
+      if (look === undefined || board === undefined) return error('Pick a look and board');
+      return json({ site: await acc.setSiteSettings({ look, board }) });
     }
     case 'PATCH /api/me':
       return fromResult(

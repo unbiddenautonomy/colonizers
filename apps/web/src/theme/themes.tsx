@@ -36,6 +36,17 @@ function read(): string {
 }
 
 let current = read();
+let forced: string | null = null;
+
+/** An admin's board skin for everyone, or null to let each player choose. */
+export function setForcedTheme(id: string | null): void {
+  forced = id;
+  for (const l of listeners) l();
+}
+
+export function themeForced(): boolean {
+  return forced !== null;
+}
 
 export function setTheme(id: string): void {
   current = themeById(id).id;
@@ -54,7 +65,7 @@ function subscribe(l: () => void): () => void {
 
 /** The theme this device shows. Each player can pick their own, even mid-game. */
 export function useTheme(): Theme {
-  return themeById(useSyncExternalStore(subscribe, () => current));
+  return themeById(useSyncExternalStore(subscribe, () => forced ?? current));
 }
 
 /** A card's colour in a theme, falling back to the Clean colours. */
@@ -80,6 +91,7 @@ export function ThemeStyles() {
 /** A small picker for the theme. */
 export function ThemePicker({ compact }: { compact?: boolean }) {
   const theme = useTheme();
+  if (forced !== null) return null;
   return (
     <label className="theme-picker" title={theme.description}>
       {compact ? <span aria-hidden="true">🎨</span> : 'Board '}
