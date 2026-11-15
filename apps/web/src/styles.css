@@ -2155,22 +2155,29 @@ button.ready {
 }
 
 /* ---------- App shell: the screens around the game ---------- */
-/* Night Harbor: deep navy, brass accents, a serif for headings. Every screen outside the board
-   takes these tokens, so buttons, cards and inputs follow without their own rules. */
+/* Every screen outside the board takes the look's --shell-* tokens (theme/looks.ts), so buttons,
+   cards and inputs follow without their own rules. */
 
 .setup-page {
-  --bg: #0b1422;
-  --card: #13213a;
-  --raised: #1b2e4f;
-  --text: #eaf0f8;
-  --muted: #9aa8bf;
-  --accent: #e8b04b;
-  --accent-text: #1a1406;
-  --border: #22324f;
-  --danger: #ff8a80;
-  --heading: 'DM Serif Display', Georgia, serif;
-  color-scheme: dark;
-  font-family: Inter, system-ui, sans-serif;
+  --bg: var(--shell-bg);
+  --card: var(--shell-card);
+  --raised: var(--shell-raised);
+  --sunk: var(--shell-sunk);
+  --text: var(--shell-text);
+  --soft: var(--shell-soft);
+  --muted: var(--shell-muted);
+  --faint: var(--shell-faint);
+  --accent: var(--shell-accent);
+  --accent-text: var(--shell-accent-text);
+  --accent-soft: color-mix(in srgb, var(--shell-accent) 14%, transparent);
+  --accent-line: color-mix(in srgb, var(--shell-accent) 45%, transparent);
+  --border: var(--shell-border);
+  --dash: var(--shell-dash);
+  --good: var(--shell-good);
+  --danger: var(--shell-bad);
+  --heading: var(--shell-heading);
+  color-scheme: var(--shell-scheme);
+  font-family: var(--shell-body);
   background: var(--bg);
   color: var(--text);
   max-width: 1180px;
@@ -2179,7 +2186,7 @@ button.ready {
 }
 
 body:has(.setup-page) {
-  background: #0b1422;
+  background: var(--shell-bg);
 }
 
 .setup-page h1,
@@ -2197,7 +2204,7 @@ body:has(.setup-page) {
   border-radius: 20px;
   padding: 24px;
   margin: 0 0 16px;
-  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+  box-shadow: var(--shell-shadow);
 }
 
 .setup-page button {
@@ -2227,7 +2234,7 @@ body:has(.setup-page) {
 
 .setup-page input,
 .setup-page select {
-  background: #0f1a2c;
+  background: var(--sunk);
   border-color: var(--border);
   border-radius: 10px;
 }
@@ -2260,9 +2267,9 @@ body:has(.setup-page) {
 
 .stepper button {
   border-radius: 999px;
-  border: 1px dashed #2a3b5c;
+  border: 1px dashed var(--dash);
   background: transparent;
-  color: #6b7a93;
+  color: var(--faint);
   min-height: 38px;
   padding: 6px 16px;
 }
@@ -2270,7 +2277,7 @@ body:has(.setup-page) {
 .stepper button.done {
   border: 1px solid var(--border);
   background: var(--card);
-  color: #b9c4d6;
+  color: var(--soft);
 }
 
 .stepper button.on {
@@ -2354,7 +2361,7 @@ body:has(.setup-page) {
 }
 
 .weight-chaos {
-  color: #ff8a80;
+  color: var(--danger);
 }
 
 .weight-bar {
@@ -2366,11 +2373,11 @@ body:has(.setup-page) {
 .weight-bar span {
   height: 8px;
   border-radius: 3px;
-  background: #0b1422;
+  background: var(--sunk);
 }
 
 .weight-bar .fine {
-  background: #5fb3b3;
+  background: var(--good);
 }
 
 .weight-bar .heavy {
@@ -2378,7 +2385,7 @@ body:has(.setup-page) {
 }
 
 .weight-bar .chaos {
-  background: #ff8a80;
+  background: var(--danger);
 }
 
 .weight p {
@@ -2389,8 +2396,8 @@ body:has(.setup-page) {
   margin: 0;
   padding: 12px 14px 12px 30px;
   border-radius: 12px;
-  background: rgb(232 176 75 / 0.1);
-  border: 1px solid rgb(232 176 75 / 0.35);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
   font-size: 0.9rem;
   display: grid;
   gap: 4px;
@@ -2431,7 +2438,7 @@ body:has(.setup-page) {
 }
 
 .setup-page .fan-card {
-  background: #0f1a2c;
+  background: var(--sunk);
 }
 
 .fan-card h4 {
@@ -2444,7 +2451,7 @@ body:has(.setup-page) {
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.5;
-  color: #b9c4d6;
+  color: var(--soft);
 }
 
 .fan-card button {
@@ -2459,7 +2466,7 @@ body:has(.setup-page) {
   padding: 3px 9px;
   border-radius: 999px;
   background: var(--border);
-  color: #b9c4d6;
+  color: var(--soft);
 }
 
 .fan-card.picked {
@@ -2473,11 +2480,11 @@ body:has(.setup-page) {
 }
 
 .fan-card.pair {
-  border-color: rgb(232 176 75 / 0.45);
+  border-color: var(--accent-line);
 }
 
 .fan-card.pair .fan-tag {
-  background: rgb(232 176 75 / 0.14);
+  background: var(--accent-soft);
   color: var(--accent);
 }
 
@@ -2487,8 +2494,8 @@ body:has(.setup-page) {
 
 .fan-card.blocked .fan-tag {
   background: transparent;
-  border: 1px solid #2a3b5c;
-  color: #8592a8;
+  border: 1px solid var(--dash);
+  color: var(--faint);
 }
 
 .setup-step[hidden] {
@@ -2506,8 +2513,8 @@ body:has(.setup-page) {
 
 .setup-page .fan-card button:disabled {
   background: transparent;
-  color: #56637a;
-  border: 1px dashed #2a3b5c;
+  color: var(--faint);
+  border: 1px dashed var(--dash);
   opacity: 1;
 }
 
@@ -2530,13 +2537,13 @@ body:has(.setup-page) {
   position: absolute;
   z-index: 5;
   left: 10px;
-  right: 10px;
+  min-width: min(300px, calc(100vw - 48px));
   top: calc(100% - 8px);
   padding: 12px 14px;
   border-radius: 12px;
   background: var(--raised, var(--card));
   border: 1px solid var(--accent);
-  box-shadow: 0 16px 40px rgb(0 0 0 / 0.35);
+  box-shadow: var(--shell-shadow);
   font-size: 0.85rem;
   line-height: 1.45;
   color: var(--text);
