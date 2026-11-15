@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import { ISLAND_COAST, POSTER_EDGE, islandFrame, posterFrame } from './frames.ts';
 
 /**
  * A look: how the screens around the game are dressed (home, setup, lobby, account, menus).
@@ -7,7 +8,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 export interface Look {
   id: string;
   /** The theme it belongs to; a theme can have several colour schemes or modes. */
-  family: 'basicbench' | 'pop' | 'deco' | 'wonderland' | 'grandline';
+  family: 'basicbench' | 'pop' | 'deco' | 'wonderland' | 'grandline' | 'isles';
   familyName: string;
   /** The scheme or mode within the theme. */
   name: string;
@@ -39,6 +40,17 @@ export interface Look {
     /** A background pattern (a CSS image) for looks that have one. */
     motif?: string;
   };
+  /** Shaped outlines for panels and cards (border-image sources), for looks that have them. */
+  frames?: Frames;
+}
+
+export interface Frames {
+  panel: string;
+  card: string;
+  picked: string;
+  blocked: string;
+  /** How far the drawing reaches past the panel's box. */
+  outset: number;
 }
 
 const night: Look = {
@@ -56,7 +68,7 @@ const night: Look = {
     text: '#eaf0f8',
     soft: '#b9c4d6',
     muted: '#9aa8bf',
-    faint: '#7d8aa1',
+    faint: '#8c98ad',
     accent: '#e8b04b',
     accentText: '#1a1406',
     border: '#22324f',
@@ -118,8 +130,8 @@ const grape: Look = {
     text: '#17152b',
     soft: '#3d3b55',
     muted: '#55536b',
-    faint: '#6b6984',
-    accent: '#5b4bff',
+    faint: '#686680',
+    accent: '#5a4afb',
     accentText: '#ffffff',
     border: '#17152b',
     dash: '#c9c6dc',
@@ -147,8 +159,8 @@ const sorbet: Look = {
     text: '#2b1620',
     soft: '#4a2f3a',
     muted: '#6a4d58',
-    faint: '#86697a',
-    accent: '#d6336c',
+    faint: '#795d6d',
+    accent: '#bb2e60',
     accentText: '#ffffff',
     border: '#2b1620',
     dash: '#e7c7cf',
@@ -176,7 +188,7 @@ const citrus: Look = {
     text: '#14231c',
     soft: '#2f4338',
     muted: '#4b5f53',
-    faint: '#66796d',
+    faint: '#5c6f63',
     accent: '#16795f',
     accentText: '#ffffff',
     border: '#14231c',
@@ -205,7 +217,7 @@ const arcade: Look = {
     text: '#f6f2ff',
     soft: '#d6cff5',
     muted: '#b3a9e0',
-    faint: '#9489c4',
+    faint: '#9c91c9',
     accent: '#ff5fb8',
     accentText: '#1a0b16',
     border: '#000000',
@@ -222,9 +234,10 @@ const arcade: Look = {
 // ---- Grand Saloon: a 1930s ocean liner's first-class saloon ----
 // Lacquer, gold leaf and stepped corners. Two schemes: Emerald Night and Ivory Deck.
 
+// Bodoni for the titles and Jost (a Futura cut) for the rest: the pairing of 1930s liner posters.
 const DECO_TYPE = {
-  heading: "Limelight, 'Poiret One', Georgia, serif",
-  body: "'Josefin Sans', system-ui, sans-serif",
+  heading: "'Bodoni Moda', Didot, 'Bodoni 72', Georgia, serif",
+  body: "Jost, Futura, 'Century Gothic', system-ui, sans-serif",
 };
 
 const emeraldNight: Look = {
@@ -242,7 +255,7 @@ const emeraldNight: Look = {
     text: '#f3ead2',
     soft: '#dfd3b2',
     muted: '#b9ad8c',
-    faint: '#8f8669',
+    faint: '#a1987c',
     accent: '#d4af5a',
     accentText: '#1a1406',
     border: '#3c5a49',
@@ -273,7 +286,7 @@ const ivoryDeck: Look = {
     text: '#15212e',
     soft: '#2c3a48',
     muted: '#4c5866',
-    faint: '#6f7782',
+    faint: '#626b76',
     accent: '#14365c',
     accentText: '#f6e7b8',
     border: '#b99a52',
@@ -291,9 +304,10 @@ const ivoryDeck: Look = {
 
 // ---- Wonderland: a tea party behind the looking-glass ----
 
+// Playfair for titles over Caslon text: the look of a Victorian storybook, both sturdy enough to read.
 const WONDER_TYPE = {
-  heading: "'Cinzel Decorative', 'Cormorant Garamond', Georgia, serif",
-  body: "'EB Garamond', Georgia, serif",
+  heading: "'Playfair Display', Georgia, serif",
+  body: "'Libre Caslon Text', Georgia, serif",
 };
 
 const teaParty: Look = {
@@ -311,7 +325,7 @@ const teaParty: Look = {
     text: '#1c1626',
     soft: '#352c42',
     muted: '#574d63',
-    faint: '#7a7086',
+    faint: '#71677c',
     accent: '#b3122e',
     accentText: '#fffaf0',
     border: '#1c1626',
@@ -342,7 +356,7 @@ const lookingGlass: Look = {
     text: '#f4ecff',
     soft: '#d9cdf2',
     muted: '#b6a8d6',
-    faint: '#9283b8',
+    faint: '#9a8bbe',
     accent: '#ff5d8f',
     accentText: '#1c0a14',
     border: '#d9cdf2',
@@ -360,9 +374,10 @@ const lookingGlass: Look = {
 
 // ---- Grand Line: pirate crews (fan themes; colours and motifs only, no crew emblems) ----
 
+// Cinzel's carved capitals for titles, Alegreya Sans (from the same calligraphic roots) for text.
 const SEA_TYPE = {
-  heading: "'Pirata One', 'Cinzel', Georgia, serif",
-  body: "'Nunito Sans', system-ui, sans-serif",
+  heading: "Cinzel, 'Trajan Pro', Georgia, serif",
+  body: "'Alegreya Sans', system-ui, sans-serif",
 };
 
 function crew(
@@ -379,6 +394,13 @@ function crew(
     dark,
     board: `crew-${id}`,
     tokens: { ...SEA_TYPE, ...c },
+    frames: {
+      panel: posterFrame({ paper: c.card, rule: c.ink ?? c.border, pin: c.accent }),
+      card: posterFrame({ paper: c.sunk, rule: c.ink ?? c.border, pin: c.ink ?? c.border }),
+      picked: posterFrame({ paper: c.raised, rule: c.accent, pin: c.accent }),
+      blocked: posterFrame({ paper: c.sunk, rule: c.dash, pin: c.dash }),
+      outset: POSTER_EDGE,
+    },
   };
 }
 
@@ -390,8 +412,8 @@ const strawHat = crew('strawhat', 'Straw Hat Crew', false, {
   text: '#1d2433',
   soft: '#33405a',
   muted: '#4f5a70',
-  faint: '#6f7686',
-  accent: '#d1232a',
+  faint: '#5f6675',
+  accent: '#c6232b',
   accentText: '#fff8e6',
   border: '#1d2433',
   dash: '#d8c48d',
@@ -434,8 +456,8 @@ const bigMom = crew('bigmom', 'Big Mom Pirates', false, {
   text: '#3b1f17',
   soft: '#55322a',
   muted: '#6f4b42',
-  faint: '#8d6c63',
-  accent: '#e0457b',
+  faint: '#806057',
+  accent: '#b8285e',
   accentText: '#fffaf3',
   border: '#3b1f17',
   dash: '#f0c3d2',
@@ -456,7 +478,7 @@ const whitebeard = crew('whitebeard', 'Whitebeard Pirates', false, {
   text: '#16182b',
   soft: '#2c2f48',
   muted: '#4a4d66',
-  faint: '#6b6e86',
+  faint: '#666981',
   accent: '#6a3fa0',
   accentText: '#ffffff',
   border: '#16182b',
@@ -470,26 +492,27 @@ const whitebeard = crew('whitebeard', 'Whitebeard Pirates', false, {
     "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='30'%3E%3Cpath d='M0 20 q15 -12 30 0 t30 0' fill='none' stroke='%236a3fa0' stroke-opacity='0.12' stroke-width='2'/%3E%3C/svg%3E\")",
 });
 
-const redHair = crew('redhair', 'Red Hair Pirates', true, {
-  bg: '#140708',
-  card: '#22100f',
-  raised: '#331614',
-  sunk: '#1a0b0b',
-  text: '#fbeee6',
-  soft: '#ecd2c4',
-  muted: '#c9a798',
-  faint: '#9f8073',
-  accent: '#e3342f',
-  accentText: '#fff4ef',
-  border: '#e3342f',
-  dash: '#4a2420',
-  good: '#e8b04b',
-  bad: '#ff7a6b',
-  shadow: '0 0 0 1px #e3342f66, 0 18px 40px rgb(0 0 0 / 0.5)',
-  ink: '#e3342f',
-  pop: '#f2c46d',
+// Red Hair: sailcloth, crimson and charcoal, with brass fittings.
+const redHair = crew('redhair', 'Red Hair Pirates', false, {
+  bg: '#ece4da',
+  card: '#fffaf4',
+  raised: '#f9ece6',
+  sunk: '#fffdf9',
+  text: '#1f1b1e',
+  soft: '#383136',
+  muted: '#574e53',
+  faint: '#665c61',
+  accent: '#9c1a22',
+  accentText: '#fff8f2',
+  border: '#1f1b1e',
+  dash: '#d6c7ba',
+  good: '#2d6a5a',
+  bad: '#9c1a22',
+  shadow: '0 16px 30px rgb(31 27 30 / 0.16)',
+  ink: '#1f1b1e',
+  pop: '#c99a45',
   motif:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M0 40L40 0' stroke='%23e3342f' stroke-opacity='0.1' stroke-width='2'/%3E%3C/svg%3E\")",
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Cpath d='M0 36L36 0M-9 9L9 -9M27 45L45 27' stroke='%239c1a22' stroke-opacity='0.06' stroke-width='1.5'/%3E%3C/svg%3E\")",
 });
 
 const heart = crew('heart', 'Heart Pirates', false, {
@@ -500,7 +523,7 @@ const heart = crew('heart', 'Heart Pirates', false, {
   text: '#121212',
   soft: '#2a2a2a',
   muted: '#4a4a4a',
-  faint: '#6d6d6d',
+  faint: '#6b6b6b',
   accent: '#121212',
   accentText: '#ffd84a',
   border: '#121212',
@@ -513,6 +536,149 @@ const heart = crew('heart', 'Heart Pirates', false, {
   motif:
     "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Ccircle cx='12' cy='12' r='5' fill='%23121212' fill-opacity='0.06'/%3E%3Ccircle cx='38' cy='34' r='8' fill='%23121212' fill-opacity='0.05'/%3E%3C/svg%3E\")",
 });
+
+// Blackbeard: a black flag, embers and cherry.
+const blackbeard = crew('blackbeard', 'Blackbeard Pirates', true, {
+  bg: '#0d0d0f',
+  card: '#18171b',
+  raised: '#232126',
+  sunk: '#131215',
+  text: '#f1ebe1',
+  soft: '#d8cfc2',
+  muted: '#b5ab9d',
+  faint: '#a0968a',
+  accent: '#e39a3b',
+  accentText: '#170f06',
+  border: '#3a3732',
+  dash: '#34312d',
+  good: '#8dbb85',
+  bad: '#ec7a68',
+  shadow: '0 18px 40px rgb(0 0 0 / 0.6)',
+  ink: '#d8cfc2',
+  pop: '#8e2436',
+  motif:
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cg fill='none' stroke='%23e39a3b' stroke-opacity='0.06'%3E%3Ccircle cx='70' cy='70' r='20'/%3E%3Ccircle cx='70' cy='70' r='42'/%3E%3Ccircle cx='70' cy='70' r='64'/%3E%3C/g%3E%3C/svg%3E\")",
+});
+
+// Rocks: a storm over old gold, the crew of an older age.
+const rocks = crew('rocks', 'Rocks Pirates', true, {
+  bg: '#0e1719',
+  card: '#162226',
+  raised: '#1f2f34',
+  sunk: '#122024',
+  text: '#eef3ef',
+  soft: '#cfdcd6',
+  muted: '#a9bbb4',
+  faint: '#93a8a0',
+  accent: '#d2ad3c',
+  accentText: '#15110a',
+  border: '#2c3e43',
+  dash: '#2c3e43',
+  good: '#72c6a4',
+  bad: '#e8806f',
+  shadow: '0 18px 40px rgb(0 0 0 / 0.55)',
+  ink: '#cfdcd6',
+  pop: '#5d8fa0',
+  motif:
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='60'%3E%3Cpath d='M0 40 q22 -18 45 0 t45 0' fill='none' stroke='%23d2ad3c' stroke-opacity='0.07' stroke-width='1.5'/%3E%3C/svg%3E\")",
+});
+
+// ---- Archipelago: every panel is an island on a sea chart ----
+// The content keeps its rectangle; the coast around it, the depth lines and the pebble buttons don't.
+
+const ISLE_TYPE = {
+  heading: 'Fraunces, Georgia, serif',
+  body: 'Manrope, system-ui, sans-serif',
+};
+
+function isles(
+  id: string,
+  name: string,
+  dark: boolean,
+  c: Omit<Look['tokens'], 'heading' | 'body'>,
+  water: string,
+): Look {
+  const shore = c.ink ?? c.border;
+  return {
+    id: `isles-${id}`,
+    family: 'isles',
+    familyName: 'Archipelago',
+    name,
+    dark,
+    board: `isles-${id}`,
+    tokens: { ...ISLE_TYPE, ...c },
+    frames: {
+      panel: islandFrame({ land: c.card, shore, water }),
+      card: islandFrame({ land: c.sunk, shore, water, width: 2.5, rings: 0 }),
+      picked: islandFrame({ land: c.raised, shore: c.accent, water, width: 4, rings: 0 }),
+      blocked: islandFrame({
+        land: c.sunk,
+        shore: c.faint,
+        water,
+        width: 2,
+        dashed: true,
+        rings: 0,
+      }),
+      outset: ISLAND_COAST,
+    },
+  };
+}
+
+const lagoon = isles(
+  'lagoon',
+  'Lagoon',
+  false,
+  {
+    bg: '#c4e3df',
+    card: '#fbf5e6',
+    raised: '#fdebd2',
+    sunk: '#fffaf0',
+    text: '#17292a',
+    soft: '#2b4142',
+    muted: '#435a5a',
+    faint: '#4e6465',
+    accent: '#0d6662',
+    accentText: '#fffaf0',
+    border: '#17292a',
+    dash: '#d9ceb4',
+    good: '#2f7a46',
+    bad: '#ad3b26',
+    shadow: 'none',
+    ink: '#17292a',
+    pop: '#e07a3a',
+    motif:
+      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Cpath d='M0 26 q15 -8 30 0 t30 0 t30 0 t30 0' fill='none' stroke='%230d6662' stroke-opacity='0.09' stroke-width='1.4'/%3E%3C/svg%3E\")",
+  },
+  '#0d6662',
+);
+
+const nightTide = isles(
+  'night',
+  'Night Tide',
+  true,
+  {
+    bg: '#0b1a24',
+    card: '#17282c',
+    raised: '#1f3438',
+    sunk: '#132226',
+    text: '#eef5f0',
+    soft: '#cfe1da',
+    muted: '#a9c2ba',
+    faint: '#94aea6',
+    accent: '#f0b65a',
+    accentText: '#1b1203',
+    border: '#cfe1da',
+    dash: '#2b4247',
+    good: '#79d3a4',
+    bad: '#f08a72',
+    shadow: 'none',
+    ink: '#cfe1da',
+    pop: '#6fcfc0',
+    motif:
+      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Cpath d='M0 26 q15 -8 30 0 t30 0 t30 0 t30 0' fill='none' stroke='%236fcfc0' stroke-opacity='0.08' stroke-width='1.4'/%3E%3C/svg%3E\")",
+  },
+  '#6fcfc0',
+);
 
 export const LOOKS: Look[] = [
   night,
@@ -531,6 +697,10 @@ export const LOOKS: Look[] = [
   whitebeard,
   redHair,
   heart,
+  blackbeard,
+  rocks,
+  lagoon,
+  nightTide,
 ];
 
 /** Picks that aren't a single look: BasicBench following the device's light or dark setting. */
@@ -601,6 +771,15 @@ export function useLook(): { look: Look; pick: string; forced: boolean } {
   return { look: lookById(pick, dark === '1'), pick, forced: forced !== null };
 }
 
+/** Near-black or white, whichever reads better on the colour. */
+function readableOn(hex: string): string {
+  const n = hex.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16) / 255);
+  const f = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const l = 0.2126 * f(r!) + 0.7152 * f(g!) + 0.0722 * f(b!);
+  return 1.05 / (l + 0.05) > (l + 0.05) / 0.0625 ? '#ffffff' : '#14121a';
+}
+
 /** Puts the look's tokens on the document as --shell-* properties. */
 export function LookStyles() {
   const { look } = useLook();
@@ -629,6 +808,13 @@ export function LookStyles() {
     set('pop', t.pop ?? t.accent);
     set('motif', t.motif ?? 'none');
     set('scheme', look.dark ? 'dark' : 'light');
+    set('pop-text', readableOn(t.pop ?? t.accent));
+    const fr = look.frames;
+    set('frame', fr?.panel ?? 'none');
+    set('frame-card', fr?.card ?? 'none');
+    set('frame-picked', fr?.picked ?? 'none');
+    set('frame-blocked', fr?.blocked ?? 'none');
+    set('frame-outset', `${fr?.outset ?? 0}px`);
     root.dataset.look = look.family;
     root.dataset.lookId = look.id;
   }, [look]);
