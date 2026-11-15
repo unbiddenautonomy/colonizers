@@ -1,8 +1,17 @@
+import { useLook } from '../theme/looks.tsx';
+
 /**
  * Spot art for the looks that draw (Tabletop Pop). Plain shapes in the look's own colours, so
  * every scheme recolours it: a little island of hexes, a house, a boat on the waves and two dice.
  */
 export function LookArt() {
+  const { look } = useLook();
+  if (look.family === 'atlas') return <AtlasArt />;
+  if (look.family !== 'pop') return null;
+  return <PopArt />;
+}
+
+function PopArt() {
   const ink = 'var(--shell-ink)';
   const line = { stroke: ink, strokeWidth: 3, strokeLinejoin: 'round' as const };
   const hex = (cx: number, cy: number, r: number) =>
@@ -79,6 +88,116 @@ export function LookArt() {
         stroke={ink}
         strokeWidth={2}
       />
+    </svg>
+  );
+}
+
+/** Atlas: a corner of a sea chart, with a compass rose, a coast, a route and a ship. */
+function AtlasArt() {
+  const ink = 'var(--shell-ink)';
+  const rays = Array.from({ length: 16 }, (_, i) => {
+    const a = (Math.PI / 8) * i;
+    const long = i % 2 === 0;
+    const r = long ? 58 : 36;
+    const w = long ? 7 : 4;
+    const x = Math.sin(a);
+    const y = -Math.cos(a);
+    const px = Math.cos(a);
+    const py = Math.sin(a);
+    return {
+      d: `M${270 + x * r} ${100 + y * r} L${270 + px * w} ${100 + py * w} L270 100 Z`,
+      d2: `M${270 + x * r} ${100 + y * r} L${270 - px * w} ${100 - py * w} L270 100 Z`,
+      long,
+    };
+  });
+  return (
+    <svg className="look-art" viewBox="0 0 360 200" aria-hidden="true">
+      {/* Coast, hatched inland */}
+      <defs>
+        <pattern
+          id="atlas-hatch"
+          width="6"
+          height="6"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(35)"
+        >
+          <line x1="0" y1="0" x2="0" y2="6" stroke={ink} strokeWidth="0.8" opacity="0.45" />
+        </pattern>
+      </defs>
+      <path
+        d="M0 0 H150 C140 20 152 34 132 48 C118 58 126 78 104 86 C86 93 92 118 68 126 C48 133 40 160 18 166 C10 168 4 176 0 182 Z"
+        fill="url(#atlas-hatch)"
+        stroke={ink}
+        strokeWidth="1.6"
+      />
+      <path
+        d="M150 0 C140 20 152 34 132 48 C118 58 126 78 104 86 C86 93 92 118 68 126 C48 133 40 160 18 166"
+        fill="none"
+        stroke={ink}
+        strokeWidth="0.8"
+        strokeDasharray="1 4"
+        transform="translate(8 6)"
+      />
+      {/* Route */}
+      <path
+        d="M60 150 C110 160 150 120 190 140 S250 175 300 170"
+        fill="none"
+        stroke="var(--shell-accent)"
+        strokeWidth="2"
+        strokeDasharray="6 5"
+      />
+      <path d="M296 164 l8 6 l-8 6" fill="none" stroke="var(--shell-accent)" strokeWidth="2" />
+      <circle cx="60" cy="150" r="4" fill="var(--shell-accent)" />
+      {/* Compass rose */}
+      <circle cx="270" cy="100" r="64" fill="none" stroke={ink} strokeWidth="1" />
+      <circle cx="270" cy="100" r="60" fill="none" stroke={ink} strokeWidth="0.6" />
+      {rays.map((r, i) => (
+        <g key={i}>
+          <path d={r.d} fill={r.long ? ink : 'var(--shell-pop)'} />
+          <path d={r.d2} fill="var(--shell-card)" stroke={ink} strokeWidth="0.6" />
+        </g>
+      ))}
+      <circle cx="270" cy="100" r="5" fill="var(--shell-accent)" stroke={ink} />
+      <text
+        x="270"
+        y="28"
+        textAnchor="middle"
+        fontFamily="var(--shell-heading)"
+        fontSize="15"
+        fill={ink}
+      >
+        N
+      </text>
+      {/* Ship */}
+      <g transform="translate(150 118) rotate(-4)">
+        <path d="M0 18 h40 l-7 9 h-26 z" fill="var(--shell-card)" stroke={ink} strokeWidth="1.5" />
+        <path d="M20 18 v-30" stroke={ink} strokeWidth="1.5" />
+        <path
+          d="M21 -10 c10 4 12 14 10 24 h-10 z"
+          fill="var(--shell-card)"
+          stroke={ink}
+          strokeWidth="1.3"
+        />
+        <path
+          d="M19 -6 c-8 4 -10 12 -8 20 h8 z"
+          fill="var(--shell-card)"
+          stroke={ink}
+          strokeWidth="1.3"
+        />
+        <path d="M20 -12 l8 3 l-8 3" fill="var(--shell-accent)" />
+      </g>
+      {/* Sea mark */}
+      <text
+        x="196"
+        y="190"
+        fontFamily="'IM Fell English', Georgia, serif"
+        fontStyle="italic"
+        fontSize="13"
+        fill={ink}
+        opacity="0.7"
+      >
+        Mare Incognitum
+      </text>
     </svg>
   );
 }
