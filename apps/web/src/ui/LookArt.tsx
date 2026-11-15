@@ -1,5 +1,5 @@
 import { useLook } from '../theme/looks.tsx';
-import { DecoArt, SeaArt, WonderArt } from './LookArtMore.tsx';
+import { DecoArt, IslesArt, SeaArt, WonderArt } from './LookArtMore.tsx';
 
 /** Header art for the looks that have it, drawn in the look's own colours. */
 export function LookArt() {
@@ -8,6 +8,7 @@ export function LookArt() {
   if (look.family === 'deco') return <DecoArt />;
   if (look.family === 'wonderland') return <WonderArt />;
   if (look.family === 'grandline') return <SeaArt crew={look.id} />;
+  if (look.family === 'isles') return <IslesArt />;
   return null;
 }
 

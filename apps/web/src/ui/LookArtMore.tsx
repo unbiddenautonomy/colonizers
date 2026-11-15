@@ -90,7 +90,11 @@ export function DecoArt() {
   );
 }
 
-/** A tea party: a teapot pouring into a cup, a pocket watch and a fan of cards. */
+/**
+ * The Mad Tea Party, after Tenniel's 1865 drawings (long in the public domain): a laid table, the
+ * Hatter's hat with its 10/6 ticket, the Dormouse asleep in the teapot, and the Cheshire Cat's
+ * grin left hanging in the tree above.
+ */
 export function WonderArt() {
   const line = {
     stroke: ink,
@@ -100,94 +104,274 @@ export function WonderArt() {
   };
   return (
     <svg className="look-art" viewBox="0 0 360 200" aria-hidden="true">
-      {/* Cards, fanned */}
-      {[-18, -6, 6].map((r, i) => (
-        <g key={r} transform={`rotate(${r} 300 170)`}>
-          <rect x="276" y="70" width="52" height="76" rx="6" fill="var(--shell-card)" {...line} />
-          <text
-            x="286"
-            y="88"
-            fontSize="14"
-            fill={i === 1 ? ink : 'var(--shell-accent)'}
-            fontFamily="Georgia, serif"
-          >
-            {['♥', '♠', '♦'][i]}
-          </text>
-          <text
-            x="302"
-            y="118"
-            fontSize="26"
-            textAnchor="middle"
-            fill={i === 1 ? ink : 'var(--shell-accent)'}
-            fontFamily="Georgia, serif"
-          >
-            {['♥', '♠', '♦'][i]}
-          </text>
-        </g>
+      {/* The tree's branch, reaching in from the right */}
+      <path
+        d="M362 18 C320 22 292 14 250 26 C226 33 210 30 192 22"
+        fill="none"
+        {...line}
+        strokeWidth="5"
+      />
+      <path d="M300 18 C296 8 304 2 312 0" fill="none" {...line} strokeWidth="3" />
+      {[
+        [340, 14, -20],
+        [318, 26, 30],
+        [272, 14, -35],
+        [236, 36, 25],
+        [206, 18, -15],
+      ].map(([x, y, r]) => (
+        <ellipse
+          key={`${x}`}
+          cx={x}
+          cy={y}
+          rx="9"
+          ry="4.5"
+          transform={`rotate(${r} ${x} ${y})`}
+          fill="var(--shell-good)"
+          stroke={ink}
+          strokeWidth="1.2"
+        />
       ))}
-      {/* Pocket watch on its chain */}
-      <path d="M200 20 C210 40 196 52 206 70" fill="none" {...line} strokeDasharray="3 3" />
-      <circle cx="210" cy="96" r="26" fill="var(--shell-card)" {...line} />
-      <circle cx="210" cy="96" r="21" fill="none" stroke={ink} strokeWidth="0.8" />
-      {Array.from({ length: 12 }, (_, i) => {
-        const a = (Math.PI / 6) * i;
-        return (
+      {/* The grin, and the eyes, with no cat */}
+      <g opacity="0.92">
+        <path
+          d="M232 62 C250 84 290 84 308 62 C290 74 250 74 232 62 Z"
+          fill="var(--shell-card)"
+          {...line}
+        />
+        {[244, 254, 264, 274, 284, 294].map((x) => (
           <path
-            key={i}
-            d={`M${210 + Math.sin(a) * 17} ${96 - Math.cos(a) * 17} L${210 + Math.sin(a) * 20} ${96 - Math.cos(a) * 20}`}
+            key={x}
+            d={`M${x} ${68 + (x > 254 && x < 290 ? 3 : 0)} v5`}
             stroke={ink}
             strokeWidth="1.2"
           />
-        );
-      })}
-      <path d="M210 96 L210 81 M210 96 L219 101" {...line} />
-      <rect x="205" y="64" width="10" height="7" rx="2" fill="var(--shell-pop)" {...line} />
-      {/* Teapot, tipped */}
-      <g transform="rotate(-18 92 92)">
-        <ellipse cx="92" cy="96" rx="40" ry="30" fill="var(--shell-pop)" {...line} />
-        <path d="M52 92 C34 84 26 70 22 62 C34 66 44 76 56 84" fill="var(--shell-pop)" {...line} />
-        <path d="M130 84 C150 80 150 112 128 108" fill="none" {...line} />
-        <path d="M72 68 Q92 56 112 68" fill="var(--shell-card)" {...line} />
-        <circle cx="92" cy="58" r="5" fill="var(--shell-accent)" {...line} />
+        ))}
+        {[252, 288].map((x) => (
+          <g key={x}>
+            <path
+              d={`M${x - 9} 48 Q${x} 40 ${x + 9} 48 Q${x} 54 ${x - 9} 48 Z`}
+              fill="var(--shell-pop)"
+              {...line}
+              strokeWidth="1.5"
+            />
+            <path d={`M${x} 43 V53`} stroke={ink} strokeWidth="2.2" strokeLinecap="round" />
+          </g>
+        ))}
+      </g>
+      {/* The table, its cloth hanging in scallops */}
+      <path d="M14 146 H346 L352 160 H8 Z" fill="var(--shell-card)" {...line} />
+      <path
+        d="M8 160 H352 V176 q-11 10 -22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 t-22 0 V160 Z"
+        fill="var(--shell-sunk)"
+        {...line}
+      />
+      <path d="M8 166 H352" stroke="var(--shell-accent)" strokeWidth="3" />
+      {/* Cups and saucers, one knocked over */}
+      <ellipse cx="44" cy="146" rx="20" ry="4" fill="var(--shell-card)" {...line} />
+      <path
+        d="M30 128 H58 C57 140 52 144 44 144 C36 144 31 140 30 128 Z"
+        fill="var(--shell-card)"
+        {...line}
+      />
+      <path d="M58 131 C66 130 66 140 56 140" fill="none" {...line} />
+      <ellipse
+        cx="44"
+        cy="128"
+        rx="14"
+        ry="3"
+        fill="var(--shell-good)"
+        {...line}
+        strokeWidth="1.5"
+      />
+      <g transform="rotate(80 98 140)">
         <path
-          d="M68 104 q8 6 16 0 t16 0 t16 0"
-          fill="none"
-          stroke="var(--shell-card)"
-          strokeWidth="2"
+          d="M84 126 H112 C111 138 106 142 98 142 C90 142 85 138 84 126 Z"
+          fill="var(--shell-card)"
+          {...line}
         />
       </g>
-      {/* Pour */}
       <path
-        d="M16 86 C12 112 40 128 56 140"
-        fill="none"
+        d="M100 146 c6 -2 14 -1 22 0"
         stroke="var(--shell-good)"
         strokeWidth="3"
         strokeLinecap="round"
       />
-      {/* Cup and saucer */}
-      <ellipse cx="62" cy="176" rx="40" ry="8" fill="var(--shell-card)" {...line} />
+      {/* Teapot, with the Dormouse asleep in it */}
       <path
-        d="M36 142 H88 C86 164 78 172 62 172 C46 172 38 164 36 142 Z"
-        fill="var(--shell-card)"
+        d="M118 112 C104 108 98 96 96 88 C106 92 112 100 124 104"
+        fill="var(--shell-pop)"
         {...line}
       />
-      <path d="M88 148 C102 146 102 162 86 162" fill="none" {...line} />
-      <ellipse cx="62" cy="142" rx="26" ry="5" fill="var(--shell-good)" {...line} />
-      <path d="M44 156 q6 -4 12 0 t12 0" fill="none" stroke="var(--shell-accent)" strokeWidth="2" />
-      {/* Floating label */}
-      <g transform="rotate(8 150 160)">
-        <path d="M128 150 H186 V172 H128 L118 161 Z" fill="var(--shell-card)" {...line} />
-        <circle cx="126" cy="161" r="2.4" fill={ink} />
+      <path d="M196 106 C214 104 214 132 194 128" fill="none" {...line} strokeWidth="3" />
+      <ellipse cx="158" cy="122" rx="40" ry="24" fill="var(--shell-pop)" {...line} />
+      <path d="M126 140 H190" stroke={ink} strokeWidth="2" />
+      <path d="M134 104 C140 96 176 96 182 104" fill="var(--shell-card)" {...line} />
+      <circle cx="148" cy="90" r="11" fill="var(--shell-muted)" {...line} />
+      <circle cx="140" cy="80" r="5" fill="var(--shell-muted)" {...line} />
+      <circle cx="156" cy="80" r="5" fill="var(--shell-muted)" {...line} />
+      <path d="M142 91 q3 2 6 0 M150 91 q3 2 6 0" fill="none" stroke={ink} strokeWidth="1.3" />
+      <text
+        x="166"
+        y="78"
+        fontSize="11"
+        fontStyle="italic"
+        fill={ink}
+        fontFamily="var(--shell-body)"
+      >
+        z
+      </text>
+      <text
+        x="174"
+        y="68"
+        fontSize="9"
+        fontStyle="italic"
+        fill={ink}
+        fontFamily="var(--shell-body)"
+      >
+        z
+      </text>
+      {/* A pocket watch, dropped beside the pot */}
+      <circle cx="216" cy="140" r="9" fill="var(--shell-card)" {...line} />
+      <path
+        d="M216 140 V134 M216 140 L220 142"
+        stroke={ink}
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      <path d="M216 131 v-3" {...line} />
+      {/* The Hatter's hat, priced 10/6 */}
+      <path
+        d="M262 92 C260 110 262 128 266 142 H318 C322 128 324 110 322 92 Z"
+        fill={ink}
+        {...line}
+      />
+      <ellipse cx="292" cy="92" rx="30" ry="6" fill={ink} {...line} />
+      <path d="M264 128 H320 V138 H265 Z" fill="var(--shell-accent)" {...line} strokeWidth="1.5" />
+      <ellipse cx="292" cy="144" rx="42" ry="7" fill={ink} {...line} />
+      <g transform="rotate(-8 300 114)">
+        <rect
+          x="288"
+          y="104"
+          width="30"
+          height="18"
+          fill="var(--shell-card)"
+          {...line}
+          strokeWidth="1.5"
+        />
         <text
-          x="157"
-          y="166"
+          x="303"
+          y="117"
           textAnchor="middle"
-          fontSize="11"
-          fontStyle="italic"
+          fontSize="10.5"
+          fontWeight="700"
           fill={ink}
-          fontFamily="'EB Garamond', Georgia, serif"
+          fontFamily="var(--shell-body)"
         >
-          Play me
+          10/6
+        </text>
+      </g>
+    </svg>
+  );
+}
+
+/** A sea chart: three islands with depth lines, a dotted route, a little boat and a compass. */
+export function IslesArt() {
+  const line = {
+    stroke: ink,
+    strokeWidth: 2,
+    strokeLinejoin: 'round' as const,
+    strokeLinecap: 'round' as const,
+  };
+  const isle = (d: string, k: string) => (
+    <g key={k}>
+      {[3, 2, 1].map((n) => (
+        <path
+          key={n}
+          d={d}
+          fill="none"
+          stroke="var(--shell-accent)"
+          strokeOpacity={0.5 - n * 0.12}
+          strokeWidth={n * 9}
+          strokeLinejoin="round"
+        />
+      ))}
+      <path d={d} fill="var(--shell-card)" {...line} />
+    </g>
+  );
+  return (
+    <svg className="look-art" viewBox="0 0 360 200" aria-hidden="true">
+      {isle(
+        'M34 120 C30 96 52 80 78 86 C96 90 102 74 122 80 C140 86 136 112 124 124 C112 138 84 132 66 142 C48 150 36 138 34 120 Z',
+        'a',
+      )}
+      {isle(
+        'M168 52 C176 36 204 34 214 46 C222 56 240 54 242 70 C244 86 220 92 204 88 C188 84 162 70 168 52 Z',
+        'b',
+      )}
+      {isle(
+        'M196 150 C200 136 222 132 232 140 C242 148 258 146 258 160 C258 174 236 178 220 174 C204 170 194 162 196 150 Z',
+        'c',
+      )}
+      {/* Hexes on the big island: settled land */}
+      {[
+        [70, 106, 'var(--shell-good)'],
+        [88, 116, 'var(--shell-pop)'],
+        [104, 104, 'var(--shell-good)'],
+      ].map(([x, y, c]) => (
+        <polygon
+          key={`${x}`}
+          points={Array.from({ length: 6 }, (_, i) => {
+            const a = (Math.PI / 3) * i - Math.PI / 2;
+            return `${(x as number) + 9 * Math.cos(a)},${(y as number) + 9 * Math.sin(a)}`;
+          }).join(' ')}
+          fill={c as string}
+          stroke={ink}
+          strokeWidth="1.5"
+        />
+      ))}
+      {/* A house on the far island */}
+      <path
+        d="M196 64 v-10 l8 -7 l8 7 v10 z"
+        fill="var(--shell-card)"
+        {...line}
+        strokeWidth="1.6"
+      />
+      {/* The route and the boat on it */}
+      <path
+        d="M124 108 C150 104 158 90 176 82 M140 128 C160 140 176 150 198 152"
+        fill="none"
+        stroke={ink}
+        strokeWidth="2"
+        strokeDasharray="1 7"
+        strokeLinecap="round"
+      />
+      <g transform="translate(160 132) rotate(8)">
+        <path d="M-14 0 H14 L9 7 H-9 Z" fill="var(--shell-card)" {...line} strokeWidth="1.6" />
+        <path d="M0 0 V-22" {...line} strokeWidth="1.6" />
+        <path d="M2 -20 L14 -4 H2 Z" fill="var(--shell-pop)" {...line} strokeWidth="1.4" />
+      </g>
+      {/* Compass rose */}
+      <g transform="translate(312 78)">
+        <circle r="30" fill="none" stroke={ink} strokeWidth="1.2" />
+        <circle r="24" fill="none" stroke={ink} strokeWidth="0.8" strokeDasharray="2 3" />
+        <path d="M0 -34 L6 0 L0 34 L-6 0 Z" fill="var(--shell-card)" {...line} strokeWidth="1.4" />
+        <path d="M-34 0 L0 6 L34 0 L0 -6 Z" fill="var(--shell-card)" {...line} strokeWidth="1.4" />
+        <path
+          d="M0 -34 L6 0 H-6 Z"
+          fill="var(--shell-accent)"
+          stroke={ink}
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+        />
+        <text
+          y="-40"
+          textAnchor="middle"
+          fontSize="12"
+          fontWeight="700"
+          fill={ink}
+          fontFamily="var(--shell-heading)"
+        >
+          N
         </text>
       </g>
     </svg>
@@ -358,6 +542,56 @@ function CrewObject({ crew }: { crew: string }) {
             fill="var(--shell-pop)"
             {...line}
             transform="rotate(20 27 -10)"
+          />
+        </g>
+      );
+    case 'crew-blackbeard':
+      // A cherry pie with a slice gone.
+      return (
+        <g transform={at}>
+          <path
+            d="M-50 14 A50 18 0 0 0 50 14 V26 A50 18 0 0 1 -50 26 Z"
+            fill="var(--shell-pop)"
+            {...line}
+          />
+          <path d="M-50 14 A50 18 0 0 1 50 14 L0 14 Z" fill="var(--shell-accent)" {...line} />
+          <path d="M0 14 L50 14 A50 18 0 0 1 20 -2 Z" fill="var(--shell-pop)" {...line} />
+          {[-34, -18, -2].map((x) => (
+            <path key={x} d={`M${x} 2 l14 10`} stroke={ink} strokeWidth="2" />
+          ))}
+          {[-40, -26, -12].map((x) => (
+            <path key={x} d={`M${x} 12 l12 -10`} stroke={ink} strokeWidth="2" />
+          ))}
+          <circle cx="34" cy="-16" r="6" fill="var(--shell-pop)" {...line} />
+          <circle cx="46" cy="-12" r="6" fill="var(--shell-pop)" {...line} />
+          <path
+            d="M34 -22 C36 -34 44 -36 48 -38 M46 -18 C46 -28 46 -32 48 -38"
+            fill="none"
+            {...line}
+            strokeWidth="1.6"
+          />
+        </g>
+      );
+    case 'crew-rocks':
+      // A sea stack under a storm cloud.
+      return (
+        <g transform={at}>
+          <path
+            d="M-36 52 L-26 6 L-14 -4 L-6 14 L6 -14 L22 8 L30 52 Z"
+            fill="var(--shell-raised)"
+            {...line}
+          />
+          <path d="M-20 20 l8 -6 M10 16 l8 8" stroke={ink} strokeWidth="1.4" />
+          <path
+            d="M-44 -40 C-48 -54 -30 -62 -20 -54 C-14 -68 12 -68 16 -52 C28 -58 44 -48 36 -36 Z"
+            fill="var(--shell-card)"
+            {...line}
+          />
+          <path
+            d="M-2 -36 L-10 -18 H0 L-8 0 L12 -24 H2 L8 -36 Z"
+            fill="var(--shell-accent)"
+            {...line}
+            strokeWidth="1.6"
           />
         </g>
       );
