@@ -1,19 +1,10 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { cleanTheme, RESOURCE_COLOR, type Theme } from './clean.ts';
-import { heritageTheme } from './heritage.tsx';
-import { nightMarketTheme } from './nightMarket.tsx';
-import { boldTheme, mosaicTheme, woodTheme } from './pictures.tsx';
+import { LOOK_SKINS } from './lookSkins.tsx';
+import { woodTheme } from './pictures.tsx';
 import { tilesTheme } from './tiles.tsx';
 
-export const THEMES: Theme[] = [
-  tilesTheme,
-  boldTheme,
-  mosaicTheme,
-  woodTheme,
-  cleanTheme,
-  heritageTheme,
-  nightMarketTheme,
-];
+export const THEMES: Theme[] = [tilesTheme, woodTheme, cleanTheme, ...LOOK_SKINS];
 
 /** What a new device shows. */
 export const DEFAULT_THEME = tilesTheme;

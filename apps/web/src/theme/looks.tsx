@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import { setTheme } from './themes.tsx';
 
 /**
  * A look: how the screens around the game are dressed (home, setup, lobby, account, menus).
@@ -288,8 +289,10 @@ function emit() {
   for (const l of listeners) l();
 }
 
+/** Picks a look, and the board skin made for it (players can still change the board after). */
 export function setLook(id: string): void {
   picked = id;
+  setTheme(lookById(id, prefersDark).board);
   try {
     localStorage.setItem(KEY, id);
   } catch {
