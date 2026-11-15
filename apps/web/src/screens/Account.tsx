@@ -431,8 +431,8 @@ function SiteLookCard() {
   const pick = (id: string | null) =>
     void task
       .run(async () => {
-        const board = id ? (LOOKS.find((l) => l.id === id)?.board ?? null) : null;
-        const s = await saveSite({ look: id, board });
+        // Board skins per look come later; until then the look leaves the board to each player.
+        const s = await saveSite({ look: id, board: null });
         setLook(s.look);
       })
       .then((ok) => {
