@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
-import { fill, H, r1, seaTile, sheep, skin, W, type BaseType } from './kit.tsx';
+import { resourceIcon } from './icons.tsx';
+import { fill, H, r1, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
  * Archipelago boards: the island drawn as a hand-inked sea chart. Each land uses the map symbols a
@@ -35,6 +36,7 @@ function scatter(n: number, seed: number): [number, number][] {
 }
 
 function art(k: Ink): Record<BaseType, ReactNode> {
+  const ewe = { body: k.paper, line: k.line, solid: k.line, width: 1.5 };
   const conifer = (x: number, y: number, key: string) => (
     <g key={key}>
       <path d={`M${x},${y + 5} v3`} stroke={k.line} strokeWidth={1} />
@@ -211,9 +213,9 @@ function art(k: Ink): Record<BaseType, ReactNode> {
           strokeWidth={1.2}
           strokeDasharray="6 3"
         />
-        {sheep({ x: 26, y: 28, s: 0.75, wool: k.paper, head: k.line, line: k.line, width: 0.9 })}
-        {sheep({ x: 74, y: 22, s: 0.65, wool: k.paper, head: k.line, line: k.line, width: 0.9 })}
-        {sheep({ x: 80, y: 104, s: 0.6, wool: k.paper, head: k.line, line: k.line, width: 0.9 })}
+        {resourceIcon('pasture', ewe, { x: 16.4, y: 20.3, s: 0.64 })}
+        {resourceIcon('pasture', ewe, { x: 65.8, y: 15.4, s: 0.55 })}
+        {resourceIcon('pasture', ewe, { x: 56, y: 90, s: 0.51 })}
       </>
     ),
     desert: (
