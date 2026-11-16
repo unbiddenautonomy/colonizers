@@ -1,5 +1,10 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { cleanTheme, RESOURCE_COLOR, type Theme } from './clean.ts';
+import { decoEmeraldBoard, decoIvoryBoard } from './boards/deco.tsx';
+import { wonderGlassBoard, wonderTeaBoard } from './boards/wonder.tsx';
+import { islesLagoonBoard, islesNightBoard } from './boards/isles.tsx';
+import { benchDarkBoard, benchLightBoard } from './boards/bench.tsx';
+import { popArcadeBoard, popCitrusBoard, popGrapeBoard, popSorbetBoard } from './boards/pop.tsx';
 import { woodTheme } from './pictures.tsx';
 import { tilesTheme } from './tiles.tsx';
 
@@ -7,6 +12,18 @@ export const THEMES: Theme[] = [
   tilesTheme,
   woodTheme,
   cleanTheme,
+  benchDarkBoard,
+  benchLightBoard,
+  popGrapeBoard,
+  popSorbetBoard,
+  popCitrusBoard,
+  popArcadeBoard,
+  decoEmeraldBoard,
+  decoIvoryBoard,
+  wonderTeaBoard,
+  wonderGlassBoard,
+  islesLagoonBoard,
+  islesNightBoard,
 ];
 
 /** What a new device shows. */
