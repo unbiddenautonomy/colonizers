@@ -1,13 +1,15 @@
-# Working in this repo
+# Notes for Claude
 
-## GitHub Actions minutes are limited
+## Commits, pushes and CI minutes
 
-- Make fewer, larger commits. Batch related changes into one commit and one PR,
-  and push only when the work is ready, not after every small step.
-- Every push to an open PR starts a CI run, so avoid push-fix-push loops: run
-  the checks locally (`pnpm typecheck`, `pnpm test`, `pnpm build`) before pushing.
-- No force-push loops, empty commits or re-runs to retrigger CI.
-- Workflows must run on Linux runners (`ubuntu-latest`), never macOS or Windows.
+GitHub Actions minutes are limited each month, so:
+
+- **Fewer, larger commits.** Commit once per finished piece of work, not after every small step. Squash work-in-progress commits before pushing.
+- **Push once, at the end of a task.** Every push to `main` or to a branch with an open pull request starts CI, so don't push after each commit. Run the checks locally (`pnpm typecheck`, `pnpm test`, `pnpm build`) before pushing, to avoid push-fix-push loops.
+- **Skip CI when it isn't needed.** For changes that don't affect the build or tests (docs, comments, notes), put `[skip ci]` in the commit message.
+- **No force-push loops, empty commits or re-runs to retrigger CI.**
+- **Linux runners only.** Workflow jobs use `runs-on: ubuntu-latest`. Never macOS or Windows runners: they use minutes 10× and 2× faster.
+- **Don't add new workflows or triggers** (for example on every branch push, or on a schedule) without asking first.
 
 ## Cloudflare deploys are limited too
 
