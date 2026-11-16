@@ -51,6 +51,11 @@ export interface Theme {
   ui: Record<string, string>;
   /** Background behind the board. */
   boardBackground: string;
+  /**
+   * A pattern id (defined in `patterns`, in board units) drawn over every land hex at once, so a
+   * skin's lines can run across hexes instead of stopping at each edge. Number discs sit on top.
+   */
+  landOverlay?: string;
   /** Hand-drawn pieces for themes that have their own; anything left out uses the plain shapes. */
   pieces?: ThemePieces;
   /** The font for number tokens and harbor ratios. */
