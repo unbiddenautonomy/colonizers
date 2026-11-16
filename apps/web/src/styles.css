@@ -369,6 +369,30 @@ select {
   stroke-width: 5;
 }
 
+/* A rolled number gives one small hop as it lights up. */
+.token.hot {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: token-pop 0.5s ease-out;
+}
+@keyframes token-pop {
+  40% {
+    transform: scale(1.18);
+  }
+}
+[data-motion='off'] .token.hot,
+.token.hot.robbed {
+  animation: none;
+}
+[data-motion='fast'] .token.hot {
+  animation-duration: 0.3s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .token.hot {
+    animation: none;
+  }
+}
+
 /* The hex under the robber fades out: it produces nothing while it is there. */
 .robber-dim,
 .token {
@@ -1297,6 +1321,24 @@ form.inline {
 }
 .barb-step.here {
   background: color-mix(in srgb, var(--danger) 25%, transparent);
+}
+.barb-ship {
+  display: inline-block;
+  animation: barb-sail 0.6s ease-out;
+}
+@keyframes barb-sail {
+  from {
+    transform: translateX(-110%);
+    opacity: 0.3;
+  }
+}
+[data-motion='off'] .barb-ship {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .barb-ship {
+    animation: none;
+  }
 }
 .barb-step.land {
   background: color-mix(in srgb, var(--text) 12%, transparent);

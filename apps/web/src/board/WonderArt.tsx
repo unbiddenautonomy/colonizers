@@ -1,5 +1,6 @@
 import { hexToPixel, type GameState, type HexId } from '@colonizers/engine';
 import { WONDERS, type WonderId } from '@colonizers/module-world-wonders';
+import { motionAttrs } from './motion.ts';
 
 /** World Wonders on the board: a plinth in the owner's colour, with a pip for each stage built. */
 
@@ -36,7 +37,13 @@ export function WonderMarkers({
           const y = c.y + S * 0.47;
           const r = S * 0.17;
           return (
-            <g key={id} className="wonder-marker" pointerEvents="none" filter="url(#lift)">
+            <g
+              key={id}
+              className="wonder-marker"
+              pointerEvents="none"
+              filter="url(#lift)"
+              {...motionAttrs(`wonder:${id}`, `hex:${hex}`, x, y)}
+            >
               <path
                 d={`M${x - r * 1.25},${y + r * 0.9} L${x - r},${y - r} L${x + r},${y - r} L${x + r * 1.25},${y + r * 0.9} z`}
                 fill={color(w.owner)}
@@ -55,6 +62,15 @@ export function WonderMarkers({
                   fill={k < w.stages ? color(w.owner) : '#fbf3e2'}
                   stroke={outline}
                   strokeWidth={1}
+                  // Each stage built lands on its pip.
+                  {...(k < w.stages
+                    ? motionAttrs(
+                        `wonder:${id}:${k}`,
+                        `pip:${id}:${k}`,
+                        x + (k - 1.5) * r * 0.55,
+                        y + r * 1.3,
+                      )
+                    : {})}
                 />
               ))}
               <title>

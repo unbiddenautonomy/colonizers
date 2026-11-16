@@ -1,4 +1,11 @@
-import type { ActionDef, Cards, Ctx, DiceResult, HexId } from '@colonizers/engine';
+import {
+  HIDDEN_CARD,
+  type ActionDef,
+  type Cards,
+  type Ctx,
+  type DiceResult,
+  type HexId,
+} from '@colonizers/engine';
 import { RESOURCES, robber } from '@colonizers/module-base';
 import { RATE_MAX, SEVEN_SHOW } from './constants.ts';
 import {
@@ -96,6 +103,11 @@ export function downChoices(ctx: Ctx, up: readonly string[]): Resource[][] {
 }
 
 /** Cards the roller may keep: any rival card that came to light. */
+/** On a player's screen, a rival's hand is a count of hidden cards: what was drawn is still in it. */
+function handHidden(ctx: Ctx, seat: number): boolean {
+  return (ctx.player(seat).hand[HIDDEN_CARD] ?? 0) > 0;
+}
+
 export function keepChoices(
   ctx: Ctx,
 ): { from: number; card: string; source: 'drawn' | 'discarded' }[] {
@@ -105,7 +117,11 @@ export function keepChoices(
   const out: { from: number; card: string; source: 'drawn' | 'discarded' }[] = [];
   for (const [seat, cards] of Object.entries(s.drawn ?? {}))
     for (const [card, n] of Object.entries(cards))
-      if (n && isTradable(ctx, card) && ctx.has(Number(seat), { [card]: 1 }))
+      if (
+        n &&
+        isTradable(ctx, card) &&
+        (handHidden(ctx, Number(seat)) || ctx.has(Number(seat), { [card]: 1 }))
+      )
         out.push({ from: Number(seat), card, source: 'drawn' });
   for (const [seat, cards] of Object.entries(s.discarded))
     if (Number(seat) !== roller)

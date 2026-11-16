@@ -1,3 +1,4 @@
+import { freshSince, logMark, type LogMark } from '../game/freshLog.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Ctx,
@@ -736,10 +737,10 @@ export function Game({
   const viewer = actor;
 
   // Sounds for new log lines, and a nudge when it becomes your turn.
-  const heard = useRef(g.log.length);
+  const heard = useRef<LogMark>(logMark(g.log));
   useEffect(() => {
-    const fresh = g.log.slice(Math.min(heard.current, g.log.length));
-    heard.current = g.log.length;
+    const fresh = freshSince(g.log, heard.current);
+    heard.current = logMark(g.log);
     if (!fresh.length || fresh.length > 30) return;
     const sounds = new Set(fresh.map((l) => soundFor(l.event, seat)).filter((x) => x !== null));
     for (const sound of sounds) play(sound);

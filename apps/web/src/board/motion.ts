@@ -135,6 +135,23 @@ function hop(el: SVGElement, dx: number, dy: number, k: number) {
   );
 }
 
+/** A piece taken off the board sinks and fades where it stood, instead of just vanishing. */
+function fade(ghost: SVGElement, k: number) {
+  ghost.removeAttribute('data-key');
+  ghost.style.pointerEvents = 'none';
+  ghost.style.transformBox = 'fill-box';
+  ghost.style.transformOrigin = '50% 100%';
+  const anim = ghost.animate(
+    [
+      { transform: 'none', opacity: 1 },
+      { transform: 'translateY(6px) scale(0.85)', opacity: 0 },
+    ],
+    { duration: 420 * k, easing: 'ease-in', fill: 'forwards' },
+  );
+  anim.onfinish = () => ghost.remove();
+  anim.oncancel = () => ghost.remove();
+}
+
 /** True if the owner already had something at this corner or on an edge touching it. */
 function joined(corner: string, owner: string | undefined, before: Spot[], g: Geometry): boolean {
   if (owner === undefined) return false;
@@ -151,6 +168,10 @@ export function useBoardMotion(
   changed: unknown,
 ): void {
   const prev = useRef<Map<string, Spot> | null>(null);
+  // Copies of last render's pieces, so one that is taken away can fade out.
+  const copies = useRef(
+    new Map<string, { copy: SVGElement; parent: Node | null; next: Node | null }>(),
+  );
   useLayoutEffect(() => {
     const root = ref.current;
     if (!root) return;
@@ -164,6 +185,15 @@ export function useBoardMotion(
     const before = prev.current;
     prev.current = now;
     const k = motionScale();
+    const lastCopies = copies.current;
+    copies.current = new Map();
+    if (k > 0)
+      for (const [key, el] of els)
+        copies.current.set(key, {
+          copy: el.cloneNode(true) as SVGElement,
+          parent: el.parentNode,
+          next: el.nextSibling,
+        });
     if (!before || k === 0) return;
     const fresh = [...now.keys()].filter((key) => !before.has(key));
     // A whole new board (a new game, or catching up after a reconnect): no show.
@@ -171,6 +201,17 @@ export function useBoardMotion(
 
     const gone = [...before.values()].filter((s) => !now.has(s.key));
     const old = [...before.values()];
+    // Pieces taken off (not upgraded in place): a burnt road, a beaten knight, a captured town.
+    if (gone.length <= 6) {
+      const taken = [...now.values()];
+      for (const s of gone) {
+        if (taken.some((t) => t.at === s.at)) continue;
+        const c = lastCopies.get(s.key);
+        if (!c?.parent || !root.contains(c.parent)) continue;
+        c.parent.insertBefore(c.copy, c.next && c.parent.contains(c.next) ? c.next : null);
+        fade(c.copy, k);
+      }
+    }
     for (const [key, s] of now) {
       const el = els.get(key)!;
       const was = before.get(key);

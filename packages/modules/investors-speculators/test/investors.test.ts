@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Ctx,
   ModuleLibrary,
+  stateFromView,
   type Action,
   type CornerId,
   type GameState,
@@ -145,6 +146,15 @@ describe('Investors & Speculators', () => {
     const keep = keepChoices(ctxOf(s));
     expect(keep).toContainEqual({ from: 1, card: 'ore', source: 'drawn' });
     expect(keep).toContainEqual({ from: 2, card: 'grain', source: 'discarded' });
+    // The roller's own screen, where rivals' hands are hidden, offers the same choices.
+    const seen = stateFromView(lib.view(s, 0));
+    expect(lib.legalActions(seen, 0)).toContainEqual({
+      type: 'sevenKeep',
+      player: 0,
+      from: 1,
+      card: 'ore',
+      source: 'drawn',
+    });
     s = act(s, { type: 'sevenKeep', player: 0, from: 1, card: 'ore', source: 'drawn' } as Action);
     expect(s.players[0]?.hand.ore).toBe(4);
     expect(s.players[1]?.hand.ore).toBe(2);
