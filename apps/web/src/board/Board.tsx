@@ -373,6 +373,14 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                       : (riverTitle(h) ?? h.type)}
               </title>
             </polygon>
+            {theme.landOverlay && !isSea && !fog && (
+              <polygon
+                points={hexPoints(h.q, h.r)}
+                fill={`url(#${theme.landOverlay})`}
+                pointerEvents="none"
+                aria-hidden="true"
+              />
+            )}
             {shoal && (
               <g aria-hidden="true">
                 <circle
