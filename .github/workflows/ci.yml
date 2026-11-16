@@ -1,9 +1,24 @@
 name: CI
 
+# Actions minutes and Cloudflare deploys are limited, so:
+# - The check runs once per pull request, never again on the merge into main.
+# - It tests only the packages the PR changed and the ones that depend on them.
+#   A change to root config (lockfile, root package.json or tsconfig, this
+#   workflow) tests everything.
+# - Merging into main deploys only when app or package code changed. "Run
+#   workflow" on main deploys by hand.
+# - Docs-only changes run nothing.
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - '!**.md'
   pull_request:
+    paths-ignore: ['**.md', 'docs/**', 'LICENSE']
   workflow_dispatch:
 
 concurrency:
@@ -16,33 +31,45 @@ permissions:
 jobs:
   check:
     name: Lint, typecheck, test, build
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Pick the packages to check
+        id: scope
+        env:
+          BASE: origin/${{ github.base_ref }}
+        run: |
+          changed=$(git diff --name-only "$BASE"...HEAD)
+          echo "$changed"
+          if echo "$changed" | grep -qE '^(pnpm-lock\.yaml|package\.json|pnpm-workspace\.yaml|tsconfig[^/]*\.json|\.nvmrc|\.github/)'; then
+            echo "Root config changed: checking every package."
+            echo "filter=--recursive" >> "$GITHUB_OUTPUT"
+          else
+            echo "filter=--filter=...[$BASE]" >> "$GITHUB_OUTPUT"
+          fi
       - run: pnpm format:check
       - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
+      - run: pnpm ${{ steps.scope.outputs.filter }} --if-present typecheck
+      - run: pnpm ${{ steps.scope.outputs.filter }} --if-present test
       - run: pnpm build
       - name: Check the Worker bundles
         run: pnpm --filter @colonizers/server deploy:check
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-dist
-          path: apps/web/dist
-          retention-days: 3
 
   deploy:
     name: Deploy to Cloudflare
-    needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     concurrency:
       group: deploy-production
       cancel-in-progress: false
