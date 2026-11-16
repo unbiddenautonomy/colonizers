@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
 import { inkOn, resourceIcon } from './icons.tsx';
-import { BASE, CX, H, poly, r1, seaTile, skin, W, type BaseType } from './kit.tsx';
+import { BASE, CX, H, r1, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
- * Grand Saloon boards: 1930s liner lacquer. Each land is one deep colour with a faint gold sunburst
- * and a single gold-lined icon; the sea is quiet fan scales. Numbers are set in Jost, a plain
+ * Grand Saloon boards: 1930s liner lacquer. Each land is one deep colour with faint gold rings round
+ * its corners, which join into circles across the board, and a single gold-lined icon; the sea is quiet fan scales. Numbers are set in Jost, a plain
  * geometric face that reads at a glance. Settlements are stepped towers, cities skyscrapers with a
  * spire, and the robber is a jewel thief in a top hat.
  */
@@ -29,24 +29,29 @@ interface Ink {
 }
 
 function art(k: Ink): Record<BaseType, ReactNode> {
-  // A faint sunburst behind every hex: the deco note, kept quiet so the icon carries the message.
-  const rays = Array.from({ length: 13 }, (_, i) => {
-    const a = Math.PI + (Math.PI * (i + 0.5)) / 13;
-    return `M${CX},${H + 6} L${r1(CX + 130 * Math.cos(a))},${r1(H + 6 + 130 * Math.sin(a))}`;
-  }).join(' ');
+  // Gold rings round every corner. Three hexes meet at a corner and each draws its third of the
+  // rings, so on the board they join into whole circles round every settlement spot.
+  const corners: [number, number][] = [
+    [CX, 0],
+    [W, 30],
+    [W, 90],
+    [CX, H],
+    [0, 90],
+    [0, 30],
+  ];
+  const rings = corners
+    .flatMap(([x, y]) =>
+      [9, 14, 19].map(
+        (r) => `M${r1(x - r)},${y} a${r},${r} 0 1 0 ${2 * r},0 a${r},${r} 0 1 0 ${-2 * r},0`,
+      ),
+    )
+    .join(' ');
   const tile = (type: BaseType) => {
     const ink = inkOn(k.land[type], k.gold, k.edge);
     return (
       <>
         <rect width={W} height={H} fill={k.land[type]} />
-        <path d={rays} stroke={k.gold} strokeOpacity={0.13} strokeWidth={1} fill="none" />
-        <polygon
-          points={poly(CX, H / 2, 52, 6)}
-          fill="none"
-          stroke={k.gold}
-          strokeOpacity={0.45}
-          strokeWidth={0.8}
-        />
+        <path d={rings} stroke={k.gold} strokeOpacity={0.4} strokeWidth={1} fill="none" />
         {resourceIcon(type, {
           body: k.deep[type],
           line: ink,
