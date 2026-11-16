@@ -1,6 +1,6 @@
 /**
  * Shaped frames for panels: SVG images cut into nine pieces with CSS border-image, so a panel
- * keeps its rectangle for the content while its outline is a coastline or a torn poster. The
+ * keeps its rectangle for the content while its outline is a coastline. The
  * edges repeat, so a frame fits a panel of any size.
  *
  * Each frame is drawn in a square of side 2 * S + M: corners of S, edge pieces of M. One side
@@ -112,77 +112,6 @@ export function islandFrame(c: IslandColours): string {
       }/>` +
       // A beach line just inside the coast.
       `<path d='${loop([ISLAND_COAST + 9, S], [corner(S - ISLAND_COAST - 9), ...coast(ISLAND_COAST + 9)])}' fill='none' stroke='${c.shore}' stroke-opacity='0.18' stroke-width='1.2' stroke-dasharray='2 5' stroke-linecap='round'/>`,
-  );
-}
-
-// ---- Posters: a torn sheet pinned at the corners, with a ruled border inside ----
-
-/** A torn edge along the top piece: small uneven teeth, flat where pieces meet. */
-function torn(y: number): Seg[] {
-  const x = S;
-  const teeth = [0, -2.5, 1.5, -1, 2.5, -2, 0.5, -3, 1, -1.5, 0];
-  const segs: Seg[] = [];
-  const step = M / (teeth.length - 1);
-  for (let i = 1; i < teeth.length; i++) {
-    const x0 = x + step * (i - 1);
-    const x1 = x + step * i;
-    const y0 = y + teeth[i - 1]!;
-    const y1 = y + teeth[i]!;
-    segs.push([
-      [x0 + step / 3, y0],
-      [x1 - step / 3, y1],
-      [x1, y1],
-    ]);
-  }
-  return segs;
-}
-
-export interface PosterColours {
-  paper: string;
-  rule: string;
-  pin: string;
-}
-
-/** Where the paper's edge sits, measured in from the image edge. */
-export const POSTER_EDGE = 76;
-
-export function posterFrame(c: PosterColours): string {
-  const e = POSTER_EDGE;
-  // A tight corner: paper, not a pebble.
-  const cut = (d: number): Seg => [
-    [d, S - 10],
-    [S - 10, d],
-    [S, d],
-  ];
-  const paper = loop([e, S], [cut(e), ...torn(e)]);
-  // The ruled border: straight lines with square corners (a cubic with its controls on the line).
-  const rule = (d: number) => {
-    const a: Pt = [e + d, e + d];
-    const end: Pt = [S + M, e + d];
-    return loop(
-      [e + d, S],
-      [
-        [[e + d, S], a, a],
-        [a, end, end],
-      ],
-    );
-  };
-  const pins = [
-    [e + 9, e + 9],
-    [W - e - 9, e + 9],
-    [e + 9, W - e - 9],
-    [W - e - 9, W - e - 9],
-  ]
-    .map(
-      ([x, y]) =>
-        `<circle cx='${x}' cy='${y}' r='4.5' fill='${c.pin}'/><circle cx='${x! - 1.3}' cy='${y! - 1.3}' r='1.4' fill='#ffffff' fill-opacity='0.55'/>`,
-    )
-    .join('');
-  return svg(
-    `<path d='${paper}' fill='${c.paper}'/>` +
-      `<path d='${rule(16)}' fill='none' stroke='${c.rule}' stroke-width='2.5'/>` +
-      `<path d='${rule(21)}' fill='none' stroke='${c.rule}' stroke-width='0.8'/>` +
-      pins,
   );
 }
 
