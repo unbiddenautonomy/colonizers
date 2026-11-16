@@ -3,7 +3,7 @@ import type { BaseType } from './kit.tsx';
 
 /**
  * One resource icon set shared by the board skins, so every skin says the same thing on the same
- * hex: trees for wood, a brick stack, a sheep, a wheat sheaf, ore nuggets, a sun over dunes.
+ * hex: trees for wood, a brick stack, a sheep, a wheat sheaf, a rock for ore, a cactus for desert.
  *
  * Each icon is drawn in a 40 × 24 box and is made of parts with a role, so a skin can colour them
  * its own way without redrawing them:
@@ -105,21 +105,18 @@ export const ICONS: Record<BaseType, Part[]> = {
     ...ear(20, 24, 18, 30),
     P('line', 'M16.6,18.6 Q20,20.4 23.4,18.6'),
   ],
-  // Ore: a rough lump of rock with a miner's pick, not a mountain.
+  // Ore: one rough rock with cut facets.
   mountains: [
-    P('line', 'M21,23 L33.5,3.5'),
-    P('line', 'M25.5,4.2 Q32,0.6 39,6.6'),
+    P('body', 'M3.5,23 L5,17.5 L10,12.5 L15.5,11.5 L20,6.5 L27.5,6 L32.5,11.5 L36,18.5 L35,23 Z'),
+    P('line', 'M15.5,11.5 L21.5,14 L20,6.5 M21.5,14 L32.5,11.5 M21.5,14 L19,23'),
+  ],
+  // Desert: a cactus on bare ground.
+  desert: [
+    P('line', 'M7,23.4 H33'),
     P(
       'body',
-      'M2,23 L2.6,16.5 L6.5,11.5 L11.5,9.5 L15.5,11 L19.5,9.5 L23.5,14 L24.5,19.5 L23,23 Z',
+      'M17,23 V15.5 H14.5 A3,3 0 0 1 11.5,12.5 V9 A1.5,1.5 0 0 1 14.5,9 V12.5 H17 V5 A3,3 0 0 1 23,5 V10.5 H25.5 V7 A1.5,1.5 0 0 1 28.5,7 V10.5 A3,3 0 0 1 25.5,13.5 H23 V23 Z',
     ),
-    P('line', 'M6.5,11.5 L10.5,16 L15.5,11 M10.5,16 L19,17.5 L23.5,14 M10.5,16 L8.5,23'),
-  ],
-  // A low sun over two dunes.
-  desert: [
-    P('body', ell(26.5, 8.5, 5, 5)),
-    P('line', 'M1,21.5 Q10,13.5 19.5,19 T38.5,17'),
-    P('line', 'M9,24 Q17,19.5 25,23'),
   ],
 };
 
