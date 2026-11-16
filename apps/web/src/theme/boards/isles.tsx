@@ -96,34 +96,6 @@ function art(k: Ink): Record<BaseType, ReactNode> {
     </g>
   );
 
-  const peak = (x: number, y: number, h: number, key: string) => {
-    const w = h * 0.75;
-    const hatch: ReactNode[] = [];
-    for (let i = 1; i < 6; i++) {
-      const t = i / 6;
-      hatch.push(
-        <path
-          key={i}
-          d={`M${r1(x + w * t * 0.98)},${r1(y - h + h * t)} L${r1(x + w * t * 0.4)},${r1(y - h + h * t + 3)}`}
-          stroke={k.mark.mountains}
-          strokeWidth={1}
-        />,
-      );
-    }
-    return (
-      <g key={key}>
-        <path
-          d={`M${x - w},${y} L${x},${y - h} L${x + w},${y} Z`}
-          fill={k.land.mountains}
-          stroke={k.line}
-          strokeWidth={1.2}
-          strokeLinejoin="round"
-        />
-        {hatch}
-      </g>
-    );
-  };
-
   const tuft = (x: number, y: number, key: string) => (
     <path
       key={key}
@@ -177,29 +149,36 @@ function art(k: Ink): Record<BaseType, ReactNode> {
           [30, 108, 15],
           [74, 108, 15],
           [52, 92, 10],
-        ].map(([x, y, w]) => mound(x!, y!, w!, `${x}-${y}`))}
+        ]
+          .filter(([, y]) => y! > 60)
+          .map(([x, y, w]) => mound(x!, y!, w!, `${x}-${y}`))}
+        {resourceIcon('hills', { ...ewe, body: k.mark.hills })}
       </>
     ),
     mountains: (
       <>
         {fill(k.land.mountains)}
-        {peak(20, 36, 28, 'a')}
-        {peak(84, 34, 26, 'b')}
-        {peak(52, 26, 30, 'c')}
-        {peak(12, 84, 22, 'd')}
-        {peak(92, 86, 22, 'e')}
-        {peak(36, 118, 24, 'f')}
-        {peak(70, 118, 26, 'g')}
+        {scatter(18, 5)
+          .filter(([, y]) => y > 62)
+          .map(([x, y], i) => (
+            <path
+              key={i}
+              d={`M${r1(x - 3)},${r1(y + 1.5)} L${r1(x - 1.5)},${r1(y - 1.5)} L${r1(x + 2)},${r1(y - 1.8)} L${r1(x + 3.2)},${r1(y + 1.5)} Z`}
+              fill={k.mark.mountains}
+              stroke={k.line}
+              strokeWidth={0.8}
+              strokeLinejoin="round"
+            />
+          ))}
+        {resourceIcon('mountains', ewe)}
       </>
     ),
     fields: (
       <>
         {fill(k.land.fields)}
-        {furrows(0, 38, 30)}
-        {furrows(42, 78, 0)}
         {furrows(82, 120, -30)}
-        {hedge(40, 'h1')}
         {hedge(80, 'h2')}
+        {resourceIcon('fields', { ...ewe, grain: k.paper })}
       </>
     ),
     pasture: (
