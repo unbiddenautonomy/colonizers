@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { ISLAND_COAST, islandFrame } from './frames.ts';
+import { setTheme, THEMES } from './themes.tsx';
 
 /**
  * A look: how the screens around the game are dressed (home, setup, lobby, account, menus).
@@ -602,6 +603,13 @@ export function LookStyles() {
   return null;
 }
 
+/** Picking a look also lays out its own board skin; the board can still be changed after. */
+function pickLook(id: string): void {
+  setLook(id);
+  const board = lookById(id, prefersDark).board;
+  if (THEMES.some((t) => t.id === board)) setTheme(board);
+}
+
 /** The look picker: themes, then their schemes or modes. */
 export function LookPicker() {
   const { pick, forced } = useLook();
@@ -610,7 +618,7 @@ export function LookPicker() {
   return (
     <label className="theme-picker">
       Look{' '}
-      <select value={pick} onChange={(e) => setLook(e.target.value)} aria-label="Look">
+      <select value={pick} onChange={(e) => pickLook(e.target.value)} aria-label="Look">
         {families.map((f) => (
           <optgroup key={f} label={f}>
             {f === 'BasicBench' && <option value={AUTO}>BasicBench · Match device</option>}

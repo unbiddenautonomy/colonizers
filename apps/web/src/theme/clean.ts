@@ -51,7 +51,24 @@ export interface Theme {
   ui: Record<string, string>;
   /** Background behind the board. */
   boardBackground: string;
+  /** Hand-drawn pieces for themes that have their own; anything left out uses the plain shapes. */
+  pieces?: ThemePieces;
+  /** The font for number tokens and harbor ratios. */
+  tokenFont?: string;
 }
+
+export interface ThemePieces {
+  /** A settlement or city standing at (x, y), the corner. `s` is the hex size. */
+  house?: (o: { x: number; y: number; color: string; city: boolean; s: number }) => ReactNode;
+  /** The robber standing at (x, y). */
+  robber?: (o: { x: number; y: number; s: number }) => ReactNode;
+  /** The disc under a number token, centred on (x, y) with radius r. */
+  token?: (o: { x: number; y: number; r: number; hot: boolean }) => ReactNode;
+  /** A road from a to b (already pulled in from the corners). */
+  road?: (o: { a: Pt; b: Pt; color: string; s: number }) => ReactNode;
+}
+
+type Pt = { x: number; y: number };
 
 export type PlayerShape =
   'circle' | 'square' | 'triangle' | 'diamond' | 'star' | 'hexagon' | 'cross' | 'pentagon';
