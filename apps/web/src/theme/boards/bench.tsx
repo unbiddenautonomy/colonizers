@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
-import { CX, H, poly, seaTile, skin, W, type BaseType } from './kit.tsx';
+import { resourceIcon } from './icons.tsx';
+import { BASE, CX, H, poly, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
  * BasicBench boards: quiet and exact, like the app around them. Each land is one soft colour with
@@ -13,6 +14,8 @@ interface Ink {
   /** Icon and inner-ring colour. */
   glyph: string;
   glyphOpacity: number;
+  /** A faint fill inside icon shapes. */
+  glyphFill: string;
   sea: string;
   seaDot: string;
   face: string;
@@ -23,18 +26,7 @@ interface Ink {
 }
 
 function art(k: Ink): Record<BaseType, ReactNode> {
-  const icon = (d: string) => (
-    <path
-      d={d}
-      fill="none"
-      stroke={k.glyph}
-      strokeOpacity={k.glyphOpacity}
-      strokeWidth={2.4}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  );
-  const base = (type: BaseType, glyph: string) => (
+  const base = (type: BaseType) => (
     <>
       <rect width={W} height={H} fill={k.land[type]} />
       <rect width={W} height={H} fill="url(#bench-light)" />
@@ -45,23 +37,16 @@ function art(k: Ink): Record<BaseType, ReactNode> {
         strokeOpacity={k.glyphOpacity * 0.35}
         strokeWidth={1}
       />
-      {icon(glyph)}
+      {resourceIcon(type, {
+        body: k.glyphFill,
+        line: k.glyph,
+        solid: k.glyph,
+        width: 2.2,
+        opacity: k.glyphOpacity,
+      })}
     </>
   );
-  return {
-    forest: base('forest', 'M40,34 L46,22 L52,34 Z M46,34 v5 M54,32 L61,18 L68,32 Z M61,32 v6'),
-    hills: base('hills', 'M38,22 h28 v14 h-28 Z M38,29 h28 M52,22 v7 M45,29 v7 M59,29 v7'),
-    pasture: base(
-      'pasture',
-      'M42,32 a5,5 0 0 1 2,-9 a6,6 0 0 1 11,-2 a5,5 0 0 1 8,6 a4,4 0 0 1 -2,7 Z M45,32 v5 M58,32 v5 M63,25 l5,-2',
-    ),
-    fields: base(
-      'fields',
-      'M52,40 V16 M52,20 l-5,-3 M52,20 l5,-3 M52,26 l-5,-3 M52,26 l5,-3 M52,32 l-5,-3 M52,32 l5,-3',
-    ),
-    mountains: base('mountains', 'M36,38 L48,18 L56,30 L60,24 L70,38 Z M44,25 l4,2 l4,-2'),
-    desert: base('desert', 'M60,22 a6,6 0 1 1 0.1,0 M36,38 q10,-8 20,0 t20,0'),
-  };
+  return Object.fromEntries(BASE.map((t) => [t, base(t)])) as Record<BaseType, ReactNode>;
 }
 
 function sea(k: Ink): ReactNode {
@@ -192,6 +177,7 @@ export const benchDarkBoard = benchSkin(
     },
     glyph: '#ffffff',
     glyphOpacity: 0.6,
+    glyphFill: 'rgba(255,255,255,0.22)',
     sea: '#0f2238',
     seaDot: '#24405f',
     face: '#eaf0f8',
@@ -217,6 +203,7 @@ export const benchLightBoard = benchSkin(
     },
     glyph: '#ffffff',
     glyphOpacity: 0.85,
+    glyphFill: 'rgba(255,255,255,0.3)',
     sea: '#cfe3ea',
     seaDot: '#a9c9d4',
     face: '#ffffff',
