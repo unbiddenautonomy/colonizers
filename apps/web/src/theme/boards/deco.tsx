@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
-import { CX, fill, H, poly, r1, seaTile, sheep, skin, W, type BaseType } from './kit.tsx';
+import { inkOn, resourceIcon } from './icons.tsx';
+import { BASE, CX, H, poly, r1, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
- * Grand Saloon boards: the land as 1930s liner decoration. Cypress groves cut in chevrons, wheat
- * under a sunburst, sheep on rolling arcs, a brick ziggurat, peaks ruled with gold, a pyramid at
- * sunrise and a sea of fan scales. Settlements are stepped towers, cities skyscrapers with a spire,
- * and the robber is a jewel thief in a top hat.
+ * Grand Saloon boards: 1930s liner lacquer. Each land is one deep colour with a faint gold sunburst
+ * and a single gold-lined icon; the sea is quiet fan scales. Numbers are set in Jost, a plain
+ * geometric face that reads at a glance. Settlements are stepped towers, cities skyscrapers with a
+ * spire, and the robber is a jewel thief in a top hat.
  */
 
 interface Ink {
@@ -28,230 +29,34 @@ interface Ink {
 }
 
 function art(k: Ink): Record<BaseType, ReactNode> {
-  const g = { stroke: k.gold, fill: 'none', strokeLinejoin: 'round' as const };
-
-  const cypress = (x: number, y: number, h: number, w: number, key: string) => {
-    const chevrons: ReactNode[] = [];
-    for (let i = 1; i <= 4; i++) {
-      const yy = y - (h * i) / 5.2;
-      const ww = w * (0.75 - i * 0.08);
-      chevrons.push(
-        <path
-          key={i}
-          d={`M${r1(x - ww)},${r1(yy + ww * 0.7)} L${r1(x)},${r1(yy)} L${r1(x + ww)},${r1(yy + ww * 0.7)}`}
-          {...g}
-          strokeWidth={0.9}
-        />,
-      );
-    }
+  // A faint sunburst behind every hex: the deco note, kept quiet so the icon carries the message.
+  const rays = Array.from({ length: 13 }, (_, i) => {
+    const a = Math.PI + (Math.PI * (i + 0.5)) / 13;
+    return `M${CX},${H + 6} L${r1(CX + 130 * Math.cos(a))},${r1(H + 6 + 130 * Math.sin(a))}`;
+  }).join(' ');
+  const tile = (type: BaseType) => {
+    const ink = inkOn(k.land[type], k.gold, k.edge);
     return (
-      <g key={key}>
-        <rect x={x - 1.5} y={y - 2} width={3} height={8} fill={k.gold} />
-        <path
-          d={`M${x},${y - h} Q${x + w * 1.15},${y - h * 0.42} ${x},${y} Q${x - w * 1.15},${y - h * 0.42} ${x},${y - h} Z`}
-          fill={k.deep.forest}
+      <>
+        <rect width={W} height={H} fill={k.land[type]} />
+        <path d={rays} stroke={k.gold} strokeOpacity={0.13} strokeWidth={1} fill="none" />
+        <polygon
+          points={poly(CX, H / 2, 52, 6)}
+          fill="none"
           stroke={k.gold}
-          strokeWidth={1.3}
+          strokeOpacity={0.45}
+          strokeWidth={0.8}
         />
-        <path d={`M${x},${y - h + 4} V${y - 2}`} {...g} strokeWidth={0.9} />
-        {chevrons}
-      </g>
+        {resourceIcon(type, {
+          body: k.deep[type],
+          line: ink,
+          solid: ink,
+          width: 1.5,
+        })}
+      </>
     );
   };
-
-  const ear = (x: number, y: number, key: string) => (
-    <g key={key}>
-      <path d={`M${x},${y + 30} V${y}`} {...g} strokeWidth={1.4} />
-      {[0, 6, 12, 18].map((d) => (
-        <g key={d}>
-          <polygon points={poly(x - 3.2, y + d + 2, 3.4, 4, 0)} fill={k.gold} />
-          <polygon points={poly(x + 3.2, y + d + 5, 3.4, 4, 0)} fill={k.gold} />
-        </g>
-      ))}
-      <polygon
-        points={poly(x, y - 2, 3.2, 4, 0)}
-        fill={k.light}
-        stroke={k.gold}
-        strokeWidth={0.8}
-      />
-    </g>
-  );
-
-  const lamb = (x: number, y: number, s: number, key: string) =>
-    sheep({ x, y, s, wool: k.light, head: k.deep.pasture, line: k.gold, key });
-
-  const rays = (cx: number, cy: number, n: number, from: number, to: number, r: number) =>
-    Array.from({ length: n }, (_, i) => {
-      const a0 = from + ((to - from) / n) * i;
-      const a1 = a0 + (to - from) / n;
-      const p = (a: number) =>
-        `${r1(cx + r * Math.cos((a * Math.PI) / 180))},${r1(cy + r * Math.sin((a * Math.PI) / 180))}`;
-      return i % 2 ? null : (
-        <path key={i} d={`M${cx},${cy} L${p(a0)} L${p(a1)} Z`} fill={k.deep.fields} />
-      );
-    });
-
-  return {
-    forest: (
-      <>
-        {fill(k.land.forest)}
-        <path d={`M0,${H - 26} H${W}`} {...g} strokeWidth={0.8} opacity={0.6} />
-        <path d={`M0,${H - 22} H${W}`} {...g} strokeWidth={0.8} opacity={0.6} />
-        {cypress(20, 64, 46, 10, 'a')}
-        {cypress(CX, 46, 40, 9, 'b')}
-        {cypress(84, 64, 46, 10, 'c')}
-        {cypress(30, 116, 28, 7, 'd')}
-        {cypress(74, 116, 28, 7, 'e')}
-      </>
-    ),
-    fields: (
-      <>
-        {fill(k.land.fields)}
-        {rays(CX, H + 6, 18, 180, 360, 140)}
-        <circle cx={CX} cy={H + 6} r={34} fill={k.land.fields} stroke={k.gold} strokeWidth={1.2} />
-        <circle cx={CX} cy={H + 6} r={40} {...g} strokeWidth={0.8} />
-        {ear(22, 26, 'a')}
-        {ear(CX, 10, 'b')}
-        {ear(82, 26, 'c')}
-      </>
-    ),
-    pasture: (
-      <>
-        {fill(k.land.pasture)}
-        <circle cx={14} cy={H + 4} r={52} fill={k.deep.pasture} opacity={0.5} />
-        <circle cx={96} cy={H + 14} r={48} fill={k.deep.pasture} opacity={0.4} />
-        {[30, 40, 50].map((r) => (
-          <path
-            key={r}
-            d={`M${14 - r},${H + 4} A${r},${r} 0 0 1 ${14 + r},${H + 4}`}
-            {...g}
-            strokeWidth={0.9}
-            opacity={0.75}
-          />
-        ))}
-        {[26, 36].map((r) => (
-          <path
-            key={`b${r}`}
-            d={`M${96 - r},${H + 14} A${r},${r} 0 0 1 ${96 + r},${H + 14}`}
-            {...g}
-            strokeWidth={0.9}
-            opacity={0.75}
-          />
-        ))}
-        {lamb(44, 28, 1.1, 'a')}
-        {lamb(84, 58, 0.7, 'b')}
-      </>
-    ),
-    hills: (
-      <>
-        {fill(k.land.hills)}
-        <circle cx={CX} cy={30} r={22} fill={k.light} opacity={0.18} />
-        {[0, 1, 2, 3].map((i) => {
-          const w = 100 - i * 22;
-          const y = H - (i + 1) * 24;
-          const x = CX - w / 2;
-          const joints: string[] = [];
-          for (let row = 0; row < 3; row++) {
-            const yy = y + row * 8;
-            joints.push(`M${x},${yy} H${x + w}`);
-            for (let j = (row % 2) * 6; j < w; j += 12) joints.push(`M${x + j},${yy} v8`);
-          }
-          return (
-            <g key={i}>
-              <rect x={x} y={y} width={w} height={24} fill={k.deep.hills} />
-              <path d={joints.join(' ')} stroke={k.land.hills} strokeWidth={1.1} />
-              <rect x={x} y={y} width={w} height={24} {...g} strokeWidth={1.3} />
-            </g>
-          );
-        })}
-      </>
-    ),
-    mountains: (
-      <>
-        {fill(k.land.mountains)}
-        {Array.from({ length: 7 }, (_, i) => (
-          <path key={i} d={`M0,${78 + i * 7} H${W}`} {...g} strokeWidth={0.7} opacity={0.55} />
-        ))}
-        {(
-          [
-            [20, 40, 46],
-            [86, 36, 44],
-            [CX, 8, 58],
-          ] as const
-        ).map(([x, top, half], i) => {
-          const base = 112;
-          return (
-            <g key={i}>
-              <path d={`M${x},${top} L${x - half},${base} H${x} Z`} fill={k.land.mountains} />
-              <path d={`M${x},${top} L${x + half},${base} H${x} Z`} fill={k.deep.mountains} />
-              {[0.3, 0.5, 0.7].map((t) => (
-                <path
-                  key={t}
-                  d={`M${r1(x + half * t)},${r1(top + (base - top) * t)} L${r1(x + half * t * 0.4)},${r1(top + (base - top) * t)}`}
-                  {...g}
-                  strokeWidth={0.8}
-                />
-              ))}
-              <path
-                d={`M${x},${top} L${r1(x - half * 0.24)},${r1(top + (base - top) * 0.24)} L${x},${r1(top + (base - top) * 0.18)} L${r1(x + half * 0.24)},${r1(top + (base - top) * 0.24)} Z`}
-                fill={k.light}
-              />
-              <path
-                d={`M${x - half},${base} L${x},${top} L${x + half},${base}`}
-                {...g}
-                strokeWidth={1.3}
-              />
-            </g>
-          );
-        })}
-      </>
-    ),
-    desert: (
-      <>
-        {fill(k.land.desert)}
-        {Array.from({ length: 9 }, (_, i) => {
-          const a = 180 + i * 22.5;
-          const rad = (a * Math.PI) / 180;
-          return (
-            <path
-              key={i}
-              d={`M${r1(78 + 15 * Math.cos(rad))},${r1(40 + 15 * Math.sin(rad))} L${r1(78 + 24 * Math.cos(rad))},${r1(40 + 24 * Math.sin(rad))}`}
-              {...g}
-              strokeWidth={1.2}
-            />
-          );
-        })}
-        <path d="M66,40 A12,12 0 0 1 90,40 Z" fill={k.light} stroke={k.gold} strokeWidth={1.2} />
-        <path d="M26,14 L4,44 H48 Z" fill={k.land.desert} stroke={k.gold} strokeWidth={1.2} />
-        <path d="M26,14 L48,44 H26 Z" fill={k.deep.desert} />
-        <path d="M26,14 L4,44 H48 Z" {...g} strokeWidth={1.2} />
-        {[22, 30, 38].map((y) => (
-          <path
-            key={y}
-            d={`M${r1(26 - (y - 14) * 0.73)},${y} H${r1(26 + (y - 14) * 0.73)}`}
-            {...g}
-            strokeWidth={0.6}
-          />
-        ))}
-        <path
-          d={`M-4,${H - 34} Q30,${H - 52} 60,${H - 36} T112,${H - 40}`}
-          {...g}
-          strokeWidth={1.1}
-        />
-        <path
-          d={`M-4,${H - 22} Q34,${H - 40} 64,${H - 24} T112,${H - 28}`}
-          fill={k.deep.desert}
-          stroke={k.gold}
-          strokeWidth={1.1}
-        />
-        <path
-          d={`M-4,${H - 10} Q40,${H - 26} 70,${H - 12} T112,${H - 14}`}
-          {...g}
-          strokeWidth={1.1}
-        />
-      </>
-    ),
-  };
+  return Object.fromEntries(BASE.map((t) => [t, tile(t)])) as Record<BaseType, ReactNode>;
 }
 
 function sea(k: Ink): ReactNode {
@@ -259,7 +64,16 @@ function sea(k: Ink): ReactNode {
   const scale = (x: number, y: number, key: string) => (
     <g key={key}>
       {[r, r * 0.7, r * 0.4].map((rr, i) => (
-        <circle key={i} cx={x} cy={y} r={rr} fill={k.sea} stroke={k.seaLine} strokeWidth={0.8} />
+        <circle
+          key={i}
+          cx={x}
+          cy={y}
+          r={rr}
+          fill={k.sea}
+          stroke={k.seaLine}
+          strokeOpacity={0.45}
+          strokeWidth={0.8}
+        />
       ))}
     </g>
   );
@@ -362,7 +176,7 @@ function decoSkin(id: string, name: string, description: string, k: Ink): Theme 
       harborFace: k.face,
       harborText: k.faceText,
       pieceEffect: 'lift',
-      tokenFont: "'Bodoni Moda', Didot, Georgia, serif",
+      tokenFont: "Jost, 'Futura', system-ui, sans-serif",
       pieces: pieces(k),
       boardBackground: `radial-gradient(circle at 50% 45%, ${k.sea} 0%, ${k.edge} 100%)`,
     },
