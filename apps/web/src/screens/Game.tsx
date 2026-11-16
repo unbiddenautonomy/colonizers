@@ -580,6 +580,10 @@ export interface OnlineExtras {
   members: MemberInfo[];
   isHost: boolean;
   deadline: number | null;
+  /** Time bank left per seat in ms, when the room has one. */
+  bank?: number[] | null | undefined;
+  /** The seat spending its time bank now. */
+  banking?: number | null | undefined;
   chat: ChatMessage[];
   sendChat: (text: string) => void;
   nudge: (seat: number) => void;
@@ -804,7 +808,13 @@ export function Game({
             />
           )}{' '}
           {prompt(state, promptSeat, promptNames, mode, shipPick)}
-          {online?.deadline && state.winner === null && <TurnTimer deadline={online.deadline} />}
+          {online?.deadline && state.winner === null && (
+            <TurnTimer
+              deadline={online.deadline}
+              bank={online.bank?.[promptSeat ?? state.turn.player]}
+              banking={online.banking != null}
+            />
+          )}
         </p>
         <button
           type="button"
@@ -1452,6 +1462,15 @@ export function Game({
               )}
             </>
           )}
+          {/* Open trading: anyone may make an offer on someone else's turn. */}
+          {actor !== null &&
+            !myTurnMain &&
+            state.phase.id === 'main' &&
+            state.settings.openTrading === true && (
+              <button type="button" disabled={!!offer} onClick={() => setDialog('offer')}>
+                Offer trade
+              </button>
+            )}
         </div>
 
         {offer && (

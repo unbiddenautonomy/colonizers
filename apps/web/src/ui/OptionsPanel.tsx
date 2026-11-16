@@ -98,6 +98,11 @@ export function OptionsPanel({
             'friendlyRobber',
             "Friendly robber: it can't go next to a player with 2 or fewer points",
           )}
+        {robber &&
+          toggle(
+            'robberHome',
+            'Robber goes home: it blocks a hex for one turn, then goes back to the desert',
+          )}
         {robber && (
           <label>
             Quiet start{' '}
@@ -133,6 +138,10 @@ export function OptionsPanel({
       <div className="option-group">
         <h3 className="subhead">Cards and trading</h3>
         {toggle('gifting', 'Gifts: give cards to another player on your turn')}
+        {toggle(
+          'openTrading',
+          "Open trading: anyone can offer a trade on anyone's turn, one offer at a time",
+        )}
         {toggle('firstSettlementPays', 'Both starting settlements pay resources')}
         {toggle(
           'harbormaster',
@@ -271,6 +280,8 @@ export function describeOptions(
   const mode = resolvedTurnMode(o, players);
   if (mode !== 'normal') out.push(TURN_MODE_NAME[mode]);
   if (o.friendlyRobber) out.push('Friendly robber');
+  if (o.robberHome) out.push('Robber goes home after each turn');
+  if (o.openTrading) out.push('Anyone can offer trades');
   if (o.balancedDice) out.push('Balanced dice');
   if (o.gifting) out.push('Gifts allowed');
   if (o.firstSettlementPays) out.push('Both starting settlements pay');

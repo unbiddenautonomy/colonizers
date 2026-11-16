@@ -316,6 +316,7 @@ export function NewGame({
     if (princes) {
       if (opts.turnMode === 'specialBuild') opts.turnMode = 'normal';
       opts.friendlyRobber = false;
+      opts.robberHome = false;
     }
     // Soldiers & Armies marches after building, so no Special Building Phase either.
     if (soldiers && opts.turnMode === 'specialBuild') opts.turnMode = 'normal';

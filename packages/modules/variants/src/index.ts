@@ -8,7 +8,7 @@ import {
   type HexId,
   type Phase,
 } from '@colonizers/engine';
-import { publicVp, robberHexes } from '@colonizers/module-base';
+import { publicVp, robber, robberHexes } from '@colonizers/module-base';
 import {
   eventData,
   eventPick,
@@ -48,6 +48,10 @@ export * from './duel.ts';
  * - `harbormaster`: the first player with 3 points of buildings on harbors
  *   (settlement 1, city 2) takes a 2-point bonus; anyone with more takes it.
  * - `twoPlayer`: duel rules for two players (see duel.ts).
+ * - `robberHome`: the robber goes back to where it started (the desert) at the
+ *   end of any turn it was moved, so it blocks a hex for one turn only.
+ * - `openTrading`: any player may offer a trade to any other on someone's
+ *   turn, not just the player whose turn it is. One offer is open at a time.
  *
  * List this module before Cities & Knights so its event dice win.
  */
@@ -64,6 +68,8 @@ interface VariantsData {
   left: number;
   /** Who holds the Harbormaster bonus. */
   harbormaster: number | null;
+  /** Where the robber started, for `robberHome`. */
+  robberHome?: HexId | null;
 }
 
 function vData(ctx: Ctx): VariantsData {
@@ -238,6 +244,8 @@ export const variantsModule: GameModule = {
     harbormaster: false,
     eventCards: false,
     twoPlayer: false,
+    robberHome: false,
+    openTrading: false,
   },
   actions: { endSpecialBuild, giveCards, eventPick, repairRoad, ...duelActions },
   dice(ctx) {
@@ -263,6 +271,7 @@ export const variantsModule: GameModule = {
       const def: WithBelow = {
         ...prev,
         apply(ctx, a) {
+          if (ctx.setting<boolean>('robberHome')) sendRobberHome(ctx);
           if (turnMode(ctx) !== 'specialBuild' || openTrade(ctx)) return prev.apply(ctx, a);
           const n = ctx.playerCount;
           const queue = Array.from({ length: n - 1 }, (_, i) => (a.player + 1 + i) % n);
@@ -274,6 +283,21 @@ export const variantsModule: GameModule = {
       def[BELOW] = prev;
       return def;
     },
+    offerTrade: (prev): ActionDef => ({
+      ...prev,
+      check(ctx, a) {
+        if (!ctx.setting<boolean>('openTrading')) return prev.check(ctx, a);
+        if (openTrade(ctx)) return 'Another offer is open';
+        if (a.player === ctx.active) return prev.check(ctx, a);
+        return asBuilder(ctx, a.player, () => prev.check(ctx, a));
+      },
+      enumerate(ctx, player) {
+        if (!ctx.setting<boolean>('openTrading') || player === ctx.active || openTrade(ctx))
+          return prev.enumerate?.(ctx, player) ?? [];
+        if (ctx.state.phase.id !== 'main') return [];
+        return asBuilder(ctx, player, () => prev.enumerate?.(ctx, player) ?? []);
+      },
+    }),
     moveRobber: (prev): ActionDef => ({
       ...prev,
       check(ctx, a) {
@@ -314,7 +338,8 @@ export const variantsModule: GameModule = {
   },
   hooks: {
     init(ctx) {
-      vData(ctx);
+      const at = robber(ctx)?.at;
+      vData(ctx).robberHome = at?.kind === 'hex' ? at.id : null;
       if (duelOn(ctx)) placeNeutrals(ctx);
     },
     afterAction(ctx, a) {
@@ -337,6 +362,17 @@ export const variantsModule: GameModule = {
     return { ...d, deck: [], eventDeck: [] } as unknown as Record<string, unknown>;
   },
 };
+
+// ---- Robber goes home ----
+
+/** Puts the robber back where it started, if it has moved off. */
+function sendRobberHome(ctx: Ctx): void {
+  const home = vData(ctx).robberHome;
+  const r = robber(ctx);
+  if (!home || !r || (r.at?.kind === 'hex' && r.at.id === home)) return;
+  ctx.move(r, { kind: 'hex', id: home });
+  ctx.emit({ type: 'robberHome', hex: home });
+}
 
 // ---- Harbormaster ----
 

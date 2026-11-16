@@ -823,6 +823,8 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return 'Second roll of the turn.';
     case 'gifted':
       return `${n(e.from)} gave ${n(e.to)} ${cards(e.cards as Record<string, number>)}.`;
+    case 'robberHome':
+      return `The robber went back home.`;
     case 'robberResting':
       return `Quiet start: the 7 does nothing yet.`;
     case 'diceShuffled':

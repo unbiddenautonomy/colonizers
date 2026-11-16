@@ -214,6 +214,51 @@ describe('Options', () => {
     expect(hexes.length).toBeGreaterThan(0);
   });
 
+  it('the robber goes home at the end of a turn it moved', () => {
+    let s = toMain(finishSetup(game(4, { robberHome: true })));
+    const at = (st: GameState) => Object.values(st.pieces).find((p) => p.type === 'robber')?.at;
+    const home = at(s);
+    expect(home?.kind).toBe('hex');
+    s = edit(s, (ctx) => ctx.setPhase({ id: 'moveRobber', returnTo: 'main' }));
+    const move = lib.legalActions(s, s.turn.player).find((a) => a.type === 'moveRobber')!;
+    s = act(s, move);
+    while (s.phase.id !== 'main') {
+      const seat = lib.waitingOn(s)[0]!;
+      s = act(s, lib.legalActions(s, seat)[0]!);
+    }
+    expect(at(s)).not.toEqual(home);
+    s = act(s, { type: 'endTurn', player: s.turn.player });
+    expect(at(s)).toEqual(home);
+  });
+
+  it('open trading lets anyone offer, one offer at a time', () => {
+    let s = toMain(finishSetup(game(4, { openTrading: true })));
+    const me = s.turn.player;
+    const a = (me + 1) % 4;
+    const b = (me + 2) % 4;
+    s = edit(s, (ctx) => {
+      ctx.grant(a, { wool: 1 });
+      ctx.grant(b, { ore: 1 });
+      ctx.grant(me, { grain: 1 });
+    });
+    expect(lib.legalActions(s, a).some((x) => x.type === 'offerTrade')).toBe(true);
+    s = act(s, { type: 'offerTrade', player: a, give: { wool: 1 }, get: { ore: 1 } });
+    expect(() =>
+      act(s, { type: 'offerTrade', player: me, give: { grain: 1 }, get: { ore: 1 } }),
+    ).toThrow();
+    const id = (s.data.base as { trade: { id: number } }).trade.id;
+    s = act(s, { type: 'respondTrade', player: b, offer: id, accept: true });
+    const ore = s.players[a]!.hand.ore ?? 0;
+    s = act(s, { type: 'confirmTrade', player: a, offer: id, with: b });
+    expect(s.players[a]!.hand.ore).toBe(ore + 1);
+    const off = toMain(finishSetup(game(4, {})));
+    const other = (off.turn.player + 1) % 4;
+    const rich2 = edit(off, (ctx) => ctx.grant(other, { wool: 1 }));
+    expect(() =>
+      act(rich2, { type: 'offerTrade', player: other, give: { wool: 1 }, get: { ore: 1 } }),
+    ).toThrow();
+  });
+
   it('gifts move cards on your own turn only', () => {
     let s = toMain(finishSetup(game(4, { gifting: true })));
     const me = s.turn.player;
