@@ -96,6 +96,8 @@ function HouseShape({
   city: boolean;
   theme: Theme;
 }) {
+  const own = theme.pieces?.house;
+  if (own) return <>{own({ x, y, color, city, s: S })}</>;
   const k = S * 0.2;
   const d = city
     ? `M${x - k * 1.3},${y + k * 0.9} v${-k * 1.2} l${k * 0.65},${-k * 0.7} l${k * 0.65},${k * 0.7} h${k * 1.3} v${k * 1.2} z`
@@ -488,20 +490,30 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 className={`${rolled === h.token ? 'token hot' : 'token'}${robbed ? ' robbed' : ''}`}
                 opacity={(dry && h.props?.farmland === true) || robbed ? 0.55 : undefined}
               >
-                <circle
-                  cx={c.x}
-                  cy={c.y}
-                  r={S * 0.33}
-                  fill={theme.token}
-                  stroke={theme.outline}
-                  strokeWidth={1.5}
-                />
+                {theme.pieces?.token ? (
+                  theme.pieces.token({
+                    x: c.x,
+                    y: c.y,
+                    r: S * 0.33,
+                    hot: h.token === 6 || h.token === 8,
+                  })
+                ) : (
+                  <circle
+                    cx={c.x}
+                    cy={c.y}
+                    r={S * 0.33}
+                    fill={theme.token}
+                    stroke={theme.outline}
+                    strokeWidth={1.5}
+                  />
+                )}
                 <text
                   x={c.x}
                   y={c.y + S * 0.06}
                   textAnchor="middle"
                   fontSize={S * 0.3}
                   fontWeight={700}
+                  fontFamily={theme.tokenFont}
                   fill={h.token === 6 || h.token === 8 ? theme.tokenHot : theme.tokenText}
                 >
                   {h.token}
@@ -548,6 +560,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               textAnchor="middle"
               fontSize={S * 0.17}
               fontWeight={700}
+              fontFamily={theme.tokenFont}
               fill={theme.harborText}
             >
               {hb.ratio}:1
@@ -658,6 +671,17 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 <g key={p.id}>
                   <Ship a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />
                   <Cargo x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - S * 0.3} props={p.props} />
+                </g>
+              );
+            if (theme.pieces?.road)
+              return (
+                <g key={p.id} filter={fx}>
+                  {theme.pieces.road({
+                    a: { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k },
+                    b: { x: b.x - (b.x - a.x) * k, y: b.y - (b.y - a.y) * k },
+                    color: pieceColor(p),
+                    s: S,
+                  })}
                 </g>
               );
             return (
@@ -1054,15 +1078,25 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs('robber', `hex:${robberHex.id}`, x, y)}
             >
-              {/* A pale rim keeps the robber visible on the dimmed hex. */}
-              <g stroke={theme.landStroke} strokeWidth={1.5} strokeOpacity={0.85}>
-                <ellipse cx={x} cy={y + S * 0.2} rx={S * 0.16} ry={S * 0.07} fill={theme.robber} />
-                <path
-                  d={`M${x - S * 0.13},${y + S * 0.2} Q${x - S * 0.15},${y - S * 0.1} ${x},${y - S * 0.12} Q${x + S * 0.15},${y - S * 0.1} ${x + S * 0.13},${y + S * 0.2} z`}
-                  fill={theme.robber}
-                />
-                <circle cx={x} cy={y - S * 0.2} r={S * 0.1} fill={theme.robber} />
-              </g>
+              {theme.pieces?.robber ? (
+                theme.pieces.robber({ x, y, s: S })
+              ) : (
+                /* A pale rim keeps the robber visible on the dimmed hex. */
+                <g stroke={theme.landStroke} strokeWidth={1.5} strokeOpacity={0.85}>
+                  <ellipse
+                    cx={x}
+                    cy={y + S * 0.2}
+                    rx={S * 0.16}
+                    ry={S * 0.07}
+                    fill={theme.robber}
+                  />
+                  <path
+                    d={`M${x - S * 0.13},${y + S * 0.2} Q${x - S * 0.15},${y - S * 0.1} ${x},${y - S * 0.12} Q${x + S * 0.15},${y - S * 0.1} ${x + S * 0.13},${y + S * 0.2} z`}
+                    fill={theme.robber}
+                  />
+                  <circle cx={x} cy={y - S * 0.2} r={S * 0.1} fill={theme.robber} />
+                </g>
+              )}
               <title>Robber</title>
             </g>
           );

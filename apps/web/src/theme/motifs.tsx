@@ -458,7 +458,7 @@ const ART: Record<string, Art> = {
 export const MOTIF_TYPES = Object.keys(ART);
 
 /** <pattern> elements "pat-<type>" for every type the palettes cover. */
-function drawnPatterns(palettes: Record<string, Palette>): ReactNode {
+export function drawnPatterns(palettes: Record<string, Palette>): ReactNode {
   return Object.entries(palettes).map(([type, p]) => {
     const art = ART[type];
     if (!art) return null;
