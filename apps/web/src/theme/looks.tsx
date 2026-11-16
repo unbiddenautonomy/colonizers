@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { ISLAND_COAST, POSTER_EDGE, islandFrame, posterFrame } from './frames.ts';
+import { ISLAND_COAST, islandFrame } from './frames.ts';
 
 /**
  * A look: how the screens around the game are dressed (home, setup, lobby, account, menus).
@@ -8,7 +8,7 @@ import { ISLAND_COAST, POSTER_EDGE, islandFrame, posterFrame } from './frames.ts
 export interface Look {
   id: string;
   /** The theme it belongs to; a theme can have several colour schemes or modes. */
-  family: 'basicbench' | 'pop' | 'deco' | 'wonderland' | 'grandline' | 'isles';
+  family: 'basicbench' | 'pop' | 'deco' | 'wonderland' | 'isles';
   familyName: string;
   /** The scheme or mode within the theme. */
   name: string;
@@ -372,217 +372,6 @@ const lookingGlass: Look = {
   },
 };
 
-// ---- Grand Line: pirate crews (fan themes; colours and motifs only, no crew emblems) ----
-
-// Cinzel's carved capitals for titles, Alegreya Sans (from the same calligraphic roots) for text.
-const SEA_TYPE = {
-  heading: "Cinzel, 'Trajan Pro', Georgia, serif",
-  body: "'Alegreya Sans', system-ui, sans-serif",
-};
-
-function crew(
-  id: string,
-  name: string,
-  dark: boolean,
-  c: Omit<Look['tokens'], 'heading' | 'body'>,
-): Look {
-  return {
-    id: `crew-${id}`,
-    family: 'grandline',
-    familyName: 'Grand Line',
-    name,
-    dark,
-    board: `crew-${id}`,
-    tokens: { ...SEA_TYPE, ...c },
-    frames: {
-      panel: posterFrame({ paper: c.card, rule: c.ink ?? c.border, pin: c.accent }),
-      card: posterFrame({ paper: c.sunk, rule: c.ink ?? c.border, pin: c.ink ?? c.border }),
-      picked: posterFrame({ paper: c.raised, rule: c.accent, pin: c.accent }),
-      blocked: posterFrame({ paper: c.sunk, rule: c.dash, pin: c.dash }),
-      outset: POSTER_EDGE,
-    },
-  };
-}
-
-const strawHat = crew('strawhat', 'Straw Hat Crew', false, {
-  bg: '#f5e6bf',
-  card: '#fff8e6',
-  raised: '#ffefc2',
-  sunk: '#fffbef',
-  text: '#1d2433',
-  soft: '#33405a',
-  muted: '#4f5a70',
-  faint: '#5f6675',
-  accent: '#c6232b',
-  accentText: '#fff8e6',
-  border: '#1d2433',
-  dash: '#d8c48d',
-  good: '#1f6fb2',
-  bad: '#d1232a',
-  shadow: '4px 5px 0 #1d2433',
-  ink: '#1d2433',
-  pop: '#e9b938',
-  motif:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='48'%3E%3Cg stroke='%23b8892a' stroke-opacity='0.1' stroke-width='3'%3E%3Cpath d='M0 6h12M12 18h12M0 30h12M12 42h12'/%3E%3Cpath d='M18 0v12M6 12v12M18 24v12M6 36v12'/%3E%3C/g%3E%3C/svg%3E\")",
-});
-
-const donquixote = crew('donquixote', 'Donquixote Family', true, {
-  bg: '#120c14',
-  card: '#1f1422',
-  raised: '#2c1a30',
-  sunk: '#170f1a',
-  text: '#fff0f6',
-  soft: '#f3cfe0',
-  muted: '#d3a7bd',
-  faint: '#a98299',
-  accent: '#ff3e8a',
-  accentText: '#1a0510',
-  border: '#ff3e8a',
-  dash: '#4a2a44',
-  good: '#ffb3d2',
-  bad: '#ff6a5a',
-  shadow: '0 0 0 1px #ff3e8a55, 0 18px 40px rgb(0 0 0 / 0.5)',
-  ink: '#ff3e8a',
-  pop: '#ffd1e3',
-  motif:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='120'%3E%3Cg stroke='%23ff3e8a' stroke-opacity='0.14' stroke-width='1'%3E%3Cpath d='M0 0L60 120M20 0L80 120M-20 0L40 120'/%3E%3C/g%3E%3C/svg%3E\")",
-});
-
-const bigMom = crew('bigmom', 'Big Mom Pirates', false, {
-  bg: '#ffe9f1',
-  card: '#fffaf3',
-  raised: '#ffe3ec',
-  sunk: '#fffdf8',
-  text: '#3b1f17',
-  soft: '#55322a',
-  muted: '#6f4b42',
-  faint: '#806057',
-  accent: '#b8285e',
-  accentText: '#fffaf3',
-  border: '#3b1f17',
-  dash: '#f0c3d2',
-  good: '#45b8a5',
-  bad: '#c9302c',
-  shadow: '4px 5px 0 #3b1f17',
-  ink: '#3b1f17',
-  pop: '#ffd34d',
-  motif:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='90'%3E%3Cg stroke-linecap='round' stroke-width='4' stroke-opacity='0.35'%3E%3Cpath d='M10 12l8 4' stroke='%23e0457b'/%3E%3Cpath d='M40 8l2 9' stroke='%2345b8a5'/%3E%3Cpath d='M64 30l-8 4' stroke='%23ffb020'/%3E%3Cpath d='M22 50l7-6' stroke='%237b5cd6'/%3E%3Cpath d='M52 62l9 2' stroke='%23e0457b'/%3E%3Cpath d='M8 72l3 8' stroke='%2345b8a5'/%3E%3C/g%3E%3C/svg%3E\")",
-});
-
-const whitebeard = crew('whitebeard', 'Whitebeard Pirates', false, {
-  bg: '#eef2f5',
-  card: '#ffffff',
-  raised: '#f3eef8',
-  sunk: '#fbfcfd',
-  text: '#16182b',
-  soft: '#2c2f48',
-  muted: '#4a4d66',
-  faint: '#666981',
-  accent: '#6a3fa0',
-  accentText: '#ffffff',
-  border: '#16182b',
-  dash: '#c9cfe0',
-  good: '#2b7bb9',
-  bad: '#b3261e',
-  shadow: '4px 5px 0 #16182b',
-  ink: '#16182b',
-  pop: '#e8c35a',
-  motif:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='30'%3E%3Cpath d='M0 20 q15 -12 30 0 t30 0' fill='none' stroke='%236a3fa0' stroke-opacity='0.12' stroke-width='2'/%3E%3C/svg%3E\")",
-});
-
-// Red Hair: sailcloth, crimson and charcoal, with brass fittings.
-const redHair = crew('redhair', 'Red Hair Pirates', false, {
-  bg: '#ece4da',
-  card: '#fffaf4',
-  raised: '#f9ece6',
-  sunk: '#fffdf9',
-  text: '#1f1b1e',
-  soft: '#383136',
-  muted: '#574e53',
-  faint: '#665c61',
-  accent: '#9c1a22',
-  accentText: '#fff8f2',
-  border: '#1f1b1e',
-  dash: '#d6c7ba',
-  good: '#2d6a5a',
-  bad: '#9c1a22',
-  shadow: '0 16px 30px rgb(31 27 30 / 0.16)',
-  ink: '#1f1b1e',
-  pop: '#c99a45',
-  motif:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Cpath d='M0 36L36 0M-9 9L9 -9M27 45L45 27' stroke='%239c1a22' stroke-opacity='0.06' stroke-width='1.5'/%3E%3C/svg%3E\")",
-});
-
-const heart = crew('heart', 'Heart Pirates', false, {
-  bg: '#fff7d6',
-  card: '#fffdf2',
-  raised: '#fff1b0',
-  sunk: '#fffef8',
-  text: '#121212',
-  soft: '#2a2a2a',
-  muted: '#4a4a4a',
-  faint: '#6b6b6b',
-  accent: '#121212',
-  accentText: '#ffd84a',
-  border: '#121212',
-  dash: '#e2d38f',
-  good: '#1f8a70',
-  bad: '#c0392b',
-  shadow: '4px 5px 0 #121212',
-  ink: '#121212',
-  pop: '#ffd84a',
-  motif:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Ccircle cx='12' cy='12' r='5' fill='%23121212' fill-opacity='0.06'/%3E%3Ccircle cx='38' cy='34' r='8' fill='%23121212' fill-opacity='0.05'/%3E%3C/svg%3E\")",
-});
-
-// Blackbeard: a black flag, embers and cherry.
-const blackbeard = crew('blackbeard', 'Blackbeard Pirates', true, {
-  bg: '#0d0d0f',
-  card: '#18171b',
-  raised: '#232126',
-  sunk: '#131215',
-  text: '#f1ebe1',
-  soft: '#d8cfc2',
-  muted: '#b5ab9d',
-  faint: '#a0968a',
-  accent: '#e39a3b',
-  accentText: '#170f06',
-  border: '#3a3732',
-  dash: '#34312d',
-  good: '#8dbb85',
-  bad: '#ec7a68',
-  shadow: '0 18px 40px rgb(0 0 0 / 0.6)',
-  ink: '#d8cfc2',
-  pop: '#8e2436',
-  motif:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cg fill='none' stroke='%23e39a3b' stroke-opacity='0.06'%3E%3Ccircle cx='70' cy='70' r='20'/%3E%3Ccircle cx='70' cy='70' r='42'/%3E%3Ccircle cx='70' cy='70' r='64'/%3E%3C/g%3E%3C/svg%3E\")",
-});
-
-// Rocks: a storm over old gold, the crew of an older age.
-const rocks = crew('rocks', 'Rocks Pirates', true, {
-  bg: '#0e1719',
-  card: '#162226',
-  raised: '#1f2f34',
-  sunk: '#122024',
-  text: '#eef3ef',
-  soft: '#cfdcd6',
-  muted: '#a9bbb4',
-  faint: '#93a8a0',
-  accent: '#d2ad3c',
-  accentText: '#15110a',
-  border: '#2c3e43',
-  dash: '#2c3e43',
-  good: '#72c6a4',
-  bad: '#e8806f',
-  shadow: '0 18px 40px rgb(0 0 0 / 0.55)',
-  ink: '#cfdcd6',
-  pop: '#5d8fa0',
-  motif:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='60'%3E%3Cpath d='M0 40 q22 -18 45 0 t45 0' fill='none' stroke='%23d2ad3c' stroke-opacity='0.07' stroke-width='1.5'/%3E%3C/svg%3E\")",
-});
-
 // ---- Archipelago: every panel is an island on a sea chart ----
 // The content keeps its rectangle; the coast around it, the depth lines and the pebble buttons don't.
 
@@ -691,14 +480,6 @@ export const LOOKS: Look[] = [
   ivoryDeck,
   teaParty,
   lookingGlass,
-  strawHat,
-  donquixote,
-  bigMom,
-  whitebeard,
-  redHair,
-  heart,
-  blackbeard,
-  rocks,
   lagoon,
   nightTide,
 ];
