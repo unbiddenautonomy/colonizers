@@ -3675,3 +3675,9 @@ body:has(.setup-page),
 :root[data-look='wonderland'] .setup-page .expansion small {
   line-height: 1.4;
 }
+
+.leaderboard tr.gap td {
+  text-align: center;
+  color: var(--muted);
+  padding: 0;
+}

@@ -190,4 +190,13 @@ describe('careerStats', () => {
     expect(c.favoriteResource).toBe('ore');
     expect(c.records.fastestWin).toBe(30);
   });
+
+  it('keeps records across many games', () => {
+    const c = careerStats([
+      played({ won: true, vp: 10, turns: 40, stats: stats({ longestRoad: 6, knights: 1 }) }),
+      played({ won: true, vp: 12, turns: 28, stats: stats({ longestRoad: 9, knights: 4 }) }),
+      played({ vp: 8, turns: 50, stats: stats({ longestRoad: 7, knights: 2 }) }),
+    ]);
+    expect(c.records).toEqual({ mostVp: 12, fastestWin: 28, longestRoad: 9, mostKnights: 4 });
+  });
 });

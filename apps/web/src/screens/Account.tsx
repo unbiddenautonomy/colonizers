@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { nameOf } from '@colonizers/rulebook';
-import { ACHIEVEMENTS } from '@colonizers/stats';
+import { ACHIEVEMENTS, type CareerStats } from '@colonizers/stats';
 import {
   AVATARS,
   createCrew,
@@ -9,6 +9,7 @@ import {
   crewInviteLink,
   describeModules,
   forgotPassword,
+  globalLeaderboard,
   googleSignInUrl,
   history,
   joinCrew,
@@ -29,7 +30,9 @@ import {
   useAccount,
   type CrewDetail,
   type CrewSummary,
+  type GlobalLeaderboard,
   type HistoryGame,
+  type LeaderRow,
   type MyStats,
 } from '../online/account.ts';
 import { Modal } from '../ui/Modal.tsx';
@@ -386,6 +389,7 @@ export function ProfilePage({
       <ProfileCard />
       <SiteLookCard />
       <StatsCards />
+      <LeaderboardCard />
       <CrewsCard onCrew={onCrew} />
       <HistoryCard onRoom={onRoom} onReplay={onReplay} />
       <button
@@ -585,6 +589,89 @@ function ProfileCard() {
   );
 }
 
+/** Everyone who plays here, ranked by wins in games with at least two signed-in players. */
+function LeaderboardCard() {
+  const { user } = useAccount();
+  const [board, setBoard] = useState<GlobalLeaderboard | null>(null);
+  const task = useTask();
+  const listed = user?.onLeaderboard ?? true;
+
+  useEffect(() => {
+    globalLeaderboard().then(setBoard, (e: unknown) => task.setError(message(e)));
+  }, [listed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!user) return null;
+  const youBelow = board?.you && !board.rows.some((r) => r.id === board.you?.id);
+  const line = (row: LeaderRow) => (
+    <tr key={row.id} className={row.id === user.id ? 'me' : ''}>
+      <td>{row.rank}</td>
+      <td>
+        {row.avatar} {row.name}
+      </td>
+      <td>{row.wins}</td>
+      <td>{row.games}</td>
+      <td>{pct(row.wins, row.games)}</td>
+      <td>{row.averageVp ?? '–'}</td>
+    </tr>
+  );
+  return (
+    <section className="card">
+      <h2>Leaderboard</h2>
+      <p className="muted">
+        Everyone who plays here. Only finished games with at least two signed-in players count, so
+        games against bots alone don&apos;t.
+      </p>
+      {board === null ? (
+        !task.error && <p className="muted">Loading…</p>
+      ) : board.rows.length === 0 ? (
+        <p className="muted">No games count yet. Play a game with a friend who is signed in.</p>
+      ) : (
+        <table className="leaderboard">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player</th>
+              <th>Wins</th>
+              <th>Games</th>
+              <th>Win rate</th>
+              <th title="Average points">Avg</th>
+            </tr>
+          </thead>
+          <tbody>
+            {board.rows.map(line)}
+            {youBelow && board.you && (
+              <>
+                <tr className="gap" aria-hidden="true">
+                  <td colSpan={6}>⋯</td>
+                </tr>
+                {line(board.you)}
+              </>
+            )}
+          </tbody>
+        </table>
+      )}
+      {board && board.players > board.rows.length && (
+        <p className="muted">
+          Top {board.rows.length} of {board.players} players.
+        </p>
+      )}
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={listed}
+          disabled={task.busy}
+          onChange={(e) => {
+            const on = e.target.checked;
+            void task.run(() => updateProfile({ onLeaderboard: on }));
+          }}
+        />{' '}
+        Show me on the leaderboard
+      </label>
+      <ErrorLine error={task.error} />
+    </section>
+  );
+}
+
 function CrewsCard({ onCrew }: { onCrew: (id: string) => void }) {
   const [crews, setCrews] = useState<CrewSummary[] | null>(null);
   const [name, setName] = useState('');
@@ -678,121 +765,146 @@ function StatsCards() {
       </section>
     );
   if (!stats) return null;
-  const c = stats.career;
-  const earned = new Map(stats.achievements.map((a) => [a.id, a]));
+  return (
+    <>
+      <CareerCard
+        career={stats.career}
+        title="Your stats"
+        empty="Finish an online game while signed in to start your stats."
+      />
+      <AchievementsCard earned={stats.achievements} />
+    </>
+  );
+}
+
+/** Totals, records and win rates by seat and map. */
+export function CareerCard({
+  career: c,
+  title,
+  empty,
+}: {
+  career: CareerStats;
+  title: ReactNode;
+  empty: string;
+}) {
   const luck = c.diceLuck;
   const fav = c.favoriteResource ? nameOf(c.favoriteResource) : null;
   return (
-    <>
-      <section className="card">
-        <h2>Your stats</h2>
-        {c.games === 0 ? (
-          <p>Finish an online game while signed in to start your stats.</p>
-        ) : (
-          <>
-            <div className="stat-tiles">
-              <div className="stat">
-                <strong>{c.games}</strong>
-                <span>games</span>
-              </div>
-              <div className="stat">
-                <strong>{c.wins}</strong>
-                <span>wins</span>
-              </div>
-              <div className="stat">
-                <strong>{pct(c.wins, c.games)}</strong>
-                <span>win rate</span>
-              </div>
-              <div className="stat">
-                <strong>{c.averageVp ?? '–'}</strong>
-                <span>average points</span>
-              </div>
+    <section className="card">
+      <h2>{title}</h2>
+      {c.games === 0 ? (
+        <p>{empty}</p>
+      ) : (
+        <>
+          <div className="stat-tiles">
+            <div className="stat">
+              <strong>{c.games}</strong>
+              <span>games</span>
             </div>
-            <ul className="stat-lines">
-              {fav && (
-                <li>
-                  Favorite resource: {fav.icon} {fav.name}
-                </li>
-              )}
-              {luck && luck.expected > 0 && (
-                <li>
-                  Dice luck: the dice paid you {luck.produced} cards against {luck.expected} on
-                  average ({luck.produced >= luck.expected ? '+' : ''}
-                  {Math.round((100 * (luck.produced - luck.expected)) / luck.expected)}%).
-                </li>
-              )}
-              {c.records.mostVp !== null && <li>Most points in a game: {c.records.mostVp}</li>}
-              {c.records.fastestWin !== null && <li>Fastest win: {c.records.fastestWin} turns</li>}
-              {c.records.longestRoad !== null && <li>Longest road: {c.records.longestRoad}</li>}
-              {!!c.records.mostKnights && <li>Most knights in a game: {c.records.mostKnights}</li>}
-            </ul>
-            <div className="stat-tables">
-              <table className="leaderboard">
-                <thead>
-                  <tr>
-                    <th>Seat</th>
-                    <th>Games</th>
-                    <th>Win rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {c.bySeat.map((r) => (
-                    <tr key={r.seat}>
-                      <td>{r.seat + 1}</td>
-                      <td>{r.games}</td>
-                      <td>{pct(r.wins, r.games)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <table className="leaderboard">
-                <thead>
-                  <tr>
-                    <th>Map</th>
-                    <th>Games</th>
-                    <th>Win rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {c.byMap.map((r) => (
-                    <tr key={r.map}>
-                      <td>{mapName(r.map)}</td>
-                      <td>{r.games}</td>
-                      <td>{pct(r.wins, r.games)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="stat">
+              <strong>{c.wins}</strong>
+              <span>wins</span>
             </div>
-          </>
-        )}
-      </section>
-      <section className="card">
-        <h2>
-          Achievements{' '}
-          <small className="muted">
-            {earned.size} of {ACHIEVEMENTS.length}
-          </small>
-        </h2>
-        <ul className="achievements">
-          {ACHIEVEMENTS.map((a) => {
-            const got = earned.get(a.id);
-            return (
-              <li key={a.id} className={got ? 'got' : 'locked'}>
-                <span className="achievement-icon" aria-hidden="true">
-                  {a.icon}
-                </span>
-                <span>
-                  <strong>{a.name}</strong>
-                  <small>{a.text}</small>
-                  {got && <small className="muted">Unlocked {when(got.at)}</small>}
-                </span>
+            <div className="stat">
+              <strong>{pct(c.wins, c.games)}</strong>
+              <span>win rate</span>
+            </div>
+            <div className="stat">
+              <strong>{c.averageVp ?? '–'}</strong>
+              <span>average points</span>
+            </div>
+          </div>
+          <ul className="stat-lines">
+            {fav && (
+              <li>
+                Favorite resource: {fav.icon} {fav.name}
               </li>
-            );
-          })}
-        </ul>
-      </section>
-    </>
+            )}
+            {luck && luck.expected > 0 && (
+              <li>
+                Dice luck: the dice paid you {luck.produced} cards against {luck.expected} on
+                average ({luck.produced >= luck.expected ? '+' : ''}
+                {Math.round((100 * (luck.produced - luck.expected)) / luck.expected)}%).
+              </li>
+            )}
+            {c.records.mostVp !== null && <li>Most points in a game: {c.records.mostVp}</li>}
+            {c.records.fastestWin !== null && <li>Fastest win: {c.records.fastestWin} turns</li>}
+            {c.records.longestRoad !== null && <li>Longest road: {c.records.longestRoad}</li>}
+            {!!c.records.mostKnights && <li>Most knights in a game: {c.records.mostKnights}</li>}
+          </ul>
+          <div className="stat-tables">
+            <table className="leaderboard">
+              <thead>
+                <tr>
+                  <th>Seat</th>
+                  <th>Games</th>
+                  <th>Win rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {c.bySeat.map((r) => (
+                  <tr key={r.seat}>
+                    <td>{r.seat + 1}</td>
+                    <td>{r.games}</td>
+                    <td>{pct(r.wins, r.games)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <table className="leaderboard">
+              <thead>
+                <tr>
+                  <th>Map</th>
+                  <th>Games</th>
+                  <th>Win rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {c.byMap.map((r) => (
+                  <tr key={r.map}>
+                    <td>{mapName(r.map)}</td>
+                    <td>{r.games}</td>
+                    <td>{pct(r.wins, r.games)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Every achievement, with the ones earned lit up. */
+export function AchievementsCard({ earned: list }: { earned: { id: string; at: number }[] }) {
+  const earned = new Map(list.map((a) => [a.id, a]));
+  return (
+    <section className="card">
+      <h2>
+        Achievements{' '}
+        <small className="muted">
+          {earned.size} of {ACHIEVEMENTS.length}
+        </small>
+      </h2>
+      <ul className="achievements">
+        {ACHIEVEMENTS.map((a) => {
+          const got = earned.get(a.id);
+          return (
+            <li key={a.id} className={got ? 'got' : 'locked'}>
+              <span className="achievement-icon" aria-hidden="true">
+                {a.icon}
+              </span>
+              <span>
+                <strong>{a.name}</strong>
+                <small>{a.text}</small>
+                {got && <small className="muted">Unlocked {when(got.at)}</small>}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

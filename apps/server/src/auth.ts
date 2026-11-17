@@ -194,14 +194,14 @@ export function isAdmin(
   return list.includes(user.email.toLowerCase());
 }
 
-/** Handles /api/auth/*, /api/me* and /api/crews*. Returns null for any other path. */
+/** Handles /api/auth/*, /api/me*, /api/crews* and /api/leaderboard. Returns null for any other path. */
 export async function accountRoutes(
   request: Request,
   env: Env,
   url: URL,
 ): Promise<Response | null> {
   const path = url.pathname;
-  if (!/^\/api\/(auth|me|crews|games|push|site)(\/|$)/.test(path)) return null;
+  if (!/^\/api\/(auth|me|crews|games|push|site|leaderboard)(\/|$)/.test(path)) return null;
   const method = request.method;
   const acc = accounts(env);
   const token = sessionToken(request);
@@ -226,6 +226,8 @@ export async function accountRoutes(
       return fromResult(await acc.history(token), (games) => ({ games }));
     if (path === '/api/me/stats') return fromResult(await acc.stats(token), (stats) => ({ stats }));
     if (path === '/api/crews') return fromResult(await acc.crews(token), (crews) => ({ crews }));
+    if (path === '/api/leaderboard')
+      return fromResult(await acc.leaderboard(token), (leaderboard) => ({ leaderboard }));
     const replay = path.match(/^\/api\/games\/([a-z0-9-]{1,60})\/replay$/);
     if (replay) return fromResult(await acc.replay(token, replay[1]), (r) => ({ replay: r }));
     const invite = path.match(/^\/api\/crews\/invite\/([A-Za-z0-9_-]{1,40})$/);
@@ -281,7 +283,11 @@ export async function accountRoutes(
     }
     case 'PATCH /api/me':
       return fromResult(
-        await acc.updateProfile(token, { name: b.name, avatar: b.avatar }),
+        await acc.updateProfile(token, {
+          name: b.name,
+          avatar: b.avatar,
+          onLeaderboard: b.onLeaderboard,
+        }),
         (user) => ({ user }),
       );
     case 'POST /api/me/push':

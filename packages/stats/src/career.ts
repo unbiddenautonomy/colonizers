@@ -30,7 +30,8 @@ function tally<K>(map: Map<K, { games: number; wins: number }>, key: K, won: boo
 
 const best = (xs: (number | null | undefined)[], pick: (a: number, b: number) => number) => {
   const ok = xs.filter((x): x is number => typeof x === 'number');
-  return ok.length ? ok.reduce(pick) : null;
+  // Not reduce(pick): reduce passes the index and array too, and Math.max of an array is NaN.
+  return ok.length ? ok.reduce((a, b) => pick(a, b)) : null;
 };
 
 /** Totals and records across finished games. */

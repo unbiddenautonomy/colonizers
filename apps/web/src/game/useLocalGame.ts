@@ -8,6 +8,7 @@ import {
   type GameState,
 } from '@colonizers/engine';
 import { library } from './library.ts';
+import { recordLocalGame } from './localStats.ts';
 
 export interface LogEntry {
   seq: number;
@@ -21,6 +22,8 @@ export interface SavedGame {
   actions: Action[];
   /** Seats played by the computer. */
   bots?: Record<number, BotConfig>;
+  /** Map key for stats, like "random:classic" or "scenario:new-shores". */
+  mapKey?: string;
 }
 
 /** Pause between bot moves, so people can follow them. */
@@ -42,6 +45,8 @@ export function clearSavedGame(): void {
     // Storage blocked; nothing to clear.
   }
 }
+
+const mapKeyOf = (saved: SavedGame) => (saved.mapKey ? { mapKey: saved.mapKey } : {});
 
 function save(game: SavedGame): void {
   try {
@@ -96,7 +101,7 @@ export function useLocalGame(saved: SavedGame) {
         };
         gameRef.current = next;
         setGame(next);
-        save({ config: saved.config, actions: next.actions, bots });
+        save({ config: saved.config, actions: next.actions, bots, ...mapKeyOf(saved) });
         return true;
       } catch (e) {
         if (e instanceof RuleError) {
@@ -106,7 +111,7 @@ export function useLocalGame(saved: SavedGame) {
         throw e;
       }
     },
-    [saved.config, bots],
+    [saved, bots],
   );
 
   const act = useCallback(
@@ -118,6 +123,18 @@ export function useLocalGame(saved: SavedGame) {
     },
     [apply, bots],
   );
+
+  // A finished game goes into this device's stats (once, even if the save is resumed).
+  const finished = game.state.winner !== null;
+  useEffect(() => {
+    if (!finished) return;
+    const { state, actions } = gameRef.current;
+    const timer = setTimeout(
+      () => recordLocalGame({ config: saved.config, actions, bots, ...mapKeyOf(saved) }, state),
+      0,
+    );
+    return () => clearTimeout(timer);
+  }, [finished, saved, bots]);
 
   // Bots take their moves one at a time, with a short pause.
   const memory = useRef(new Map<number, BotMemory>());

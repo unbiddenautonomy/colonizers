@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { env, exports } from 'cloudflare:workers';
-import type { CrewDetail, CrewSummary, HistoryGame, PublicUser } from '../src/accountTypes.ts';
+import type {
+  CrewDetail,
+  CrewSummary,
+  GlobalLeaderboard,
+  HistoryGame,
+  PublicUser,
+} from '../src/accountTypes.ts';
 import { safeReturn } from '../src/auth.ts';
 import type { ServerMessage } from '../src/protocol.ts';
 
@@ -446,6 +452,59 @@ describe('Crews', () => {
     expect(
       ((await api('/api/crews', { cookie: ann.cookie })).data.crews as CrewSummary[]).length,
     ).toBe(0);
+  });
+});
+
+describe('Global leaderboard', () => {
+  it('ranks everyone by wins in games with two signed-in players', async () => {
+    const lia = await signUp('GLia');
+    const max = await signUp('GMax');
+    const ned = await signUp('GNed');
+    expect(lia.user.onLeaderboard).toBe(true);
+    expect((await api('/api/leaderboard')).status).toBe(401);
+
+    const players = (ids: (string | null)[]) =>
+      ids.map((userId, seat) => ({ seat, name: `P${seat}`, userId }));
+    const play = async (id: string, ids: (string | null)[], winner?: number, vp?: number[]) => {
+      await main().recordGame({ id, room: id, modules: ['base'], players: players(ids) });
+      if (winner !== undefined && vp) await main().finishGame(id, winner, vp);
+    };
+    await play(`gl1-${n}`, [lia.user.id, max.user.id, null], 1, [6, 10, 4]);
+    await play(`gl2-${n}`, [lia.user.id, max.user.id, ned.user.id], 0, [13, 9, 8]);
+    await play(`gl3-${n}`, [lia.user.id, max.user.id], 0, [10, 7]);
+    // Neither of these counts: a win against bots only, and a game nobody finished.
+    await play(`gl4-${n}`, [ned.user.id, null, null], 0, [10, 2, 3]);
+    await play(`gl5-${n}`, [ned.user.id, max.user.id]);
+
+    const board = async (cookie: string) =>
+      (await api('/api/leaderboard', { cookie })).data.leaderboard as GlobalLeaderboard;
+    const seen = await board(ned.cookie);
+    const row = (id: string) => seen.rows.find((r) => r.id === id);
+    expect(row(lia.user.id)).toMatchObject({ name: 'GLia', wins: 2, games: 3, averageVp: 9.7 });
+    expect(row(max.user.id)).toMatchObject({ wins: 1, games: 3, averageVp: 8.7 });
+    expect(row(ned.user.id)).toMatchObject({ wins: 0, games: 1, averageVp: 8 });
+    expect(row(lia.user.id)!.rank).toBeLessThan(row(max.user.id)!.rank);
+    expect(row(max.user.id)!.rank).toBeLessThan(row(ned.user.id)!.rank);
+    expect(seen.you).toEqual(row(ned.user.id));
+    expect(seen.players).toBeGreaterThanOrEqual(3);
+
+    // Players can leave the board, and come back.
+    expect(
+      (await api('/api/me', { method: 'PATCH', body: { onLeaderboard: 'no' }, cookie: ned.cookie }))
+        .status,
+    ).toBe(400);
+    const off = await api('/api/me', {
+      method: 'PATCH',
+      body: { onLeaderboard: false },
+      cookie: ned.cookie,
+    });
+    expect((off.data.user as PublicUser).onLeaderboard).toBe(false);
+    const hidden = await board(ned.cookie);
+    expect(hidden.you).toBeNull();
+    expect(hidden.rows.some((r) => r.id === ned.user.id)).toBe(false);
+    expect((await board(lia.cookie)).you).toMatchObject({ id: lia.user.id, wins: 2 });
+    await api('/api/me', { method: 'PATCH', body: { onLeaderboard: true }, cookie: ned.cookie });
+    expect((await board(ned.cookie)).you).toMatchObject({ id: ned.user.id, games: 1 });
   });
 });
 

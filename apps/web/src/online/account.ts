@@ -3,7 +3,9 @@ import { PRESETS, SEA_SCENARIOS, SPECIAL_MAPS } from '@colonizers/maps';
 import type {
   CrewDetail,
   CrewSummary,
+  GlobalLeaderboard,
   HistoryGame,
+  LeaderRow,
   MyStats,
   PublicUser,
   Replay,
@@ -13,7 +15,17 @@ import { saveName, savedName, visitedRooms } from './identity.ts';
 import { setForcedLook } from '../theme/looks.tsx';
 import { setForcedTheme } from '../theme/themes.tsx';
 
-export type { CrewDetail, CrewSummary, HistoryGame, MyStats, PublicUser, Replay, SiteSettings };
+export type {
+  CrewDetail,
+  CrewSummary,
+  GlobalLeaderboard,
+  HistoryGame,
+  LeaderRow,
+  MyStats,
+  PublicUser,
+  Replay,
+  SiteSettings,
+};
 
 export const AVATARS = ['🦊', '🐻', '🦉', '🐢', '🐙', '🦁', '🐺', '🦄', '🐝', '🐳', '🦜', '🐸'];
 
@@ -151,7 +163,11 @@ export async function resetPassword(token: string, password: string) {
   return signedIn(r.user);
 }
 
-export async function updateProfile(fields: { name?: string; avatar?: string }) {
+export async function updateProfile(fields: {
+  name?: string;
+  avatar?: string;
+  onLeaderboard?: boolean;
+}) {
   const r = await call<{ user: PublicUser }>('/api/me', 'PATCH', fields);
   set({ user: r.user });
   saveName(r.user.name);
@@ -173,6 +189,11 @@ export async function myStats(): Promise<MyStats> {
 
 export async function getReplay(gameId: string): Promise<Replay> {
   return (await call<{ replay: Replay }>(`/api/games/${encodeURIComponent(gameId)}/replay`)).replay;
+}
+
+/** Everyone's results in games with at least two signed-in players. */
+export async function globalLeaderboard(): Promise<GlobalLeaderboard> {
+  return (await call<{ leaderboard: GlobalLeaderboard }>('/api/leaderboard')).leaderboard;
 }
 
 // ---- Crews ----
