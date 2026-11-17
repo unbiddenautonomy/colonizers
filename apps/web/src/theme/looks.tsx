@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { ISLAND_COAST, islandFrame } from './frames.ts';
 import { setTheme, THEMES } from './themes.tsx';
+import { prefPicked } from './prefs.ts';
 
 /**
  * A look: how the screens around the game are dressed (home, setup, lobby, account, menus).
@@ -607,7 +608,14 @@ export function LookStyles() {
 function pickLook(id: string): void {
   setLook(id);
   const board = lookById(id, prefersDark).board;
-  if (THEMES.some((t) => t.id === board)) setTheme(board);
+  const hasBoard = THEMES.some((t) => t.id === board);
+  if (hasBoard) setTheme(board);
+  prefPicked(hasBoard ? { look: id, board } : { look: id });
+}
+
+/** The look picked on this device (may be "auto"). */
+export function lookPick(): string {
+  return picked;
 }
 
 /** The look picker: themes, then their schemes or modes. */

@@ -17,9 +17,20 @@ export interface PublicUser {
   created: number;
   /** Shown on the global leaderboard (on unless the player turns it off). */
   onLeaderboard: boolean;
+  /** The look, board skin and dice picked while signed in, so every device shows them. */
+  prefs: Prefs;
   /** Listed in ADMIN_EMAILS (with a verified email or Google sign-in). */
   admin?: boolean;
 }
+
+/** Display choices saved with the account; null means not picked yet. */
+export interface Prefs {
+  look: string | null;
+  board: string | null;
+  dice: string | null;
+}
+
+export const PREF_KEYS = ['look', 'board', 'dice'] as const;
 
 export interface HistoryGame {
   id: string;

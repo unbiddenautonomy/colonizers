@@ -25,12 +25,14 @@ import type {
   HistoryGame,
   LeaderRow,
   MyStats,
+  Prefs,
   PublicUser,
   Replay,
   Result,
   SiteSettings,
   Unlocked,
 } from './accountTypes.ts';
+import { PREF_KEYS } from './accountTypes.ts';
 import { isSubscription, sendPush, type VapidKeys } from './push.ts';
 import { library } from './rules.ts';
 
@@ -126,6 +128,7 @@ interface UserRow extends Record<string, SqlStorageValue> {
   avatar: string;
   created: number;
   on_leaderboard: number;
+  prefs: string | null;
 }
 
 /** Rows the global leaderboard shows. */
@@ -142,7 +145,24 @@ function publicUser(u: UserRow): PublicUser {
     google: !!u.google_sub,
     created: u.created,
     onLeaderboard: u.on_leaderboard !== 0,
+    prefs: readPrefs(u.prefs),
   };
+}
+
+const PREF_ID = /^[a-z0-9-]{1,40}$/;
+
+function readPrefs(raw: string | null): Prefs {
+  const out: Prefs = { look: null, board: null, dice: null };
+  try {
+    const p = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    for (const k of PREF_KEYS) {
+      const v = p[k];
+      if (typeof v === 'string' && PREF_ID.test(v)) out[k] = v;
+    }
+  } catch {
+    // A bad value reads as nothing picked.
+  }
+  return out;
 }
 
 export class Accounts extends DurableObject<Env> {
@@ -251,6 +271,7 @@ export class Accounts extends DurableObject<Env> {
       ['game_players', 'stats TEXT'],
       ['game_players', 'bot TEXT'],
       ['users', 'on_leaderboard INTEGER NOT NULL DEFAULT 1'],
+      ['users', 'prefs TEXT'],
     ]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column}`);
@@ -459,7 +480,7 @@ export class Accounts extends DurableObject<Env> {
 
   async updateProfile(
     token: string | null,
-    fields: { name?: unknown; avatar?: unknown; onLeaderboard?: unknown },
+    fields: { name?: unknown; avatar?: unknown; onLeaderboard?: unknown; prefs?: unknown },
   ): Promise<Result<PublicUser>> {
     const u = await this.sessionUser(token);
     if (!u) return fail('Sign in first', 401);
@@ -480,6 +501,19 @@ export class Accounts extends DurableObject<Env> {
         fields.onLeaderboard ? 1 : 0,
         u.id,
       );
+    }
+    if (fields.prefs !== undefined) {
+      // Only the keys sent change; null clears one.
+      const p = fields.prefs;
+      if (typeof p !== 'object' || p === null || Array.isArray(p)) return fail('Send your choices');
+      const next = readPrefs(u.prefs);
+      for (const [k, v] of Object.entries(p)) {
+        const key = PREF_KEYS.find((x) => x === k);
+        if (!key || (v !== null && (typeof v !== 'string' || !PREF_ID.test(v))))
+          return fail('That choice is not valid');
+        next[key] = v;
+      }
+      this.sql.exec('UPDATE users SET prefs = ? WHERE id = ?', JSON.stringify(next), u.id);
     }
     return ok(publicUser(this.user(u.id) as UserRow));
   }

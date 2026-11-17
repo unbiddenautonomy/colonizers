@@ -232,6 +232,31 @@ describe('Email accounts', () => {
   });
 });
 
+describe('Display choices', () => {
+  it('saves the look, board and dice with the account', async () => {
+    const a = await signUp('Prefs');
+    expect(a.user.prefs).toEqual({ look: null, board: null, dice: null });
+    const patch = (prefs: unknown) =>
+      api('/api/me', { method: 'PATCH', body: { prefs }, cookie: a.cookie });
+
+    expect((await patch({ look: 'deco-emerald', board: 'deco-emerald' })).data.user).toMatchObject({
+      prefs: { look: 'deco-emerald', board: 'deco-emerald', dice: null },
+    });
+    // Only what's sent changes, and null clears one.
+    await patch({ dice: 'wood' });
+    expect((await patch({ board: null })).data.user).toMatchObject({
+      prefs: { look: 'deco-emerald', board: null, dice: 'wood' },
+    });
+    // And it comes back on the next visit.
+    const me = await api('/api/me', { cookie: a.cookie });
+    expect((me.data.user as PublicUser).prefs.dice).toBe('wood');
+
+    expect((await patch({ colour: 'red' })).status).toBe(400);
+    expect((await patch({ look: '<b>' })).status).toBe(400);
+    expect((await patch('wood')).status).toBe(400);
+  });
+});
+
 describe('Google sign-in', () => {
   it('says when Google is not set up', async () => {
     expect((await api('/api/auth/config')).data).toEqual({ google: false });

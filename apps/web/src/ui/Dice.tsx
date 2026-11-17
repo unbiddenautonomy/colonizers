@@ -1,5 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { motionScale } from './motion.tsx';
+import { prefPicked } from '../theme/prefs.ts';
 
 // ---- The chosen dice skin, per device ----
 
@@ -36,6 +37,16 @@ export function setDiceSkin(id: DiceSkin): void {
   for (const l of listeners) l();
 }
 
+/** The dice skin picked on this device. */
+export function dicePick(): DiceSkin {
+  return current;
+}
+
+/** Takes a skin by id, ignoring ones this version doesn't have. */
+export function isDiceSkin(id: string): id is DiceSkin {
+  return DICE_SKINS.some((s) => s.id === id);
+}
+
 export function useDiceSkin(): DiceSkin {
   return useSyncExternalStore(
     (l) => {
@@ -53,7 +64,10 @@ export function DicePicker({ compact }: { compact?: boolean }) {
       {compact ? <span aria-hidden="true">🎲</span> : 'Dice '}
       <select
         value={skin}
-        onChange={(e) => setDiceSkin(e.target.value as DiceSkin)}
+        onChange={(e) => {
+          setDiceSkin(e.target.value as DiceSkin);
+          prefPicked({ dice: e.target.value });
+        }}
         aria-label="Dice skin"
       >
         {DICE_SKINS.map((s) => (

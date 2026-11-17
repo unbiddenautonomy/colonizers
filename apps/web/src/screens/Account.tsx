@@ -543,6 +543,9 @@ function ProfileCard() {
         )}
         {user.google && <span className="pill">Google</span>}
       </p>
+      <p className="muted">
+        The look, board and dice you pick follow you to every device you sign in on.
+      </p>
       {user.email && (
         <form
           className="row wrap"

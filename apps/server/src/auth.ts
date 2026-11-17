@@ -287,6 +287,7 @@ export async function accountRoutes(
           name: b.name,
           avatar: b.avatar,
           onLeaderboard: b.onLeaderboard,
+          prefs: b.prefs,
         }),
         (user) => ({ user }),
       );
