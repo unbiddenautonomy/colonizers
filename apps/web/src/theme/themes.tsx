@@ -8,6 +8,12 @@ import { popArcadeBoard, popCitrusBoard, popGrapeBoard, popSorbetBoard } from '.
 import { chartSurveyBoard } from './boards/chart.tsx';
 import { masqVelvetBoard } from './boards/masq.tsx';
 import { sunriseMorningBoard } from './boards/sunrise.tsx';
+import { strawHatBoard } from './boards/strawhat.tsx';
+import { heartBoard } from './boards/heart.tsx';
+import { whitebeardBoard } from './boards/whitebeard.tsx';
+import { bigMomBoard } from './boards/bigmom.tsx';
+import { beastsBoard } from './boards/beasts.tsx';
+import { navyBoard } from './boards/navy.tsx';
 import { woodTheme } from './pictures.tsx';
 import { tilesTheme } from './tiles.tsx';
 import { prefPicked } from './prefs.ts';
@@ -31,6 +37,12 @@ export const THEMES: Theme[] = [
   sunriseMorningBoard,
   masqVelvetBoard,
   chartSurveyBoard,
+  strawHatBoard,
+  heartBoard,
+  whitebeardBoard,
+  bigMomBoard,
+  beastsBoard,
+  navyBoard,
 ];
 
 /** What a new device shows. */

@@ -1,6 +1,14 @@
 import { useLook } from '../theme/looks.tsx';
 import { ChartArt, MasqueradeArt, SunriseArt } from './LookArtTables.tsx';
 import { DecoArt, IslesArt, WonderArt } from './LookArtMore.tsx';
+import {
+  BigMomArt,
+  HeartArt,
+  NavyArt,
+  StrawHatArt,
+  WanoArt,
+  WhitebeardArt,
+} from './LookArtGrandLine.tsx';
 
 /** Header art for the looks that have it, drawn in the look's own colours. */
 export function LookArt() {
@@ -12,6 +20,12 @@ export function LookArt() {
   if (look.family === 'sunrise') return <SunriseArt />;
   if (look.family === 'masquerade') return <MasqueradeArt />;
   if (look.family === 'chart') return <ChartArt />;
+  if (look.family === 'strawhat') return <StrawHatArt />;
+  if (look.family === 'heart') return <HeartArt />;
+  if (look.family === 'whitebeard') return <WhitebeardArt />;
+  if (look.family === 'bigmom') return <BigMomArt />;
+  if (look.family === 'wano') return <WanoArt />;
+  if (look.family === 'navy') return <NavyArt />;
   return null;
 }
 

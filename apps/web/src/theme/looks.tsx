@@ -11,7 +11,20 @@ export interface Look {
   id: string;
   /** The theme it belongs to; a theme can have several colour schemes or modes. */
   family:
-    'basicbench' | 'pop' | 'deco' | 'wonderland' | 'isles' | 'sunrise' | 'masquerade' | 'chart';
+    | 'basicbench'
+    | 'pop'
+    | 'deco'
+    | 'wonderland'
+    | 'isles'
+    | 'sunrise'
+    | 'masquerade'
+    | 'chart'
+    | 'strawhat'
+    | 'heart'
+    | 'whitebeard'
+    | 'bigmom'
+    | 'wano'
+    | 'navy';
   familyName: string;
   /** The scheme or mode within the theme. */
   name: string;
@@ -574,6 +587,237 @@ const chartSurvey: Look = {
   },
 };
 
+// ---- Grand Line: One Piece crews, each dressed for its own waters ----
+
+/** A small SVG tile as a CSS background image. */
+const motif = (w: number, h: number, body: string) =>
+  `url("data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>${body}</svg>`,
+  )}")`;
+
+const GRAND_LINE = 'Grand Line';
+
+/** Straw Hats: a manga page, white paper with a dot screen, heavy ink and red and straw. */
+const strawHat: Look = {
+  id: 'strawhat-sunny',
+  family: 'strawhat',
+  familyName: GRAND_LINE,
+  name: 'Straw Hat Pirates',
+  dark: false,
+  board: 'strawhat-sunny',
+  tokens: {
+    bg: '#f7f3ea',
+    card: '#ffffff',
+    raised: '#fff6d6',
+    sunk: '#f3eee2',
+    text: '#141414',
+    soft: '#262626',
+    muted: '#3a3a3a',
+    faint: '#4a4a4a',
+    accent: '#c81e1e',
+    accentText: '#ffffff',
+    border: '#141414',
+    dash: '#bdb6a6',
+    good: '#2e7d4f',
+    bad: '#b3121f',
+    heading: "'Bangers', 'Lilita One', system-ui, sans-serif",
+    body: "'Nunito', system-ui, sans-serif",
+    shadow: '5px 5px 0 #141414',
+    ink: '#141414',
+    pop: '#f4c430',
+    motif: motif(8, 8, "<circle cx='4' cy='4' r='1.1' fill='#141414' fill-opacity='0.07'/>"),
+  },
+};
+
+/** Heart Pirates: inside the Polar Tang, riveted plates, brass and sonar blue. */
+const heart: Look = {
+  id: 'heart-polar',
+  family: 'heart',
+  familyName: GRAND_LINE,
+  name: 'Heart Pirates',
+  dark: true,
+  board: 'heart-polar',
+  tokens: {
+    bg: '#0b1826',
+    card: '#11243a',
+    raised: '#17304c',
+    sunk: '#0d1d30',
+    text: '#eef6ff',
+    soft: '#cfe0f0',
+    muted: '#a9c0d6',
+    faint: '#94adc4',
+    accent: '#f6c744',
+    accentText: '#14110a',
+    border: '#2c4a6b',
+    dash: '#2c4a6b',
+    good: '#6fe0b0',
+    bad: '#ff8a7a',
+    heading: "'Russo One', system-ui, sans-serif",
+    body: "'Barlow', system-ui, sans-serif",
+    shadow: '0 14px 30px rgba(0, 0, 0, 0.45)',
+    ink: '#f6c744',
+    pop: '#6fe0ee',
+    motif: motif(
+      120,
+      80,
+      "<path d='M0 79.5H120M119.5 0V80' stroke='#6fe0ee' stroke-opacity='0.07'/><g fill='#6fe0ee' fill-opacity='0.12'><circle cx='6' cy='6' r='1.6'/><circle cx='113' cy='6' r='1.6'/><circle cx='6' cy='73' r='1.6'/><circle cx='113' cy='73' r='1.6'/></g>",
+    ),
+  },
+};
+
+/** Whitebeard Pirates: sailor's tattoo flash on old paper. */
+const whitebeard: Look = {
+  id: 'whitebeard-moby',
+  family: 'whitebeard',
+  familyName: GRAND_LINE,
+  name: 'Whitebeard Pirates',
+  dark: false,
+  board: 'whitebeard-moby',
+  tokens: {
+    bg: '#efe3c8',
+    card: '#faf3e3',
+    raised: '#fff9ec',
+    sunk: '#f2e8d2',
+    text: '#1a1414',
+    soft: '#2b2220',
+    muted: '#463a35',
+    faint: '#56483f',
+    accent: '#a82c24',
+    accentText: '#fff8ec',
+    border: '#1a1414',
+    dash: '#c7b48e',
+    good: '#2a7a6e',
+    bad: '#a82c24',
+    heading: "'Rye', Georgia, serif",
+    body: "'Bitter', Georgia, serif",
+    shadow: '4px 4px 0 #1a1414',
+    ink: '#1a1414',
+    pop: '#e8b63a',
+    motif: motif(
+      160,
+      160,
+      "<g fill='none' stroke='#1a1414' stroke-opacity='0.08' stroke-width='1.4' stroke-linejoin='round'><path d='M40 28l3.5 8.5 9 .7-6.9 5.8 2.2 8.8L40 47l-7.8 4.8 2.2-8.8-6.9-5.8 9-.7z'/><path d='M120 108l3.5 8.5 9 .7-6.9 5.8 2.2 8.8-7.8-4.8-7.8 4.8 2.2-8.8-6.9-5.8 9-.7z'/></g>",
+    ),
+  },
+};
+
+/** Big Mom Pirates: Totto Land, strawberry icing and sprinkles. */
+const bigMom: Look = {
+  id: 'bigmom-cake',
+  family: 'bigmom',
+  familyName: GRAND_LINE,
+  name: 'Big Mom Pirates',
+  dark: false,
+  board: 'bigmom-cake',
+  tokens: {
+    bg: '#ffe4ef',
+    card: '#fffaf3',
+    raised: '#fff0f6',
+    sunk: '#fdeef2',
+    text: '#3d2219',
+    soft: '#4f2d22',
+    muted: '#6a4337',
+    faint: '#764c40',
+    accent: '#b0174f',
+    accentText: '#fffaf3',
+    border: '#4a2a1f',
+    dash: '#e7b8c9',
+    good: '#2f7d63',
+    bad: '#b0174f',
+    heading: "'Chewy', 'Fredoka', system-ui, sans-serif",
+    body: "'Fredoka', system-ui, sans-serif",
+    shadow: '0 6px 0 #e9a7c0',
+    ink: '#4a2a1f',
+    pop: '#7fd6bd',
+    motif: motif(
+      120,
+      120,
+      "<g fill-opacity='0.5'><rect x='14' y='20' width='9' height='3' rx='1.5' fill='#f2559a' transform='rotate(30 18 21)'/><rect x='70' y='12' width='9' height='3' rx='1.5' fill='#5cc9a7' transform='rotate(-40 74 13)'/><rect x='96' y='64' width='9' height='3' rx='1.5' fill='#ffc83d' transform='rotate(70 100 65)'/><rect x='40' y='80' width='9' height='3' rx='1.5' fill='#5aa7f0' transform='rotate(-15 44 81)'/><rect x='18' y='104' width='9' height='3' rx='1.5' fill='#ffc83d' transform='rotate(50 22 105)'/><rect x='80' y='100' width='9' height='3' rx='1.5' fill='#f2559a' transform='rotate(-60 84 101)'/></g>",
+    ),
+  },
+};
+
+/** Beasts Pirates: Wano, rice paper, sumi ink, vermilion and indigo wave scales. */
+const wano: Look = {
+  id: 'beasts-wano',
+  family: 'wano',
+  familyName: GRAND_LINE,
+  name: 'Beasts Pirates (Wano)',
+  dark: false,
+  board: 'beasts-wano',
+  tokens: {
+    bg: '#efe6cf',
+    card: '#f8f1de',
+    raised: '#fffaf0',
+    sunk: '#eadfc4',
+    text: '#1b2233',
+    soft: '#27304a',
+    muted: '#3a4360',
+    faint: '#4a526b',
+    accent: '#b8321e',
+    accentText: '#fff8ec',
+    border: '#1b2233',
+    dash: '#cbbd99',
+    good: '#2f6b47',
+    bad: '#b8321e',
+    heading: "'Shippori Mincho B1', 'Noto Serif JP', Georgia, serif",
+    body: "'Barlow', system-ui, sans-serif",
+    shadow: 'none',
+    ink: '#1b2233',
+    pop: '#21406b',
+    motif: motif(
+      64,
+      32,
+      [
+        [32, -16],
+        [0, 0],
+        [64, 0],
+        [32, 16],
+        [0, 32],
+        [64, 32],
+        [32, 48],
+      ]
+        .map(
+          ([x, y]) =>
+            `<g stroke='#21406b' stroke-opacity='0.06'><circle cx='${x}' cy='${y}' r='32' fill='#efe6cf'/><circle cx='${x}' cy='${y}' r='23' fill='none'/><circle cx='${x}' cy='${y}' r='14' fill='none'/><circle cx='${x}' cy='${y}' r='5' fill='none'/></g>`,
+        )
+        .join(''),
+    ),
+  },
+};
+
+/** The Navy: Marineford, white and Marine blue with gold braid. */
+const navy: Look = {
+  id: 'navy-marineford',
+  family: 'navy',
+  familyName: GRAND_LINE,
+  name: 'The Navy',
+  dark: false,
+  board: 'navy-marineford',
+  tokens: {
+    bg: '#eef2f8',
+    card: '#ffffff',
+    raised: '#f6f9fd',
+    sunk: '#e8eef7',
+    text: '#14213d',
+    soft: '#1f2e52',
+    muted: '#33446a',
+    faint: '#44557a',
+    accent: '#1f4e9c',
+    accentText: '#ffffff',
+    border: '#14213d',
+    dash: '#b8c4d8',
+    good: '#2f7d58',
+    bad: '#c0262d',
+    heading: "'Oswald', system-ui, sans-serif",
+    body: "'Barlow', system-ui, sans-serif",
+    shadow: '0 2px 0 #14213d, 0 10px 24px rgba(20, 33, 61, 0.12)',
+    ink: '#14213d',
+    pop: '#d4a73a',
+    motif: 'repeating-linear-gradient(90deg, rgba(20, 33, 61, 0.035) 0 1px, transparent 1px 28px)',
+  },
+};
+
 export const LOOKS: Look[] = [
   night,
   atelier,
@@ -590,6 +834,12 @@ export const LOOKS: Look[] = [
   sunriseMorning,
   masqVelvet,
   chartSurvey,
+  strawHat,
+  heart,
+  whitebeard,
+  bigMom,
+  wano,
+  navy,
 ];
 
 /** Picks that aren't a single look: BasicBench following the device's light or dark setting. */
