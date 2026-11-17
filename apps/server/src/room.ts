@@ -204,6 +204,7 @@ export class GameRoom extends DurableObject<Env> {
     const game = this.load();
     if (!game) return;
     const expired = timerKey(game.state);
+    if (this.startBank(game.state)) return;
     const rand = () => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32;
     // Play safe moves until the stalled step is over (at most a few).
     const timedOut = new Set<number>();
@@ -350,6 +351,8 @@ export class GameRoom extends DurableObject<Env> {
     );
     this.sql.exec('DELETE FROM actions');
     this.setMeta('config', JSON.stringify(config));
+    this.deleteMeta('bank');
+    this.deleteMeta('banking');
     this.setMeta('status', 'playing');
     const gameId = `${this.getMeta('code') ?? 'room'}-${seed.slice(0, 8)}`;
     this.setMeta('gameId', gameId);
@@ -447,6 +450,8 @@ export class GameRoom extends DurableObject<Env> {
     this.deleteMeta('config');
     this.deleteMeta('deadline');
     this.deleteMeta('timerKey');
+    this.deleteMeta('bank');
+    this.deleteMeta('banking');
     this.setMeta('status', 'lobby');
     this.game = null;
     let players = 0;
@@ -649,12 +654,67 @@ export class GameRoom extends DurableObject<Env> {
     }
     const key = timerKey(game.state);
     if (!force && key === this.getMeta('timerKey')) return;
+    this.stopBank();
     const deadline = Date.now() + this.settings.turnTimer * 1000;
     this.setMeta('timerKey', key);
     this.setMeta('deadline', String(deadline));
     void this.ctx.storage.setAlarm(deadline);
     // Tell everyone about the new deadline.
     this.broadcastGame([]);
+  }
+
+  // ---- Time bank ----
+
+  /** Time bank left per seat in ms, as saved (not counting a bank being spent now). */
+  private banks(players: number): number[] {
+    const saved = JSON.parse(this.getMeta('bank') ?? '[]') as number[];
+    return Array.from({ length: players }, (_, i) => saved[i] ?? this.settings.timeBank * 1000);
+  }
+
+  /** The seat spending its bank and since when, if any. */
+  private banking(): { seat: number; from: number } | null {
+    const raw = this.getMeta('banking');
+    return raw ? (JSON.parse(raw) as { seat: number; from: number }) : null;
+  }
+
+  /**
+   * When a step's timer runs out and one player is holding things up, starts their time bank
+   * instead of playing for them. Returns true when the bank took over.
+   */
+  private startBank(state: GameState): boolean {
+    if (!this.settings.timeBank || this.banking()) {
+      // A bank that ran out is empty now.
+      const b = this.banking();
+      if (b) {
+        const banks = this.banks(state.players.length);
+        banks[b.seat] = 0;
+        this.setMeta('bank', JSON.stringify(banks));
+        this.deleteMeta('banking');
+      }
+      return false;
+    }
+    const seats = timedSeats(state);
+    if (seats.length !== 1) return false;
+    const seat = seats[0]!;
+    const left = this.banks(state.players.length)[seat] ?? 0;
+    if (left <= 0) return false;
+    const now = Date.now();
+    this.setMeta('banking', JSON.stringify({ seat, from: now }));
+    this.setMeta('deadline', String(now + left));
+    void this.ctx.storage.setAlarm(now + left);
+    this.broadcastGame([]);
+    return true;
+  }
+
+  /** Charges the time spent from the bank that was running, if any. */
+  private stopBank(): void {
+    const b = this.banking();
+    const game = this.game;
+    if (!b || !game) return;
+    const banks = this.banks(game.state.players.length);
+    banks[b.seat] = Math.max(0, (banks[b.seat] ?? 0) - (Date.now() - b.from));
+    this.setMeta('bank', JSON.stringify(banks));
+    this.deleteMeta('banking');
   }
 
   // ---- Loading ----
@@ -684,10 +744,18 @@ export class GameRoom extends DurableObject<Env> {
     const game = this.status === 'lobby' ? null : this.load();
     if (!game) return null;
     const deadline = this.getMeta('deadline');
+    let bank: number[] | null = null;
+    const b = this.banking();
+    if (this.settings.timeBank && this.settings.turnTimer) {
+      bank = this.banks(game.state.players.length);
+      if (b) bank[b.seat] = Math.max(0, (bank[b.seat] ?? 0) - (Date.now() - b.from));
+    }
     return {
       view: library.view(game.state, seat),
       seq: game.state.seq,
       deadline: deadline ? Number(deadline) : null,
+      bank,
+      banking: b?.seat ?? null,
     };
   }
 

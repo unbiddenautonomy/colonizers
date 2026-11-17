@@ -1,4 +1,11 @@
-import { Ctx, type CornerId, type EdgeId, type GameState, type HexId } from '@colonizers/engine';
+import {
+  Ctx,
+  type CornerId,
+  type EdgeId,
+  type GameState,
+  type HexId,
+  type Location,
+} from '@colonizers/engine';
 import type { Style } from './styles.ts';
 import { STYLE_WEIGHTS } from './styles.ts';
 
@@ -184,7 +191,8 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
   if (state.modules.includes('explorers-pirates')) score += epHints(state, ctx, seat, blocked);
   if (state.modules.includes('world-wonders')) score += wonderHints(ctx, seat, vp, target);
   if (state.modules.includes('soldiers')) score += soldiersHints(state, ctx, seat);
-  if (state.modules.includes('investors')) score += investorsHints(state, seat);
+  if (state.modules.includes('investors')) score += investorsHints(state, seat, vp >= target - 1);
+  if (state.modules.includes('landwater')) score += landWaterHints(ctx, seat, blocked, w.expand);
   if (ctx.registry.pieceTypes.ship) score += ctx.piecesOf(seat, 'ship').length * 0.15;
 
   // Other players: their production and points count against us, the leader most.
@@ -201,6 +209,87 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
   return score;
 }
 
+// ---- Land & Water ----
+
+const VEHICLE_TYPES = new Set(['train', 'ferry', 'plane']);
+
+/**
+ * With no roads, vehicles are how a player grows: a vehicle standing on a corner
+ * we could settle is worth that spot, and an active train in a field is worth
+ * its yield.
+ */
+function landWaterHints(ctx: Ctx, seat: number, blocked: Set<string>, expand: number): number {
+  let score = 0;
+  const spots: number[] = [];
+  for (const v of ctx.piecesOf(seat)) {
+    if (!VEHICLE_TYPES.has(v.type)) continue;
+    const active = v.props.passive !== true;
+    if (v.at.kind === 'hex' && v.type === 'train' && active) {
+      const o = hexOutput(ctx, v.at.id as HexId, blocked);
+      if (o) score += o.rate * 36 * 0.4;
+    }
+    if (!active) continue;
+    // The best spot within a few steps, worth less the further it is.
+    const near = nearestSpot(ctx, v.type, v.at, blocked);
+    // Any spot is a point to be had; a good one pays for itself too.
+    if (near) spots.push((near.value + 8) / (1 + near.steps * 0.6));
+  }
+  spots.sort((a, b) => b - a);
+  score += ((spots[0] ?? 0) * 0.45 + (spots[1] ?? 0) * 0.15) * expand;
+  return score;
+}
+
+/** Whether a vehicle can cross this hex: trains on land, ships on water, planes anywhere. */
+function crosses(ctx: Ctx, type: string, hex: HexId): boolean {
+  const h = ctx.state.hexes[hex];
+  if (!h || h.hidden) return false;
+  if (type === 'plane') return true;
+  const sea = ctx.registry.hexTypes[h.type]?.terrain === 'sea';
+  return type === 'ferry' ? sea : !sea;
+}
+
+/**
+ * The best open corner a vehicle can reach in up to 3 corner-to-corner steps (each
+ * step crosses one field), as a spot value and the steps it takes.
+ */
+function nearestSpot(
+  ctx: Ctx,
+  type: string,
+  at: Location,
+  blocked: Set<string>,
+): { value: number; steps: number } | null {
+  let frontier: CornerId[];
+  const seen = new Set<string>();
+  const step = (hexes: HexId[]) => {
+    const next: CornerId[] = [];
+    for (const h of hexes) {
+      if (!crosses(ctx, type, h)) continue;
+      for (const c of ctx.geometry.hexCorners.get(h) ?? [])
+        if (!seen.has(c)) {
+          seen.add(c);
+          next.push(c);
+        }
+    }
+    return next;
+  };
+  if (at.kind === 'corner') {
+    seen.add(at.id);
+    frontier = [at.id];
+  } else if (at.kind === 'hex') frontier = step([at.id]);
+  else return null;
+  let best: { value: number; steps: number } | null = null;
+  for (let steps = at.kind === 'hex' ? 1 : 0; steps <= 3 && frontier.length; steps++) {
+    for (const c of frontier) {
+      if (!openCorner(ctx, c)) continue;
+      const value = spotValue(ctx, c, blocked) / (1 + steps * 0.6);
+      if (!best || value > best.value / (1 + best.steps * 0.6))
+        best = { value: spotValue(ctx, c, blocked), steps };
+    }
+    frontier = step(frontier.flatMap((c) => ctx.geometry.cornerHexes.get(c) ?? []));
+  }
+  return best;
+}
+
 // ---- Investors & Speculators ----
 
 /**
@@ -208,22 +297,33 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
  * one due now weighs as much as the bad debt it turns into. (Bad debt itself
  * is already off the points.)
  */
-function investorsHints(state: GameState, seat: number): number {
+function investorsHints(state: GameState, seat: number, nearWin: boolean): number {
   const d = state.data.investors as
     | {
         savings?: { seat: number }[];
-        loans?: { seat: number; left: number; penalty?: number }[];
+        loans?: {
+          seat: number;
+          left: number;
+          penalty?: number;
+          card?: string;
+          cost?: Record<string, number>;
+        }[];
         derivatives?: { holder: number }[];
       }
     | undefined;
   let score = 0;
-  for (const s of d?.savings ?? []) if (s.seat === seat) score += 0.5;
+  // A couple of cards saved pay back well; more leaves the hand too thin to build.
+  const saved = (d?.savings ?? []).filter((s) => s.seat === seat).length;
+  score += Math.min(saved, 2) * 0.4 - Math.max(0, saved - 2) * 0.4;
   for (const x of d?.derivatives ?? []) if (x.holder === seat) score += 0.3;
+  const hand = Object.values(state.players[seat]?.hand ?? {}).reduce((a, n) => a + n, 0);
   for (const l of d?.loans ?? []) {
     if (l.seat !== seat) continue;
-    // Weighs as its bad debt when due, less while there's time to pay.
-    const penalty = l.penalty ?? 1;
-    score -= l.left <= 0 ? penalty * 2 : penalty * (0.6 + 1 / l.left);
+    // Bad debt is points off for good: weigh it by how likely we are to miss paying back.
+    const owed = l.cost ? Object.values(l.cost).reduce((a, n) => a + n, 0) * 2 : 2;
+    const risk = l.left <= 0 ? 1 : Math.min(1, owed / (hand + 1.5 * l.left + 1));
+    // No one wins with a loan open: near the end, paying back is the way to win.
+    score -= (l.penalty ?? 1) * 10 * risk + (nearWin ? 12 : 1);
   }
   return score;
 }

@@ -1,3 +1,4 @@
+import { motionAttrs } from './motion.ts';
 import type { ReactElement } from 'react';
 import { hexToPixel, type GameState, type HexId } from '@colonizers/engine';
 
@@ -48,7 +49,12 @@ export function LairMarkers({
       Array.from({ length: n }, () => Number(seat)),
     );
     marks.push(
-      <g key={`lair-${id}`} pointerEvents="none" className="lair">
+      <g
+        key={`lair-${id}`}
+        pointerEvents="none"
+        className="lair"
+        {...motionAttrs(`lair-${id}`, `lair:${id}`, c.x, c.y - S * 0.42)}
+      >
         <circle
           cx={c.x}
           cy={c.y - S * 0.42}
@@ -69,6 +75,15 @@ export function LairMarkers({
             fill={dots[i] === undefined ? 'rgba(0,0,0,0.25)' : color(dots[i]!)}
             stroke="#f1e3c8"
             strokeWidth={1.5}
+            // A crew landing drops onto its place.
+            {...(dots[i] === undefined
+              ? {}
+              : motionAttrs(
+                  `crew-${id}-${i}`,
+                  `crew:${id}:${i}`,
+                  c.x + (i - 1) * S * 0.2,
+                  c.y + S * 0.48,
+                ))}
           />
         ))}
         <title>{`Pirate lair: ${dots.length} of 3 crews have landed. The third captures it.`}</title>
@@ -80,7 +95,11 @@ export function LairMarkers({
     if (!h) continue;
     const c = hexToPixel(h.q, h.r, S);
     marks.push(
-      <g key={`won-${id}`} pointerEvents="none">
+      <g
+        key={`won-${id}`}
+        pointerEvents="none"
+        {...motionAttrs(`won-${id}`, `won:${id}`, c.x, c.y - S * 0.36)}
+      >
         <text x={c.x} y={c.y - S * 0.36} textAnchor="middle" fontSize={S * 0.26}>
           🚩
         </text>

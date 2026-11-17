@@ -1,3 +1,4 @@
+import { freshSince, logMark, type LogMark } from '../game/freshLog.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Ctx,
@@ -580,6 +581,10 @@ export interface OnlineExtras {
   members: MemberInfo[];
   isHost: boolean;
   deadline: number | null;
+  /** Time bank left per seat in ms, when the room has one. */
+  bank?: number[] | null | undefined;
+  /** The seat spending its time bank now. */
+  banking?: number | null | undefined;
   chat: ChatMessage[];
   sendChat: (text: string) => void;
   nudge: (seat: number) => void;
@@ -732,10 +737,10 @@ export function Game({
   const viewer = actor;
 
   // Sounds for new log lines, and a nudge when it becomes your turn.
-  const heard = useRef(g.log.length);
+  const heard = useRef<LogMark>(logMark(g.log));
   useEffect(() => {
-    const fresh = g.log.slice(Math.min(heard.current, g.log.length));
-    heard.current = g.log.length;
+    const fresh = freshSince(g.log, heard.current);
+    heard.current = logMark(g.log);
     if (!fresh.length || fresh.length > 30) return;
     const sounds = new Set(fresh.map((l) => soundFor(l.event, seat)).filter((x) => x !== null));
     for (const sound of sounds) play(sound);
@@ -804,7 +809,13 @@ export function Game({
             />
           )}{' '}
           {prompt(state, promptSeat, promptNames, mode, shipPick)}
-          {online?.deadline && state.winner === null && <TurnTimer deadline={online.deadline} />}
+          {online?.deadline && state.winner === null && (
+            <TurnTimer
+              deadline={online.deadline}
+              bank={online.bank?.[promptSeat ?? state.turn.player]}
+              banking={online.banking != null}
+            />
+          )}
         </p>
         <button
           type="button"
@@ -1452,6 +1463,15 @@ export function Game({
               )}
             </>
           )}
+          {/* Open trading: anyone may make an offer on someone else's turn. */}
+          {actor !== null &&
+            !myTurnMain &&
+            state.phase.id === 'main' &&
+            state.settings.openTrading === true && (
+              <button type="button" disabled={!!offer} onClick={() => setDialog('offer')}>
+                Offer trade
+              </button>
+            )}
         </div>
 
         {offer && (

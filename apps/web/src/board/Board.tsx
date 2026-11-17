@@ -1120,7 +1120,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const y = k.y + (c.y - k.y) * 0.42;
         const r = S * 0.13;
         return (
-          <g key={m.key} className="gwp-building" filter="url(#lift)">
+          <g
+            key={m.key}
+            className="gwp-building"
+            filter="url(#lift)"
+            {...motionAttrs(m.key, `gwp:${m.hex}:${m.corner}`, x, y)}
+          >
             <rect
               x={x - r}
               y={y - r}

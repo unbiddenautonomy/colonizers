@@ -130,6 +130,7 @@ export function chooseAction(
   // A friendly trade before ending the turn, if it would let us build.
   if (
     end &&
+    !offer &&
     config.level !== 'easy' &&
     memory.offeredTurn !== state.turn.number &&
     state.phase.id === 'main'

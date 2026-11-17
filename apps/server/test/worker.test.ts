@@ -213,6 +213,7 @@ describe('Lobby', () => {
       landWater: false,
       strategist: false,
       turnTimer: 90,
+      timeBank: 0,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,
     });
@@ -430,6 +431,36 @@ describe('Online game', () => {
     await a.waitFor((x) => x.type === 'game' && x.game.seq >= 1, m, 'timeout move');
     await a.waitFor((x) => x.type === 'chat' && x.message.text.startsWith('Time ran out'), m);
     expect(a.game!.view.phase.id).toBe('setup');
+    [a, b].forEach((c) => c.close());
+  });
+
+  it('spends the time bank before playing a safe move', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    a.send({
+      type: 'settings',
+      settings: {
+        map: { kind: 'random', mode: 'classic' },
+        vpTarget: 10,
+        turnTimer: 60,
+        timeBank: 120,
+        maxPlayers: 4,
+      },
+    });
+    const b = await join(code, 'B');
+    await startGame([a, b]);
+    expect(a.game!.bank).toEqual([120_000, 120_000]);
+    const first = a.game!.view.turn.player;
+    const m = a.mark;
+    expect(await runDurableObjectAlarm(env.ROOMS.getByName(code))).toBe(true);
+    await a.waitFor((x) => x.type === 'game' && x.game.banking === first, m, 'bank started');
+    expect(a.game!.seq).toBe(0);
+    expect(a.game!.deadline).toBeGreaterThan(Date.now() + 100_000);
+    const m2 = a.mark;
+    expect(await runDurableObjectAlarm(env.ROOMS.getByName(code))).toBe(true);
+    await a.waitFor((x) => x.type === 'game' && x.game.seq >= 1, m2, 'timeout move');
+    expect(a.game!.bank![first]).toBe(0);
+    expect(a.game!.banking).toBeNull();
     [a, b].forEach((c) => c.close());
   });
 

@@ -1,15 +1,20 @@
 import { useEffect, useRef } from 'react';
 import type { CornerId, Ctx, GameEvent, HexId } from '@colonizers/engine';
-import { hexToPixel } from '@colonizers/engine';
+import { HIDDEN_CARD, hexToPixel } from '@colonizers/engine';
 import { RESOURCE_ICON, type Theme } from '../theme/clean.ts';
 import { cardColor } from '../theme/themes.tsx';
 import type { LogEntry } from '../game/useLocalGame.ts';
+import { freshSince, logMark, type LogMark } from '../game/freshLog.ts';
+import { nameOf } from '@colonizers/rulebook';
 import { motionScale } from './motion.tsx';
 
 /**
  * Cards that fly across the screen when they change hands: production from
  * the hexes that paid to each player, steals, trades, discards to the bank,
  * Monopoly, awards sliding to their new owner, and a short "your turn" cue.
+ * Any other change to a hand (an expansion's own gains, losses and swaps)
+ * flies too, worked out by comparing hands before and after, so every mode
+ * gets the same feel without a case for each event.
  * Purely for show: it reads the game log and never touches the game.
  *
  * Targets are found by `data-seat` on each player's row, `.hand` for your
@@ -31,6 +36,23 @@ const COMMODITY_FROM: Record<string, string> = {
   gold: 'gold',
 };
 const MAX_FLIGHTS = 28;
+
+/** Each seat's hand, for spotting changes no event case covered. */
+function hands(ctx: Ctx): Cards[] {
+  return ctx.state.players.map((p) => ({ ...p.hand }));
+}
+
+/** What changed between two hands: cards gained and cards lost. */
+function handDelta(before: Cards, after: Cards): { gained: Cards; lost: Cards } {
+  const gained: Cards = {};
+  const lost: Cards = {};
+  for (const c of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const d = (after[c] ?? 0) - (before[c] ?? 0);
+    if (d > 0) gained[c] = d;
+    if (d < 0) lost[c] = -d;
+  }
+  return { gained, lost };
+}
 
 function centre(el: Element | null): Point | null {
   if (!el) return null;
@@ -99,7 +121,8 @@ export function CardFlights({
   turnCue: (seat: number) => string | null;
 }) {
   const layer = useRef<HTMLDivElement>(null);
-  const seen = useRef(log.length);
+  const seen = useRef<LogMark>(logMark(log));
+  const lastHands = useRef<Cards[]>(hands(ctx));
   // The latest values for the effect below, without re-running it on each change.
   const latest = useRef({ ctx, viewer, theme, turnCue });
   useEffect(() => {
@@ -107,12 +130,14 @@ export function CardFlights({
   });
 
   useEffect(() => {
-    const fresh = log.slice(Math.min(seen.current, log.length));
-    seen.current = log.length;
+    const fresh = freshSince(log, seen.current);
+    seen.current = logMark(log);
+    const { ctx, viewer, theme, turnCue } = latest.current;
+    const handsBefore = lastHands.current;
+    lastHands.current = hands(ctx);
     const root = layer.current;
     const k = motionScale();
     if (!root || k === 0 || !fresh.length || fresh.length > 30) return;
-    const { ctx, viewer, theme, turnCue } = latest.current;
 
     const seatPoint = (seat: number): Point | null =>
       (seat === viewer ? centre(document.querySelector('.game .hand')) : null) ??
@@ -128,6 +153,11 @@ export function CardFlights({
         for (let i = 0; i < Math.min(n, 6); i++) fn(card);
     };
     let cue: string | null = null;
+    // Seats whose hands an event case below already showed moving.
+    const shown = new Set<number>();
+    const touch = (...seats: unknown[]) => {
+      for (const x of seats) if (typeof x === 'number') shown.add(x);
+    };
 
     const handle = (e: GameEvent) => {
       switch (e.type) {
@@ -135,6 +165,7 @@ export function CardFlights({
           const received = (e.received ?? {}) as Record<string, Cards>;
           for (const [seatKey, cards] of Object.entries(received)) {
             const seat = Number(seatKey);
+            touch(seat);
             const to = seatPoint(seat);
             for (const [card, n] of Object.entries(cards)) {
               const hexes = sourceHexes(ctx, seat, card, e.total as number);
@@ -148,6 +179,7 @@ export function CardFlights({
         }
         case 'startingResources': {
           const seat = e.player as number;
+          touch(seat);
           each(e.cards as Cards, (card) => {
             const hex = sourceHexes(ctx, seat, card)[0];
             add(hex ? hexPoint(ctx, hex) : bankPoint(), seatPoint(seat), card);
@@ -159,16 +191,20 @@ export function CardFlights({
         case 'eventGain':
         case 'progressGain':
         case 'discovered':
+          touch(e.player);
           each(e.cards as Cards, (card) => add(bankPoint(), seatPoint(e.player as number), card));
           break;
         case 'discarded':
+          touch(e.player);
           each(e.cards as Cards, (card) => add(seatPoint(e.player as number), bankPoint(), card));
           break;
         case 'bankTrade':
+          touch(e.player);
           each(e.gave as Cards, (card) => add(seatPoint(e.player as number), bankPoint(), card));
           each(e.got as Cards, (card) => add(bankPoint(), seatPoint(e.player as number), card));
           break;
         case 'stole':
+          touch(e.victim, e.thief);
           add(
             seatPoint(e.victim as number),
             seatPoint(e.thief as number),
@@ -176,6 +212,7 @@ export function CardFlights({
           );
           break;
         case 'traded':
+          touch(e.from, e.to);
           each(e.gave as Cards, (card) =>
             add(seatPoint(e.from as number), seatPoint(e.to as number), card),
           );
@@ -184,6 +221,7 @@ export function CardFlights({
           );
           break;
         case 'gifted':
+          touch(e.from, e.to);
           each(e.cards as Cards, (card) =>
             add(seatPoint(e.from as number), seatPoint(e.to as number), card),
           );
@@ -192,6 +230,7 @@ export function CardFlights({
           const others = ctx.state.players
             .map((p) => p.seat)
             .filter((s) => s !== (e.player as number));
+          touch(e.player, ...others);
           const taken = Math.min((e.taken as number) ?? 0, 8);
           for (let i = 0; i < taken && others.length; i++)
             add(
@@ -199,6 +238,16 @@ export function CardFlights({
               seatPoint(e.player as number),
               e.resource as string,
             );
+          break;
+        }
+        case 'boughtDevCard':
+          add(bankPoint(), seatPoint(e.player as number), null);
+          break;
+        case 'playedDevCard':
+        case 'playedProgress': {
+          // The card turns face up on its way to the table.
+          const icon = nameOf(e.card as string).icon ?? '🃏';
+          add(seatPoint(e.player as number), bankPoint(), null, icon);
           break;
         }
         case 'award': {
@@ -212,6 +261,27 @@ export function CardFlights({
       }
     };
     for (const { event } of fresh) handle(event);
+
+    // Everything else that changed hands: losers pay winners where both moved, else the bank.
+    const gains: { seat: number; card: string }[] = [];
+    const losses: { seat: number; card: string }[] = [];
+    ctx.state.players.forEach((p, seat) => {
+      if (shown.has(seat)) return;
+      const { gained, lost } = handDelta(handsBefore[seat] ?? {}, p.hand);
+      each(gained, (card) => gains.push({ seat, card }));
+      each(lost, (card) => losses.push({ seat, card }));
+    });
+    const face = (card: string) => (card === HIDDEN_CARD ? null : card);
+    for (const g of gains) {
+      const i = losses.findIndex(
+        (l) =>
+          l.seat !== g.seat &&
+          (l.card === g.card || l.card === HIDDEN_CARD || g.card === HIDDEN_CARD),
+      );
+      const from = i >= 0 ? seatPoint(losses.splice(i, 1)[0]!.seat) : bankPoint();
+      add(from, seatPoint(g.seat), face(g.card));
+    }
+    for (const l of losses) add(seatPoint(l.seat), bankPoint(), face(l.card));
 
     flights.forEach((f, i) => {
       const el = document.createElement('div');

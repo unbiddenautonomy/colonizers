@@ -3,6 +3,7 @@ import { MODES as MODE_IDS, type ModeId } from '@colonizers/modes';
 import { modesFor } from '../game/modeFlags.ts';
 import { MODES, PRESETS, SEA_SCENARIOS, SPECIAL_MAPS } from '@colonizers/maps';
 import {
+  TIME_BANKS,
   TURN_TIMERS,
   VP_TARGETS,
   type ClientMessage,
@@ -158,6 +159,8 @@ function Connected({
         members: room.members,
         isHost,
         deadline: r.game.deadline,
+        bank: r.game.bank,
+        banking: r.game.banking,
         chat: r.chat,
         sendChat: (text) => r.send({ type: 'chat', text }),
         nudge: (s) => r.send({ type: 'nudge', seat: s }),
@@ -645,6 +648,21 @@ function Lobby({
                   ))}
                 </select>
               </label>
+              {s.turnTimer > 0 && (
+                <label>
+                  Time bank{' '}
+                  <select
+                    value={s.timeBank}
+                    onChange={(e) => set({ timeBank: Number(e.target.value) })}
+                  >
+                    {TIME_BANKS.map((t) => (
+                      <option key={t} value={t}>
+                        {bankLabel(t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label>
                 Seats{' '}
                 <select
@@ -684,7 +702,8 @@ function Lobby({
                 ? `set by the scenario${gwp ? ' + 8' : ck ? ' + 3' : ''}`
                 : s.vpTarget + bonus}
             </li>
-            <li>Turn timer: {s.turnTimer ? `${s.turnTimer / 60} min` : 'off'}</li>
+            <li>Turn timer: {timerLabel(s.turnTimer).toLowerCase()}</li>
+            {s.turnTimer > 0 && s.timeBank > 0 && <li>Time bank: {bankLabel(s.timeBank)}</li>}
             {optionList.map((o) => (
               <li key={o}>{o}</li>
             ))}
@@ -698,13 +717,15 @@ function Lobby({
             gwp={gwp}
             wonders={wonders}
             robber={hasRobber(specialPick?.id ?? null)}
+            dragons={specialPick?.id === 'desert-dragons'}
             onChange={(options) => set({ options })}
           />
         )}
         {s.turnTimer > 0 && (
           <p className="muted">
-            When time runs out, the room plays the smallest safe move (roll, discard, or end the
-            turn).
+            When time runs out
+            {s.timeBank > 0 ? ', your time bank starts; when that runs out too' : ''}, the room
+            plays the smallest safe move (roll, discard, or end the turn).
           </p>
         )}
       </section>
@@ -789,6 +810,13 @@ function AddBot({ send }: { send: (msg: ClientMessage) => boolean }) {
       </button>
     </div>
   );
+}
+
+function bankLabel(seconds: number): string {
+  if (seconds === 0) return 'None';
+  if (seconds < 3600) return `${seconds / 60} min each`;
+  if (seconds < 86400) return `${seconds / 3600} hour${seconds === 3600 ? '' : 's'} each`;
+  return `${seconds / 86400} day${seconds === 86400 ? '' : 's'} each`;
 }
 
 function timerLabel(seconds: number): string {

@@ -57,10 +57,22 @@ While a trade offer is open, the partner waits until it is settled.`,
       section: 'rules',
       title: 'House rules',
       summary: 'Optional rules the host can switch on before the game.',
-      tags: ['options', 'friendly robber', 'balanced dice', 'gift', 'quiet start', 'discard'],
+      tags: [
+        'options',
+        'friendly robber',
+        'robber goes home',
+        'open trading',
+        'time bank',
+        'balanced dice',
+        'gift',
+        'quiet start',
+        'discard',
+      ],
       body: `The host can switch these on before the game starts. Everyone sees which ones are on in the lobby.
 
 - **Friendly robber**: the robber can't go on a hex next to a player with 2 or fewer points showing, unless there is nowhere else.
+- **Robber goes home**: the robber blocks a hex and steals as usual, then goes back to the desert at the end of that turn. No hex stays blocked for long.
+- **Open trading**: any player can offer a trade on anyone's turn, not just the player whose turn it is. Only one offer is open at a time, and the player who made it chooses who to trade with.
 - **Balanced dice**: the dice come from a shuffled deck of all 36 combinations, so every total comes up about as often as the odds say. The deck is shuffled again when 5 to 10 are left. (Not used with Cities & Knights.)
 - **Gifts**: on your turn you can give cards to another player for nothing.
 - **Both starting settlements pay**: you get resources for both of your starting settlements, not just the second.
@@ -68,7 +80,9 @@ While a trade offer is open, the partner waits until it is settled.`,
 - **Discard limit**: when a 7 is rolled, players holding more than this many cards discard half.
 - **Harbormaster**: a 2-point bonus for building on harbors. See the Harbormaster page.
 - **Event cards**: a deck of cards replaces the dice. See the Event cards page.
-- **Duel rules** (two players only): neutral builders, two rolls a turn and trade tokens. See the Duel rules page.`,
+- **Duel rules** (two players only): neutral builders, two rolls a turn and trade tokens. See the Duel rules page.
+
+In online rooms with a turn timer, the host can also give everyone a **time bank**: extra time to spend over the whole game, like a chess clock. When a step's timer runs out, your bank starts counting down; only when it is empty too does the room play a safe move for you.`,
     },
     {
       id: 'duel',

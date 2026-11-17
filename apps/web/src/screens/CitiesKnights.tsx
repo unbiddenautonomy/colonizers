@@ -255,7 +255,7 @@ export function BarbarianTrack({ ctx }: { ctx: Ctx }) {
             className={`barb-step${i === d.barbarian ? ' here' : ''}${i === len ? ' land' : ''}`}
             title={i === len ? 'Catan: the attack lands here' : `Step ${i}`}
           >
-            {i === d.barbarian ? '⛵' : i === len ? '🏰' : ''}
+            {i === d.barbarian ? <span className="barb-ship">⛵</span> : i === len ? '🏰' : ''}
           </span>
         ))}
       </div>

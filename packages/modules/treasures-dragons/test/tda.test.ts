@@ -21,6 +21,7 @@ import {
   dragonsAttacking,
   roadBlocked,
   slayableHexes,
+  dragonRelief,
   spreadDragons,
   tdaData,
   TOTAL_DRAGONS,
@@ -455,6 +456,25 @@ describe('Desert dragons', () => {
     ) as EdgeId | undefined;
     if (edge && (c.geometry.edgeHexes.get(edge) ?? []).length === 2)
       expect(roadBlocked(c, edge)).toBe(true);
+  });
+
+  it('dragon relief: a blocked field pays 1 random resource instead', () => {
+    let s = finishSetup(game('desert-dragons', 4, 'relief'));
+    const c0 = ctxOf(s);
+    const own = c0.piecesOf(0).find((p) => p.type === 'settlement')!;
+    const hex = (c0.geometry.cornerHexes.get((own.at as { id: CornerId }).id) ?? [])
+      .map((h) => s.hexes[h]!)
+      .find((h) => h.token && h.token !== 7 && h.type !== 'desert')!;
+    s = edit(s, (c) => {
+      for (const p of c.state.players) p.hand = {};
+      tdaData(c).dragons[hex.id] = 1;
+    });
+    const after = edit(s, (c) => {
+      dragonRelief(c, hex.token!);
+      expect(c.events.some((e) => e.type === 'dragonRelief')).toBe(true);
+    });
+    const got = Object.values(after.players[0]!.hand).reduce((a, n) => a + n, 0);
+    expect(got).toBe(1);
   });
 
   it('a 7 lets the roller steal from anyone, with no robber', () => {

@@ -126,6 +126,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   if (princes) {
     if (options.turnMode === 'specialBuild') options.turnMode = 'normal';
     options.friendlyRobber = false;
+    options.robberHome = false;
   }
   // Soldiers & Armies marches after building, so there's no Special Building Phase either.
   if (soldiers && options.turnMode === 'specialBuild') options.turnMode = 'normal';

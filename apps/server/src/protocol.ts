@@ -20,6 +20,10 @@ export interface GameOptions {
   /** auto: Special Building Phase for 5–6 players, paired turns for 7–8, normal otherwise. */
   turnMode: TurnModeChoice;
   friendlyRobber: boolean;
+  /** The robber goes back to the desert at the end of any turn it was moved. */
+  robberHome: boolean;
+  /** Any player may offer a trade on someone else's turn, not just the player whose turn it is. */
+  openTrading: boolean;
   balancedDice: boolean;
   /** Rounds at the start in which a 7 does nothing. */
   robberFreeRounds: number;
@@ -38,6 +42,8 @@ export interface GameOptions {
   gwpRiver: boolean;
   /** World Wonders: you can win without a finished wonder. */
   wonderOptional: boolean;
+  /** Desert Dragons: a player whose field a dragon blocked on a roll takes 1 random resource. */
+  dragonRelief: boolean;
 }
 
 export const TURN_MODES: readonly TurnModeChoice[] = ['auto', 'normal', 'specialBuild', 'paired'];
@@ -47,6 +53,8 @@ export const DISCARD_LIMITS = [7, 8, 9, 10] as const;
 export const DEFAULT_OPTIONS: GameOptions = {
   turnMode: 'auto',
   friendlyRobber: false,
+  robberHome: false,
+  openTrading: false,
   balancedDice: false,
   robberFreeRounds: 0,
   gifting: false,
@@ -57,6 +65,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   twoPlayer: false,
   gwpRiver: false,
   wonderOptional: false,
+  dragonRelief: false,
 };
 
 export function cleanOptions(raw: unknown): GameOptions {
@@ -66,6 +75,8 @@ export function cleanOptions(raw: unknown): GameOptions {
       ? (o.turnMode as TurnModeChoice)
       : 'auto',
     friendlyRobber: o.friendlyRobber === true,
+    robberHome: o.robberHome === true,
+    openTrading: o.openTrading === true,
     balancedDice: o.balancedDice === true,
     robberFreeRounds: int(o.robberFreeRounds, ROBBER_FREE_ROUNDS, 0),
     gifting: o.gifting === true,
@@ -76,6 +87,7 @@ export function cleanOptions(raw: unknown): GameOptions {
     twoPlayer: o.twoPlayer === true,
     gwpRiver: o.gwpRiver === true,
     wonderOptional: o.wonderOptional === true,
+    dragonRelief: o.dragonRelief === true,
   };
 }
 
@@ -92,6 +104,8 @@ export function optionSettings(o: GameOptions, players: number): Record<string, 
   return {
     turnMode: resolvedTurnMode(o, players),
     friendlyRobber: o.friendlyRobber,
+    robberHome: o.robberHome,
+    openTrading: o.openTrading,
     balancedDice: o.balancedDice,
     robberFreeRounds: o.robberFreeRounds,
     gifting: o.gifting,
@@ -102,6 +116,7 @@ export function optionSettings(o: GameOptions, players: number): Record<string, 
     twoPlayer: o.twoPlayer && players === 2,
     gwpRiver: o.gwpRiver,
     wonderToWin: !o.wonderOptional,
+    dragonRelief: o.dragonRelief,
   };
 }
 
@@ -208,12 +223,20 @@ export interface RoomSettings {
   strategist: boolean;
   /** Seconds per turn before the room plays a safe move for you. 0 turns it off. */
   turnTimer: number;
+  /**
+   * Extra seconds each player may spend over the turn timer across the whole game, like a
+   * chess clock. When a step's timer runs out the player's bank starts; when that is empty too,
+   * the room plays a safe move. 0 turns it off.
+   */
+  timeBank: number;
   maxPlayers: number;
   options: GameOptions;
 }
 
 /** Seconds per turn. The long ones are for async games played over days. */
 export const TURN_TIMERS = [0, 60, 90, 120, 180, 300, 3600, 21600, 43200, 86400, 259200] as const;
+/** Seconds in each player's time bank. */
+export const TIME_BANKS = [0, 60, 120, 300, 600, 3600, 86400] as const;
 export const VP_TARGETS = [8, 9, 10, 11, 12, 13, 14, 15] as const;
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -232,6 +255,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   landWater: false,
   strategist: false,
   turnTimer: 0,
+  timeBank: 0,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
 };
@@ -272,6 +296,10 @@ export interface GameSnapshot {
   seq: number;
   /** When the turn timer runs out, in server time (ms), or null. */
   deadline: number | null;
+  /** Time bank left per seat in ms (counted to now), or null when there is no time bank. */
+  bank?: number[] | null;
+  /** The seat spending its time bank right now: the deadline is then the bank's end. */
+  banking?: number | null;
 }
 
 export interface ChatMessage {
@@ -373,6 +401,7 @@ export function cleanSettings(raw: unknown): RoomSettings {
     landWater: s.landWater === true,
     strategist: s.strategist === true,
     turnTimer: int(s.turnTimer, TURN_TIMERS, DEFAULT_SETTINGS.turnTimer),
+    timeBank: int(s.timeBank, TIME_BANKS, DEFAULT_SETTINGS.timeBank),
     maxPlayers: int(s.maxPlayers, [2, 3, 4, 5, 6, 7, 8], DEFAULT_SETTINGS.maxPlayers),
     options: cleanOptions(s.options),
   };

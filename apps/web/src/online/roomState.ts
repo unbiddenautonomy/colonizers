@@ -13,6 +13,10 @@ export interface OnlineGame {
   seq: number;
   /** When the turn timer runs out, on this device's clock. */
   deadline: number | null;
+  /** Time bank left per seat in ms, when the room has one. */
+  bank: number[] | null;
+  /** The seat spending its time bank now. */
+  banking: number | null;
 }
 
 export interface OnlineState {
@@ -42,7 +46,13 @@ const LOG_KEPT = 300;
 const CHAT_KEPT = 100;
 
 function toGame(
-  snap: { view: Parameters<typeof stateFromView>[0]; seq: number; deadline: number | null },
+  snap: {
+    view: Parameters<typeof stateFromView>[0];
+    seq: number;
+    deadline: number | null;
+    bank?: number[] | null;
+    banking?: number | null;
+  },
   serverNow: number,
   localNow: number,
 ): OnlineGame {
@@ -50,6 +60,8 @@ function toGame(
     state: stateFromView(snap.view),
     seq: snap.seq,
     deadline: snap.deadline === null ? null : snap.deadline + (localNow - serverNow),
+    bank: snap.bank ?? null,
+    banking: snap.banking ?? null,
   };
 }
 
