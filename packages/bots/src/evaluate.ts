@@ -183,8 +183,13 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
 
   // Routes and armies.
   score += Math.min(ctx.longestRoute(seat), 12) * 0.35 * w.road;
-  score += (me.played.knight ?? 0) * 1.4 * w.army;
+  // A played knight is worth a little more than one in hand, so bots play them (the robber
+  // and the army race come after); at the same weight they sat on every knight they drew.
+  score += (me.played.knight ?? 0) * 2 * w.army;
   for (const cards of Object.values(me.held)) score += cards.length * 1.6 * w.army;
+  // Free roads still to place from a Road Building card.
+  if (state.phase.id === 'roadBuilding' && state.turn.player === seat)
+    score += Number(state.phase.remaining ?? 0) * 1.2 * w.road;
 
   // Module hints.
   if (state.modules.includes('cities-knights')) score += ckHints(state, ctx, seat);
@@ -229,10 +234,10 @@ function landWaterHints(ctx: Ctx, seat: number, blocked: Set<string>, expand: nu
       if (o) score += o.rate * 36 * 0.4;
     }
     if (!active) continue;
-    // The best spot within a few steps, worth less the further it is.
+    // The best spot within a few moves, worth less the further it is.
     const near = nearestSpot(ctx, v.type, v.at, blocked);
     // Any spot is a point to be had; a good one pays for itself too.
-    if (near) spots.push((near.value + 8) / (1 + near.steps * 0.6));
+    if (near) spots.push((near.value + 8) / (1 + near.moves * MOVE_DISCOUNT));
   }
   spots.sort((a, b) => b - a);
   score += ((spots[0] ?? 0) * 0.45 + (spots[1] ?? 0) * 0.15) * expand;
@@ -248,16 +253,24 @@ function crosses(ctx: Ctx, type: string, hex: HexId): boolean {
   return type === 'ferry' ? sea : !sea;
 }
 
+/** How much a spot loses for each move it takes to get there. */
+const MOVE_DISCOUNT = 0.3;
+/** The furthest a vehicle looks for a spot: three fields away from a corner. */
+const MAX_MOVES = 7;
+
 /**
- * The best open corner a vehicle can reach in up to 3 corner-to-corner steps (each
- * step crosses one field), as a spot value and the steps it takes.
+ * The best open corner a vehicle can reach in a few moves, as a spot value and the moves
+ * it takes. A move goes from a corner into a field, or from a field out to a corner, so
+ * from a corner the next corner is 2 moves away and from inside a field its corners are 1.
+ * (Counting whole fields instead made the first move look like no progress, and vehicles
+ * that had to cross a field to reach a spot never set off.)
  */
 function nearestSpot(
   ctx: Ctx,
   type: string,
   at: Location,
   blocked: Set<string>,
-): { value: number; steps: number } | null {
+): { value: number; moves: number } | null {
   let frontier: CornerId[];
   const seen = new Set<string>();
   const step = (hexes: HexId[]) => {
@@ -277,13 +290,16 @@ function nearestSpot(
     frontier = [at.id];
   } else if (at.kind === 'hex') frontier = step([at.id]);
   else return null;
-  let best: { value: number; steps: number } | null = null;
-  for (let steps = at.kind === 'hex' ? 1 : 0; steps <= 3 && frontier.length; steps++) {
+  let best: { value: number; moves: number } | null = null;
+  for (let moves = at.kind === 'hex' ? 1 : 0; moves <= MAX_MOVES && frontier.length; moves += 2) {
     for (const c of frontier) {
       if (!openCorner(ctx, c)) continue;
-      const value = spotValue(ctx, c, blocked) / (1 + steps * 0.6);
-      if (!best || value > best.value / (1 + best.steps * 0.6))
-        best = { value: spotValue(ctx, c, blocked), steps };
+      const value = spotValue(ctx, c, blocked);
+      if (
+        !best ||
+        value / (1 + moves * MOVE_DISCOUNT) > best.value / (1 + best.moves * MOVE_DISCOUNT)
+      )
+        best = { value, moves };
     }
     frontier = step(frontier.flatMap((c) => ctx.geometry.cornerHexes.get(c) ?? []));
   }
