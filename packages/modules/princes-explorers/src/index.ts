@@ -1,7 +1,17 @@
-import type { Action, ActionDef, Ctx, GameModule, HexId, Phase } from '@colonizers/engine';
+import type {
+  Action,
+  ActionDef,
+  CornerId,
+  Ctx,
+  GameModule,
+  HexId,
+  Phase,
+} from '@colonizers/engine';
 import { robber, stealFrom } from '@colonizers/module-base';
 import {
   BIG_GAME_HAND_LIMIT,
+  CITADEL_COST,
+  CITADEL_MAX,
   MODULE_ID,
   PRINCE,
   ROBBER_MOVE_COST,
@@ -9,6 +19,9 @@ import {
 } from './constants.ts';
 import { ckActions, ckRobberVp, ckWraps, withCk } from './ck.ts';
 import {
+  citadelSpots,
+  citadelsOf,
+  nothingLeftToBuild,
   princeMoves,
   princesAtCorner,
   princesData,
@@ -53,6 +66,10 @@ import {
 
 export * from './constants.ts';
 export {
+  citadelSpots,
+  citadelsOf,
+  isCitadel,
+  nothingLeftToBuild,
   princeHexes,
   princeMoves,
   princesAtCorner,
@@ -232,6 +249,37 @@ function wrapMoveRobber(prev: ActionDef): ActionDef {
   };
 }
 
+/**
+ * The citadel, for a dead end: a player with nothing left to build turns one of their cities into
+ * a citadel, a point more (none next to the robber, like the city). At most two each.
+ */
+const buildCitadel = action<{ corner: CornerId }>({
+  phases: ['main'],
+  check(ctx, a) {
+    if (a.player !== ctx.active) return 'Not your turn';
+    if (!nothingLeftToBuild(ctx, a.player))
+      return 'A citadel is only for a player with nothing left to build';
+    if (citadelsOf(ctx, a.player).length >= CITADEL_MAX)
+      return `At most ${CITADEL_MAX} citadels each`;
+    const b = ctx.buildingAt(a.corner);
+    if (!b || b.type !== 'city' || b.owner !== a.player)
+      return 'A citadel goes on one of your cities';
+    if (b.props.citadel === true) return 'That city is a citadel already';
+    if (!ctx.has(a.player, ctx.cost('citadel', a.player))) return 'You can not afford that';
+    return null;
+  },
+  apply(ctx, a) {
+    ctx.pay(a.player, ctx.cost('citadel', a.player));
+    const b = ctx.buildingAt(a.corner);
+    if (b) b.props.citadel = true;
+    ctx.emit({ type: 'citadelBuilt', player: a.player, at: a.corner });
+  },
+  enumerate: (ctx, player) =>
+    player === ctx.active
+      ? citadelSpots(ctx, player).map((corner) => ({ type: 'buildCitadel', player, corner }))
+      : [],
+});
+
 const noDevCards = (prev: ActionDef): ActionDef => ({
   ...prev,
   check: () => 'Princes & Explorers plays without development cards',
@@ -267,8 +315,16 @@ export const princesModule: GameModule = {
   },
   costs: {
     robberMove: ROBBER_MOVE_COST,
+    citadel: CITADEL_COST,
   },
-  actions: { movePrince, exploreSwap, placePrincesRobber, buyRobberMove, ...ckActions },
+  actions: {
+    movePrince,
+    exploreSwap,
+    placePrincesRobber,
+    buyRobberMove,
+    buildCitadel,
+    ...ckActions,
+  },
   wrapActions: {
     moveRobber: wrapMoveRobber,
     buyDevCard: noDevCards,

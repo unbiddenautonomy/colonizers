@@ -23,3 +23,12 @@ export const BIG_GAME_HAND_LIMIT = 10;
 
 /** A road next to the robber is left out of the longest road; this weight cuts it. */
 export const CUT_ROAD = -100;
+
+/**
+ * The citadel (Nachi's deadlock house rule): a player with nothing left to build can turn a city
+ * into a citadel, worth a point more. At most this many each.
+ */
+export const CITADEL_MAX = 2;
+
+/** What a citadel costs. */
+export const CITADEL_COST: Cards = { ore: 3, grain: 2, wool: 1 };
