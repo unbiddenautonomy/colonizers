@@ -5,6 +5,9 @@ import { wonderGlassBoard, wonderTeaBoard } from './boards/wonder.tsx';
 import { islesLagoonBoard, islesNightBoard } from './boards/isles.tsx';
 import { benchDarkBoard, benchLightBoard } from './boards/bench.tsx';
 import { popArcadeBoard, popCitrusBoard, popGrapeBoard, popSorbetBoard } from './boards/pop.tsx';
+import { chartSurveyBoard } from './boards/chart.tsx';
+import { masqVelvetBoard } from './boards/masq.tsx';
+import { sunriseMorningBoard } from './boards/sunrise.tsx';
 import { woodTheme } from './pictures.tsx';
 import { tilesTheme } from './tiles.tsx';
 import { prefPicked } from './prefs.ts';
@@ -25,6 +28,9 @@ export const THEMES: Theme[] = [
   wonderGlassBoard,
   islesLagoonBoard,
   islesNightBoard,
+  sunriseMorningBoard,
+  masqVelvetBoard,
+  chartSurveyBoard,
 ];
 
 /** What a new device shows. */

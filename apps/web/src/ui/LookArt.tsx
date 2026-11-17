@@ -1,4 +1,5 @@
 import { useLook } from '../theme/looks.tsx';
+import { ChartArt, MasqueradeArt, SunriseArt } from './LookArtTables.tsx';
 import { DecoArt, IslesArt, WonderArt } from './LookArtMore.tsx';
 
 /** Header art for the looks that have it, drawn in the look's own colours. */
@@ -8,6 +9,9 @@ export function LookArt() {
   if (look.family === 'deco') return <DecoArt />;
   if (look.family === 'wonderland') return <WonderArt />;
   if (look.family === 'isles') return <IslesArt />;
+  if (look.family === 'sunrise') return <SunriseArt />;
+  if (look.family === 'masquerade') return <MasqueradeArt />;
+  if (look.family === 'chart') return <ChartArt />;
   return null;
 }
 

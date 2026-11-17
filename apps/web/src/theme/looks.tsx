@@ -10,7 +10,8 @@ import { prefPicked } from './prefs.ts';
 export interface Look {
   id: string;
   /** The theme it belongs to; a theme can have several colour schemes or modes. */
-  family: 'basicbench' | 'pop' | 'deco' | 'wonderland' | 'isles';
+  family:
+    'basicbench' | 'pop' | 'deco' | 'wonderland' | 'isles' | 'sunrise' | 'masquerade' | 'chart';
   familyName: string;
   /** The scheme or mode within the theme. */
   name: string;
@@ -471,6 +472,108 @@ const nightTide = isles(
   '#6fcfc0',
 );
 
+// ---- Sunrise Deck: a cartoon voyage on a scrubbed deck ----
+
+const sunriseMorning: Look = {
+  id: 'sunrise-morning',
+  family: 'sunrise',
+  familyName: 'Sunrise Deck',
+  name: 'Morning',
+  dark: false,
+  board: 'sunrise-morning',
+  tokens: {
+    bg: '#efd9ae',
+    card: '#fff8e6',
+    raised: '#ffefc6',
+    sunk: '#fbf0d6',
+    text: '#1d2433',
+    soft: '#2a3346',
+    muted: '#3f4960',
+    faint: '#4e566b',
+    accent: '#b81f27',
+    accentText: '#fff8e6',
+    border: '#1d2433',
+    dash: '#c9ad7e',
+    good: '#2e7d4f',
+    bad: '#b81f27',
+    heading: "'Lilita One', 'Nunito', system-ui, sans-serif",
+    body: "'Nunito', system-ui, sans-serif",
+    shadow: '4px 5px 0 #1d2433',
+    ink: '#1d2433',
+    pop: '#e9b938',
+    motif:
+      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cpath d='M119.5 0V60' stroke='%23c49a5e' stroke-opacity='0.6'/%3E%3Ccircle cx='112' cy='8' r='1.4' fill='%23a77a42' fill-opacity='0.45'/%3E%3Ccircle cx='112' cy='52' r='1.4' fill='%23a77a42' fill-opacity='0.45'/%3E%3C/svg%3E\")",
+  },
+};
+
+// ---- Masquerade: the card table of a flamboyant underworld ----
+
+const masqVelvet: Look = {
+  id: 'masq-velvet',
+  family: 'masquerade',
+  familyName: 'Masquerade',
+  name: 'Velvet',
+  dark: true,
+  board: 'masq-velvet',
+  tokens: {
+    bg: '#140b16',
+    card: '#1f1422',
+    raised: '#2c1a30',
+    sunk: '#180e1b',
+    text: '#fff0f6',
+    soft: '#f3cfe0',
+    muted: '#dcb3c8',
+    faint: '#c79db3',
+    accent: '#f2c14e',
+    accentText: '#1a0510',
+    border: '#d4a94a',
+    dash: '#4a2a44',
+    good: '#7fdcaa',
+    bad: '#ff7a9c',
+    heading: "'Bodoni Moda', Georgia, serif",
+    body: "'DM Sans', system-ui, sans-serif",
+    shadow: '0 18px 40px rgba(0, 0, 0, 0.45)',
+    ink: '#d4a94a',
+    pop: '#ff3e8a',
+    motif:
+      'repeating-linear-gradient(115deg, transparent 0 22px, rgba(255, 255, 255, 0.035) 22px 24px)',
+  },
+};
+
+// ---- Storm Chart: a surveyor's chart table ----
+
+const chartSurvey: Look = {
+  id: 'chart-survey',
+  family: 'chart',
+  familyName: 'Storm Chart',
+  name: 'Survey',
+  dark: false,
+  board: 'chart-survey',
+  tokens: {
+    bg: '#efe4c8',
+    card: '#f6eed9',
+    raised: '#fbf5e6',
+    sunk: '#e9dcbc',
+    text: '#1f2a44',
+    soft: '#2a3655',
+    muted: '#3c4766',
+    faint: '#4a5470',
+    accent: '#8e3a1f',
+    accentText: '#f6eed9',
+    border: '#1f2a44',
+    dash: '#cdbd96',
+    good: '#2f6f5f',
+    bad: '#8e3a1f',
+    heading: "'IM Fell English SC', 'IM Fell English', Georgia, serif",
+    body: "'Spectral', Georgia, serif",
+    shadow: 'none',
+    ink: '#1f2a44',
+    pop: '#2f7f73',
+    motif:
+      'repeating-linear-gradient(0deg, rgba(31, 42, 68, 0.06) 0 1px, transparent 1px 40px), repeating-linear-gradient(90deg, rgba(31, 42, 68, 0.06) 0 1px, transparent 1px 40px)',
+  },
+};
+
 export const LOOKS: Look[] = [
   night,
   atelier,
@@ -484,6 +587,9 @@ export const LOOKS: Look[] = [
   lookingGlass,
   lagoon,
   nightTide,
+  sunriseMorning,
+  masqVelvet,
+  chartSurvey,
 ];
 
 /** Picks that aren't a single look: BasicBench following the device's light or dark setting. */
