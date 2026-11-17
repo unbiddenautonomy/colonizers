@@ -717,6 +717,7 @@ function Lobby({
             gwp={gwp}
             wonders={wonders}
             robber={hasRobber(specialPick?.id ?? null)}
+            dragons={specialPick?.id === 'desert-dragons'}
             onChange={(options) => set({ options })}
           />
         )}

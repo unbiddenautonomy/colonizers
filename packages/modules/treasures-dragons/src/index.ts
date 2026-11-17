@@ -12,7 +12,7 @@ import {
   type Phase,
   type Piece,
 } from '@colonizers/engine';
-import { routesAt, stealFrom } from '@colonizers/module-base';
+import { RESOURCES, routesAt, stealFrom } from '@colonizers/module-base';
 import { freeSpots, startGoldPick } from '@colonizers/module-seafarers';
 import {
   canAct,
@@ -443,6 +443,30 @@ function wakeDragons(ctx: Ctx): void {
   }
   ctx.emit({ type: 'dragonsWake', awake: d.awake, total: TOTAL_DRAGONS });
   if (d.awake >= TOTAL_DRAGONS) ctx.emit({ type: 'dragonsAttack' });
+}
+
+/**
+ * Dragon relief (an option, off by default): a player whose building stood on a rolled hex that
+ * a dragon blocked takes one random resource from the bank instead, once a roll.
+ */
+export function dragonRelief(ctx: Ctx, total: number): void {
+  const seats = new Set<number>();
+  for (const h of Object.values(ctx.state.hexes)) {
+    if (h.token !== total || h.hidden || !dragonHex(ctx, h.id) || isDesert(ctx, h.id)) continue;
+    for (const c of ctx.geometry.hexCorners.get(h.id) ?? []) {
+      const b = ctx.buildingAt(c);
+      if (b && b.owner !== null) seats.add(b.owner);
+    }
+  }
+  const received: Record<number, Record<string, number>> = {};
+  for (const seat of [...seats].sort((a, b) => a - b)) {
+    const stock = RESOURCES.filter((r) => ctx.bankHas({ [r]: 1 }));
+    if (!stock.length) break;
+    const card = stock[ctx.rng.int(0, stock.length - 1)]!;
+    ctx.grant(seat, { [card]: 1 });
+    received[seat] = { [card]: 1 };
+  }
+  if (Object.keys(received).length) ctx.emit({ type: 'dragonRelief', total, received });
 }
 
 /** After production: each rolled hex beside a dragon draws one from the deserts. */
@@ -974,7 +998,12 @@ export const treasuresDragonsModule: GameModule = {
   name: 'Treasures, Dragons & Adventurers',
   requires: ['base', 'seafarers'],
   conflicts: ['traders-barbarians'],
-  settings: { tdaScenario: 'treasure-islands', treasureStack: 0, tokenSupply: [] },
+  settings: {
+    tdaScenario: 'treasure-islands',
+    treasureStack: 0,
+    tokenSupply: [],
+    dragonRelief: false,
+  },
   pieceTypes: {
     treasure: { on: 'corner' },
     dragon: { on: 'corner' },
@@ -1054,7 +1083,10 @@ export const treasuresDragonsModule: GameModule = {
       // Hooked rather than wrapped, so Cities & Knights keeps the top of the roll.
       if (action.type === 'roll' && dragonsAttacking(ctx)) {
         const total = (ctx.state.data.base as { lastRoll?: { total: number } }).lastRoll?.total;
-        if (total && total !== 7) spreadDragons(ctx, total);
+        if (total && total !== 7) {
+          if (ctx.setting<boolean>('dragonRelief')) dragonRelief(ctx, total);
+          spreadDragons(ctx, total);
+        }
       }
       // An empty sea or desert found in the fog holds a treasure from the stack.
       for (const e of ctx.events) {

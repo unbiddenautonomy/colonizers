@@ -147,7 +147,7 @@ There is no pirate; the robber starts in the basin. This is our own version of t
       section: 'rules',
       title: 'Desert Dragons',
       summary: 'Dragons gather in the deserts, then spread and block hexes, roads and towns.',
-      tags: ['dragon', 'dragons', 'desert', 'knight', 'blocked'],
+      tags: ['dragon', 'dragons', 'desert', 'knight', 'blocked', 'dragon relief'],
       body: `There is **no robber** and **no pirate**. On a 7, anyone with more than 7 cards discards half as usual, then the roller takes a random card from any other player. There is **no Largest Army**.
 
 **The dragons gather**
@@ -164,6 +164,10 @@ After the starting settlements, every new **settlement or city** wakes dragons ð
 **Fighting back**
 
 A **Knight** card drives one dragon out of a land hex for good (not from a desert). The hex produces again from the next roll. The island across the water never sees a dragon, so getting there early pays.
+
+**Option: dragon relief** (off unless the host switches it on)
+
+When a rolled hex with your settlement or city is blocked by a dragon, you take **1 random resource** from the bank instead. You take one card a roll however many of your fields were blocked. It keeps a table from locking up when the dragons have covered every field.
 
 This is our own version of the scenario, on our own generated boards.`,
     },

@@ -42,6 +42,8 @@ export interface GameOptions {
   gwpRiver: boolean;
   /** World Wonders: you can win without a finished wonder. */
   wonderOptional: boolean;
+  /** Desert Dragons: a player whose field a dragon blocked on a roll takes 1 random resource. */
+  dragonRelief: boolean;
 }
 
 export const TURN_MODES: readonly TurnModeChoice[] = ['auto', 'normal', 'specialBuild', 'paired'];
@@ -63,6 +65,7 @@ export const DEFAULT_OPTIONS: GameOptions = {
   twoPlayer: false,
   gwpRiver: false,
   wonderOptional: false,
+  dragonRelief: false,
 };
 
 export function cleanOptions(raw: unknown): GameOptions {
@@ -84,6 +87,7 @@ export function cleanOptions(raw: unknown): GameOptions {
     twoPlayer: o.twoPlayer === true,
     gwpRiver: o.gwpRiver === true,
     wonderOptional: o.wonderOptional === true,
+    dragonRelief: o.dragonRelief === true,
   };
 }
 
@@ -112,6 +116,7 @@ export function optionSettings(o: GameOptions, players: number): Record<string, 
     twoPlayer: o.twoPlayer && players === 2,
     gwpRiver: o.gwpRiver,
     wonderToWin: !o.wonderOptional,
+    dragonRelief: o.dragonRelief,
   };
 }
 

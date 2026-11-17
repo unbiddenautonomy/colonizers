@@ -30,6 +30,7 @@ export function OptionsPanel({
   gwp = false,
   wonders = false,
   robber = true,
+  dragons = false,
   onChange,
 }: {
   options: GameOptions;
@@ -41,6 +42,8 @@ export function OptionsPanel({
   wonders?: boolean;
   /** False on maps with no robber: robber options are hidden. */
   robber?: boolean;
+  /** The Desert Dragons map: show its option. */
+  dragons?: boolean;
   onChange: (o: GameOptions) => void;
 }) {
   const set = (patch: Partial<GameOptions>) => onChange({ ...options, ...patch });
@@ -93,6 +96,11 @@ export function OptionsPanel({
       </div>
       <div className="option-group">
         <h3 className="subhead">{robber ? 'Robber and dice' : 'Dice'}</h3>
+        {dragons &&
+          toggle(
+            'dragonRelief',
+            '🐉 Dragon relief: if a dragon blocks your field on a roll, take 1 random resource',
+          )}
         {robber &&
           toggle(
             'friendlyRobber',
@@ -289,6 +297,7 @@ export function describeOptions(
   if (o.eventCards) out.push('Event cards');
   if (gwp && o.gwpRiver) out.push('The river (Greed, Wealth & Power)');
   if (wonders && o.wonderOptional) out.push('No wonder needed to win');
+  if (o.dragonRelief) out.push('Dragon relief');
   if (o.twoPlayer && players === 2) out.push('Duel rules');
   if (o.robberFreeRounds) out.push(`7s do nothing for ${o.robberFreeRounds} round(s)`);
   if (o.discardLimit !== 7) out.push(`Discard above ${o.discardLimit} cards`);

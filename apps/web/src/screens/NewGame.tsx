@@ -874,6 +874,7 @@ export function NewGame({
               gwp={gwp}
               wonders={wonders}
               robber={hasRobber(specialId)}
+              dragons={specialId === 'desert-dragons'}
               onChange={setOptions}
             />
             {(vpTarget !== DEFAULT_VP_BASE || changedOptions(options).length > 0) && (
