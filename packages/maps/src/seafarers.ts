@@ -17,7 +17,8 @@ import {
   type MapSpec,
 } from '@colonizers/engine';
 
-export type SeaLayout = 'newShores' | 'fourIslands' | 'fogIslands' | 'archipelago' | 'twoIslands';
+export type SeaLayout =
+  'newShores' | 'fourIslands' | 'fogIslands' | 'archipelago' | 'twoIslands' | 'world';
 
 export interface SeaScenario {
   id: string;
@@ -88,6 +89,23 @@ export const SEA_SCENARIOS: SeaScenario[] = [
     fog: false,
   },
 ];
+
+/**
+ * The World special map: continents of different sizes split by narrow
+ * straits. Not a Seafarers scenario of its own; it is listed with the special maps.
+ */
+export const WORLD_MAP: SeaScenario = {
+  id: 'world',
+  name: 'World',
+  description:
+    'Continents of different sizes split by narrow straits. Start anywhere, then sail across: 1 point for your first settlement on each new continent.',
+  layout: 'world',
+  players: { min: 3, max: 8 },
+  vpTarget: () => 10,
+  islandBonus: 1,
+  fog: false,
+  outerDeserts: 1,
+};
 
 export function seaScenarioById(id: string): SeaScenario | undefined {
   return SEA_SCENARIOS.find((s) => s.id === id);
@@ -169,6 +187,11 @@ function planFor(layout: SeaLayout, players: number, rng: Rng): Plan {
         outer: Array.from({ length: big ? 9 : 7 }, () => pick(2, 4)),
         gold: big ? 3 : 2,
       };
+    case 'world': {
+      // Continents of falling size, no mainland: one large, two middling, a few small.
+      const sizes = huge ? [19, 13, 9, 6, 4, 3] : big ? [16, 11, 8, 5, 4, 3] : [12, 8, 6, 4, 3];
+      return { radius: huge ? 7 : radius, home: 0, outer: sizes, gold: big ? 2 : 1 };
+    }
     case 'twoIslands':
       // One big home island and one neighbour across a strait.
       return {

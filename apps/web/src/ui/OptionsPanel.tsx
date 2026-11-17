@@ -244,6 +244,7 @@ export const SPECIAL_ICON: Record<string, string> = {
   twirl: '🌀',
   ring: '⭕',
   mini: '🔹',
+  world: '🌍',
   fishermen: '🐟',
   rivers: '🌊',
   caravans: '🐪',
