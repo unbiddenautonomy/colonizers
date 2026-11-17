@@ -2,8 +2,9 @@ import type { ReactNode } from 'react';
 import type { BaseType } from './kit.tsx';
 
 /**
- * One resource icon set shared by the board skins, so every skin says the same thing on the same
- * hex: trees for wood, a brick stack, a sheep, a wheat sheaf, a rock for ore, a cactus for desert.
+ * Resource icons for the board skins. `ICONS` is the plain set (Basic Bench draws it): trees for
+ * wood, a brick stack, a sheep, a wheat sheaf, a rock for ore, a cactus for desert. The other skin
+ * families draw their own sets in iconSets.ts, each saying the same thing in its own manner.
  *
  * Each icon is drawn in a 40 × 24 box and is made of parts with a role, so a skin can colour them
  * its own way without redrawing them:
@@ -19,15 +20,20 @@ import type { BaseType } from './kit.tsx';
 export interface Part {
   role: 'body' | 'solid' | 'line' | 'grain';
   d: string;
+  /** Line width as a multiple of the style's width (1 if left out). */
+  w?: number;
 }
+
+export type IconSet = Record<BaseType, Part[]>;
 
 /** Where the 40 × 24 box sits inside the hex (W 103.92, H 120): x, y and scale. */
 export const ICON_BOX = { x: 30.96, y: 11.5, s: 1.05 };
 
-const P = (role: Part['role'], d: string): Part => ({ role, d });
+export const P = (role: Part['role'], d: string, w?: number): Part =>
+  w === undefined ? { role, d } : { role, d, w };
 
 /** An ellipse as a path, so every part is one path. */
-function ell(cx: number, cy: number, rx: number, ry: number, rot = 0): string {
+export function ell(cx: number, cy: number, rx: number, ry: number, rot = 0): string {
   const a = (rot * Math.PI) / 180;
   const c = Math.cos(a);
   const s = Math.sin(a);
@@ -44,27 +50,48 @@ function pine(cx: number, top: number, k: number): string {
   return `M${p(0, 0)} L${p(6, 7)} H${cx + 3.2 * k} L${p(8.5, 13)} H${cx + 5.2 * k} L${p(11, 20)} H${cx - 11 * k} L${p(-5.2, 13)} H${cx - 8.5 * k} L${p(-3.2, 7)} H${cx - 6 * k} Z`;
 }
 
-function ear(bx: number, by: number, len: number, deg: number): Part[] {
+/** Kernel size and spacing for `ear`. */
+export interface EarShape {
+  /** Kernel pairs below the tip. */
+  pairs: number;
+  /** Kernel half-width and half-length. */
+  kx: number;
+  ky: number;
+  /** Distance between pairs along the stalk. */
+  gap: number;
+  /** How far each kernel sits from the stalk. */
+  spread: number;
+  /** Kernel tilt away from the stalk, in degrees. */
+  tilt: number;
+  /** Draws a kernel; an ellipse unless given. */
+  kernel?: (x: number, y: number, rx: number, ry: number, deg: number) => string;
+}
+
+const PLAIN_EAR: EarShape = { pairs: 3, kx: 1, ky: 2.1, gap: 2.9, spread: 1.75, tilt: 28 };
+
+/** An ear of wheat on a stalk from (bx, by), `len` long, leaning `deg` degrees from upright. */
+export function ear(bx: number, by: number, len: number, deg: number, shape = PLAIN_EAR): Part[] {
+  const { pairs, kx, ky, gap, spread, tilt, kernel = ell } = shape;
   const a = (deg * Math.PI) / 180;
   const ux = Math.sin(a);
   const uy = -Math.cos(a);
   const at = (t: number) => [bx + ux * t, by + uy * t] as const;
-  const [tx, ty] = at(len - 3);
+  const [tx, ty] = at(len - gap - 0.1);
   const out: Part[] = [P('line', `M${bx},${by} L${tx.toFixed(2)},${ty.toFixed(2)}`)];
   const [hx, hy] = at(len - 0.4);
-  out.push(P('grain', ell(hx, hy, 1, 2.2, deg)));
-  for (const t of [len - 2.9, len - 5.8, len - 8.7]) {
-    const [x, y] = at(t);
+  out.push(P('grain', kernel(hx, hy, kx, ky + 0.1, deg)));
+  for (let i = 1; i <= pairs; i++) {
+    const [x, y] = at(len - gap * i);
     for (const side of [-1, 1]) {
-      const kx = x + side * Math.cos(a) * 1.75 + ux * 0.5;
-      const ky = y + side * Math.sin(a) * 1.75 + uy * 0.5;
-      out.push(P('grain', ell(kx, ky, 1, 2.1, deg + side * 28)));
+      const kxp = x + side * Math.cos(a) * spread + ux * 0.5;
+      const kyp = y + side * Math.sin(a) * spread + uy * 0.5;
+      out.push(P('grain', kernel(kxp, kyp, kx, ky, deg + side * tilt)));
     }
   }
   return out;
 }
 
-export const ICONS: Record<BaseType, Part[]> = {
+export const ICONS: IconSet = {
   // Two pines, a big one and a small one, side by side.
   forest: [
     P('line', 'M14,19.5 V24'),
@@ -135,9 +162,14 @@ export interface IconStyle {
   shadow?: { color: string; dx: number; dy: number };
 }
 
-/** Draws a resource icon in the hex's icon box. */
-export function resourceIcon(type: BaseType, st: IconStyle, box = ICON_BOX): ReactNode {
-  const parts = ICONS[type];
+/** Draws a resource icon from `set` in the hex's icon box. */
+export function resourceIcon(
+  type: BaseType,
+  st: IconStyle,
+  set: IconSet = ICONS,
+  box = ICON_BOX,
+): ReactNode {
+  const parts = set[type];
   const draw = (p: Part, i: number, shadow?: string) => {
     const c = shadow;
     if (p.role === 'line')
@@ -147,7 +179,7 @@ export function resourceIcon(type: BaseType, st: IconStyle, box = ICON_BOX): Rea
           d={p.d}
           fill="none"
           stroke={c ?? st.line}
-          strokeWidth={st.width}
+          strokeWidth={st.width * (p.w ?? 1)}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -170,7 +202,7 @@ export function resourceIcon(type: BaseType, st: IconStyle, box = ICON_BOX): Rea
         d={p.d}
         fill={c ?? st.body}
         stroke={c ?? st.line}
-        strokeWidth={st.width}
+        strokeWidth={st.width * (p.w ?? 1)}
         strokeLinejoin="round"
       />
     );

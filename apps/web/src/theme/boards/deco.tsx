@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
 import { inkOn, resourceIcon } from './icons.tsx';
+import { DECO_ICONS } from './iconSets.ts';
 import { BASE, H, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
@@ -39,12 +40,16 @@ function art(k: Ink): Record<BaseType, ReactNode> {
     return (
       <>
         <rect width={W} height={H} fill={k.land[type]} />
-        {resourceIcon(type, {
-          body: k.deep[type],
-          line: ink,
-          solid: ink,
-          width: 1.5,
-        })}
+        {resourceIcon(
+          type,
+          {
+            body: k.deep[type],
+            line: ink,
+            solid: ink,
+            width: 1.5,
+          },
+          DECO_ICONS,
+        )}
       </>
     );
   };
