@@ -150,14 +150,23 @@ function publicUser(u: UserRow): PublicUser {
 }
 
 const PREF_ID = /^[a-z0-9-]{1,40}$/;
+// eslint-disable-next-line no-control-regex
+const HAS_CONTROL = /[\u0000-\u001f\u007f]/;
+
+/** Ids for the look, board and dice; a short JSON design for the dice faces. */
+function validPref(key: keyof Prefs, v: unknown): v is string {
+  if (typeof v !== 'string') return false;
+  if (key === 'diceFaces') return v.length <= 400 && !HAS_CONTROL.test(v);
+  return PREF_ID.test(v);
+}
 
 function readPrefs(raw: string | null): Prefs {
-  const out: Prefs = { look: null, board: null, dice: null };
+  const out: Prefs = { look: null, board: null, dice: null, diceFaces: null };
   try {
     const p = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
     for (const k of PREF_KEYS) {
       const v = p[k];
-      if (typeof v === 'string' && PREF_ID.test(v)) out[k] = v;
+      if (validPref(k, v)) out[k] = v;
     }
   } catch {
     // A bad value reads as nothing picked.
@@ -509,8 +518,7 @@ export class Accounts extends DurableObject<Env> {
       const next = readPrefs(u.prefs);
       for (const [k, v] of Object.entries(p)) {
         const key = PREF_KEYS.find((x) => x === k);
-        if (!key || (v !== null && (typeof v !== 'string' || !PREF_ID.test(v))))
-          return fail('That choice is not valid');
+        if (!key || (v !== null && !validPref(key, v))) return fail('That choice is not valid');
         next[key] = v;
       }
       this.sql.exec('UPDATE users SET prefs = ? WHERE id = ?', JSON.stringify(next), u.id);

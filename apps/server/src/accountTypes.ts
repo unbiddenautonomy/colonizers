@@ -28,9 +28,11 @@ export interface Prefs {
   look: string | null;
   board: string | null;
   dice: string | null;
+  /** The player's own dice design, as JSON the browser checks when it reads it. */
+  diceFaces: string | null;
 }
 
-export const PREF_KEYS = ['look', 'board', 'dice'] as const;
+export const PREF_KEYS = ['look', 'board', 'dice', 'diceFaces'] as const;
 
 export interface HistoryGame {
   id: string;

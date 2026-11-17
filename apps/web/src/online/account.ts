@@ -16,7 +16,15 @@ import { saveName, savedName, visitedRooms } from './identity.ts';
 import { AUTO, lookPick, LOOKS, setForcedLook, setLook } from '../theme/looks.tsx';
 import { onPrefPicked } from '../theme/prefs.ts';
 import { DEFAULT_THEME, setForcedTheme, setTheme, themePick, THEMES } from '../theme/themes.tsx';
-import { dicePick, isDiceSkin, setDiceSkin } from '../ui/Dice.tsx';
+import {
+  customDice,
+  DEFAULT_CUSTOM_DICE,
+  dicePick,
+  isDiceSkin,
+  parseCustomDice,
+  setCustomDice,
+  setDiceSkin,
+} from '../ui/Dice.tsx';
 
 export type {
   CrewDetail,
@@ -102,11 +110,15 @@ function syncPrefs(user: PublicUser): void {
   if (saved.look && (saved.look === AUTO || LOOKS.some((l) => l.id === saved.look)))
     setLook(saved.look);
   if (saved.board && THEMES.some((t) => t.id === saved.board)) setTheme(saved.board);
+  const design = parseCustomDice(saved.diceFaces);
+  if (design) setCustomDice(design);
   if (saved.dice && isDiceSkin(saved.dice)) setDiceSkin(saved.dice);
   const missing: Partial<Prefs> = {};
   if (!saved.look && lookPick() !== AUTO) missing.look = lookPick();
   if (!saved.board && themePick() !== DEFAULT_THEME.id) missing.board = themePick();
   if (!saved.dice && dicePick() !== 'classic') missing.dice = dicePick();
+  if (!saved.diceFaces && customDice() !== DEFAULT_CUSTOM_DICE)
+    missing.diceFaces = JSON.stringify(customDice());
   if (Object.keys(missing).length) void savePrefs(missing);
 }
 

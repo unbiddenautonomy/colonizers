@@ -235,7 +235,7 @@ describe('Email accounts', () => {
 describe('Display choices', () => {
   it('saves the look, board and dice with the account', async () => {
     const a = await signUp('Prefs');
-    expect(a.user.prefs).toEqual({ look: null, board: null, dice: null });
+    expect(a.user.prefs).toEqual({ look: null, board: null, dice: null, diceFaces: null });
     const patch = (prefs: unknown) =>
       api('/api/me', { method: 'PATCH', body: { prefs }, cookie: a.cookie });
 
@@ -253,6 +253,12 @@ describe('Display choices', () => {
 
     expect((await patch({ colour: 'red' })).status).toBe(400);
     expect((await patch({ look: '<b>' })).status).toBe(400);
+    const design = JSON.stringify({ body: '#112233', faces: ['🐑', 'A'] });
+    expect((await patch({ diceFaces: design })).data.user).toMatchObject({
+      prefs: { diceFaces: design },
+    });
+    expect((await patch({ diceFaces: 'x'.repeat(401) })).status).toBe(400);
+    expect((await patch({ diceFaces: 'a\u0007b' })).status).toBe(400);
     expect((await patch('wood')).status).toBe(400);
   });
 });
