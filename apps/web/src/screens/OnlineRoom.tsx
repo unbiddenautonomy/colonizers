@@ -5,7 +5,6 @@ import { MODES, PRESETS, SEA_SCENARIOS, SPECIAL_MAPS } from '@colonizers/maps';
 import {
   TIME_BANKS,
   TURN_TIMERS,
-  VP_TARGETS,
   type ClientMessage,
   type MapChoice,
   type RoomInfo,
@@ -34,7 +33,9 @@ import {
   SEA_ICON,
   SpecialMapButtons,
 } from '../ui/OptionsPanel.tsx';
-import { DEFAULT_VP_BASE, defaultOptionsFor, hasRobber, vpBonus } from '../game/defaults.ts';
+import { DEFAULT_VP_BASE, defaultOptionsFor, hasRobber } from '../game/defaults.ts';
+import { chosenTarget, winTarget } from '../../../server/src/winTarget.ts';
+import { TargetPicker } from '../ui/TargetPicker.tsx';
 import { loadCustomMaps } from '../game/customMaps.ts';
 import { currentUser } from '../online/account.ts';
 import { LEVEL_INFO, LEVELS, STYLE_INFO, STYLES, type Level, type Style } from '@colonizers/bots';
@@ -270,17 +271,12 @@ function Lobby({
   const landWater = on.landWater;
   const strategistOk = can('strategist');
   const strategist = on.strategist;
-  const bonus = vpBonus(
-    ck,
-    specialPick?.id ?? null,
-    gwp,
-    civs,
-    church,
-    witches,
-    princes,
-    soldiers,
-    kingdoms,
-    landWater,
+  // The official target for this game, what we suggest, and the host's choice.
+  const target = winTarget(
+    s.map,
+    // Until the table fills, count the fewest players the map takes.
+    Math.max(players.length, specialPick?.players.min ?? 2),
+    MODE_IDS.filter((m) => on[m]),
   );
   const optionList = describeOptions(s.options, players.length, gwp, wonders);
   const map = s.map;
@@ -617,24 +613,11 @@ function Lobby({
               </p>
             )}
             <div className="row wrap">
-              <label>
-                Points to win{' '}
-                {seaPick ? (
-                  <strong>set by the scenario</strong>
-                ) : (
-                  <select
-                    value={s.vpTarget + bonus}
-                    onChange={(e) => set({ vpTarget: Number(e.target.value) - bonus })}
-                  >
-                    {VP_TARGETS.map((v) => (
-                      <option key={v} value={v + bonus}>
-                        {v + bonus}
-                        {v === DEFAULT_VP_BASE ? ' (standard)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </label>
+              <TargetPicker
+                target={target}
+                stored={s.vpTarget}
+                onChange={(v) => set({ vpTarget: v })}
+              />
               <label>
                 Turn timer{' '}
                 <select
@@ -697,10 +680,10 @@ function Lobby({
                 .join(' + ') || 'none'}
             </li>
             <li>
-              Points to win:{' '}
-              {seaPick
-                ? `set by the scenario${gwp ? ' + 8' : ck ? ' + 3' : ''}`
-                : s.vpTarget + bonus}
+              Points to win: {chosenTarget(target, s.vpTarget)}
+              {chosenTarget(target, s.vpTarget) === target.standard
+                ? ''
+                : ` (the official rules play to ${target.standard})`}
             </li>
             <li>Turn timer: {timerLabel(s.turnTimer).toLowerCase()}</li>
             {s.turnTimer > 0 && s.timeBank > 0 && <li>Time bank: {bankLabel(s.timeBank)}</li>}

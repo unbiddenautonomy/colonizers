@@ -1815,6 +1815,21 @@ button.danger {
   margin-top: 10px;
   gap: 8px;
 }
+.target-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+.target-warn {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  font-size: 0.9rem;
+}
 
 /* Motion: cards flying between hexes, players and the bank (see ui/Flights.tsx). */
 .flights {

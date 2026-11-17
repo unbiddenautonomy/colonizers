@@ -196,6 +196,10 @@ export function mapKey(map: MapChoice): string {
 
 export interface RoomSettings {
   map: MapChoice;
+  /**
+   * Points to win, stored as the usual 10 plus the host's change from the game's own target:
+   * 10 plays to the game's standard target (18 for Greed, Wealth & Power, say), 12 to two more.
+   */
   vpTarget: number;
   /** Play with the Cities & Knights expansion. */
   citiesKnights: boolean;
@@ -237,7 +241,8 @@ export interface RoomSettings {
 export const TURN_TIMERS = [0, 60, 90, 120, 180, 300, 3600, 21600, 43200, 86400, 259200] as const;
 /** Seconds in each player's time bank. */
 export const TIME_BANKS = [0, 60, 120, 300, 600, 3600, 86400] as const;
-export const VP_TARGETS = [8, 9, 10, 11, 12, 13, 14, 15] as const;
+/** Stored targets a room accepts: up to 5 either side of the game's own (see winTarget.ts). */
+export const VP_TARGETS = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const;
 
 export const DEFAULT_SETTINGS: RoomSettings = {
   map: { kind: 'random', mode: 'classic' },
