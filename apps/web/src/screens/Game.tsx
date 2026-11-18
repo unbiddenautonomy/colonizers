@@ -748,8 +748,10 @@ export function Game({
       notifyHere('Colonizers: your turn', `It's your move in room ${online.code}.`);
   }, [g.log, seat, online]);
 
-  // The tab title shows when it's your move, for people in another tab.
-  const myMove = seat !== null && state.winner === null && library.waitingOn(state).includes(seat);
+  // The tab title shows when it's your move, for people in another tab. Only this
+  // seat's own moves count: online, the other hands are hidden, so the rules
+  // can't be asked what those players may do.
+  const myMove = legal.length > 0;
   useEffect(() => {
     if (!online) return;
     document.title = myMove ? '● Your turn · Colonizers' : 'Colonizers';
