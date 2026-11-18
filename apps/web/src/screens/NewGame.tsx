@@ -47,21 +47,12 @@ import {
   SEA_ICON,
   SpecialMapButtons,
 } from '../ui/OptionsPanel.tsx';
-import {
-  moduleList,
-  optionSettings,
-  VP_TARGETS,
-  type GameOptions,
-} from '../../../server/src/protocol.ts';
+import { moduleList, optionSettings, type GameOptions } from '../../../server/src/protocol.ts';
+import { chosenTarget, winTarget } from '../../../server/src/winTarget.ts';
+import { TargetPicker } from '../ui/TargetPicker.tsx';
 import { useAccount } from '../online/account.ts';
 import { loadCustomMaps } from '../game/customMaps.ts';
-import {
-  changedOptions,
-  DEFAULT_VP_BASE,
-  defaultOptionsFor,
-  hasRobber,
-  vpBonus,
-} from '../game/defaults.ts';
+import { changedOptions, DEFAULT_VP_BASE, defaultOptionsFor, hasRobber } from '../game/defaults.ts';
 
 const DEFAULT_NAMES = ['Alex', 'Blair', 'Casey', 'Devon', 'Emery', 'Finley', 'Gray', 'Harper'];
 
@@ -247,39 +238,20 @@ export function NewGame({
   const kingdoms = on.kingdoms;
   const landWater = on.landWater;
   const strategist = on.strategist;
-  const fanVp = church && witches ? 7 : church || witches ? 5 : 3;
-  const extraVp =
-    (civs ? 10 : gwp ? 8 : ck ? fanVp : 0) +
-    (princes ? 4 : 0) +
-    (soldiers && !princes ? 3 : 0) +
-    (kingdoms ? 2 : 0) +
-    // With Cities & Knights it plays to 14, one more than that expansion's 13.
-    (landWater ? (ck ? 1 : 2) : 0);
-  const fanName =
-    church && witches
-      ? 'Church and Witches'
-      : church
-        ? 'Church, Faith & Reformation'
-        : witches
-          ? 'Witches, Wizards & Dragons'
-          : 'Cities & Knights';
   const gameKey = `${effective.kind}:${effective.kind === 'random' ? effective.mode : effective.id}:${ck}:${gwp}:${wonders}:${civs}:${church}:${witches}:${princes}:${soldiers}:${investors}:${kingdoms}:${landWater}:${strategist}`;
   const vpTarget = vpPick.key === gameKey ? vpPick.base : DEFAULT_VP_BASE;
   const setVpTarget = (base: number) => setVpPick({ key: gameKey, base });
   const options = optPick.key === gameKey ? optPick.options : defaultOptionsFor();
   const setOptions = (o: GameOptions) => setOptPick({ key: gameKey, options: o });
-  const bonus = vpBonus(
-    ck,
-    specialId,
-    gwp,
-    civs,
-    church,
-    witches,
-    princes,
-    soldiers,
-    kingdoms,
-    landWater,
+  // The official target for this game, what we suggest, and the host's choice.
+  const target = winTarget(
+    effective.kind === 'scenario' || effective.kind === 'special'
+      ? { kind: effective.kind, id: effective.id }
+      : { kind: effective.kind },
+    count,
+    MODE_LIST.filter((m) => on[m]),
   );
+  const winAt = chosenTarget(target, vpTarget);
   const isTreasures = SPECIAL_MAPS.find((x) => x.id === specialId)?.group === 'treasures';
   const special = useMemo(
     () => (specialId ? generateSpecialBoard({ seed, players: count, map: specialId }) : null),
@@ -349,17 +321,11 @@ export function NewGame({
         actions: [],
         bots: botsFor(),
       });
-    if (sea)
-      return make(['seafarers'], sea.map, {
-        ...sea.settings,
-        vpTarget: Number(sea.settings.vpTarget) + extraVp,
-      });
-    if (special)
-      return make(special.modules, special.map, {
-        ...special.settings,
-        vpTarget: vpTarget + extraVp,
-      });
-    make([], board.map, { vpTarget: vpTarget + extraVp });
+    // The scenario modules add their share of the target in play.
+    const own = winAt - target.fromModules;
+    if (sea) return make(['seafarers'], sea.map, { ...sea.settings, vpTarget: own });
+    if (special) return make(special.modules, special.map, { ...special.settings, vpTarget: own });
+    make([], board.map, { vpTarget: own });
   };
 
   const r = board.report;
@@ -377,7 +343,6 @@ export function NewGame({
     landWater: setLandWater,
     strategist: setStrategist,
   };
-  const winAt = sea ? Number(sea.settings.vpTarget) + extraVp : vpTarget + bonus;
   const warnList = warn(winAt);
   const mapName =
     effective.kind === 'random'
@@ -628,8 +593,7 @@ export function NewGame({
             {special ? null : sea ? (
               <p className="muted">
                 {sea.info.islands.length} islands, {sea.info.gold.length} gold fields
-                {sea.map.hexes.some((h) => h.hidden) ? ', fog' : ''}. First to{' '}
-                {Number(sea.settings.vpTarget) + extraVp} points wins.
+                {sea.map.hexes.some((h) => h.hidden) ? ', fog' : ''}. First to {winAt} points wins.
               </p>
             ) : !admin ? null : (
               <div className="fairness" title="Shown to admins only">
@@ -826,47 +790,7 @@ export function NewGame({
           <section className="card setup-step" hidden={step !== 3}>
             <h2>Winning and house rules</h2>
             <h3 className="subhead">Winning</h3>
-            {sea ? (
-              <p>
-                First to <strong>{Number(sea.settings.vpTarget) + extraVp}</strong> points, set by
-                the scenario
-                {gwp
-                  ? ' (+8 for Greed, Wealth & Power)'
-                  : ck
-                    ? ` (+${extraVp} for ${fanName})`
-                    : ''}
-                .
-              </p>
-            ) : (
-              <label>
-                Points to win{' '}
-                <select
-                  value={vpTarget + bonus}
-                  onChange={(e) => setVpTarget(Number(e.target.value) - bonus)}
-                >
-                  {VP_TARGETS.map((v) => (
-                    <option key={v} value={v + bonus}>
-                      {v + bonus}
-                      {v === DEFAULT_VP_BASE ? ' (standard)' : ''}
-                    </option>
-                  ))}
-                </select>
-                {bonus !== 0 && (
-                  <small className="muted">
-                    {' '}
-                    {[
-                      ck &&
-                        `+${extraVp} for ${civs ? 'Civilisations' : gwp ? 'Greed, Wealth & Power' : fanName}`,
-                      bonus - extraVp > 0 && `+${bonus - extraVp} for the scenario`,
-                      bonus - extraVp < 0 && `${bonus - extraVp} for the scenario`,
-                    ]
-                      .filter(Boolean)
-                      .join(', ')}{' '}
-                    are included
-                  </small>
-                )}
-              </label>
-            )}
+            <TargetPicker target={target} stored={vpTarget} onChange={setVpTarget} />
             <OptionsPanel
               options={options}
               players={count}
@@ -882,7 +806,7 @@ export function NewGame({
                 <span className="muted">
                   Changed from the standard rules:{' '}
                   {[
-                    vpTarget !== DEFAULT_VP_BASE && !sea && `${vpTarget + bonus} points to win`,
+                    vpTarget !== DEFAULT_VP_BASE && `${winAt} points to win`,
                     ...describeOptions(options, count, gwp, wonders),
                   ]
                     .filter(Boolean)

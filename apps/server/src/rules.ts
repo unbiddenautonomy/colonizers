@@ -12,16 +12,11 @@ import { worldWondersModule } from '@colonizers/module-world-wonders';
 import { civilisationsModule } from '@colonizers/module-civilisations';
 import { churchModule } from '@colonizers/module-church';
 import { witchesModule } from '@colonizers/module-witches';
-import { princesModule, PRINCES_EXTRA_VP } from '@colonizers/module-princes-explorers';
-import { kingdomsModule, KINGDOMS_EXTRA_VP } from '@colonizers/module-kingdoms-warriors';
-import {
-  landWaterCkModule,
-  landWaterModule,
-  LAND_WATER_CK_EXTRA_VP,
-  LAND_WATER_EXTRA_VP,
-} from '@colonizers/module-land-water';
+import { princesModule } from '@colonizers/module-princes-explorers';
+import { kingdomsModule } from '@colonizers/module-kingdoms-warriors';
+import { landWaterCkModule, landWaterModule } from '@colonizers/module-land-water';
 import { strategistModule } from '@colonizers/module-strategist';
-import { soldiersModule, SOLDIERS_EXTRA_VP } from '@colonizers/module-soldiers-armies';
+import { soldiersModule } from '@colonizers/module-soldiers-armies';
 import { investorsModule } from '@colonizers/module-investors-speculators';
 import {
   generateBoard,
@@ -33,6 +28,16 @@ import {
 } from '@colonizers/maps';
 import { MODES, resolve, type BoardInfo, type ModeId } from '@colonizers/modes';
 import { moduleList, optionSettings, type RoomSettings } from './protocol.ts';
+import { chosenTarget, winTarget } from './winTarget.ts';
+
+export {
+  CHURCH_EXTRA_VP,
+  CHURCH_WITCHES_EXTRA_VP,
+  CIV_EXTRA_VP,
+  CK_EXTRA_VP,
+  fanExtraVp,
+  GWP_EXTRA_VP,
+} from './winTarget.ts';
 
 /** Every rules module the server knows. Expansions are added here as they ship. */
 export const library = new ModuleLibrary([
@@ -57,23 +62,6 @@ export const library = new ModuleLibrary([
   soldiersModule,
   investorsModule,
 ]);
-
-/** Cities & Knights adds metropolises and defender points, so games go 3 points longer. */
-export const CK_EXTRA_VP = 3;
-/** Greed, Wealth & Power plays to 18 with the usual 10. */
-export const GWP_EXTRA_VP = 8;
-/** Civilisations plays to 20 with the usual 10. */
-export const CIV_EXTRA_VP = 10;
-/** Church, Faith & Reformation plays to 15 with the usual 10, and so does Witches, Wizards & Dragons. */
-export const CHURCH_EXTRA_VP = 5;
-/** Both together play to 17. */
-export const CHURCH_WITCHES_EXTRA_VP = 7;
-
-/** Extra points for the Church and Witches fan expansions (Cities & Knights' 3 when neither). */
-export function fanExtraVp(church: boolean, witches: boolean): number {
-  if (church && witches) return CHURCH_WITCHES_EXTRA_VP;
-  return church || witches ? CHURCH_EXTRA_VP : CK_EXTRA_VP;
-}
 
 /** What the shared mode rules need to know about the room's map. */
 export function boardInfo(map: RoomSettings['map']): BoardInfo {
@@ -113,14 +101,10 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const kingdoms = on.has('kingdoms');
   const landWater = on.has('landWater');
   const strategist = on.has('strategist');
-  const extraVp =
-    (civs ? CIV_EXTRA_VP : gwp ? GWP_EXTRA_VP : ck ? fanExtraVp(church, witches) : 0) +
-    (princes ? PRINCES_EXTRA_VP : 0) +
-    // With Princes & Explorers, its target stands (14, or 17 with Cities & Knights).
-    (soldiers && !princes ? SOLDIERS_EXTRA_VP : 0) +
-    (kingdoms ? KINGDOMS_EXTRA_VP : 0) +
-    // With Cities & Knights it plays to 14, one more than that expansion's 13.
-    (landWater ? (ck ? LAND_WATER_CK_EXTRA_VP : LAND_WATER_EXTRA_VP) : 0);
+  // The game's own target, moved by the host's choice. The scenario modules add their share in
+  // play, so the settings carry the rest.
+  const target = winTarget(settings.map, n, on);
+  const vpTarget = chosenTarget(target, settings.vpTarget) - target.fromModules;
   const options = optionSettings(settings.options, n);
   // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
   if (princes) {
@@ -160,20 +144,16 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   });
   if (settings.map.kind === 'scenario' && seaScenarioById(settings.map.id)) {
     const sea = generateSeaBoard({ seed: `${seed}-map`, players: n, scenario: settings.map.id });
-    // The scenario sets its own target; the host's choice only applies to other maps.
-    return config(['seafarers'], sea.map, {
-      ...sea.settings,
-      vpTarget: Number(sea.settings.vpTarget) + extraVp,
-    });
+    return config(['seafarers'], sea.map, { ...sea.settings, vpTarget });
   }
   const special = settings.map.kind === 'special' ? specialMapById(settings.map.id) : undefined;
   if (special && n >= special.players.min && n <= special.players.max) {
     const b = generateSpecialBoard({ seed: `${seed}-map`, players: n, map: special.id });
-    return config(b.modules, b.map, { ...b.settings, vpTarget: settings.vpTarget + extraVp });
+    return config(b.modules, b.map, { ...b.settings, vpTarget });
   }
   const custom = settings.map.kind === 'custom' ? settings.map.map : undefined;
   if (custom && n >= custom.players.min && n <= custom.players.max)
-    return config([], custom, { vpTarget: settings.vpTarget + extraVp });
+    return config([], custom, { vpTarget });
   const preset =
     settings.map.kind === 'preset'
       ? PRESETS.find(
@@ -186,7 +166,7 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
       : undefined;
   const mode = settings.map.kind === 'random' ? settings.map.mode : 'classic';
   const map = preset ?? generateBoard({ seed: `${seed}-map`, players: n, mode }).map;
-  return config([], map, { vpTarget: settings.vpTarget + extraVp });
+  return config([], map, { vpTarget });
 }
 
 /** Seats the turn timer is waiting on. */

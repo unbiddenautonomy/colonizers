@@ -194,6 +194,29 @@ describe('Bots', () => {
     expect(r.winner).not.toBeNull();
   }, 240_000);
 
+  it('plays its knights instead of hoarding them', () => {
+    let t = game('k1', 4, 'base');
+    const rand = rng(5);
+    const mem = [newMemory(), newMemory(), newMemory(), newMemory()];
+    // Through the setup and into the first main phase.
+    while (t.phase.id !== 'main') {
+      const seat = lib.waitingOn(t)[0]!;
+      t = lib.apply(t, chooseAction(lib, t, seat, medium, mem[seat]!, { rand })!).state;
+    }
+    const seat = t.turn.player;
+    t.players[seat]!.held.dev = [{ card: 'knight', acquiredTurn: -1 }];
+    const turn = t.turn.number;
+    const played: string[] = [];
+    while (t.turn.number === turn && t.winner === null) {
+      const who = lib.waitingOn(t)[0]!;
+      const a = chooseAction(lib, t, who, medium, mem[who]!, { rand });
+      if (!a) break;
+      if (a.type === 'playDevCard') played.push(String(a.card));
+      t = lib.apply(t, a).state;
+    }
+    expect(played).toContain('knight');
+  }, 60_000);
+
   it('only sees what its seat may see', () => {
     // The same visible position gives the same move whatever is hidden.
     const s = game('h1', 4, 'base');
