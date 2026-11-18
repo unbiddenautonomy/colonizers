@@ -47,7 +47,7 @@ Names must match exactly.
 
 ## 5. Deploy
 
-Either merge any pull request into `main`, or open the **Actions** tab → **CI** → **Run workflow** on `main`.
+Either merge a pull request that changes app or package code into `main`, or open the **Actions** tab → **CI** → **Run workflow** on `main` with **Deploy** ticked.
 
 When the run finishes, the **Deploy to Cloudflare** job shows the live address. Open it on two devices and press **Roll dice**: both should see the roll. Add `?room=anything` to the address to try a separate room.
 

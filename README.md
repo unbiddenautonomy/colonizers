@@ -33,11 +33,11 @@ Expansion modules, maps, bots, rulebook pages and themes get their own packages 
 
 Needs Node 22 and pnpm (`corepack enable`).
 
-| Command        | What it does                                                 |
-| -------------- | ------------------------------------------------------------ |
-| `pnpm install` | Install everything                                           |
-| `pnpm dev`     | Web app with live reload plus the local game server          |
-| `pnpm check`   | Formatting, lint, typecheck, tests and build: the same as CI |
-| `pnpm test`    | All tests (server tests run inside the real Workers runtime) |
+| Command        | What it does                                                                                                          |
+| -------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install` | Install everything                                                                                                    |
+| `pnpm dev`     | Web app with live reload plus the local game server                                                                   |
+| `pnpm check`   | Formatting, lint, typecheck, tests, build and Worker bundle check: the same as CI. Run it before every push and merge |
+| `pnpm test`    | All tests (server tests run inside the real Workers runtime)                                                          |
 
 Every push to `main` deploys to Cloudflare once the secrets are set up. See [docs/DEPLOY.md](docs/DEPLOY.md).
