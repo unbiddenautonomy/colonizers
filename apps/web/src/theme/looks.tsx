@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import { artFor } from './boards/art.ts';
 import { ISLAND_COAST, islandFrame } from './frames.ts';
 import { setTheme, THEMES } from './themes.tsx';
 import { prefPicked } from './prefs.ts';
@@ -622,7 +623,7 @@ const strawHat: Look = {
     bad: '#b3121f',
     heading: "'Bangers', 'Lilita One', system-ui, sans-serif",
     body: "'Nunito', system-ui, sans-serif",
-    shadow: '5px 5px 0 #141414',
+    shadow: '0 8px 22px rgba(20, 20, 20, 0.14)',
     ink: '#141414',
     pop: '#f4c430',
     motif: motif(8, 8, "<circle cx='4' cy='4' r='1.1' fill='#141414' fill-opacity='0.07'/>"),
@@ -690,14 +691,9 @@ const whitebeard: Look = {
     bad: '#a82c24',
     heading: "'Rye', Georgia, serif",
     body: "'Bitter', Georgia, serif",
-    shadow: '4px 4px 0 #1a1414',
+    shadow: '0 8px 22px rgba(26, 20, 20, 0.16)',
     ink: '#1a1414',
     pop: '#e8b63a',
-    motif: motif(
-      160,
-      160,
-      "<g fill='none' stroke='#1a1414' stroke-opacity='0.08' stroke-width='1.4' stroke-linejoin='round'><path d='M40 28l3.5 8.5 9 .7-6.9 5.8 2.2 8.8L40 47l-7.8 4.8 2.2-8.8-6.9-5.8 9-.7z'/><path d='M120 108l3.5 8.5 9 .7-6.9 5.8 2.2 8.8-7.8-4.8-7.8 4.8 2.2-8.8-6.9-5.8 9-.7z'/></g>",
-    ),
   },
 };
 
@@ -726,14 +722,9 @@ const bigMom: Look = {
     bad: '#b0174f',
     heading: "'Chewy', 'Fredoka', system-ui, sans-serif",
     body: "'Fredoka', system-ui, sans-serif",
-    shadow: '0 6px 0 #e9a7c0',
+    shadow: '0 8px 22px rgba(74, 42, 31, 0.12)',
     ink: '#4a2a1f',
     pop: '#7fd6bd',
-    motif: motif(
-      120,
-      120,
-      "<g fill-opacity='0.5'><rect x='14' y='20' width='9' height='3' rx='1.5' fill='#f2559a' transform='rotate(30 18 21)'/><rect x='70' y='12' width='9' height='3' rx='1.5' fill='#5cc9a7' transform='rotate(-40 74 13)'/><rect x='96' y='64' width='9' height='3' rx='1.5' fill='#ffc83d' transform='rotate(70 100 65)'/><rect x='40' y='80' width='9' height='3' rx='1.5' fill='#5aa7f0' transform='rotate(-15 44 81)'/><rect x='18' y='104' width='9' height='3' rx='1.5' fill='#ffc83d' transform='rotate(50 22 105)'/><rect x='80' y='100' width='9' height='3' rx='1.5' fill='#f2559a' transform='rotate(-60 84 101)'/></g>",
-    ),
   },
 };
 
@@ -954,6 +945,10 @@ export function LookStyles() {
     set('frame-picked', fr?.picked ?? 'none');
     set('frame-blocked', fr?.blocked ?? 'none');
     set('frame-outset', `${fr?.outset ?? 0}px`);
+    const backdrop = artFor(look.family).backdrop;
+    set('backdrop', backdrop ? `url("${backdrop}")` : 'none');
+    if (backdrop) root.dataset.backdrop = '';
+    else delete root.dataset.backdrop;
     root.dataset.look = look.family;
     root.dataset.lookId = look.id;
   }, [look]);

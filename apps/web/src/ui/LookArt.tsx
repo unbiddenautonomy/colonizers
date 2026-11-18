@@ -1,18 +1,19 @@
+import { artFor } from '../theme/boards/art.ts';
 import { useLook } from '../theme/looks.tsx';
 import { ChartArt, MasqueradeArt, SunriseArt } from './LookArtTables.tsx';
 import { DecoArt, IslesArt, WonderArt } from './LookArtMore.tsx';
-import {
-  BigMomArt,
-  HeartArt,
-  NavyArt,
-  StrawHatArt,
-  WanoArt,
-  WhitebeardArt,
-} from './LookArtGrandLine.tsx';
 
 /** Header art for the looks that have it, drawn in the look's own colours. */
 export function LookArt() {
   const { look } = useLook();
+  // A painted header, where one has been dropped in, wins over the drawing.
+  const painting = artFor(look.family).header;
+  if (painting)
+    return (
+      <div className="look-art look-art-painting">
+        <img src={painting} alt="" />
+      </div>
+    );
   if (look.family === 'pop') return <PopArt />;
   if (look.family === 'deco') return <DecoArt />;
   if (look.family === 'wonderland') return <WonderArt />;
@@ -20,12 +21,6 @@ export function LookArt() {
   if (look.family === 'sunrise') return <SunriseArt />;
   if (look.family === 'masquerade') return <MasqueradeArt />;
   if (look.family === 'chart') return <ChartArt />;
-  if (look.family === 'strawhat') return <StrawHatArt />;
-  if (look.family === 'heart') return <HeartArt />;
-  if (look.family === 'whitebeard') return <WhitebeardArt />;
-  if (look.family === 'bigmom') return <BigMomArt />;
-  if (look.family === 'wano') return <WanoArt />;
-  if (look.family === 'navy') return <NavyArt />;
   return null;
 }
 

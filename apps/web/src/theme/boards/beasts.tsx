@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
 import { resourceIcon } from './icons.tsx';
 import { DECO_ICONS } from './iconSets.ts';
+import { artFor } from './art.ts';
 import { BASE, H, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
@@ -220,6 +221,7 @@ function beastsSkin(id: string, name: string, k: Ink): Theme {
     seaEdge: k.ink,
     art: art(k),
     seaPattern: sea(k),
+    paintings: artFor('wano'),
     rest: {
       token: k.paper,
       tokenText: k.ink,

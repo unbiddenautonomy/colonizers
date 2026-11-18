@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
 import { resourceIcon } from './icons.tsx';
 import { WONDER_ICONS } from './iconSets.ts';
+import { artFor } from './art.ts';
 import { BASE, CX, H, r1, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
@@ -308,6 +309,7 @@ function bigMomSkin(id: string, name: string, k: Ink): Theme {
     seaEdge: k.ink,
     art: art(k),
     seaPattern: sea(k),
+    paintings: artFor('bigmom'),
     rest: {
       token: k.icing,
       tokenText: k.ink,

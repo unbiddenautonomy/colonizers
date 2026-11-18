@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
 import { ICONS, resourceIcon } from './icons.tsx';
+import { artFor } from './art.ts';
 import { BASE, H, r1, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
@@ -221,6 +222,7 @@ function strawHatSkin(id: string, name: string, k: Ink): Theme {
     seaEdge: k.ink,
     art: art(k),
     seaPattern: sea(k),
+    paintings: artFor('strawhat'),
     rest: {
       token: k.strawLight,
       tokenText: k.ink,

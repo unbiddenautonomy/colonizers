@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
 import { ICONS, resourceIcon } from './icons.tsx';
+import { artFor } from './art.ts';
 import { BASE, CX, CY, H, poly, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
@@ -234,6 +235,7 @@ function navySkin(id: string, name: string, k: Ink): Theme {
     seaEdge: k.ink,
     art: art(k),
     seaPattern: sea(k),
+    paintings: artFor('navy'),
     rest: {
       token: k.white,
       tokenText: k.ink,
