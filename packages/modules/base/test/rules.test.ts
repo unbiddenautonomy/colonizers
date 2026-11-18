@@ -19,6 +19,7 @@ import {
   lib,
   newGame,
   quickSetup,
+  rollTo,
 } from './helpers.ts';
 
 /** A land corner touching three land hexes, far from the given buildings. */
@@ -118,19 +119,6 @@ describe('setup', () => {
 });
 
 describe('turns, production and the robber', () => {
-  function rollTo(state: ReturnType<typeof newGame>, total: number) {
-    // Find an RNG position that rolls the total, by trying seeds on a copy.
-    for (let i = 0; i < 500; i++) {
-      const s = edit(state, (ctx) => {
-        for (let k = 0; k < i; k++) ctx.rng.nextUint32();
-      });
-      const { state: next, events } = lib.apply(s, { type: 'roll', player: s.turn.player });
-      const rolled = events.find((e) => e.type === 'rolled') as { total: number } | undefined;
-      if (rolled?.total === total) return { state: next, events };
-    }
-    throw new Error(`Could not roll ${total}`);
-  }
-
   it('pays 1 per settlement and 2 per city, and nothing under the robber', () => {
     let s = quickSetup(newGame('prod'));
     const ctx = ctxOf(s);

@@ -40,6 +40,20 @@ export function act(state: GameState, action: Action): GameState {
   return lib.apply(state, action).state;
 }
 
+/** Rolls the dice for the player to move so that they show the given total. */
+export function rollTo(state: GameState, total: number) {
+  // Find an RNG position that rolls the total, by trying seeds on a copy.
+  for (let i = 0; i < 500; i++) {
+    const s = edit(state, (ctx) => {
+      for (let k = 0; k < i; k++) ctx.rng.nextUint32();
+    });
+    const { state: next, events } = lib.apply(s, { type: 'roll', player: s.turn.player });
+    const rolled = events.find((e) => e.type === 'rolled') as { total: number } | undefined;
+    if (rolled?.total === total) return { state: next, events };
+  }
+  throw new Error(`Could not roll ${total}`);
+}
+
 /** Plays the setup with the first legal spots, then returns the state at the first roll. */
 export function quickSetup(state: GameState): GameState {
   let s = state;

@@ -189,11 +189,14 @@ const discard = action<{ cards: Record<string, number> }>({
     const hand = { ...ctx.player(player).hand };
     const cards: Record<string, number> = {};
     for (let i = 0; i < owed; i++) {
-      const [c] = Object.entries(hand)
+      const top = Object.entries(hand)
         .filter(([k, n]) => n > 0 && ctx.registry.cardTypes[k]?.countsForHandLimit)
-        .sort((x, y) => y[1] - x[1])[0] as [string, number];
-      hand[c] = (hand[c] ?? 0) - 1;
-      cards[c] = (cards[c] ?? 0) + 1;
+        .sort((x, y) => y[1] - x[1])[0];
+      // A browser sees another player's hand only as a count of hidden cards,
+      // so there is nothing to suggest for them.
+      if (!top) return [];
+      hand[top[0]] = top[1] - 1;
+      cards[top[0]] = (cards[top[0]] ?? 0) + 1;
     }
     return [{ type: 'discard', player, cards }];
   },

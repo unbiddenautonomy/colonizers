@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { stateFromView, type Action, type GameState } from '@colonizers/engine';
-import { lib, newGame } from './helpers.ts';
+import { giveCards, lib, newGame, quickSetup, rollTo } from './helpers.ts';
 import { pickAction } from './simulate.ts';
 
 const key = (a: Action) => JSON.stringify(a, Object.keys(a).sort());
@@ -29,12 +29,43 @@ describe('legal moves from a player view', () => {
         const mine = comparable(lib.legalActions(fromView, seat));
         const real = comparable(lib.legalActions(s, seat));
         expect(mine, `step ${i} seat ${seat} phase ${s.phase.id}`).toEqual(real);
+        // Asking about the seats whose hands are hidden must never throw: an
+        // error there leaves an online player with a blank page.
+        expect(
+          () => lib.waitingOn(fromView),
+          `step ${i} seat ${seat} phase ${s.phase.id}`,
+        ).not.toThrow();
       }
       const waiting = lib.waitingOn(s);
       const seat = waiting[Math.floor(rand() * waiting.length)]!;
       s = lib.apply(s, pickAction(lib.legalActions(s, seat), rand)).state;
     }
   }, 120_000);
+
+  it('copes with other players owing a discard after a 7', () => {
+    let s = quickSetup(newGame('view-discard', 4));
+    s = giveCards(s, 1, { brick: 4, lumber: 5 });
+    s = giveCards(s, 2, { wool: 6, ore: 4 });
+    s = rollTo(s, 7).state;
+    const owed = (s.phase as unknown as { owed: Record<number, number> }).owed;
+    expect(s.phase.id).toBe('discard');
+    expect(Object.keys(owed).map(Number).sort()).toEqual([1, 2]);
+
+    // Every player's browser, and a watcher's, sees the other hands only as counts.
+    for (const viewer of [0, 1, 2, 3, null]) {
+      const fromView = stateFromView(lib.view(s, viewer));
+      for (const seat of [0, 1, 2, 3]) {
+        const moves = lib.legalActions(fromView, seat);
+        if (seat === viewer)
+          expect(comparable(moves)).toEqual(comparable(lib.legalActions(s, seat)));
+      }
+      // The viewer is asked to act exactly when they owe cards themselves.
+      const mustDiscard = viewer !== null && !!owed[viewer];
+      expect(lib.waitingOn(fromView).includes(viewer as number), `viewer ${viewer}`).toBe(
+        mustDiscard,
+      );
+    }
+  });
 
   it('keeps hand and card counts for other players', () => {
     const s = newGame('counts', 3);
