@@ -333,6 +333,8 @@ describe('Progress cards', () => {
     const size = Object.values(s.players[1]!.hand).reduce((a, b) => a + b, 0);
     s = act(s, { type: 'playProgress', player: 0, card: 'saboteur' });
     expect(s.phase.id).toBe('discard');
+    // Not a 7: the discard box names the card instead.
+    expect(s.phase.why).toBe('saboteur');
     expect((s.phase.owed as Record<number, number>)[1]).toBe(Math.floor(size / 2));
     while (s.phase.id === 'discard') s = act(s, lib.legalActions(s, lib.waitingOn(s)[0]!)[0]!);
     expect(s.phase.id).toBe('main');

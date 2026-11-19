@@ -1,4 +1,5 @@
 import { freshSince, logMark, type LogMark } from '../game/freshLog.ts';
+import { discardReason } from '../game/describe.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Ctx,
@@ -45,6 +46,7 @@ import {
   total,
 } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
+import { Confirm } from '../ui/Confirm.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { GameLog } from '../ui/GameLog.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
@@ -669,6 +671,8 @@ export function Game({
   const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
   /** The game-over box can be put away, to look at the final board. */
   const [overClosed, setOverClosed] = useState(false);
+  /** Questions asked in the game's own dialog: leaving, and ending the game. */
+  const [asking, setAsking] = useState<'leave' | 'end' | null>(null);
   // Duel rules: which neutral builder gets the free piece.
   const [neutral, setNeutral] = useState(0);
   const [privateHands, setPrivateHands] = useState(false);
@@ -870,15 +874,7 @@ export function Game({
           <button
             type="button"
             className="ghost"
-            onClick={() => {
-              if (
-                online ||
-                window.confirm(
-                  'Leave this game? It stays saved on this device until you start a new one.',
-                )
-              )
-                onQuit();
-            }}
+            onClick={() => (online ? onQuit() : setAsking('leave'))}
           >
             {online ? 'Home' : 'Menu'}
           </button>
@@ -1650,19 +1646,43 @@ export function Game({
         {/* The host's way out of a game that has gone wrong or been left. */}
         {online?.isHost && state.winner === null && (
           <p className="room-tools">
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => {
-                if (window.confirm('End this game for everyone and go back to the lobby?'))
-                  online.endGame();
-              }}
-            >
+            <button type="button" className="ghost small" onClick={() => setAsking('end')}>
               End game, back to the lobby
             </button>
           </p>
         )}
       </section>
+
+      {asking === 'leave' && (
+        <Confirm
+          title="Leave this game?"
+          confirmLabel="Leave"
+          cancelLabel="Keep playing"
+          onConfirm={() => {
+            setAsking(null);
+            onQuit();
+          }}
+          onCancel={() => setAsking(null)}
+        >
+          The game stays saved on this device until you start a new one.
+        </Confirm>
+      )}
+
+      {asking === 'end' && (
+        <Confirm
+          title="End this game?"
+          confirmLabel="End game"
+          cancelLabel="Keep playing"
+          danger
+          onConfirm={() => {
+            setAsking(null);
+            online?.endGame();
+          }}
+          onCancel={() => setAsking(null)}
+        >
+          The game ends for everyone and the room goes back to the lobby.
+        </Confirm>
+      )}
 
       {owedMe > 0 && actor !== null && (
         <DiscardDialog
@@ -1671,6 +1691,7 @@ export function Game({
           hand={state.players[actor]!.hand}
           owed={(state.phase.owed as Record<number, number>)[actor]!}
           cards={cardKinds}
+          why={state.phase.why}
           onDiscard={(cards) => act({ type: 'discard', player: actor, cards })}
           plays={legal.filter((a) => a.type === 'playProgress')}
           onPlay={act}
@@ -1956,6 +1977,7 @@ function DiscardDialog({
   hand,
   owed,
   cards,
+  why,
   onDiscard,
   plays = [],
   onPlay,
@@ -1964,6 +1986,8 @@ function DiscardDialog({
   hand: Record<string, number>;
   owed: number;
   cards: readonly string[];
+  /** What the engine says caused this: a rolled 7, or the card played. */
+  why: unknown;
   onDiscard: (c: Record<string, number>) => void;
   /** Progress cards for this moment (Small Dragon). */
   plays?: Action[];
@@ -1972,7 +1996,9 @@ function DiscardDialog({
   const [pick, setPick] = useState<Record<string, number>>({});
   return (
     <Modal title={`${name}: discard ${owed}`}>
-      <p>You hold too many cards (or a Saboteur struck). Choose {owed} to give back.</p>
+      <p>
+        {discardReason(why)} Choose {owed} to give back.
+      </p>
       <CardPicker
         value={pick}
         onChange={setPick}

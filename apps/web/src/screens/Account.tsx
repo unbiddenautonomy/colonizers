@@ -36,6 +36,7 @@ import {
   type MyStats,
 } from '../online/account.ts';
 import { Modal } from '../ui/Modal.tsx';
+import { Confirm } from '../ui/Confirm.tsx';
 import { LOOKS } from '../theme/looks.tsx';
 import { NotifyButton } from '../ui/NotifyButton.tsx';
 
@@ -1025,6 +1026,7 @@ export function CrewPage({
 }) {
   const { user, loaded } = useAccount();
   const [crew, setCrew] = useState<CrewDetail | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const task = useTask();
 
@@ -1156,16 +1158,25 @@ export function CrewPage({
             )}
           </section>
 
-          <button
-            type="button"
-            className="ghost danger"
-            onClick={async () => {
-              if (!window.confirm(`Leave ${crew.name}?`)) return;
-              if (await task.run(() => leaveCrew(crew.id))) onProfile();
-            }}
-          >
+          <button type="button" className="ghost danger" onClick={() => setLeaving(true)}>
             Leave crew
           </button>
+
+          {leaving && (
+            <Confirm
+              title={`Leave ${crew.name}?`}
+              confirmLabel="Leave crew"
+              cancelLabel="Stay"
+              danger
+              onConfirm={async () => {
+                setLeaving(false);
+                if (await task.run(() => leaveCrew(crew.id))) onProfile();
+              }}
+              onCancel={() => setLeaving(false)}
+            >
+              Your games stay in your own history. You need a new invite to come back.
+            </Confirm>
+          )}
         </>
       )}
     </main>

@@ -153,7 +153,7 @@ export function startSeven(ctx: Ctx): void {
     if (size > limit) owed[p.seat] = Math.floor(size / 2);
   }
   if (Object.keys(owed).length) {
-    ctx.setPhase({ id: 'discard', owed, returnTo: 'main' });
+    ctx.setPhase({ id: 'discard', owed, returnTo: 'main', why: 'seven' });
   } else {
     ctx.setPhase({ id: 'moveRobber', returnTo: 'main' });
   }

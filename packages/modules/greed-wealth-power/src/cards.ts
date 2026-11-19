@@ -648,6 +648,7 @@ export const CARDS: Record<string, CardDef> = {
         owed: almsOwed(ctx, a.player),
         returnTo: 'main',
         skipRobber: true,
+        why: 'almsgiving',
       });
     },
   },

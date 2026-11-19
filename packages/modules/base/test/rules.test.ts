@@ -174,7 +174,8 @@ describe('turns, production and the robber', () => {
     s = giveCards(s, 1, { brick: 4, lumber: 5 });
     const size1 = ctxOf(s).handSize(1);
     let { state } = rollTo(s, 7);
-    expect(state.phase).toMatchObject({ id: 'discard' });
+    // The discard box tells the player what caused it.
+    expect(state.phase).toMatchObject({ id: 'discard', why: 'seven' });
     const owed = (state.phase as unknown as { owed: Record<number, number> }).owed;
     expect(owed[1]).toBe(Math.floor(size1 / 2));
     expect(lib.check(state, { type: 'moveRobber', player: 0, hex: landHexes(state)[0]! })).toMatch(

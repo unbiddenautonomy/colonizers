@@ -416,7 +416,7 @@ function playEffect(ctx: Ctx, a: Action & Play): void {
         if (ctx.vp(s) >= mine && n > 0) owed[s] = n;
       }
       if (Object.keys(owed).length)
-        ctx.setPhase({ id: 'discard', owed, returnTo: 'main', skipRobber: true });
+        ctx.setPhase({ id: 'discard', owed, returnTo: 'main', skipRobber: true, why: 'saboteur' });
       return;
     }
     case 'spy': {

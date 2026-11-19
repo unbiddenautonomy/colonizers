@@ -849,6 +849,20 @@ select {
   margin: 2px 0 0;
 }
 
+/* The card glossary, one heading per expansion and deck. */
+.card-group h3 {
+  margin: 14px 0 6px;
+  font-size: 1rem;
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  padding: 2px 0;
+}
+
+.card-group h3 .muted {
+  font-weight: 400;
+}
+
 .pass-cover {
   position: fixed;
   inset: 0;
@@ -4392,4 +4406,13 @@ html[data-backdrop] .setup-page {
 .room-tools {
   margin: 12px 0 0;
   text-align: center;
+}
+
+/* Two answers to a question, the one that goes on to the right. */
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
 }
