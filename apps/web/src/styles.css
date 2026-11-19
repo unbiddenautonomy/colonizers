@@ -4364,3 +4364,9 @@ html[data-backdrop] .setup-page {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* The host's room tools at the foot of the panel: a quiet way out. */
+.room-tools {
+  margin: 12px 0 0;
+  text-align: center;
+}

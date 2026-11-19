@@ -51,6 +51,15 @@ interface Member {
   bot: BotConfig | null;
 }
 
+/**
+ * A bot that joined as a player of its own, rather than a person's seat that
+ * is being played by a bot while they are away. Only the second can be taken
+ * back by the person it belongs to.
+ */
+function isRealBot(m: Member): boolean {
+  return m.token.startsWith('bot-');
+}
+
 interface Attachment {
   memberId: string | null;
   /** Signed-in account, from the Worker. */
@@ -335,6 +344,32 @@ export class GameRoom extends DurableObject<Env> {
         if (!isHost) return deny('Only the host can set up the next game');
         if (this.status !== 'finished') return deny('The game is still going');
         return this.backToLobby();
+      case 'endGame': {
+        if (!isHost) return deny('Only the host can end the game');
+        if (this.status === 'lobby') return deny('The game has not started');
+        this.systemChat(`${member.name} ended the game. Everyone is back in the lobby.`);
+        return this.backToLobby();
+      }
+      case 'handSeat': {
+        if (!isHost) return deny('Only the host can hand a seat to a bot');
+        if (this.status !== 'playing') return deny('Seats are handed over during a game');
+        const target = this.members.get(msg.member);
+        if (!target || target.seat === null) return deny('That player has no seat');
+        if (target.bot) return deny('A bot already has that seat');
+        this.setBot(target, { level: msg.level, style: msg.style });
+        this.systemChat(`A bot is playing for ${target.name} until they come back.`);
+        this.broadcastRoom();
+        return this.scheduleBots(0);
+      }
+      case 'takeSeat': {
+        // Their own seat, so no host check: whoever holds this member's token
+        // is the player it belongs to.
+        if (member.seat === null) return deny('You have no seat in this game');
+        if (!member.bot || isRealBot(member)) return deny('Nobody is playing for you');
+        this.setBot(member, null);
+        this.systemChat(`${member.name} is back and has taken their seat.`);
+        return this.broadcastRoom();
+      }
     }
   }
 
@@ -471,6 +506,16 @@ export class GameRoom extends DurableObject<Env> {
     }
     void this.ctx.storage.deleteAlarm();
     this.sendWelcomeToAll();
+  }
+
+  /** Hands a seat to a bot while its player is away, or gives it back. */
+  private setBot(member: Member, bot: BotConfig | null): void {
+    member.bot = bot;
+    this.sql.exec(
+      'UPDATE members SET bot = ? WHERE id = ?',
+      bot ? JSON.stringify(bot) : null,
+      member.id,
+    );
   }
 
   private addBot(config: BotConfig): void {
@@ -855,8 +900,9 @@ export class GameRoom extends DurableObject<Env> {
       name: m.name,
       seat: m.seat,
       role: m.role,
-      online: !!m.bot || online.has(m.id),
+      online: isRealBot(m) || online.has(m.id),
       ...(m.bot ? { bot: m.bot } : {}),
+      ...(m.bot && !isRealBot(m) ? { away: true } : {}),
     }));
     return {
       code: this.getMeta('code') ?? '',

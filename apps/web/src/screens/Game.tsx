@@ -592,6 +592,12 @@ export interface OnlineExtras {
   sendChat: (text: string) => void;
   nudge: (seat: number) => void;
   rematch: () => void;
+  /** Host: stop the game and take everyone back to the lobby. */
+  endGame: () => void;
+  /** Host: let a bot play for someone who is away. */
+  handSeat: (member: string) => void;
+  /** Take your own seat back from the bot playing it. */
+  takeSeat: () => void;
 }
 
 export function LocalGame({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }) {
@@ -909,7 +915,14 @@ export function Game({
                   <small className="muted">you</small>
                 )}
                 {(member?.bot ?? bots[p.seat]) && (
-                  <span title={`${(member?.bot ?? bots[p.seat])!.level} bot`} aria-label="Bot">
+                  <span
+                    title={
+                      member?.away
+                        ? `A bot is playing while ${p.name} is away`
+                        : `${(member?.bot ?? bots[p.seat])!.level} bot`
+                    }
+                    aria-label={member?.away ? `Bot playing for ${p.name}` : 'Bot'}
+                  >
                     🤖
                   </span>
                 )}
@@ -961,6 +974,31 @@ export function Game({
                     title={`Remind ${p.name} it's their move`}
                   >
                     👋 Nudge
+                  </button>
+                )}
+                {/* Someone who has gone away need not hold the table up. */}
+                {online?.isHost &&
+                  member &&
+                  !member.bot &&
+                  member.seat !== seat &&
+                  (!member.online || waitingOnThem) && (
+                    <button
+                      type="button"
+                      className="small ghost"
+                      onClick={() => online.handSeat(member.id)}
+                      title={`Let a bot play for ${p.name} until they come back`}
+                    >
+                      🤖 Bot plays
+                    </button>
+                  )}
+                {member?.away && member.seat === seat && (
+                  <button
+                    type="button"
+                    className="small primary"
+                    onClick={() => online?.takeSeat()}
+                    title="Take your seat back from the bot"
+                  >
+                    Take my seat back
                   </button>
                 )}
               </div>
@@ -1598,6 +1636,21 @@ export function Game({
             members={online.members}
             onSend={online.sendChat}
           />
+        )}
+        {/* The host's way out of a game that has gone wrong or been left. */}
+        {online?.isHost && state.winner === null && (
+          <p className="room-tools">
+            <button
+              type="button"
+              className="ghost small"
+              onClick={() => {
+                if (window.confirm('End this game for everyone and go back to the lobby?'))
+                  online.endGame();
+              }}
+            >
+              End game, back to the lobby
+            </button>
+          </p>
         )}
       </section>
 

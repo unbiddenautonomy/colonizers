@@ -426,6 +426,69 @@ describe('Online game', () => {
     [again, b].forEach((c) => c.close());
   });
 
+  it('lets the host end a game and take everyone back to the lobby', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const b = await join(code, 'B');
+    await startGame([a, b]);
+    expect(a.room!.status).toBe('playing');
+
+    // Only the host.
+    let m = b.mark;
+    b.send({ type: 'endGame' });
+    expect(await b.waitFor((x) => x.type === 'error', m)).toMatchObject({ code: 'denied' });
+
+    m = b.mark;
+    a.send({ type: 'endGame' });
+    await b.waitFor((x) => x.type === 'welcome' && x.room.status === 'lobby', m, 'back to lobby');
+    expect(b.room!.status).toBe('lobby');
+    expect(b.room!.members.every((x) => x.seat === null)).toBe(true);
+    await b.waitFor((x) => x.type === 'chat' && x.message.text.includes('ended the game'), m);
+    [a, b].forEach((c) => c.close());
+  });
+
+  it('hands an absent player’s seat to a bot, and gives it back when they return', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const b = await join(code, 'B');
+    await startGame([a, b]);
+    const them = a.room!.members.find((x) => x.id !== a.you)!;
+
+    let m = a.mark;
+    a.send({ type: 'handSeat', member: them.id, level: 'medium', style: 'balanced' });
+    await a.waitFor(
+      (x) => x.type === 'room' && !!x.room.members.find((y) => y.id === them.id)?.away,
+      m,
+      'seat handed over',
+    );
+    await a.waitFor((x) => x.type === 'chat' && x.message.text.includes('bot is playing'), m);
+
+    // The bot gets on with the game: the host plays their own setup moves and
+    // the handed seat answers without anyone sitting at it.
+    for (let seq = a.game!.seq; seq < 4; seq++) {
+      const mine = legalFor(a);
+      const mark = a.mark;
+      if (mine.length) a.send({ type: 'act', action: mine[0]! });
+      await a.waitFor((x) => x.type === 'game' && x.game.seq > seq, mark, 'the game to move on');
+    }
+    expect(a.game!.seq).toBeGreaterThanOrEqual(4);
+
+    // Only the player it belongs to can take it back, and only from a bot.
+    m = a.mark;
+    a.send({ type: 'takeSeat' });
+    expect(await a.waitFor((x) => x.type === 'error', m)).toMatchObject({ code: 'denied' });
+
+    m = b.mark;
+    b.send({ type: 'takeSeat' });
+    await b.waitFor(
+      (x) => x.type === 'room' && !x.room.members.find((y) => y.id === them.id)?.away,
+      m,
+      'seat back',
+    );
+    expect(b.room!.members.find((x) => x.id === them.id)?.bot).toBeUndefined();
+    [a, b].forEach((c) => c.close());
+  }, 20_000);
+
   it('plays a safe move when the turn timer runs out', async () => {
     const code = await createRoom();
     const a = await join(code, 'A');

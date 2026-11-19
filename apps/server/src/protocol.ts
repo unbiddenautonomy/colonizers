@@ -276,6 +276,8 @@ export interface MemberInfo {
   online: boolean;
   /** Set for computer players. */
   bot?: { level: BotLevel; style: BotStyle };
+  /** A person whose seat a bot is playing while they are away. */
+  away?: boolean;
 }
 
 export type BotLevel = 'easy' | 'medium' | 'hard';
@@ -324,6 +326,9 @@ export type ClientMessage =
   | { type: 'remove'; member: string }
   | { type: 'addBot'; level: BotLevel; style: BotStyle }
   | { type: 'leave' }
+  | { type: 'endGame' }
+  | { type: 'handSeat'; member: string; level: BotLevel; style: BotStyle }
+  | { type: 'takeSeat' }
   | { type: 'act'; action: Action }
   | { type: 'chat'; text: string }
   | { type: 'nudge'; seat: number }
@@ -462,7 +467,20 @@ export function parseClientMessage(raw: string | ArrayBuffer): ClientMessage | n
     case 'start':
     case 'leave':
     case 'rematch':
+    case 'endGame':
+    case 'takeSeat':
       return { type: msg.type };
+    case 'handSeat':
+      return typeof msg.member === 'string' &&
+        BOT_LEVELS.includes(msg.level as string) &&
+        BOT_STYLES.includes(msg.style as string)
+        ? {
+            type: 'handSeat',
+            member: msg.member,
+            level: msg.level as BotLevel,
+            style: msg.style as BotStyle,
+          }
+        : null;
     case 'remove':
       return typeof msg.member === 'string' ? { type: 'remove', member: msg.member } : null;
     case 'addBot':

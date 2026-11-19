@@ -168,6 +168,10 @@ function Connected({
         sendChat: (text) => r.send({ type: 'chat', text }),
         nudge: (s) => r.send({ type: 'nudge', seat: s }),
         rematch: () => r.send({ type: 'rematch' }),
+        endGame: () => r.send({ type: 'endGame' }),
+        handSeat: (member) =>
+          r.send({ type: 'handSeat', member, level: 'medium', style: 'balanced' }),
+        takeSeat: () => r.send({ type: 'takeSeat' }),
       }}
       onQuit={onHome}
     />
