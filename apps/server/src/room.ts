@@ -276,7 +276,14 @@ export class GameRoom extends DurableObject<Env> {
       case 'settings': {
         if (!isHost) return deny('Only the host can change settings');
         if (this.status !== 'lobby') return deny('The game has already started');
-        const settings = cleanSettings(msg.settings);
+        // A patch, merged over what the room has: see SettingsPatch. Two
+        // quick changes from the host then can't undo each other.
+        const was = this.settings;
+        const settings = cleanSettings({
+          ...was,
+          ...msg.settings,
+          options: { ...was.options, ...(msg.settings.options ?? {}) },
+        });
         settings.maxPlayers = Math.max(settings.maxPlayers, this.players().length);
         this.setMeta('settings', JSON.stringify(settings));
         return this.broadcastRoom();

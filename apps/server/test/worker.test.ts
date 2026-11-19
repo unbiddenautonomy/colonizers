@@ -225,6 +225,21 @@ describe('Lobby', () => {
     a.close();
   });
 
+  it('keeps both of two settings changes made in quick succession', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'Nachi');
+    const m = a.mark;
+    // All four sent without waiting for an answer, as fast taps do.
+    a.send({ type: 'settings', settings: { vpTarget: 12 } });
+    a.send({ type: 'settings', settings: { citiesKnights: true } });
+    a.send({ type: 'settings', settings: { options: { friendlyRobber: true } } });
+    a.send({ type: 'settings', settings: { options: { gifting: true } } });
+    await a.waitFor((x) => x.type === 'room' && x.room.settings.options.gifting === true, m);
+    expect(a.room!.settings).toMatchObject({ vpTarget: 12, citiesKnights: true });
+    expect(a.room!.settings.options).toMatchObject({ friendlyRobber: true, gifting: true });
+    a.close();
+  });
+
   it('lets the same guest come back, and seats latecomers as spectators when full', async () => {
     const code = await createRoom();
     const a = await join(code, 'A');

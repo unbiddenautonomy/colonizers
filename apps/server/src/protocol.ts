@@ -319,7 +319,7 @@ export interface ChatMessage {
 export type ClientMessage =
   | { type: 'hello'; token: string; name: string }
   | { type: 'rename'; name: string }
-  | { type: 'settings'; settings: RoomSettings }
+  | { type: 'settings'; settings: SettingsPatch }
   | { type: 'start' }
   | { type: 'remove'; member: string }
   | { type: 'addBot'; level: BotLevel; style: BotStyle }
@@ -371,6 +371,35 @@ function int(v: unknown, allowed: readonly number[], fallback: number): number {
 }
 
 /** Makes any settings object safe, keeping what is valid. */
+/**
+ * A change to the room's settings: only the fields the host is changing. The
+ * whole list used to be sent, built from the copy the host last received, so a
+ * second change made before the server's answer arrived silently undid the
+ * first. The server merges a patch over what it has instead.
+ */
+export type SettingsPatch = Partial<Omit<RoomSettings, 'options'>> & {
+  options?: Partial<GameOptions>;
+};
+
+/** Keeps the fields a settings message actually carries, each one cleaned. */
+export function cleanSettingsPatch(raw: unknown): SettingsPatch {
+  const given = (typeof raw === 'object' && raw ? raw : {}) as Record<string, unknown>;
+  const full: Record<string, unknown> = { ...cleanSettings(given) };
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(full)) if (key in given) out[key] = full[key];
+  if ('options' in given) out.options = cleanOptionsPatch(given.options);
+  return out as SettingsPatch;
+}
+
+/** The same, for the options inside a settings patch. */
+export function cleanOptionsPatch(raw: unknown): Partial<GameOptions> {
+  const given = (typeof raw === 'object' && raw ? raw : {}) as Record<string, unknown>;
+  const full: Record<string, unknown> = { ...cleanOptions(given) };
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(full)) if (key in given) out[key] = full[key];
+  return out as Partial<GameOptions>;
+}
+
 export function cleanSettings(raw: unknown): RoomSettings {
   const s = (typeof raw === 'object' && raw ? raw : {}) as Record<string, unknown>;
   const m = (typeof s.map === 'object' && s.map ? s.map : {}) as Record<string, unknown>;
@@ -429,7 +458,7 @@ export function parseClientMessage(raw: string | ArrayBuffer): ClientMessage | n
     case 'rename':
       return { type: 'rename', name: cleanName(msg.name) };
     case 'settings':
-      return { type: 'settings', settings: cleanSettings(msg.settings) };
+      return { type: 'settings', settings: cleanSettingsPatch(msg.settings) };
     case 'start':
     case 'leave':
     case 'rematch':

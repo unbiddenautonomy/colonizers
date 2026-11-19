@@ -9,6 +9,7 @@ import {
   type MapChoice,
   type RoomInfo,
   type RoomSettings,
+  type SettingsPatch,
 } from '../../../server/src/protocol.ts';
 import {
   adoptSeatFromUrl,
@@ -37,6 +38,7 @@ import { DEFAULT_VP_BASE, defaultOptionsFor, hasRobber } from '../game/defaults.
 import { chosenTarget, winTarget } from '../../../server/src/winTarget.ts';
 import { TargetPicker } from '../ui/TargetPicker.tsx';
 import { loadCustomMaps } from '../game/customMaps.ts';
+import { changedOptions } from '../online/settingsPatch.ts';
 import { currentUser } from '../online/account.ts';
 import { LEVEL_INFO, LEVELS, STYLE_INFO, STYLES, type Level, type Style } from '@colonizers/bots';
 
@@ -207,8 +209,9 @@ function Lobby({
   const players = room.members.filter((m) => m.role === 'player');
   const watchers = room.members.filter((m) => m.role === 'spectator');
   const s = room.settings;
-  const set = (patch: Partial<RoomSettings>) =>
-    r.send({ type: 'settings', settings: { ...s, ...patch } });
+  // Only what changed: sending the whole list meant a second change made
+  // before the server answered silently undid the first.
+  const set = (patch: SettingsPatch) => r.send({ type: 'settings', settings: patch });
   // A new map or expansion starts from that game type's standard points and options.
   const setGame = (patch: Partial<RoomSettings>) =>
     set({ ...patch, vpTarget: DEFAULT_VP_BASE, options: defaultOptionsFor() });
@@ -701,7 +704,7 @@ function Lobby({
             wonders={wonders}
             robber={hasRobber(specialPick?.id ?? null)}
             dragons={specialPick?.id === 'desert-dragons'}
-            onChange={(options) => set({ options })}
+            onChange={(options) => set({ options: changedOptions(s.options, options) })}
           />
         )}
         {s.turnTimer > 0 && (
