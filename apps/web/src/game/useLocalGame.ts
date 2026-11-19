@@ -28,6 +28,12 @@ export interface SavedGame {
 
 /** Pause between bot moves, so people can follow them. */
 const BOT_DELAY_MS = 650;
+/**
+ * Turns of the bot loop with nothing moving before the game is treated as
+ * stopped. Comfortably longer than the 12s a bot will wait for an answer to a
+ * trade offer, so an ordinary wait is never mistaken for a dead game.
+ */
+const IDLE_TICKS = 32;
 
 export function loadSavedGame(): SavedGame | null {
   try {
@@ -150,21 +156,50 @@ export function useLocalGame(saved: SavedGame) {
 
   // Bots take their moves one at a time, with a short pause.
   const memory = useRef(new Map<number, BotMemory>());
+  // How many turns of the loop have passed with the game in one place. A bot
+  // that is waiting on an answer to its offer makes no move for a few of them,
+  // which is fine; one that makes no move at all is a game that has stopped.
+  const idle = useRef({ seq: -1, ticks: 0 });
   useEffect(() => {
     const seats = Object.keys(bots).map(Number);
     if (!seats.length || game.state.winner !== null) return;
     const timer = setTimeout(() => {
       const state = gameRef.current.state;
       const waiting = library.waitingOn(state).filter((s) => bots[s]);
-      for (const seat of waiting) {
-        if (!memory.current.has(seat)) memory.current.set(seat, newMemory());
-        const a = chooseAction(library, state, seat, bots[seat]!, memory.current.get(seat), {
-          budgetMs: 1500,
-        });
-        if (a && apply(a)) return;
+      try {
+        for (const seat of waiting) {
+          if (!memory.current.has(seat)) memory.current.set(seat, newMemory());
+          const a = chooseAction(library, state, seat, bots[seat]!, memory.current.get(seat), {
+            budgetMs: 1500,
+          });
+          if (a && apply(a)) return;
+        }
+      } catch (e) {
+        // Whatever went wrong in a bot's own head, the game goes on: swallowing
+        // this here is what keeps the loop alive, because a throw out of a
+        // timer stops it being scheduled again and the game never moves after.
+        console.error('bot move failed', e);
+      }
+      if (!waiting.length) return;
+      // Waiting on a person is not the game being stuck: they may be reading an
+      // offer, or away from the table. Only a table of bots can be counted out.
+      if (library.waitingOn(state).some((s) => !bots[s])) {
+        setGame((g) => ({ ...g }));
+        return;
+      }
+      if (idle.current.seq !== state.seq) idle.current = { seq: state.seq, ticks: 0 };
+      idle.current.ticks++;
+      // Nothing has moved for long enough that waiting is not the explanation.
+      // Leave the step if the rules allow it; otherwise say so, rather than
+      // asking the same bot the same question for ever behind a quiet screen.
+      if (idle.current.ticks === IDLE_TICKS) {
+        const seat = waiting[0]!;
+        const rescue: Action = { type: 'skipStep', player: seat };
+        if (library.check(state, rescue) === null && apply(rescue)) return;
+        setError('A bot has stopped playing. Quit the game, or carry on without it.');
       }
       // A bot waiting on an answer to its offer looks again shortly.
-      if (waiting.length) setGame((g) => ({ ...g }));
+      setGame((g) => ({ ...g }));
     }, BOT_DELAY_MS);
     return () => clearTimeout(timer);
   }, [game, bots, apply]);
