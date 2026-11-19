@@ -15,7 +15,7 @@ export interface PublicUser {
   hasPassword: boolean;
   google: boolean;
   created: number;
-  /** Shown on the global leaderboard (on unless the player turns it off). */
+  /** Shown on the global leaderboard (off until the player turns it on). */
   onLeaderboard: boolean;
   /** The look, board skin and dice picked while signed in, so every device shows them. */
   prefs: Prefs;

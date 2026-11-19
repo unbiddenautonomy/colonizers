@@ -597,7 +597,7 @@ function LeaderboardCard() {
   const { user } = useAccount();
   const [board, setBoard] = useState<GlobalLeaderboard | null>(null);
   const task = useTask();
-  const listed = user?.onLeaderboard ?? true;
+  const listed = user?.onLeaderboard ?? false;
 
   useEffect(() => {
     globalLeaderboard().then(setBoard, (e: unknown) => task.setError(message(e)));
@@ -621,8 +621,8 @@ function LeaderboardCard() {
     <section className="card">
       <h2>Leaderboard</h2>
       <p className="muted">
-        Everyone who plays here. Only finished games with at least two signed-in players count, so
-        games against bots alone don&apos;t.
+        Players who chose to be listed. Only finished games with at least two signed-in players
+        count, so games against bots alone don&apos;t.
       </p>
       {board === null ? (
         !task.error && <p className="muted">Loading…</p>

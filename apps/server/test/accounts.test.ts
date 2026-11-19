@@ -491,8 +491,11 @@ describe('Global leaderboard', () => {
     const lia = await signUp('GLia');
     const max = await signUp('GMax');
     const ned = await signUp('GNed');
-    expect(lia.user.onLeaderboard).toBe(true);
+    // Nobody is listed until they choose to be.
+    expect(lia.user.onLeaderboard).toBe(false);
     expect((await api('/api/leaderboard')).status).toBe(401);
+    const join = (cookie: string) =>
+      api('/api/me', { method: 'PATCH', body: { onLeaderboard: true }, cookie });
 
     const players = (ids: (string | null)[]) =>
       ids.map((userId, seat) => ({ seat, name: `P${seat}`, userId }));
@@ -509,6 +512,8 @@ describe('Global leaderboard', () => {
 
     const board = async (cookie: string) =>
       (await api('/api/leaderboard', { cookie })).data.leaderboard as GlobalLeaderboard;
+    expect((await board(ned.cookie)).rows.some((r) => r.id === lia.user.id)).toBe(false);
+    for (const p of [lia, max, ned]) await join(p.cookie);
     const seen = await board(ned.cookie);
     const row = (id: string) => seen.rows.find((r) => r.id === id);
     expect(row(lia.user.id)).toMatchObject({ name: 'GLia', wins: 2, games: 3, averageVp: 9.7 });

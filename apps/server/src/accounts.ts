@@ -279,7 +279,7 @@ export class Accounts extends DurableObject<Env> {
       ['games', 'stats_version INTEGER NOT NULL DEFAULT 0'],
       ['game_players', 'stats TEXT'],
       ['game_players', 'bot TEXT'],
-      ['users', 'on_leaderboard INTEGER NOT NULL DEFAULT 1'],
+      ['users', 'on_leaderboard INTEGER NOT NULL DEFAULT 0'],
       ['users', 'prefs TEXT'],
     ]) {
       try {
