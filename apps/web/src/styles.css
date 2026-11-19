@@ -174,9 +174,11 @@ select {
   padding: 24px 16px 48px;
 }
 
+/* Wide enough for a name of about a dozen characters beside the "who plays" picker, whatever
+   padding and borders the look adds; min() keeps it to one column on a narrow phone. */
 .names {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 285px), 1fr));
   gap: 8px;
   margin-top: 12px;
 }
@@ -187,9 +189,17 @@ select {
   align-items: center;
 }
 
+/* The name keeps room for about a dozen characters whatever the look's own padding and borders
+   take, so a short name is never cut, and the picker beside it never shrinks below its longest
+   choice. */
 .name-row input {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 12ch;
+  min-width: 12ch;
+}
+
+.name-row select {
+  flex: 0 1 auto;
+  min-width: max-content;
 }
 
 .fairness {
@@ -3678,6 +3688,13 @@ body:has(.setup-page) {
 :root[data-look='isles'] .setup-flow {
   gap: 44px;
   margin-top: 8px;
+}
+
+/* A panel's coast and its one depth line are painted a little outside its box, so whatever sits
+   directly above a panel needs that much room or the water washes over it. */
+:root[data-look='isles'] .setup-page > header,
+:root[data-look='isles'] .setup-page .stepper {
+  margin-bottom: 30px;
 }
 
 :root[data-look='isles'] .setup-summary {

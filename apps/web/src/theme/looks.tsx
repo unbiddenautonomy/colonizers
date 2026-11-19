@@ -393,6 +393,9 @@ const lookingGlass: Look = {
 // ---- Archipelago: every panel is an island on a sea chart ----
 // The content keeps its rectangle; the coast around it, the depth lines and the pebble buttons don't.
 
+/** How wavy an Archipelago panel's coast is: low enough to read as a card. */
+const CALM = 0.4;
+
 const ISLE_TYPE = {
   heading: 'Fraunces, Georgia, serif',
   body: 'Manrope, system-ui, sans-serif',
@@ -414,10 +417,19 @@ function isles(
     dark,
     board: `isles-${id}`,
     tokens: { ...ISLE_TYPE, ...c },
+    // The coast is calmed and kept to one depth line, so a panel reads as a card with a soft
+    // shore rather than a painted island sitting on top of the page.
     frames: {
-      panel: islandFrame({ land: c.card, shore, water }),
-      card: islandFrame({ land: c.sunk, shore, water, width: 2.5, rings: 0 }),
-      picked: islandFrame({ land: c.raised, shore: c.accent, water, width: 4, rings: 0 }),
+      panel: islandFrame({ land: c.card, shore, water, width: 2, rings: 1, calm: CALM }),
+      card: islandFrame({ land: c.sunk, shore, water, width: 2, rings: 0, calm: CALM }),
+      picked: islandFrame({
+        land: c.raised,
+        shore: c.accent,
+        water,
+        width: 3,
+        rings: 0,
+        calm: CALM,
+      }),
       blocked: islandFrame({
         land: c.sunk,
         shore: c.faint,
@@ -425,6 +437,7 @@ function isles(
         width: 2,
         dashed: true,
         rings: 0,
+        calm: CALM,
       }),
       outset: ISLAND_COAST,
     },
