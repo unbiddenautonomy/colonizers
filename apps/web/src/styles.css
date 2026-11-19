@@ -16,6 +16,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  max-width: 100%;
+}
+
+/* A long look name mustn't push the picker off a phone screen. */
+.theme-picker select {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -2221,8 +2228,13 @@ button.ready {
   padding: 28px 24px 64px;
 }
 
+/* Kept apart from the .setup-page rule: in one selector list the minifier drops the :has() parts. */
 html:has(.setup-page),
-body:has(.setup-page),
+body:has(.setup-page) {
+  background-color: var(--shell-bg);
+  background-image: var(--shell-motif);
+}
+
 .setup-page {
   background-color: var(--shell-bg);
   background-image: var(--shell-motif);
@@ -3674,4 +3686,601 @@ body:has(.setup-page),
 
 :root[data-look='wonderland'] .setup-page .expansion small {
   line-height: 1.4;
+}
+
+.leaderboard tr.gap td {
+  text-align: center;
+  color: var(--muted);
+  padding: 0;
+}
+
+/* Your own dice: the designer's preview and inputs. */
+.die-face .die-corner {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--die-pip, #1d2321);
+  opacity: 0.8;
+}
+.dice-preview {
+  --size: 48px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.die-face.flat {
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+}
+.swatches {
+  display: inline-flex;
+  gap: 4px;
+}
+.dice-designer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dice-designer .row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dice-designer input[type='color'] {
+  width: 44px;
+  height: 36px;
+  padding: 3px;
+  cursor: pointer;
+}
+.swatch {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+.face-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.face-inputs label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.face-inputs input {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  font-size: 1.1rem;
+}
+.dice-designer p {
+  margin: 0;
+}
+
+/* ---------- Sunrise Deck: a cartoon voyage on a scrubbed deck ---------- */
+/* Cream plaques in thick navy ink with hard shadows, chunky rounded controls, rope under titles. */
+
+:root[data-look='sunrise'] .setup-page h1,
+:root[data-look='sunrise'] .setup-page h2,
+:root[data-look='sunrise'] .setup-page .section-title {
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+:root[data-look='sunrise'] .setup-page h1 {
+  font-size: 3rem;
+  line-height: 1;
+  text-shadow: 0 3px 0 var(--shell-pop);
+}
+
+:root[data-look='sunrise'] .setup-page .section-title,
+:root[data-look='sunrise'] .setup-page .card > h2,
+:root[data-look='sunrise'] .setup-summary > h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+:root[data-look='sunrise'] .setup-page .section-title::after,
+:root[data-look='sunrise'] .setup-page .card > h2::after,
+:root[data-look='sunrise'] .setup-summary > h2::after {
+  content: '';
+  flex: 1;
+  height: 8px;
+  border: 2px solid var(--shell-ink);
+  border-radius: 6px;
+  background: repeating-linear-gradient(-55deg, #b8864a 0 4px, #e4c08a 4px 8px);
+}
+
+:root[data-look='sunrise'] .setup-page .card,
+:root[data-look='sunrise'] .setup-summary {
+  border: 3px solid var(--shell-ink);
+  border-radius: 16px;
+  box-shadow: 4px 5px 0 var(--shell-ink);
+}
+
+:root[data-look='sunrise'] .setup-page button {
+  border: 3px solid var(--shell-ink);
+  border-radius: 12px;
+  font-weight: 800;
+  box-shadow: 0 3px 0 var(--shell-ink);
+}
+
+:root[data-look='sunrise'] .setup-page button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 var(--shell-ink);
+}
+
+:root[data-look='sunrise'] .setup-page button:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--shell-ink);
+}
+
+:root[data-look='sunrise'] .setup-page button.primary {
+  font-family: var(--shell-heading);
+  font-weight: 400;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+:root[data-look='sunrise'] .setup-page button.on {
+  background: var(--shell-pop);
+  color: var(--shell-ink);
+}
+
+:root[data-look='sunrise'] .setup-page button:disabled,
+:root[data-look='sunrise'] .setup-page button:disabled:hover {
+  box-shadow: none;
+  transform: none;
+  border-color: var(--dash);
+}
+
+:root[data-look='sunrise'] .setup-page input,
+:root[data-look='sunrise'] .setup-page select {
+  border: 3px solid var(--shell-ink);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+:root[data-look='sunrise'] .stepper button {
+  border: 3px dashed var(--dash);
+  box-shadow: none;
+}
+
+:root[data-look='sunrise'] .stepper button.done {
+  border: 3px solid var(--shell-ink);
+}
+
+:root[data-look='sunrise'] .stepper button.on {
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 3px solid var(--shell-ink);
+  box-shadow: 0 3px 0 var(--shell-ink);
+}
+
+:root[data-look='sunrise'] .fan-card {
+  border: 3px solid var(--shell-ink);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+:root[data-look='sunrise'] .fan-card.picked {
+  background: var(--raised);
+  box-shadow: 0 5px 0 var(--accent);
+}
+
+:root[data-look='sunrise'] .fan-card.pair {
+  box-shadow: 0 5px 0 var(--shell-pop);
+}
+
+:root[data-look='sunrise'] .fan-card.blocked {
+  border: 3px dashed var(--dash);
+  background: var(--sunk);
+}
+
+:root[data-look='sunrise'] .fan-tag {
+  background: var(--shell-pop);
+  color: var(--shell-ink);
+  border: 2px solid var(--shell-ink);
+  border-radius: 999px;
+}
+
+:root[data-look='sunrise'] .weight-bar {
+  border: 3px solid var(--shell-ink);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+:root[data-look='sunrise'] .weight-bar span {
+  height: 10px;
+  border-radius: 999px;
+}
+
+:root[data-look='sunrise'] .weight-bar .heavy {
+  background: var(--shell-pop);
+}
+
+:root[data-look='sunrise'] .why-pop {
+  border: 3px solid var(--shell-ink);
+  box-shadow: 4px 5px 0 var(--shell-ink);
+}
+
+/* ---------- Masquerade: the card table of a flamboyant underworld ---------- */
+/* Gold hairlines with an inner rule, spaced capitals in Bodoni, pink-edged controls, a gold bar to
+   play. Section titles are dealt a diamond. */
+
+:root[data-look='masquerade'] .setup-page h1 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+@media (max-width: 480px) {
+  :root[data-look='masquerade'] .setup-page h1 {
+    font-size: 1.9rem;
+    letter-spacing: 0.1em;
+  }
+}
+
+:root[data-look='masquerade'] .setup-page h2,
+:root[data-look='masquerade'] .setup-page .section-title {
+  font-weight: 500;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+:root[data-look='masquerade'] .setup-hero > div > h2 {
+  font-size: 1.4rem;
+}
+
+:root[data-look='masquerade'] .setup-page .section-title::before,
+:root[data-look='masquerade'] .setup-page .card > h2::before,
+:root[data-look='masquerade'] .setup-summary > h2::before {
+  content: '♦';
+  color: var(--shell-pop);
+  font-size: 0.8em;
+  letter-spacing: 0;
+}
+
+:root[data-look='masquerade'] .setup-page .section-title::after,
+:root[data-look='masquerade'] .setup-page .card > h2::after,
+:root[data-look='masquerade'] .setup-summary > h2::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--shell-ink);
+  opacity: 0.6;
+}
+
+:root[data-look='masquerade'] .setup-page .subhead,
+:root[data-look='masquerade'] .fan-tag,
+:root[data-look='masquerade'] .setup-page button {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+:root[data-look='masquerade'] .setup-page .card,
+:root[data-look='masquerade'] .setup-summary {
+  border: 1px solid var(--shell-ink);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 5px var(--card),
+    inset 0 0 0 6px color-mix(in srgb, var(--shell-ink) 45%, transparent),
+    var(--shell-shadow);
+}
+
+:root[data-look='masquerade'] .setup-page button {
+  border: 1px solid var(--shell-pop);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+:root[data-look='masquerade'] .setup-page button:hover:not(:disabled, .on) {
+  background: color-mix(in srgb, var(--shell-pop) 16%, transparent);
+  transform: none;
+}
+
+:root[data-look='masquerade'] .setup-page button.primary {
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: 0 4px 0 #8a6a1e;
+  font-family: var(--shell-heading);
+  letter-spacing: 0.2em;
+}
+
+:root[data-look='masquerade'] .setup-page button.primary:hover:not(:disabled, .on) {
+  background: #ffd36e;
+}
+
+:root[data-look='masquerade'] .setup-page button.on {
+  background: var(--shell-pop);
+  border-color: var(--shell-pop);
+  color: #1a0510;
+}
+
+:root[data-look='masquerade'] .setup-page button:disabled {
+  border-color: var(--dash);
+  box-shadow: none;
+}
+
+:root[data-look='masquerade'] .setup-page button.primary:disabled {
+  background: transparent;
+  border: 1px dashed var(--dash);
+  color: var(--muted);
+  font-family: var(--shell-body);
+  letter-spacing: 0.14em;
+}
+
+/* Capitals for a button's label only; the line of description under it stays in plain case. */
+:root[data-look='masquerade'] .setup-page button small {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+:root[data-look='masquerade'] .setup-page input,
+:root[data-look='masquerade'] .setup-page select {
+  border: 0;
+  border-bottom: 1px solid var(--shell-ink);
+  border-radius: 0;
+  background: transparent;
+}
+
+:root[data-look='masquerade'] .stepper button.on {
+  background: var(--shell-pop);
+  color: #1a0510;
+}
+
+:root[data-look='masquerade'] .fan-card {
+  border: 1px solid color-mix(in srgb, var(--shell-ink) 60%, transparent);
+  border-radius: 4px;
+  background: var(--sunk);
+}
+
+:root[data-look='masquerade'] .fan-card h4 {
+  font-family: var(--shell-heading);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+:root[data-look='masquerade'] .fan-card.picked {
+  border-color: var(--shell-pop);
+  background: var(--raised);
+  box-shadow:
+    0 0 0 1px var(--shell-pop),
+    0 0 22px color-mix(in srgb, var(--shell-pop) 35%, transparent);
+}
+
+:root[data-look='masquerade'] .fan-card.pair {
+  border-color: var(--accent);
+}
+
+:root[data-look='masquerade'] .fan-card.blocked {
+  border-style: dashed;
+  border-color: var(--dash);
+}
+
+:root[data-look='masquerade'] .fan-tag {
+  background: transparent;
+  color: var(--shell-pop);
+  font-size: 0.68rem;
+  padding: 0;
+}
+
+:root[data-look='masquerade'] .fan-card.blocked .fan-tag,
+:root[data-look='chart'] .fan-card.blocked .fan-tag {
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+}
+
+:root[data-look='masquerade'] .weight-bar .heavy {
+  background: var(--accent);
+}
+
+/* ---------- Storm Chart: a surveyor's chart table ---------- */
+/* Paper panels in a double ruled border, engraved small capitals, italic notes, controls like
+   labels pasted on the chart. */
+
+:root[data-look='chart'] .setup-page h1,
+:root[data-look='chart'] .setup-page h2,
+:root[data-look='chart'] .setup-page .section-title {
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+:root[data-look='chart'] .setup-page h1 {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+:root[data-look='chart'] .setup-page .section-title,
+:root[data-look='chart'] .setup-page .card > h2,
+:root[data-look='chart'] .setup-summary > h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+:root[data-look='chart'] .setup-page .section-title::after,
+:root[data-look='chart'] .setup-page .card > h2::after,
+:root[data-look='chart'] .setup-summary > h2::after {
+  content: '';
+  flex: 1;
+  height: 4px;
+  border-top: 1px solid var(--shell-ink);
+  border-bottom: 1px solid var(--shell-ink);
+  opacity: 0.7;
+}
+
+:root[data-look='chart'] .setup-page .subhead,
+:root[data-look='chart'] .setup-page .muted {
+  font-style: italic;
+}
+
+:root[data-look='chart'] .setup-page .card,
+:root[data-look='chart'] .setup-summary {
+  border: 4px double var(--shell-ink);
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+:root[data-look='chart'] .setup-page button {
+  border: 1.5px solid var(--shell-ink);
+  border-radius: 3px;
+  background: var(--card);
+  color: var(--text);
+  font-weight: 600;
+}
+
+:root[data-look='chart'] .setup-page button:hover:not(:disabled, .on) {
+  background: var(--raised);
+  transform: none;
+}
+
+:root[data-look='chart'] .setup-page button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+:root[data-look='chart'] .setup-page button.primary:disabled {
+  background: transparent;
+  border: 1.5px dashed var(--dash);
+  color: var(--muted);
+}
+
+:root[data-look='chart'] .setup-page button.on,
+:root[data-look='chart'] .stepper button.on {
+  background: var(--shell-ink);
+  color: var(--card);
+}
+
+:root[data-look='chart'] .setup-page input,
+:root[data-look='chart'] .setup-page select {
+  border: 0;
+  border-bottom: 1.5px dotted var(--shell-ink);
+  border-radius: 0;
+  background: transparent;
+}
+
+:root[data-look='chart'] .fan-card {
+  border: 1.5px solid var(--shell-ink);
+  border-radius: 2px;
+  background: var(--card);
+}
+
+:root[data-look='chart'] .fan-card.picked {
+  background: var(--raised);
+  outline: 1px solid var(--shell-ink);
+  outline-offset: -6px;
+}
+
+:root[data-look='chart'] .fan-card.blocked {
+  border-style: dashed;
+  background: var(--sunk);
+}
+
+:root[data-look='chart'] .fan-tag {
+  background: transparent;
+  color: var(--accent);
+  font-style: italic;
+}
+
+:root[data-look='chart'] .weight-bar {
+  border: 1.5px solid var(--shell-ink);
+  padding: 2px;
+  gap: 2px;
+}
+
+:root[data-look='chart'] .weight-bar span {
+  border-radius: 0;
+}
+
+:root[data-look='chart'] .weight-bar .heavy {
+  background: var(--shell-ink);
+}
+
+:root[data-look='sunrise'] .look-art,
+:root[data-look='masquerade'] .look-art,
+:root[data-look='chart'] .look-art {
+  display: block;
+  width: min(360px, 100%);
+  height: auto;
+}
+
+/* ========== Painted artwork (src/art/<crew>/, see theme/boards/art.ts) ========== */
+
+/* A painted header replaces the drawn one. It drifts in very slowly, and holds still when
+   animations are off. */
+:root[data-look] .look-art.look-art-painting {
+  display: block;
+  width: min(440px, 100%);
+  aspect-ratio: 3 / 2;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 3px solid var(--shell-ink);
+  border-radius: 12px;
+  box-shadow: var(--shell-shadow);
+}
+.look-art-painting img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: painting-drift 24s ease-in-out infinite alternate;
+}
+@keyframes painting-drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06) translate(-1.5%, -1%);
+  }
+}
+[data-motion='off'] .look-art-painting img {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .look-art-painting img {
+    animation: none;
+  }
+}
+
+/* A painted backdrop sits behind the whole setup page, faint under the page colour so the text on
+   it stays readable. Each :has() rule stands alone for the minifier (see .setup-page above). */
+html[data-backdrop]:has(.setup-page) {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--shell-bg) 84%, transparent),
+      color-mix(in srgb, var(--shell-bg) 84%, transparent)
+    ),
+    var(--shell-backdrop);
+  background-size: cover;
+  background-position: center top;
+  background-attachment: fixed;
+}
+html[data-backdrop] body:has(.setup-page) {
+  background: transparent;
+}
+html[data-backdrop] .setup-page {
+  background: transparent;
 }

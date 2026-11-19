@@ -21,14 +21,18 @@ import type {
   CrewDetail,
   CrewSummary,
   EarnedAchievement,
+  GlobalLeaderboard,
   HistoryGame,
+  LeaderRow,
   MyStats,
+  Prefs,
   PublicUser,
   Replay,
   Result,
   SiteSettings,
   Unlocked,
 } from './accountTypes.ts';
+import { PREF_KEYS } from './accountTypes.ts';
 import { isSubscription, sendPush, type VapidKeys } from './push.ts';
 import { library } from './rules.ts';
 
@@ -123,7 +127,12 @@ interface UserRow extends Record<string, SqlStorageValue> {
   name: string;
   avatar: string;
   created: number;
+  on_leaderboard: number;
+  prefs: string | null;
 }
+
+/** Rows the global leaderboard shows. */
+export const LEADERBOARD_ROWS = 50;
 
 function publicUser(u: UserRow): PublicUser {
   return {
@@ -135,7 +144,34 @@ function publicUser(u: UserRow): PublicUser {
     hasPassword: !!u.password_hash,
     google: !!u.google_sub,
     created: u.created,
+    onLeaderboard: u.on_leaderboard !== 0,
+    prefs: readPrefs(u.prefs),
   };
+}
+
+const PREF_ID = /^[a-z0-9-]{1,40}$/;
+// eslint-disable-next-line no-control-regex
+const HAS_CONTROL = /[\u0000-\u001f\u007f]/;
+
+/** Ids for the look, board and dice; a short JSON design for the dice faces. */
+function validPref(key: keyof Prefs, v: unknown): v is string {
+  if (typeof v !== 'string') return false;
+  if (key === 'diceFaces') return v.length <= 400 && !HAS_CONTROL.test(v);
+  return PREF_ID.test(v);
+}
+
+function readPrefs(raw: string | null): Prefs {
+  const out: Prefs = { look: null, board: null, dice: null, diceFaces: null };
+  try {
+    const p = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    for (const k of PREF_KEYS) {
+      const v = p[k];
+      if (validPref(k, v)) out[k] = v;
+    }
+  } catch {
+    // A bad value reads as nothing picked.
+  }
+  return out;
 }
 
 export class Accounts extends DurableObject<Env> {
@@ -243,6 +279,8 @@ export class Accounts extends DurableObject<Env> {
       ['games', 'stats_version INTEGER NOT NULL DEFAULT 0'],
       ['game_players', 'stats TEXT'],
       ['game_players', 'bot TEXT'],
+      ['users', 'on_leaderboard INTEGER NOT NULL DEFAULT 0'],
+      ['users', 'prefs TEXT'],
     ]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column}`);
@@ -451,7 +489,7 @@ export class Accounts extends DurableObject<Env> {
 
   async updateProfile(
     token: string | null,
-    fields: { name?: unknown; avatar?: unknown },
+    fields: { name?: unknown; avatar?: unknown; onLeaderboard?: unknown; prefs?: unknown },
   ): Promise<Result<PublicUser>> {
     const u = await this.sessionUser(token);
     if (!u) return fail('Sign in first', 401);
@@ -464,6 +502,26 @@ export class Accounts extends DurableObject<Env> {
       if (typeof fields.avatar !== 'string' || !AVATARS.includes(fields.avatar))
         return fail('Pick one of the avatars');
       this.sql.exec('UPDATE users SET avatar = ? WHERE id = ?', fields.avatar, u.id);
+    }
+    if (fields.onLeaderboard !== undefined) {
+      if (typeof fields.onLeaderboard !== 'boolean') return fail('Say yes or no');
+      this.sql.exec(
+        'UPDATE users SET on_leaderboard = ? WHERE id = ?',
+        fields.onLeaderboard ? 1 : 0,
+        u.id,
+      );
+    }
+    if (fields.prefs !== undefined) {
+      // Only the keys sent change; null clears one.
+      const p = fields.prefs;
+      if (typeof p !== 'object' || p === null || Array.isArray(p)) return fail('Send your choices');
+      const next = readPrefs(u.prefs);
+      for (const [k, v] of Object.entries(p)) {
+        const key = PREF_KEYS.find((x) => x === k);
+        if (!key || (v !== null && !validPref(key, v))) return fail('That choice is not valid');
+        next[key] = v;
+      }
+      this.sql.exec('UPDATE users SET prefs = ? WHERE id = ?', JSON.stringify(next), u.id);
     }
     return ok(publicUser(this.user(u.id) as UserRow));
   }
@@ -1153,6 +1211,59 @@ export class Accounts extends DurableObject<Env> {
     const invite = randomToken(9);
     this.sql.exec('UPDATE crews SET invite = ? WHERE id = ?', invite, crewId as string);
     return ok(invite);
+  }
+
+  /**
+   * Everyone's wins in games that count: finished, with at least two
+   * signed-in players (so wins against bots alone don't farm the board).
+   * Ranked by wins, then fewer games; players who turned it off are left out.
+   */
+  async leaderboard(token: string | null): Promise<Result<GlobalLeaderboard>> {
+    const u = await this.sessionUser(token);
+    if (!u) return fail('Sign in first', 401);
+    const all = this.sql
+      .exec<{
+        id: string;
+        name: string;
+        avatar: string;
+        listed: number;
+        games: number;
+        wins: number;
+        avg_vp: number | null;
+      }>(
+        `WITH counted AS (
+           SELECT gp.game_id FROM game_players gp JOIN games g ON g.id = gp.game_id
+           WHERE g.ended IS NOT NULL AND gp.user_id IS NOT NULL
+           GROUP BY gp.game_id HAVING COUNT(DISTINCT gp.user_id) >= 2
+         )
+         SELECT u.id, u.name, u.avatar, u.on_leaderboard AS listed,
+                COUNT(*) AS games, SUM(gp.won) AS wins, AVG(gp.vp) AS avg_vp
+         FROM game_players gp
+         JOIN counted c ON c.game_id = gp.game_id
+         JOIN users u ON u.id = gp.user_id
+         GROUP BY u.id
+         ORDER BY wins DESC, games ASC, u.name`,
+      )
+      .toArray();
+    const rows: LeaderRow[] = [];
+    let you: LeaderRow | null = null;
+    for (const r of all) {
+      if (!r.listed) continue;
+      const prev = rows[rows.length - 1];
+      const row: LeaderRow = {
+        // Ties share a place: 1, 2, 2, 4.
+        rank: prev && prev.wins === r.wins && prev.games === r.games ? prev.rank : rows.length + 1,
+        id: r.id,
+        name: r.name,
+        avatar: r.avatar,
+        games: r.games,
+        wins: r.wins,
+        averageVp: r.avg_vp === null ? null : Math.round(r.avg_vp * 10) / 10,
+      };
+      rows.push(row);
+      if (r.id === u.id) you = row;
+    }
+    return ok({ rows: rows.slice(0, LEADERBOARD_ROWS), you, players: rows.length });
   }
 
   async crew(token: string | null, crewId: unknown): Promise<Result<CrewDetail>> {

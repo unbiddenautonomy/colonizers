@@ -9,6 +9,7 @@ import {
   type HexId,
 } from '@colonizers/engine';
 import { bankRatio, baseData, publicVp } from '@colonizers/module-base';
+import { citadelSpots } from '@colonizers/module-princes-explorers';
 import { nameOf, pageForError } from '@colonizers/rulebook';
 import { Board, noTargets, type Targets } from '../board/Board.tsx';
 import { play, setSound, soundFor, useSound } from '../game/sounds.ts';
@@ -204,6 +205,7 @@ type Mode =
   | CivMode
   | ChurchMode
   | 'princesKnight'
+  | 'citadel'
   | SoldiersMode
   | KingdomMode
   | LandWaterMode
@@ -339,6 +341,7 @@ function targetsFor(
   if (building && mode === 'road') want.add('buildRoad');
   if (building && mode === 'settlement') want.add('buildSettlement');
   if (building && mode === 'city') want.add('buildCity');
+  if (ph === 'main' && mode === 'citadel') want.add('buildCitadel');
   if (building && mode === 'ship') want.add('buildShip');
   if (building && mode === 'bridge') want.add('buildBridge');
   if (state.phase.id === 'main' && mode === 'repair') want.add('repairRoad');
@@ -1361,6 +1364,18 @@ export function Game({
                   title="Move the robber one to three fields without a 7"
                 >
                   Move robber <CostLine cost={ctx.cost('robberMove', actor)} />
+                </button>
+              )}
+              {princesOn(state) && myTurnMain && citadelSpots(ctx, actor).length > 0 && (
+                <button
+                  type="button"
+                  className={mode === 'citadel' ? 'on' : ''}
+                  aria-pressed={mode === 'citadel'}
+                  disabled={!has('buildCitadel')}
+                  onClick={() => setMode(mode === 'citadel' ? null : 'citadel')}
+                  title="Nothing left to build: turn one of your cities into a citadel, a point more"
+                >
+                  🏰 Citadel <CostLine cost={ctx.cost('citadel', actor)} />
                 </button>
               )}
               {kingdomsOn(state) && myTurnMain && (

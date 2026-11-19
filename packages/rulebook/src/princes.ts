@@ -11,6 +11,10 @@ export const princesRules: RulebookModule = {
       name: 'Move the robber',
       note: 'One to three fields, as on a 7, and you take a card from anyone.',
     },
+    citadel: {
+      name: 'Citadel',
+      note: 'Only with nothing left to build: one of your cities scores a point more. Two at most.',
+    },
   },
   names: {
     prince: { name: 'Prince', icon: '🤴' },
@@ -80,6 +84,21 @@ You may also leave the numbers as they are.`,
 - On a 7 the roller moves it **one to three fields**, turning as they like, but not across another player's road or a prince, and not back to where it began. If it is boxed in, it stays.
 - The mover then takes a card from **any player**, wherever they build.
 - On your turn you can also pay **1 ore, 1 wool and 1 grain** to move it the same way.`,
+    },
+    {
+      id: 'princes-citadel',
+      module: M,
+      section: 'rules',
+      title: 'Citadels, for a dead end',
+      summary: 'Nothing left to build? Turn a city into a citadel for a point more.',
+      tags: ['citadel', 'deadlock', 'stuck', 'out of pieces', 'house rule', 'investors'],
+      body: `A house rule for the game that stalls: a player who can't build anything more, with every point still to win, has a way to score.
+
+It opens only when you have **nothing left to build**: no city to make (all four are out, or no settlement to make one of), no settlement to place, and no road to place (all fifteen are out, or there is nowhere for one).
+
+- On your turn pay **3 ore, 2 grain and 1 wool** to make one of your cities a **citadel**: it scores **a point more**.
+- **Two citadels** at most each.
+- A citadel scores like its city: a point more for each prince it touches, and **nothing** next to the robber.`,
     },
     {
       id: 'princes-ck',

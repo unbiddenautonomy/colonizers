@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
 import { resourceIcon } from './icons.tsx';
+import { POP_ICONS } from './iconSets.ts';
 import { BASE, H, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
@@ -30,14 +31,18 @@ function art(k: Ink): Record<BaseType, ReactNode> {
   const tile = (type: BaseType) => (
     <>
       <rect width={W} height={H} fill={k.land[type]} />
-      {resourceIcon(type, {
-        body: k.light,
-        line: k.ink,
-        solid: k.ink,
-        grain: k.light,
-        width: 1.8,
-        shadow: { color: k.ink, dx: 1.4, dy: 1.4 },
-      })}
+      {resourceIcon(
+        type,
+        {
+          body: k.light,
+          line: k.ink,
+          solid: k.ink,
+          grain: k.light,
+          width: 1.8,
+          shadow: { color: k.ink, dx: 1.4, dy: 1.4 },
+        },
+        POP_ICONS,
+      )}
     </>
   );
   return Object.fromEntries(BASE.map((t) => [t, tile(t)])) as Record<BaseType, ReactNode>;

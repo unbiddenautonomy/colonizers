@@ -1,5 +1,14 @@
-import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { motionScale } from './motion.tsx';
+import { Modal } from './Modal.tsx';
+import { prefPicked } from '../theme/prefs.ts';
 
 // ---- The chosen dice skin, per device ----
 
@@ -9,6 +18,7 @@ export const DICE_SKINS = [
   { id: 'marble', name: 'Marble' },
   { id: 'neon', name: 'Neon' },
   { id: 'numbers', name: 'Numbers' },
+  { id: 'custom', name: 'Your own…' },
 ] as const;
 export type DiceSkin = (typeof DICE_SKINS)[number]['id'];
 
@@ -36,6 +46,105 @@ export function setDiceSkin(id: DiceSkin): void {
   for (const l of listeners) l();
 }
 
+// ---- Your own dice: colours and faces ----
+
+export const FACE_STYLES = [
+  { id: 'pips', name: 'Pips' },
+  { id: 'numbers', name: 'Numbers' },
+  { id: 'symbols', name: 'Symbols' },
+] as const;
+export type FaceStyle = (typeof FACE_STYLES)[number]['id'];
+
+export interface CustomDice {
+  body: string;
+  ink: string;
+  style: FaceStyle;
+  /** What each face shows with the symbols style, 1 to 6. */
+  faces: string[];
+}
+
+export const DEFAULT_CUSTOM_DICE: CustomDice = {
+  body: '#1f5f4a',
+  ink: '#f6e7b8',
+  style: 'pips',
+  faces: ['🌲', '🧱', '🐑', '🌾', '⛰️', '⭐'],
+};
+
+/** Longest symbol on a face, in UTF-16 units: room for one emoji with a modifier, or two letters. */
+export const MAX_FACE = 8;
+const HEX = /^#[0-9a-f]{6}$/i;
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\u0000-\u001f\u007f]/;
+
+/** A design read back from storage or the account; null when it doesn't hold together. */
+export function parseCustomDice(raw: unknown): CustomDice | null {
+  try {
+    const d = (typeof raw === 'string' ? JSON.parse(raw) : raw) as Partial<CustomDice> | null;
+    if (!d || typeof d !== 'object') return null;
+    if (typeof d.body !== 'string' || !HEX.test(d.body)) return null;
+    if (typeof d.ink !== 'string' || !HEX.test(d.ink)) return null;
+    if (!FACE_STYLES.some((f) => f.id === d.style)) return null;
+    if (!Array.isArray(d.faces) || d.faces.length !== 6) return null;
+    const faces = d.faces.map((f) => (typeof f === 'string' ? f.trim() : ''));
+    if (faces.some((f) => f.length > MAX_FACE || CONTROL.test(f))) return null;
+    return { body: d.body.toLowerCase(), ink: d.ink.toLowerCase(), style: d.style!, faces };
+  } catch {
+    return null;
+  }
+}
+
+const CUSTOM_KEY = 'colonizers.diceCustom';
+
+function readCustom(): CustomDice {
+  try {
+    return parseCustomDice(localStorage.getItem(CUSTOM_KEY)) ?? DEFAULT_CUSTOM_DICE;
+  } catch {
+    return DEFAULT_CUSTOM_DICE;
+  }
+}
+
+let custom = readCustom();
+
+export function setCustomDice(d: CustomDice): void {
+  custom = d;
+  try {
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify(d));
+  } catch {
+    // Private mode: the design lasts until the page closes.
+  }
+  for (const l of listeners) l();
+}
+
+/** The design on this device (the default one until the player makes their own). */
+export function customDice(): CustomDice {
+  return custom;
+}
+
+function useCustomDice(): CustomDice {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => custom,
+  );
+}
+
+/** The colours of a design, for the die's style. */
+function customVars(d: CustomDice): CSSProperties {
+  return { '--die-bg': d.body, '--die-pip': d.ink, '--die-ink': d.ink } as CSSProperties;
+}
+
+/** The dice skin picked on this device. */
+export function dicePick(): DiceSkin {
+  return current;
+}
+
+/** Takes a skin by id, ignoring ones this version doesn't have. */
+export function isDiceSkin(id: string): id is DiceSkin {
+  return DICE_SKINS.some((s) => s.id === id);
+}
+
 export function useDiceSkin(): DiceSkin {
   return useSyncExternalStore(
     (l) => {
@@ -48,21 +157,145 @@ export function useDiceSkin(): DiceSkin {
 
 export function DicePicker({ compact }: { compact?: boolean }) {
   const skin = useDiceSkin();
+  const [designing, setDesigning] = useState(false);
   return (
-    <label className="theme-picker" title="Dice skin">
-      {compact ? <span aria-hidden="true">🎲</span> : 'Dice '}
-      <select
-        value={skin}
-        onChange={(e) => setDiceSkin(e.target.value as DiceSkin)}
-        aria-label="Dice skin"
-      >
-        {DICE_SKINS.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <>
+      <label className="theme-picker" title="Dice skin">
+        {compact ? <span aria-hidden="true">🎲</span> : 'Dice '}
+        <select
+          value={skin}
+          onChange={(e) => {
+            const id = e.target.value as DiceSkin;
+            setDiceSkin(id);
+            prefPicked({ dice: id });
+            if (id === 'custom') setDesigning(true);
+          }}
+          aria-label="Dice skin"
+        >
+          {DICE_SKINS.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        {skin === 'custom' && (
+          <button
+            type="button"
+            className="icon"
+            onClick={() => setDesigning(true)}
+            aria-label="Change your dice"
+            title="Change your dice"
+          >
+            ✎
+          </button>
+        )}
+      </label>
+      {designing && <DiceDesigner onClose={() => setDesigning(false)} />}
+    </>
+  );
+}
+
+const SWATCHES: [string, string][] = [
+  ['#1f5f4a', '#f6e7b8'],
+  ['#fbfaf6', '#b3261e'],
+  ['#1d2321', '#f1c40f'],
+  ['#3b2a6b', '#ffffff'],
+  ['#f4b6c2', '#4a1f2b'],
+  ['#0e4c7a', '#ffd166'],
+];
+
+/** Make your own dice: colours, and pips, numbers or a symbol on each face. */
+function DiceDesigner({ onClose }: { onClose: () => void }) {
+  const [d, setD] = useState<CustomDice>(customDice);
+  const change = (patch: Partial<CustomDice>) => setD((x) => ({ ...x, ...patch }));
+  const save = () => {
+    setCustomDice(d);
+    setDiceSkin('custom');
+    prefPicked({ dice: 'custom', diceFaces: JSON.stringify(d) });
+    onClose();
+  };
+  return (
+    <Modal title="Your own dice" onClose={onClose}>
+      <div className="dice-designer">
+        <div className="dice-preview" style={customVars(d)} aria-label="Preview">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <div key={n} className="die-face flat">
+              <FaceContent n={n} design={d} />
+            </div>
+          ))}
+        </div>
+        <div className="row">
+          <label>
+            Dice{' '}
+            <input type="color" value={d.body} onChange={(e) => change({ body: e.target.value })} />
+          </label>
+          <label>
+            Marks{' '}
+            <input type="color" value={d.ink} onChange={(e) => change({ ink: e.target.value })} />
+          </label>
+          <span className="swatches">
+            {SWATCHES.map(([body, ink]) => (
+              <button
+                key={body}
+                type="button"
+                className="swatch"
+                style={{ background: body, color: ink }}
+                aria-label={`Colours ${body} and ${ink}`}
+                onClick={() => change({ body, ink })}
+              >
+                ●
+              </button>
+            ))}
+          </span>
+        </div>
+        <div className="row" role="radiogroup" aria-label="Faces">
+          {FACE_STYLES.map((f) => (
+            <label key={f.id} className="toggle">
+              <input
+                type="radio"
+                name="face-style"
+                checked={d.style === f.id}
+                onChange={() => change({ style: f.id })}
+              />{' '}
+              {f.name}
+            </label>
+          ))}
+        </div>
+        {d.style === 'symbols' && (
+          <>
+            <p className="muted">
+              A symbol or two letters for each face. The number stays in the corner, so everyone can
+              still read the roll.
+            </p>
+            <div className="face-inputs">
+              {d.faces.map((f, i) => (
+                <label key={i}>
+                  {i + 1}
+                  <input
+                    value={f}
+                    maxLength={MAX_FACE}
+                    aria-label={`Face ${i + 1}`}
+                    onChange={(e) => {
+                      const faces = [...d.faces];
+                      faces[i] = e.target.value;
+                      change({ faces });
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+        <div className="row">
+          <button type="button" className="primary" onClick={save}>
+            Use these dice
+          </button>
+          <button type="button" className="ghost" onClick={() => setD(DEFAULT_CUSTOM_DICE)}>
+            Start again
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -88,19 +321,52 @@ const FACE: Record<number, { place: string; show: string }> = {
   4: { place: 'rotateX(-90deg)', show: 'rotateX(90deg) rotateY(0deg)' },
 };
 
-function Face({ n, label, numbers }: { n: number; label?: string; numbers: boolean }) {
-  const content = label ?? (numbers ? String(n) : null);
+/** What a face shows: a label, a number, a symbol with its number, or pips. */
+function FaceContent({
+  n,
+  label,
+  numbers,
+  design,
+}: {
+  n: number;
+  label?: string | undefined;
+  numbers?: boolean;
+  design?: CustomDice | null;
+}) {
+  if (label !== undefined) return <span className="die-label">{label}</span>;
+  const style = design?.style ?? (numbers ? 'numbers' : 'pips');
+  if (style === 'numbers') return <span className="die-label">{n}</span>;
+  const symbol = style === 'symbols' ? design?.faces[n - 1] : '';
+  if (symbol)
+    return (
+      <>
+        <span className="die-label">{symbol}</span>
+        <span className="die-corner">{n}</span>
+      </>
+    );
+  return (
+    <div className="die-pips">
+      {Array.from({ length: 9 }, (_, i) => (
+        <span key={i} className={PIPS[n]!.includes(i) ? 'pip' : 'pip off'} />
+      ))}
+    </div>
+  );
+}
+
+function Face({
+  n,
+  label,
+  numbers,
+  design,
+}: {
+  n: number;
+  label?: string;
+  numbers: boolean;
+  design: CustomDice | null;
+}) {
   return (
     <div className="die-face" style={{ transform: `${FACE[n]!.place} translateZ(var(--half))` }}>
-      {content !== null ? (
-        <span className="die-label">{content}</span>
-      ) : (
-        <div className="die-pips">
-          {Array.from({ length: 9 }, (_, i) => (
-            <span key={i} className={PIPS[n]!.includes(i) ? 'pip' : 'pip off'} />
-          ))}
-        </div>
-      )}
+      <FaceContent n={n} label={label} numbers={numbers} design={design} />
     </div>
   );
 }
@@ -133,6 +399,9 @@ export function Die({
   index: number;
 }) {
   const skin = useDiceSkin();
+  const design = useCustomDice();
+  // Your own dice colour the plain dice; the coloured Cities & Knights dice keep theirs.
+  const own = skin === 'custom' && kind !== 'red' && kind !== 'yellow' && kind !== 'event';
   const wrap = useRef<HTMLDivElement>(null);
   const cube = useRef<HTMLDivElement>(null);
   const seen = useRef(rollKey);
@@ -197,6 +466,7 @@ export function Die({
     <div
       ref={wrap}
       className={`die3d die-${kind} skin-${skin}`}
+      style={own ? customVars(design) : undefined}
       role="img"
       aria-label={label ?? String(value)}
     >
@@ -210,6 +480,7 @@ export function Die({
             key={n}
             n={n}
             numbers={skin === 'numbers'}
+            design={own ? design : null}
             {...(labels && { label: labels[(n - 1) % labels.length] ?? '' })}
           />
         ))}

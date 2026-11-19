@@ -283,6 +283,8 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return e.left
         ? `🛡️ ${n(e.player)}'s knight left the board to move the robber.`
         : `🛡️ ${n(e.player)}'s knight stepped down to move the robber.`;
+    case 'citadelBuilt':
+      return `🏰 ${n(e.player)} made a city a citadel.`;
     case 'robberBought':
       return `${n(e.player)} paid to move the robber.`;
     case 'unitBought':

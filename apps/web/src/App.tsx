@@ -16,6 +16,7 @@ import { NewGame } from './screens/NewGame.tsx';
 import { OnlineRoom } from './screens/OnlineRoom.tsx';
 import { ReplayPage } from './screens/Replay.tsx';
 import { Rulebook } from './ui/Rulebook.tsx';
+import { LocalStatsPage } from './screens/LocalStats.tsx';
 
 function roomFromPath(path: string): string | null {
   const m = path.match(/^\/r\/([a-z0-9-]{1,40})\/?$/i);
@@ -147,6 +148,14 @@ export function App() {
       </>
     );
 
+  if (path === '/stats')
+    return (
+      <>
+        <LocalStatsPage onHome={() => go('/')} />
+        {popups}
+      </>
+    );
+
   const crew = path.match(/^\/crew\/([a-z0-9-]{1,40})\/?$/)?.[1];
   if (crew)
     return (
@@ -207,6 +216,7 @@ export function App() {
         onRules={() => setRules(true)}
         onOnline={(code) => go(`/r/${code}`)}
         onEditor={(id) => go(id ? `/editor/${id}` : '/editor')}
+        onStats={() => go('/stats')}
       />
       {rules && <Rulebook state={null} viewer={null} onClose={() => setRules(false)} />}
       {popups}

@@ -46,6 +46,7 @@ export {
   generateSeaBoard,
   buildSeaBoard,
   checkSeaBoard,
+  WORLD_MAP,
   type SeaBoard,
   type SeaBoardInfo,
   type SeaBoardOptions,

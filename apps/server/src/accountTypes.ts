@@ -15,9 +15,24 @@ export interface PublicUser {
   hasPassword: boolean;
   google: boolean;
   created: number;
+  /** Shown on the global leaderboard (off until the player turns it on). */
+  onLeaderboard: boolean;
+  /** The look, board skin and dice picked while signed in, so every device shows them. */
+  prefs: Prefs;
   /** Listed in ADMIN_EMAILS (with a verified email or Google sign-in). */
   admin?: boolean;
 }
+
+/** Display choices saved with the account; null means not picked yet. */
+export interface Prefs {
+  look: string | null;
+  board: string | null;
+  dice: string | null;
+  /** The player's own dice design, as JSON the browser checks when it reads it. */
+  diceFaces: string | null;
+}
+
+export const PREF_KEYS = ['look', 'board', 'dice', 'diceFaces'] as const;
 
 export interface HistoryGame {
   id: string;
@@ -65,6 +80,26 @@ export interface CrewDetail {
     achievements: number;
   }[];
   games: HistoryGame[];
+}
+
+/** One player's line on a leaderboard. */
+export interface LeaderRow {
+  rank: number;
+  id: string;
+  name: string;
+  avatar: string;
+  games: number;
+  wins: number;
+  averageVp: number | null;
+}
+
+/** Everyone's results in games that count: finished, with at least two signed-in players. */
+export interface GlobalLeaderboard {
+  rows: LeaderRow[];
+  /** Your own line, even below the top rows; null when you have no counted games or are hidden. */
+  you: LeaderRow | null;
+  /** How many players are on the board in all. */
+  players: number;
 }
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string; status: number };

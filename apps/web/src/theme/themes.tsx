@@ -5,8 +5,18 @@ import { wonderGlassBoard, wonderTeaBoard } from './boards/wonder.tsx';
 import { islesLagoonBoard, islesNightBoard } from './boards/isles.tsx';
 import { benchDarkBoard, benchLightBoard } from './boards/bench.tsx';
 import { popArcadeBoard, popCitrusBoard, popGrapeBoard, popSorbetBoard } from './boards/pop.tsx';
+import { chartSurveyBoard } from './boards/chart.tsx';
+import { masqVelvetBoard } from './boards/masq.tsx';
+import { sunriseMorningBoard } from './boards/sunrise.tsx';
+import { strawHatBoard } from './boards/strawhat.tsx';
+import { heartBoard } from './boards/heart.tsx';
+import { whitebeardBoard } from './boards/whitebeard.tsx';
+import { bigMomBoard } from './boards/bigmom.tsx';
+import { beastsBoard } from './boards/beasts.tsx';
+import { navyBoard } from './boards/navy.tsx';
 import { woodTheme } from './pictures.tsx';
 import { tilesTheme } from './tiles.tsx';
+import { prefPicked } from './prefs.ts';
 
 export const THEMES: Theme[] = [
   tilesTheme,
@@ -24,6 +34,15 @@ export const THEMES: Theme[] = [
   wonderGlassBoard,
   islesLagoonBoard,
   islesNightBoard,
+  sunriseMorningBoard,
+  masqVelvetBoard,
+  chartSurveyBoard,
+  strawHatBoard,
+  heartBoard,
+  whitebeardBoard,
+  bigMomBoard,
+  beastsBoard,
+  navyBoard,
 ];
 
 /** What a new device shows. */
@@ -69,6 +88,11 @@ export function setTheme(id: string): void {
   for (const l of listeners) l();
 }
 
+/** The board skin picked on this device. */
+export function themePick(): string {
+  return current;
+}
+
 function subscribe(l: () => void): () => void {
   listeners.add(l);
   return () => listeners.delete(l);
@@ -106,7 +130,14 @@ export function ThemePicker({ compact }: { compact?: boolean }) {
   return (
     <label className="theme-picker" title={theme.description}>
       {compact ? <span aria-hidden="true">🎨</span> : 'Board '}
-      <select value={theme.id} onChange={(e) => setTheme(e.target.value)} aria-label="Board skin">
+      <select
+        value={theme.id}
+        onChange={(e) => {
+          setTheme(e.target.value);
+          prefPicked({ board: e.target.value });
+        }}
+        aria-label="Board skin"
+      >
         {THEMES.map((t) => (
           <option key={t.id} value={t.id}>
             {t.name}

@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { cleanTheme, type Theme } from '../clean.ts';
+import { cleanTheme, type Theme, type ThemePieces } from '../clean.ts';
 import { drawnPatterns } from '../motifs.tsx';
 import { PALETTE as TILE_PALETTE } from '../tiles.tsx';
+import type { ArtSet } from './art.ts';
 
 /**
  * Shared pieces for the hand-drawn board skins. Each skin draws its own picture for the six base
@@ -61,10 +62,104 @@ export interface SkinSpec {
   art: Record<BaseType, ReactNode>;
   seaPattern: ReactNode;
   rest: Partial<Theme>;
+  /** Painted artwork that replaces the drawings above, piece by piece (see art.ts). */
+  paintings?: ArtSet;
+}
+
+/** A painting that fills one hex, cropped to cover it, over the flat colour while it loads. */
+function paintedHex(id: string, href: string, under: string): ReactNode {
+  return (
+    <pattern key={id} id={id} patternUnits="objectBoundingBox" width="1" height="1">
+      <rect width={W} height={H} fill={under} />
+      <image href={href} width={W} height={H} preserveAspectRatio="xMidYMid slice" />
+    </pattern>
+  );
+}
+
+/** One repeat of a painted sea, in board units: a little wider than a hex. */
+const SEA_REPEAT = 160;
+
+/** Sizes of painted pieces, as a share of the hex size. */
+const PIECE = { settlement: 0.54, city: 0.72, robber: 0.72 };
+
+/**
+ * Painted pieces where there are paintings, drawn ones elsewhere. Settlements and cities are
+ * painted in white and grey and multiplied by the player's colour, so whites take the colour,
+ * greys shade it and black lines stay black.
+ */
+function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined): ThemePieces {
+  const out: ThemePieces = { ...drawn };
+  if (p.settlement || p.city) {
+    const draw = drawn?.house;
+    out.house = (o) => {
+      const href = o.city ? p.city : p.settlement;
+      if (!href) return draw ? draw(o) : null;
+      const size = (o.city ? PIECE.city : PIECE.settlement) * o.s;
+      const id = `tint-${o.color.replace(/[^a-z0-9]/gi, '')}`;
+      return (
+        <g>
+          <filter id={id} colorInterpolationFilters="sRGB">
+            <feFlood floodColor={o.color} />
+            <feBlend in2="SourceGraphic" mode="multiply" />
+            <feComposite in2="SourceAlpha" operator="in" />
+          </filter>
+          <image
+            href={href}
+            x={o.x - size / 2}
+            y={o.y + 0.2 * o.s - size}
+            width={size}
+            height={size}
+            preserveAspectRatio="xMidYMax meet"
+            filter={`url(#${id})`}
+          />
+        </g>
+      );
+    };
+  }
+  if (p.robber) {
+    const href = p.robber;
+    out.robber = ({ x, y, s }) => {
+      const size = PIECE.robber * s;
+      return (
+        <g>
+          <ellipse cx={x} cy={y + 0.18 * s} rx={0.2 * s} ry={0.05 * s} fill="#000" opacity={0.35} />
+          <image
+            href={href}
+            x={x - size / 2}
+            y={y + 0.2 * s - size}
+            width={size}
+            height={size}
+            preserveAspectRatio="xMidYMax meet"
+          />
+        </g>
+      );
+    };
+  }
+  if (p.token) {
+    const href = p.token;
+    // The face circle stays for the glow on a rolled number; the painting sits on it, cut round.
+    out.token = ({ x, y, r }) => (
+      <>
+        <circle className="token-face" cx={x} cy={y} r={r} fill="none" stroke="none" />
+        <image
+          href={href}
+          x={x - r}
+          y={y - r}
+          width={2 * r}
+          height={2 * r}
+          preserveAspectRatio="xMidYMid slice"
+          clipPath="url(#token-disc)"
+        />
+      </>
+    );
+  }
+  return out;
 }
 
 /** Builds a theme from a skin: its own seven pictures, Tiles drawings for everything else. */
 export function skin(spec: SkinSpec): Theme {
+  const paint = spec.paintings ?? {};
+  const painted = Object.keys(paint).length > 0;
   const others = Object.fromEntries(
     Object.entries(TILE_PALETTE).filter(([t]) => !(BASE as readonly string[]).includes(t)),
   );
@@ -85,8 +180,31 @@ export function skin(spec: SkinSpec): Theme {
     patterns: () => (
       <>
         {drawnPatterns(others)}
-        {BASE.map((t) => hexPattern(`pat-${t}`, spec.art[t]))}
-        {spec.seaPattern}
+        {BASE.map((t) => {
+          const href = paint[t];
+          return href
+            ? paintedHex(`pat-${t}`, href, spec.terrain[t])
+            : hexPattern(`pat-${t}`, spec.art[t]);
+        })}
+        {paint.sea ? (
+          <pattern
+            key="pat-sea"
+            id="pat-sea"
+            patternUnits="userSpaceOnUse"
+            width={SEA_REPEAT}
+            height={SEA_REPEAT}
+          >
+            <rect width={SEA_REPEAT} height={SEA_REPEAT} fill={spec.sea} />
+            <image href={paint.sea} width={SEA_REPEAT} height={SEA_REPEAT} />
+          </pattern>
+        ) : (
+          spec.seaPattern
+        )}
+        {paint.token && (
+          <clipPath id="token-disc" clipPathUnits="objectBoundingBox">
+            <circle cx={0.5} cy={0.5} r={0.5} />
+          </clipPath>
+        )}
       </>
     ),
     patterned: [...Object.keys(TILE_PALETTE), ...BASE, 'sea'],
@@ -99,5 +217,6 @@ export function skin(spec: SkinSpec): Theme {
     },
     ui: { '--sea': spec.sea },
     ...spec.rest,
+    ...(painted ? { pieces: paintedPieces(paint, spec.rest.pieces) } : {}),
   };
 }

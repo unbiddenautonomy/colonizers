@@ -1,6 +1,13 @@
 import type { CornerId, Ctx, EdgeId, HexId, HexState, Piece } from '@colonizers/engine';
-import { robber } from '@colonizers/module-base';
-import { CUT_ROAD, MODULE_ID, PRINCE, PRINCE_COUNT, ROBBER_RANGE } from './constants.ts';
+import { canPlaceSettlement, legalRoadEdges, robber } from '@colonizers/module-base';
+import {
+  CITADEL_MAX,
+  CUT_ROAD,
+  MODULE_ID,
+  PRINCE,
+  PRINCE_COUNT,
+  ROBBER_RANGE,
+} from './constants.ts';
 
 /**
  * Princes & Explorers' board rules: where the princes and the robber may go,
@@ -277,9 +284,38 @@ export function princesVp(ctx: Ctx, seat: number, value: number): number {
     const def = ctx.registry.pieceTypes[p.type];
     if (!def?.building) continue;
     if (robberAtCorner(ctx, p.at.id, r)) v -= def.vp ?? 0;
-    else v += princesAtCorner(ctx, p.at.id, pr);
+    else v += princesAtCorner(ctx, p.at.id, pr) + (isCitadel(p) ? 1 : 0);
   }
   return v;
+}
+
+// ---- The citadel: a way out of a dead end ----
+
+export const isCitadel = (p: Piece): boolean => p.type === 'city' && p.props.citadel === true;
+
+/** The player's citadels standing now. */
+export const citadelsOf = (ctx: Ctx, seat: number): Piece[] =>
+  ctx.piecesOf(seat, 'city').filter(isCitadel);
+
+/**
+ * Nothing left that the player can build on the board: no city to make (no city left, or no
+ * settlement to make one of), no settlement to place, and no road to place (none left, or nowhere
+ * for one). That is the dead end the citadel is for.
+ */
+export function nothingLeftToBuild(ctx: Ctx, seat: number): boolean {
+  if (ctx.supplyLeft(seat, 'city') > 0 && ctx.piecesOf(seat, 'settlement').length > 0) return false;
+  if (ctx.supplyLeft(seat, 'road') > 0 && legalRoadEdges(ctx, seat).length > 0) return false;
+  if (ctx.supplyLeft(seat, 'settlement') <= 0) return true;
+  return !ctx.geometry.corners.some((c) => canPlaceSettlement(ctx, seat, c, true) === null);
+}
+
+/** Cities the player may turn into a citadel now (cost aside). */
+export function citadelSpots(ctx: Ctx, seat: number): CornerId[] {
+  if (citadelsOf(ctx, seat).length >= CITADEL_MAX || !nothingLeftToBuild(ctx, seat)) return [];
+  return ctx
+    .piecesOf(seat, 'city')
+    .filter((p) => !isCitadel(p) && p.at.kind === 'corner')
+    .map((p) => (p.at as { id: CornerId }).id);
 }
 
 /** A road at a prince counts double (triple between two); one at the robber doesn't count. */

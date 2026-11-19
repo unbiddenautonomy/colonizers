@@ -52,6 +52,7 @@ import { chosenTarget, winTarget } from '../../../server/src/winTarget.ts';
 import { TargetPicker } from '../ui/TargetPicker.tsx';
 import { useAccount } from '../online/account.ts';
 import { loadCustomMaps } from '../game/customMaps.ts';
+import { loadLocalGames } from '../game/localStats.ts';
 import { changedOptions, DEFAULT_VP_BASE, defaultOptionsFor, hasRobber } from '../game/defaults.ts';
 
 const DEFAULT_NAMES = ['Alex', 'Blair', 'Casey', 'Devon', 'Emery', 'Finley', 'Gray', 'Harper'];
@@ -111,11 +112,14 @@ export function NewGame({
   onRules,
   onOnline,
   onEditor,
+  onStats,
   account,
 }: {
   account?: ReactNode;
   /** Opens the map editor, on a saved map or a new one. */
   onEditor: (id: string | null) => void;
+  /** Opens the stats for games played on this device. */
+  onStats: () => void;
   onOnline: (code: string) => void;
   onStart: (g: SavedGame) => void;
   onResume: () => void;
@@ -163,6 +167,7 @@ export function NewGame({
 
   const presets = PRESETS.filter((p) => count >= p.players.min && count <= p.players.max);
   const [allCustom] = useState(loadCustomMaps);
+  const [hasLocalStats] = useState(() => loadLocalGames().length > 0);
   const customMaps = allCustom.filter((m) => count >= m.players.min && count <= m.players.max);
   const scenarios = SEA_SCENARIOS.filter((x) => count >= x.players.min && count <= x.players.max);
   const effective: MapChoice =
@@ -320,6 +325,10 @@ export function NewGame({
         },
         actions: [],
         bots: botsFor(),
+        mapKey:
+          effective.kind === 'random'
+            ? `random:${effective.mode}`
+            : `${effective.kind}:${effective.id}`,
       });
     // The scenario modules add their share of the target in play.
     const own = winAt - target.fromModules;
@@ -376,6 +385,11 @@ export function NewGame({
               <button type="button" className="ghost" onClick={onRules}>
                 📖 Rulebook
               </button>
+              {hasLocalStats && (
+                <button type="button" className="ghost" onClick={onStats}>
+                  📊 Stats
+                </button>
+              )}
               <LookPicker />
               <ThemePicker />
               <DicePicker />

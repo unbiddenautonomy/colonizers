@@ -25,6 +25,8 @@ export const specialMapsRules: RulebookModule = {
         'twirl',
         'ring',
         'mini',
+        'world',
+        'continents',
       ],
       body: `Special maps change the shape or mix of the board. They are built fresh from the game's seed every time.
 
@@ -32,7 +34,8 @@ export const specialMapsRules: RulebookModule = {
 - **Volcano**: volcanoes replace the desert. See the volcano page.
 - **Deep Forest**: lots of forest, very little brick.
 - **Lakes**: inland lakes split the land, each with harbors on its shore.
-- **Diamond**, **Twirl**, **Ring** and **Mini**: unusual shapes that change where the good spots are.`,
+- **Diamond**, **Twirl**, **Ring** and **Mini**: unusual shapes that change where the good spots are.
+- **World**: continents of different sizes split by narrow straits, played with Seafarers ships. Start on any continent; your first settlement on each new one is worth 1 point.`,
     },
     {
       id: 'volcano',

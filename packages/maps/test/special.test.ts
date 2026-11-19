@@ -11,7 +11,7 @@ describe('Special maps', () => {
 
   for (const spec of SPECIAL_MAPS) {
     // Seafarers boards take longer to build, so expansion scenarios try fewer seeds.
-    const seeds = spec.group === 'treasures' ? 40 : 200;
+    const seeds = spec.group === 'treasures' || spec.id === 'world' ? 40 : 200;
     it(`${spec.name} builds for every player count, ${seeds} seeds each`, () => {
       for (let players = spec.players.min; players <= spec.players.max; players++) {
         for (let i = 0; i < seeds; i++) {
@@ -26,6 +26,13 @@ describe('Special maps', () => {
           if (spec.id === 'lakes') {
             expect(b.map.hexes.some((h) => h.type === 'lake')).toBe(true);
             expect(b.map.harbors!.length).toBeGreaterThan(9);
+          }
+          if (spec.id === 'world') {
+            // Start anywhere, with a point for each new continent, and a pirate at sea.
+            expect(b.settings).toMatchObject({ islandBonus: 1 });
+            expect(b.settings.setupHexes).toBeUndefined();
+            expect(b.map.pieces?.some((p) => p.type === 'pirate')).toBe(true);
+            expect(land.length).toBeGreaterThanOrEqual(players >= 5 ? 45 : 31);
           }
           if (spec.id === 'deep-forest') {
             const count = (t: string) => land.filter((h) => h.type === t).length;

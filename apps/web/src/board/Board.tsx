@@ -1395,6 +1395,18 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 {p.type === 'harbor' && (
                   <Cargo x={c.x + S * 0.3} y={c.y - S * 0.25} props={p.props} />
                 )}
+                {p.type === 'city' && p.props.citadel === true && (
+                  <g pointerEvents="none">
+                    <path
+                      d={`M${c.x + S * 0.12},${c.y - S * 0.14} v${-S * 0.26} h${S * 0.05} v${S * 0.05} h${S * 0.05} v${-S * 0.05} h${S * 0.05} v${S * 0.05} h${S * 0.05} v${-S * 0.05} h${S * 0.05} v${S * 0.26} Z`}
+                      fill="#f2c14e"
+                      stroke={theme.outline}
+                      strokeWidth={1.6}
+                      strokeLinejoin="round"
+                    />
+                    <title>Citadel (a point more)</title>
+                  </g>
+                )}
                 {typeof p.props.metropolis === 'string' && (
                   <g>
                     <rect

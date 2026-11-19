@@ -5,6 +5,7 @@ import { hexagon, shapeFor, SHAPES, type Coord } from './shapes.ts';
 import { generateTbBoard, TB_SCENARIOS } from './traders.ts';
 import { generateTdaBoard, TDA_SCENARIOS } from './treasures.ts';
 import { EP_SCENARIOS, generateEpBoard } from './explorers.ts';
+import { buildSeaBoard, WORLD_MAP } from './seafarers.ts';
 
 /**
  * Special maps: our own layouts that change how a game plays. Each one is a
@@ -77,6 +78,13 @@ export const SPECIAL_MAPS: SpecialMap[] = [
       'A ring of land around an inner sea. No middle to fight over, and harbors inside too.',
     players: { min: 3, max: 6 },
     modules: [],
+  },
+  {
+    id: WORLD_MAP.id,
+    name: WORLD_MAP.name,
+    description: WORLD_MAP.description,
+    players: WORLD_MAP.players,
+    modules: ['seafarers'],
   },
   {
     id: 'mini',
@@ -200,8 +208,14 @@ export function generateSpecialBoard(opts: {
   if (spec.group === 'treasures') return generateTdaBoard({ ...opts, scenario: spec.id });
   if (spec.group === 'explorers') return generateEpBoard({ ...opts, scenario: spec.id });
   const { seed, players } = opts;
-  const rng = Rng.fromSeed(`special:${opts.map}:${players}:${seed}`);
   const modules = ['base', ...spec.modules];
+  if (spec.id === WORLD_MAP.id) {
+    // Starts anywhere; the pirate and robber come with the sea board.
+    const { map, settings } = buildSeaBoard(WORLD_MAP, { seed, players, scenario: 'world' });
+    const { setupHexes: _anywhere, ...rest } = settings;
+    return { map, modules, settings: rest };
+  }
+  const rng = Rng.fromSeed(`special:${opts.map}:${players}:${seed}`);
   const settings: Record<string, unknown> = {};
   const shaped = (shape: Coord[]) =>
     generateBoard({
