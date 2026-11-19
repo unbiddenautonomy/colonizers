@@ -3,21 +3,15 @@ import { cleanTheme, type Theme, type ThemePieces } from '../clean.ts';
 import { drawnPatterns } from '../motifs.tsx';
 import { PALETTE as TILE_PALETTE } from '../tiles.tsx';
 import type { ArtSet } from './art.ts';
+import { BASE, H, W, type BaseType } from './hex.ts';
+
+export { BASE, CX, CY, H, poly, r1, W, type BaseType } from './hex.ts';
 
 /**
  * Shared pieces for the hand-drawn board skins. Each skin draws its own picture for the six base
  * hexes and the sea; rarer hex types (gold, volcano, lakes and so on) use the Tiles drawings so
  * every map still works.
  */
-
-/** A hex's box at the board's hex size (60): 60·√3 wide, 120 tall, pointy top. */
-export const W = 103.92;
-export const H = 120;
-export const CX = W / 2;
-export const CY = H / 2;
-
-export const BASE = ['forest', 'hills', 'pasture', 'fields', 'mountains', 'desert'] as const;
-export type BaseType = (typeof BASE)[number];
 
 /** A picture that fills one hex. */
 export function hexPattern(id: string, body: ReactNode): ReactNode {
@@ -39,17 +33,6 @@ export function seaTile(w: number, h: number, body: ReactNode): ReactNode {
 
 export const fill = (c: string) => <rect width={W} height={H} fill={c} />;
 
-/** Rounds to one decimal for shorter paths. */
-export const r1 = (n: number) => Math.round(n * 10) / 10;
-
-/** A regular polygon's points. */
-export function poly(cx: number, cy: number, r: number, n: number, rot = -90): string {
-  return Array.from({ length: n }, (_, i) => {
-    const a = ((rot + (360 / n) * i) * Math.PI) / 180;
-    return `${r1(cx + r * Math.cos(a))},${r1(cy + r * Math.sin(a))}`;
-  }).join(' ');
-}
-
 export interface SkinSpec {
   id: string;
   name: string;
@@ -64,6 +47,8 @@ export interface SkinSpec {
   rest: Partial<Theme>;
   /** Painted artwork that replaces the drawings above, piece by piece (see art.ts). */
   paintings?: ArtSet;
+  /** Gradients and the like the skin's pieces refer to, defined once for the whole board. */
+  defs?: ReactNode;
 }
 
 /** A painting that fills one hex, cropped to cover it, over the flat colour while it loads. */
@@ -205,6 +190,7 @@ export function skin(spec: SkinSpec): Theme {
             <circle cx={0.5} cy={0.5} r={0.5} />
           </clipPath>
         )}
+        {!painted && spec.defs}
       </>
     ),
     patterned: [...Object.keys(TILE_PALETTE), ...BASE, 'sea'],

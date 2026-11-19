@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
-import { ICONS, resourceIcon } from './icons.tsx';
 import { artFor } from './art.ts';
-import { BASE, H, r1, seaTile, skin, W, type BaseType } from './kit.tsx';
+import { circle, mix, pathOf, ring, rng, strokes, type Pt } from './ink.ts';
+import { MANGA_SCENES, type InkRole, type InkScene } from './mangaArt.ts';
+import { BASE, H, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
- * Grand Line · Straw Hat Pirates: the island as a colour page of a manga. Flat bright lands in
- * heavy ink with screentone shading toward the bottom of each tile, a sea of halftone dots and
- * little wave strokes. Number discs are straw hats seen from above, settlements wear straw-hat
+ * Grand Line · Straw Hat Pirates: the island as a colour page of a manga. Each land is an inked
+ * scene drawn in the ink kit (see mangaArt.ts) rather than a flat colour behind an icon: a
+ * stand of trees, a clay pit cut in terraces, a meadow with a flock, wheat in rows, three
+ * snow-capped peaks, and dunes around a butte. Screentone shades the bottom of every tile, and
+ * the sea is halftone dots with little wave strokes. Number discs are straw hats seen from above, settlements wear straw-hat
  * roofs, cities are ships under a Jolly Roger, and the robber is a Marine cap: the Navy has
  * moved in, so nothing gets made there.
  */
@@ -19,37 +22,108 @@ interface Ink {
   straw: string;
   strawLight: string;
   band: string;
+  /** Where the shadows go, and where the light comes from. */
+  cool: string;
+  warm: string;
   sea: string;
   seaDot: string;
   marine: string;
 }
 
-/** Screentone: dots that grow toward the bottom of the tile, the way manga shades a form. */
-const TONE = (() => {
-  let d = '';
-  const top = H * 0.42;
-  for (let row = 0, y = top; y < H; y += 5, row++) {
-    const t = (y - top) / (H - top);
-    const r = 0.3 + 1.25 * t ** 1.4;
-    for (let x = row % 2 ? 2.5 : 5; x < W; x += 5)
-      d += `M${r1(x - r)},${r1(y)}a${r1(r)},${r1(r)} 0 1 0 ${r1(2 * r)},0a${r1(r)},${r1(r)} 0 1 0 ${r1(-2 * r)},0`;
-  }
-  return d;
-})();
+/**
+ * The scene colours for one land. The light is warm and the shade is cool, so a tile is three
+ * colours rather than one colour at three brightnesses: that is what makes a drawing read as
+ * lit rather than tinted.
+ */
+function palette(k: Ink, type: BaseType): Record<InkRole, string> {
+  const land = k.land[type];
+  return {
+    land,
+    mid: mix(land, k.cool, 0.12),
+    dark: mix(land, k.cool, 0.32),
+    shadow: mix(land, k.cool, 0.52),
+    light: mix(land, k.warm, 0.4),
+    glow: mix(land, k.warm, 0.75),
+    ink: k.ink,
+    tone: k.ink,
+  };
+}
 
-function art(k: Ink): Record<BaseType, ReactNode> {
-  const tile = (type: BaseType) => (
+/** The gradients a scene needs, written out so its layers can point at them. */
+function defs(scene: InkScene, c: Record<InkRole, string>): ReactNode {
+  return scene.grads.map((g) => {
+    const stops = g.stops.map((s, i) => (
+      <stop
+        key={i}
+        offset={s.at}
+        stopColor={c[s.role]}
+        {...(s.opacity === undefined ? {} : { stopOpacity: s.opacity })}
+      />
+    ));
+    return g.kind === 'linear' ? (
+      <linearGradient
+        key={g.id}
+        id={g.id}
+        gradientUnits="userSpaceOnUse"
+        x1={g.at[0]}
+        y1={g.at[1]}
+        x2={g.at[2]}
+        y2={g.at[3]}
+      >
+        {stops}
+      </linearGradient>
+    ) : (
+      <radialGradient
+        key={g.id}
+        id={g.id}
+        gradientUnits="userSpaceOnUse"
+        cx={g.at[0]}
+        cy={g.at[1]}
+        r={g.at[2]}
+        {...(g.at.length > 3 ? { fx: g.at[3], fy: g.at[4] } : {})}
+      >
+        {stops}
+      </radialGradient>
+    );
+  });
+}
+
+/** One land: its own colour behind the drawn scene, painted in that land's shades. */
+function scene(k: Ink, type: BaseType): ReactNode {
+  const c = palette(k, type);
+  const sc = MANGA_SCENES[type];
+  return (
     <>
-      <rect width={W} height={H} fill={k.land[type]} />
-      <path d={TONE} fill={k.ink} opacity={0.16} />
-      {resourceIcon(
-        type,
-        { body: k.paper, line: k.ink, solid: k.ink, grain: k.paper, width: 2 },
-        ICONS,
-      )}
+      <defs>{defs(sc, c)}</defs>
+      <rect width={W} height={H} fill={c.land} />
+      {sc.layers.map((l, i) => {
+        const paint = l.grad ? `url(#${l.grad})` : c[l.role ?? 'ink'];
+        return l.width ? (
+          <path
+            key={i}
+            d={l.d}
+            fill="none"
+            stroke={paint}
+            strokeWidth={l.width}
+            strokeLinejoin="round"
+            {...(l.round ? { strokeLinecap: 'round' as const } : {})}
+            {...(l.opacity === undefined ? {} : { opacity: l.opacity })}
+          />
+        ) : (
+          <path
+            key={i}
+            d={l.d}
+            fill={paint}
+            {...(l.opacity === undefined ? {} : { opacity: l.opacity })}
+          />
+        );
+      })}
     </>
   );
-  return Object.fromEntries(BASE.map((t) => [t, tile(t)])) as Record<BaseType, ReactNode>;
+}
+
+function art(k: Ink): Record<BaseType, ReactNode> {
+  return Object.fromEntries(BASE.map((t) => [t, scene(k, t)])) as Record<BaseType, ReactNode>;
 }
 
 function sea(k: Ink): ReactNode {
@@ -69,6 +143,105 @@ function sea(k: Ink): ReactNode {
       strokeLinecap="round"
     />,
   ]);
+}
+
+/**
+ * The number disc: a straw hat seen from above, drawn rather than stamped out. Every circle here
+ * is a wandered line, so none of them sits quite true, and the hat is lit from the top left: the
+ * brim graduates into shade on the lower right, the band turns with it, and the whole disc drops
+ * a shadow on the tile. Built once at a radius of 100 and scaled to whatever the board asks for.
+ */
+const DISC = (() => {
+  const rnd = rng(21);
+  const shut = (pts: Pt[]) => pathOf(pts, true);
+  // The straw is woven in rings, so the ticks run across the brim rather than around it.
+  const weave = strokes(
+    Array.from({ length: 30 }, (_, i): Pt[] => {
+      const a = ((i + rnd() * 0.6) / 30) * Math.PI * 2;
+      const r0 = 78 + rnd() * 3;
+      const r1 = 93 + rnd() * 3;
+      return [
+        [Math.cos(a) * r0, Math.sin(a) * r0],
+        [Math.cos(a) * r1, Math.sin(a) * r1],
+      ];
+    }),
+  );
+  // The crown takes most of the disc: a number has to be read across a table, so it gets a
+  // calm pale field to sit on and the hat is told in the narrow brim around it.
+  return {
+    brim: shut(circle(0, 0, 96, rnd, 1.5)),
+    band: shut(circle(0, -1, 86, rnd, 1)),
+    crown: shut(circle(0, -2, 77, rnd, 1.2)),
+    weave,
+    stitch: pathOf(circle(0, 0, 92, rnd, 0.9), true),
+    // The gleam: a short highlight where the light lands on the crown.
+    gleam: pathOf(ring(0, -2, 61, 61, 12, Math.PI * 1.06, Math.PI * 1.5)),
+  };
+})();
+
+/** The gradients the disc is painted with: one warm light, one cool shade, in disc units. */
+function discDefs(k: Ink): ReactNode {
+  const stop = (at: number, c: string, o?: number) => (
+    <stop
+      key={`${at}-${c}`}
+      offset={at}
+      stopColor={c}
+      {...(o === undefined ? {} : { stopOpacity: o })}
+    />
+  );
+  return (
+    <>
+      <radialGradient
+        key="sh-disc-brim"
+        id="sh-disc-brim"
+        gradientUnits="userSpaceOnUse"
+        cx={-34}
+        cy={-38}
+        r={168}
+      >
+        {stop(0, mix(k.strawLight, k.warm, 0.5))}
+        {stop(0.45, k.straw)}
+        {stop(1, mix(k.straw, k.cool, 0.42))}
+      </radialGradient>
+      <radialGradient
+        key="sh-disc-crown"
+        id="sh-disc-crown"
+        gradientUnits="userSpaceOnUse"
+        cx={-24}
+        cy={-30}
+        r={124}
+      >
+        {stop(0, '#fffdf4')}
+        {stop(0.5, k.strawLight)}
+        {stop(1, mix(k.strawLight, k.cool, 0.24))}
+      </radialGradient>
+      <linearGradient
+        key="sh-disc-band"
+        id="sh-disc-band"
+        gradientUnits="userSpaceOnUse"
+        x1={-70}
+        y1={-70}
+        x2={66}
+        y2={70}
+      >
+        {stop(0, mix(k.band, k.warm, 0.4))}
+        {stop(0.45, k.band)}
+        {stop(1, mix(k.band, k.cool, 0.45))}
+      </linearGradient>
+      <radialGradient
+        key="sh-disc-cast"
+        id="sh-disc-cast"
+        gradientUnits="userSpaceOnUse"
+        cx={0}
+        cy={0}
+        r={104}
+      >
+        {stop(0, k.ink, 0.42)}
+        {stop(0.74, k.ink, 0.36)}
+        {stop(1, k.ink, 0)}
+      </radialGradient>
+    </>
+  );
 }
 
 function pieces(k: Ink): ThemePieces {
@@ -185,27 +358,44 @@ function pieces(k: Ink): ThemePieces {
     // A straw hat from above: the woven brim, the red band, and the number on the crown.
     token: ({ x, y, r }) => (
       <>
-        <circle
-          className="token-face"
-          cx={x}
-          cy={y}
-          r={r}
-          fill={k.straw}
-          stroke={k.ink}
-          strokeWidth={2.2}
-        />
-        <circle
-          cx={x}
-          cy={y}
-          r={r * 0.9}
-          fill="none"
-          stroke={k.ink}
-          strokeOpacity={0.35}
-          strokeWidth={0.8}
-          strokeDasharray="1.6 2.2"
-        />
-        <circle cx={x} cy={y} r={r * 0.79} fill={k.band} stroke={k.ink} strokeWidth={1} />
-        <circle cx={x} cy={y} r={r * 0.68} fill={k.strawLight} stroke={k.ink} strokeWidth={1} />
+        {/* Bare: the look's stylesheet rings this one in gold when the number is rolled. */}
+        <circle className="token-face" cx={x} cy={y} r={r} fill="none" stroke="none" />
+        <g transform={`translate(${x},${y}) scale(${r / 100})`}>
+          <ellipse cx={4} cy={11} rx={100} ry={95} fill="url(#sh-disc-cast)" />
+          <path
+            d={DISC.brim}
+            fill="url(#sh-disc-brim)"
+            stroke={k.ink}
+            strokeWidth={9}
+            strokeLinejoin="round"
+          />
+          <path
+            d={DISC.weave}
+            fill="none"
+            stroke={k.ink}
+            strokeOpacity={0.22}
+            strokeWidth={3.2}
+            strokeLinecap="round"
+          />
+          <path d={DISC.stitch} fill="none" stroke={k.ink} strokeOpacity={0.16} strokeWidth={2.6} />
+          <path d={DISC.band} fill="none" stroke={k.ink} strokeWidth={14} />
+          <path d={DISC.band} fill="none" stroke="url(#sh-disc-band)" strokeWidth={10} />
+          <path
+            d={DISC.crown}
+            fill="url(#sh-disc-crown)"
+            stroke={k.ink}
+            strokeWidth={6}
+            strokeLinejoin="round"
+          />
+          <path
+            d={DISC.gleam}
+            fill="none"
+            stroke={k.paper}
+            strokeOpacity={0.55}
+            strokeWidth={8}
+            strokeLinecap="round"
+          />
+        </g>
       </>
     ),
   };
@@ -223,6 +413,7 @@ function strawHatSkin(id: string, name: string, k: Ink): Theme {
     art: art(k),
     seaPattern: sea(k),
     paintings: artFor('strawhat'),
+    defs: discDefs(k),
     rest: {
       token: k.strawLight,
       tokenText: k.ink,
@@ -253,6 +444,8 @@ export const strawHatBoard = strawHatSkin('strawhat-sunny', 'Grand Line · Straw
   },
   ink: '#141414',
   paper: '#ffffff',
+  cool: '#17204a',
+  warm: '#fff3cd',
   straw: '#f2c240',
   strawLight: '#fff1c2',
   band: '#d62828',
