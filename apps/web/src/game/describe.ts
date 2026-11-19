@@ -68,6 +68,8 @@ export function describe(e: GameEvent, names: string[]): string | null {
   switch (e.type) {
     case 'gameCreated':
       return 'New game started.';
+    case 'stepSkipped':
+      return `Nobody could move in the ${String(e.step)} step, so the game skipped it.`;
     case 'turnStarted':
       return `— ${n(e.player)}'s turn —`;
     case 'rolled':

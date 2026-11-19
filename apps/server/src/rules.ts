@@ -1,4 +1,11 @@
-import { ModuleLibrary, type Action, type GameConfig, type GameState } from '@colonizers/engine';
+import {
+  cardsTotal,
+  Ctx,
+  ModuleLibrary,
+  type Action,
+  type GameConfig,
+  type GameState,
+} from '@colonizers/engine';
 import { baseModule } from '@colonizers/module-base';
 import { seafarersModule } from '@colonizers/module-seafarers';
 import { citiesKnightsModule } from '@colonizers/module-cities-knights';
@@ -177,6 +184,12 @@ export function timedSeats(state: GameState): number[] {
   }
   // Soldiers & Armies: the defender decides whether their armies join a battle.
   if (state.phase.id === 'battleCall') return [state.phase.defender as number];
+  // A step of its own, such as the Special Building Phase: ask the rules who
+  // can act, because it is not always the player whose turn it is.
+  if (state.phase.id !== 'main' && state.phase.id !== 'roll') {
+    const waiting = library.waitingOn(state);
+    if (waiting.length) return waiting;
+  }
   return [state.turn.player];
 }
 
@@ -266,6 +279,8 @@ const SAFE_ORDER = [
   'payMerchantToll',
   'relocateMerchant',
   'roll',
+  'placeJunker',
+  'movePirate',
   'placeSetupSettlement',
   'placeSetupRoad',
   'placeSetupShip',
@@ -299,5 +314,27 @@ export function timeoutAction(state: GameState, seat: number, rand: () => number
     if (type === 'answerBattleCall') options = options.filter((a) => a.join === false);
     if (options.length) return options[Math.floor(rand() * options.length)] ?? null;
   }
-  return null;
+  // A step the list above has never heard of: any move that costs the player
+  // nothing. Without this an absent player could stop the game for good in
+  // any step a later expansion adds.
+  const free = legal.filter((a) => a.type !== 'endTurn' && costsNothing(state, a));
+  return free.length ? (free[Math.floor(rand() * free.length)] ?? null) : null;
+}
+
+/** Whether a move leaves the player's cards and points as they were. */
+function costsNothing(state: GameState, action: Action): boolean {
+  let after: GameState;
+  try {
+    after = library.apply(state, action).state;
+  } catch {
+    return false;
+  }
+  const before = state.players[action.player];
+  const now = after.players[action.player];
+  if (!before || !now) return false;
+  const held = (p: typeof before) => Object.values(p.held).reduce((s, cs) => s + cs.length, 0);
+  if (cardsTotal(now.hand) < cardsTotal(before.hand) || held(now) < held(before)) return false;
+  const ctx = new Ctx(after, library.registry(after.modules));
+  const was = new Ctx(state, library.registry(state.modules));
+  return ctx.vp(action.player) >= was.vp(action.player);
 }

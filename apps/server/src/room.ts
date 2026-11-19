@@ -421,6 +421,7 @@ export class GameRoom extends DurableObject<Env> {
     this.broadcastGame(entries);
     this.scheduleBots();
     this.notifyTurn();
+    this.rescueIfStuck();
     if (r.state.winner !== null) {
       const gameId = this.getMeta('gameId');
       if (gameId) {
@@ -489,6 +490,21 @@ export class GameRoom extends DurableObject<Env> {
       null,
       JSON.stringify(config),
     );
+  }
+
+  /**
+   * A step nobody can move in only happens through a bug in a scenario's own
+   * rules, but it would end the evening: nobody at the table can do anything
+   * about it. Leave the step and say so, so the game goes on.
+   */
+  private rescueIfStuck(): void {
+    const game = this.load();
+    if (!game || game.state.winner !== null || !library.stuck(game.state)) return;
+    const action: Action = { type: 'skipStep', player: game.state.turn.player };
+    if (library.check(game.state, action) !== null) return;
+    const step = game.state.phase.id;
+    this.applyAction(action);
+    this.systemChat(`Nobody could move in the ${step} step, so the game skipped it.`);
   }
 
   // ---- Bots ----

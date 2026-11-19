@@ -1,5 +1,12 @@
 import type { Action, ActionDef, Ctx, Phase } from '@colonizers/engine';
-import { rewrapRoll, rollEventDie, type CkData } from '@colonizers/module-cities-knights';
+import {
+  heldAlready,
+  heldSoFar,
+  releasedRoll,
+  rewrapRoll,
+  rollEventDie,
+  type CkData,
+} from '@colonizers/module-cities-knights';
 import { action, civData, civView, owes, playsLater, seatOf } from './core.ts';
 
 /**
@@ -38,7 +45,8 @@ export function democracySeat(ctx: Ctx): number | null {
   return last === undefined || ctx.state.turn.round >= last + ROUNDS_BETWEEN ? seat : null;
 }
 
-let releasing = false;
+/** The name this power goes by while a roll is held. */
+const DEMOCRACY = 'democracy';
 
 function show(ctx: Ctx, dice: Dice): void {
   ctx.state.data.base = {
@@ -47,17 +55,12 @@ function show(ctx: Ctx, dice: Dice): void {
   };
 }
 
-function release(ctx: Ctx, roller: number, dice: Dice, returnTo: Phase): void {
+function release(ctx: Ctx, roller: number, dice: Dice, returnTo: Phase, heldBefore: unknown): void {
   ctx.setPhase(returnTo);
   const d = ctx.state.data['cities-knights'] as CkDice;
   d.alchemist = { red: dice.red, yellow: dice.yellow };
   d.forcedEvent = dice.event as NonNullable<CkData['forcedEvent']>;
-  releasing = true;
-  try {
-    ctx.registry.actions.roll!.apply(ctx, { type: 'roll', player: roller });
-  } finally {
-    releasing = false;
-  }
+  ctx.registry.actions.roll!.apply(ctx, releasedRoll(roller, heldBefore, DEMOCRACY));
 }
 
 /** Holds the dice for Greece when Greece can throw them again. */
@@ -66,7 +69,8 @@ export function wrapRoll(prev: ActionDef): ActionDef {
     ...prev,
     apply(ctx, a: Action) {
       const greece = democracySeat(ctx);
-      if (releasing || greece === null) return prev.apply(ctx, a);
+      // One go per roll: never again on a roll Greece has already held.
+      if (heldAlready(a, DEMOCRACY) || greece === null) return prev.apply(ctx, a);
       const d = ctx.state.data['cities-knights'] as CkDice;
       const chosen = d.alchemist;
       d.alchemist = null;
@@ -85,6 +89,7 @@ export function wrapRoll(prev: ActionDef): ActionDef {
         roller: a.player,
         held: dice,
         returnTo: ctx.state.phase,
+        released: heldSoFar(a),
       });
     },
   };
@@ -110,7 +115,7 @@ const civDemocracy = action<{ dice: string }>({
       if (which.includes('event')) dice.event = rollEventDie(ctx);
       ctx.emit({ type: 'civDemocracy', player: a.player, dice: which, ...dice });
     }
-    release(ctx, ph.roller as number, dice, ph.returnTo as Phase);
+    release(ctx, ph.roller as number, dice, ph.returnTo as Phase, ph.released);
   },
   enumerate(ctx, player) {
     if (!owes(ctx, player)) return [];

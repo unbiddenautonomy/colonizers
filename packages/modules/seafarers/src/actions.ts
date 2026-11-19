@@ -9,7 +9,13 @@ import {
   type HexId,
   type Phase,
 } from '@colonizers/engine';
-import { RESOURCES, setupRounds, setupSeat, stealFrom } from '@colonizers/module-base';
+import {
+  freeRouteSpot,
+  RESOURCES,
+  setupRounds,
+  setupSeat,
+  stealFrom,
+} from '@colonizers/module-base';
 import {
   canMoveShip,
   canPlaceShip,
@@ -155,18 +161,12 @@ const placeFreeShip = action<{ edge: EdgeId }>({
   },
 });
 
-/** Somewhere to put a free road or ship. */
+/**
+ * Somewhere to put a free road or ship, by those moves' own rules (a scenario
+ * can refuse the only water or land that is left).
+ */
 export function freeSpots(ctx: Ctx, seat: number): boolean {
-  if (ctx.supplyLeft(seat, 'ship') > 0 && legalShipEdges(ctx, seat).length > 0) return true;
-  if (ctx.supplyLeft(seat, 'road') <= 0) return false;
-  return ctx.geometry.edges.some((e) => {
-    const err = ctx.registry.actions.placeFreeRoad?.check(ctx, {
-      type: 'placeFreeRoad',
-      player: seat,
-      edge: e,
-    });
-    return err === null;
-  });
+  return freeRouteSpot(ctx, seat);
 }
 
 // ---- The pirate ----

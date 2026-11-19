@@ -1,6 +1,13 @@
 import type { Action, ActionDef, Ctx, DiceResult, Phase } from '@colonizers/engine';
-import { rewrapRoll, rollEventDie, type CkData } from '@colonizers/module-cities-knights';
-import { action, hasStage, markUsed, MODULE_ID, usedThisTurn } from './core.ts';
+import {
+  heldAlready,
+  heldSoFar,
+  releasedRoll,
+  rewrapRoll,
+  rollEventDie,
+  type CkData,
+} from '@colonizers/module-cities-knights';
+import { action, hasStage, markUsed, usedThisTurn } from './core.ts';
 
 /**
  * Wonders that change the dice:
@@ -37,9 +44,8 @@ export interface HeldDice {
   event?: string;
 }
 
-interface RollData extends Record<string, unknown> {
-  releasing?: boolean;
-}
+/** Marks a roll these wonders have already held, so they hold it only once. */
+const WONDERS = 'wonders';
 
 const ck = (ctx: Ctx) => ctx.state.modules.includes('cities-knights');
 
@@ -72,35 +78,37 @@ function show(ctx: Ctx, dice: HeldDice): void {
 }
 
 /** Works the roll out with these number dice. */
-function release(ctx: Ctx, seat: number, dice: HeldDice, returnTo: Phase, steps?: number): void {
+function release(
+  ctx: Ctx,
+  seat: number,
+  dice: HeldDice,
+  returnTo: Phase,
+  heldBefore: unknown,
+  steps?: number,
+): void {
   ctx.setPhase(returnTo);
-  const data = ctx.data<RollData>(MODULE_ID);
-  data.releasing = true;
   const roll = ctx.registry.actions.roll!;
-  try {
-    if (ck(ctx)) {
-      const d = ctx.state.data['cities-knights'] as CkDice;
-      d.alchemist = { red: dice.a, yellow: dice.b };
-      if (dice.event) d.forcedEvent = dice.event as NonNullable<CkData['forcedEvent']>;
-      if (steps !== undefined) d.shipSteps = steps;
-      roll.apply(ctx, { type: 'roll', player: seat });
-    } else {
-      // The base roll throws through ctx.rollDice: hand it these dice instead.
-      const forced: DiceResult = {
-        dice: { white1: dice.a, white2: dice.b },
-        total: dice.a + dice.b,
-      };
-      const own = Object.getOwnPropertyDescriptor(ctx, 'rollDice');
-      Object.defineProperty(ctx, 'rollDice', { value: () => forced, configurable: true });
-      try {
-        roll.apply(ctx, { type: 'roll', player: seat });
-      } finally {
-        if (own) Object.defineProperty(ctx, 'rollDice', own);
-        else delete (ctx as unknown as Record<string, unknown>).rollDice;
-      }
+  const again = releasedRoll(seat, heldBefore, WONDERS);
+  if (ck(ctx)) {
+    const d = ctx.state.data['cities-knights'] as CkDice;
+    d.alchemist = { red: dice.a, yellow: dice.b };
+    if (dice.event) d.forcedEvent = dice.event as NonNullable<CkData['forcedEvent']>;
+    if (steps !== undefined) d.shipSteps = steps;
+    roll.apply(ctx, again);
+  } else {
+    // The base roll throws through ctx.rollDice: hand it these dice instead.
+    const forced: DiceResult = {
+      dice: { white1: dice.a, white2: dice.b },
+      total: dice.a + dice.b,
+    };
+    const own = Object.getOwnPropertyDescriptor(ctx, 'rollDice');
+    Object.defineProperty(ctx, 'rollDice', { value: () => forced, configurable: true });
+    try {
+      roll.apply(ctx, again);
+    } finally {
+      if (own) Object.defineProperty(ctx, 'rollDice', own);
+      else delete (ctx as unknown as Record<string, unknown>).rollDice;
     }
-  } finally {
-    delete data.releasing;
   }
 }
 
@@ -109,13 +117,13 @@ export function wrapRoll(prev: ActionDef): ActionDef {
   const wrapped: ActionDef = {
     ...prev,
     apply(ctx, a: Action) {
-      const data = ctx.state.data[MODULE_ID] as RollData | undefined;
       const seat = a.player;
       const canHold =
         hasStage(ctx, seat, 'colosseum', 3) ||
         hasStage(ctx, seat, 'machuPicchu', 3) ||
         (ck(ctx) && hasStage(ctx, seat, 'greatWall', 3));
-      if (data?.releasing || !canHold) return prev.apply(ctx, a);
+      // One go per roll: never again on a roll these wonders have already held.
+      if (heldAlready(a, WONDERS) || !canHold) return prev.apply(ctx, a);
       let dice: HeldDice;
       if (ck(ctx)) {
         const d = ctx.state.data['cities-knights'] as CkDice;
@@ -144,10 +152,16 @@ export function wrapRoll(prev: ActionDef): ActionDef {
         dice = { a: w1, b: w2 };
       }
       if (!rerollChoices(ctx, seat, dice).length && !wallChoices(ctx, seat, dice).length)
-        return release(ctx, seat, dice, ctx.state.phase);
+        return release(ctx, seat, dice, ctx.state.phase, heldSoFar(a));
       show(ctx, dice);
       ctx.emit({ type: 'wonderDiceHeld', player: seat, a: dice.a, b: dice.b });
-      ctx.setPhase({ id: 'wonderRoll', roller: seat, held: dice, returnTo: ctx.state.phase });
+      ctx.setPhase({
+        id: 'wonderRoll',
+        roller: seat,
+        held: dice,
+        returnTo: ctx.state.phase,
+        released: heldSoFar(a),
+      });
     },
   };
   return rewrapRoll(wrapped, prev);
@@ -155,12 +169,21 @@ export function wrapRoll(prev: ActionDef): ActionDef {
 
 const held = (ctx: Ctx) => ctx.state.phase.held as HeldDice;
 const wallSteps = (ctx: Ctx) => ctx.state.phase.wall as number | undefined;
+/** The powers that have already held this roll. */
+const heldBy = (ctx: Ctx) => ctx.state.phase.released;
 
 const keepRoll: ActionDef = {
   phases: ['wonderRoll'],
   check: (ctx, a) => (a.player === ctx.state.phase.roller ? null : 'Not your roll'),
   apply(ctx, a) {
-    release(ctx, a.player, held(ctx), ctx.state.phase.returnTo as Phase, wallSteps(ctx));
+    release(
+      ctx,
+      a.player,
+      held(ctx),
+      ctx.state.phase.returnTo as Phase,
+      heldBy(ctx),
+      wallSteps(ctx),
+    );
   },
   enumerate: (ctx, player) =>
     player === ctx.state.phase.roller ? [{ type: 'keepRoll', player }] : [],
@@ -188,7 +211,7 @@ const wonderReroll = action<{ use: string }>({
       a: dice.a,
       b: dice.b,
     });
-    release(ctx, a.player, dice, ctx.state.phase.returnTo as Phase, wallSteps(ctx));
+    release(ctx, a.player, dice, ctx.state.phase.returnTo as Phase, heldBy(ctx), wallSteps(ctx));
   },
   enumerate(ctx, player) {
     if (player !== ctx.state.phase.roller) return [];
@@ -214,7 +237,7 @@ const wonderWall = action<{ steps: number }>({
     ctx.emit({ type: 'wonderWall', player: a.player, steps: a.steps });
     // With nothing left to choose, the roll goes on.
     if (!rerollChoices(ctx, a.player, held(ctx)).length)
-      release(ctx, a.player, held(ctx), ctx.state.phase.returnTo as Phase, a.steps);
+      release(ctx, a.player, held(ctx), ctx.state.phase.returnTo as Phase, heldBy(ctx), a.steps);
   },
   enumerate(ctx, player) {
     if (player !== ctx.state.phase.roller) return [];

@@ -153,11 +153,23 @@ export class ModuleLibrary {
     return out;
   }
 
+  /** Whether a seat has a legal move right now. Cheaper than `legalActions`. */
+  canAct(state: GameState, player: number): boolean {
+    return new Ctx(state, this.registry(state.modules)).canAct(player);
+  }
+
   /** Seats that can act right now (several players can act during discards or trades). */
   waitingOn(state: GameState): number[] {
-    return state.players
-      .map((p) => p.seat)
-      .filter((seat) => this.legalActions(state, seat).length > 0);
+    return state.players.map((p) => p.seat).filter((seat) => this.canAct(state, seat));
+  }
+
+  /**
+   * Nobody can move and nobody has won. A game only gets here through a bug,
+   * so the room and the game screen check after every move and play the
+   * `skipStep` rescue, which leaves the dead-ended step.
+   */
+  stuck(state: GameState): boolean {
+    return new Ctx(state, this.registry(state.modules)).stuck;
   }
 
   /**
@@ -265,5 +277,5 @@ export function stateFromView(view: GameView): GameState {
   const decks = Object.fromEntries(
     Object.entries(view.decks).map(([id, n]) => [id, Array<string>(n).fill(HIDDEN_CARD)]),
   );
-  return { ...rest, players, decks, rng: [0, 0, 0, 0] } as GameState;
+  return { ...rest, viewer, players, decks, rng: [0, 0, 0, 0] } as GameState;
 }

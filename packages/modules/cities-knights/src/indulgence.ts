@@ -1,7 +1,7 @@
 import type { Action, ActionDef, Ctx, Phase } from '@colonizers/engine';
 import type { EventFace } from './constants.ts';
 import { holdsProgress } from './progress.ts';
-import { ckData, rewrapRoll, rollEventDie } from './rules.ts';
+import { ckData, heldAlready, heldSoFar, releasedRoll, rewrapRoll, rollEventDie } from './rules.ts';
 
 /**
  * Indulgence: whoever holds it may re-roll any of the dice just thrown, on
@@ -66,12 +66,7 @@ function release(ctx: Ctx): void {
   d.alchemist = { red: r.red, yellow: r.yellow };
   d.forcedEvent = r.event;
   ctx.setPhase(ph.returnTo as Phase);
-  d.releasingRoll = true;
-  try {
-    ctx.registry.actions.roll!.apply(ctx, { type: 'roll', player: ph.roller as number });
-  } finally {
-    delete d.releasingRoll;
-  }
+  ctx.registry.actions.roll!.apply(ctx, releasedRoll(ph.roller as number, ph.released, INDULGENCE));
 }
 
 /** Indulgence played: throw the chosen dice again and work the roll out. */
@@ -131,7 +126,8 @@ function wrapped(prev: ActionDef): ActionDef {
     ...prev,
     apply(ctx, a: Action) {
       const d = ckData(ctx);
-      const who = d.releasingRoll ? [] : holders(ctx, a.player);
+      // One go per roll: never again on a roll this card has already had.
+      const who = heldAlready(a, INDULGENCE) ? [] : holders(ctx, a.player);
       if (!who.length) return prev.apply(ctx, a);
       const chosen = d.alchemist;
       d.alchemist = null;
@@ -155,6 +151,7 @@ function wrapped(prev: ActionDef): ActionDef {
         roll: r,
         owed: Object.fromEntries(who.map((s) => [s, 1])),
         returnTo: ctx.state.phase,
+        released: heldSoFar(a),
       });
     },
   };

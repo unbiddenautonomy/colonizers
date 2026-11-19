@@ -110,6 +110,28 @@ export function legalRoadEdges(ctx: Ctx, seat: number): EdgeId[] {
   return ctx.geometry.edges.filter((e) => canPlaceRoad(ctx, seat, e) === null);
 }
 
+/**
+ * Whether the player has anywhere to put a free road or ship, asking those
+ * moves their own checks. Scenarios add rules to them (no roads on
+ * barbarian land, no ships on the canal), so counting plain road spots can
+ * start a free-road step that then refuses every edge and dead-ends the game.
+ * Use this, not `legalRoadEdges`, before handing out a free road.
+ */
+export function freeRouteSpot(ctx: Ctx, seat: number): boolean {
+  for (const type of ['placeFreeRoad', 'placeFreeShip']) {
+    const def = ctx.registry.actions[type];
+    if (!def) continue;
+    for (const edge of ctx.geometry.edges) {
+      try {
+        if (def.check(ctx, { type, player: seat, edge }) === null) return true;
+      } catch {
+        // A move that throws here can't be made either.
+      }
+    }
+  }
+  return false;
+}
+
 // ---- Production ----
 
 export function produce(ctx: Ctx, total: number): void {

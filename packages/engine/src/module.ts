@@ -45,6 +45,12 @@ export interface ActionDef<A extends Action = Action> {
   /** Phases in which this action can be taken. Omit to allow any phase. */
   phases?: string[];
   /**
+   * A last resort for getting a dead-ended game going again. Rescue moves
+   * don't count as being able to act, so a game whose only legal move is a
+   * rescue still counts as stuck (see `Ctx.canAct`).
+   */
+  rescue?: boolean;
+  /**
    * Returns a reason the action is illegal, or null if it is legal. Must not
    * change the state.
    */

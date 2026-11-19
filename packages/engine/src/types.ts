@@ -91,6 +91,12 @@ export interface GameState {
   /** Number of actions applied so far. */
   seq: number;
   winner: number | null;
+  /**
+   * The seat this state was built for, when it came from one player's view
+   * (see `stateFromView`). Other players' cards are hidden in it, so it can
+   * answer what the viewer may do but not what everyone else may.
+   */
+  viewer?: number;
 }
 
 export interface Action {

@@ -96,6 +96,7 @@ export {
   canPlaceSettlement,
   connectsAt,
   distanceRuleOk,
+  freeRouteSpot,
   legalRoadEdges,
   produce,
   robber,

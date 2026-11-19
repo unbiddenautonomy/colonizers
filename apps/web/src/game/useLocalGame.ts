@@ -92,12 +92,24 @@ export function useLocalGame(saved: SavedGame) {
       const current = gameRef.current;
       try {
         const r = library.apply(current.state, action);
+        let state = r.state;
+        const taken: Action[] = [action];
+        const events = [...r.events.map((event) => ({ seq: state.seq, event }))];
+        // A step nobody can move in only happens through a bug in a scenario's
+        // own rules, but it would end the game: leave it, as the room does
+        // online. It is saved like any other move, so a refresh replays it.
+        for (let i = 0; i < 2; i++) {
+          const rescue: Action = { type: 'skipStep', player: state.turn.player };
+          if (!library.stuck(state) || library.check(state, rescue) !== null) break;
+          const out = library.apply(state, rescue);
+          state = out.state;
+          taken.push(rescue);
+          events.push(...out.events.map((event) => ({ seq: state.seq, event })));
+        }
         const next: Internal = {
-          state: r.state,
-          actions: [...current.actions, action],
-          log: [...current.log, ...r.events.map((event) => ({ seq: r.state.seq, event }))].slice(
-            -1000,
-          ),
+          state,
+          actions: [...current.actions, ...taken],
+          log: [...current.log, ...events].slice(-1000),
         };
         gameRef.current = next;
         setGame(next);

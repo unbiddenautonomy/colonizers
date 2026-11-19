@@ -4,6 +4,7 @@ import { App } from './App.tsx';
 import { ThemeStyles } from './theme/themes.tsx';
 import { LookStyles } from './theme/looks.tsx';
 import { MotionStyles } from './ui/motion.tsx';
+import { ErrorBoundary } from './ui/ErrorScreen.tsx';
 import './styles.css';
 
 const root = document.getElementById('root');
@@ -14,7 +15,9 @@ createRoot(root).render(
     <ThemeStyles />
     <LookStyles />
     <MotionStyles />
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );
 
