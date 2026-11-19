@@ -1707,6 +1707,11 @@ button.danger {
   color: var(--danger);
 }
 
+/* The one card on a page that closes something for good: marked, not shouted. */
+.danger-card {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+
 /* ---------- Stats, achievements, replays ---------- */
 
 .stat-tiles {

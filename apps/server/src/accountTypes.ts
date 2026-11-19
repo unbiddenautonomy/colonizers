@@ -72,6 +72,8 @@ export interface CrewDetail {
   members: { id: string; name: string; avatar: string; joined: number }[];
   /** Wins and games among crew games: games with at least two members playing. */
   leaderboard: {
+    /** Ties share a place: 1, 2, 2, 4. */
+    rank: number;
     id: string;
     name: string;
     games: number;

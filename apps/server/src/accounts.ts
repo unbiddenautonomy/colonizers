@@ -1199,6 +1199,39 @@ export class Accounts extends DurableObject<Env> {
     return ok(null);
   }
 
+  /**
+   * Deletes the account for good. The games it played stay, because other players' histories are
+   * made of the same rows, but they keep only the name that sat in the seat and no longer point
+   * at an account, so this player leaves every leaderboard, crew and stats page with nothing
+   * orphaned behind them.
+   */
+  async deleteAccount(token: string | null): Promise<Result<null>> {
+    const u = await this.sessionUser(token);
+    if (!u) return fail('Sign in first', 401);
+    const mine = this.sql
+      .exec<{ id: string }>('SELECT id FROM crews WHERE owner = ?', u.id)
+      .toArray();
+    this.sql.exec('DELETE FROM crew_members WHERE user_id = ?', u.id);
+    for (const c of mine) {
+      // A crew they owned goes to whoever joined next, or goes away with the last member.
+      const left = this.sql
+        .exec<{ user_id: string }>(
+          'SELECT user_id FROM crew_members WHERE crew_id = ? ORDER BY joined LIMIT 1',
+          c.id,
+        )
+        .toArray()[0];
+      if (left) this.sql.exec('UPDATE crews SET owner = ? WHERE id = ?', left.user_id, c.id);
+      else this.sql.exec('DELETE FROM crews WHERE id = ?', c.id);
+    }
+    this.sql.exec('UPDATE game_players SET user_id = NULL WHERE user_id = ?', u.id);
+    this.sql.exec('DELETE FROM achievements WHERE user_id = ?', u.id);
+    this.sql.exec('DELETE FROM push_subs WHERE user_id = ?', u.id);
+    this.sql.exec('DELETE FROM email_tokens WHERE user_id = ?', u.id);
+    this.sql.exec('DELETE FROM sessions WHERE user_id = ?', u.id);
+    this.sql.exec('DELETE FROM users WHERE id = ?', u.id);
+    return ok(null);
+  }
+
   /** A new invite link; the old one stops working. Owner only. */
   async renewInvite(token: string | null, crewId: unknown): Promise<Result<string>> {
     const u = await this.sessionUser(token);
@@ -1337,9 +1370,16 @@ export class Accounts extends DurableObject<Env> {
         .exec<{ n: number }>('SELECT COUNT(*) AS n FROM achievements WHERE user_id = ?', row.id)
         .one().n;
     }
-    const leaderboard = [...board.values()]
+    const sorted = [...board.values()]
       .map(({ vpTotal: _t, vpGames: _g, ...row }) => row)
       .sort((a, b) => b.wins - a.wins || a.games - b.games || a.name.localeCompare(b.name));
+    const leaderboard: CrewDetail['leaderboard'] = [];
+    for (const row of sorted) {
+      const prev = leaderboard[leaderboard.length - 1];
+      // Ties share a place: 1, 2, 2, 4, as on the global leaderboard.
+      const tied = prev && prev.wins === row.wins && prev.games === row.games;
+      leaderboard.push({ ...row, rank: tied ? prev.rank : leaderboard.length + 1 });
+    }
     return ok({
       id: c.id,
       name: c.name,

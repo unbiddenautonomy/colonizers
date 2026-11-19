@@ -183,6 +183,12 @@ export async function logOut(): Promise<void> {
   set({ user: null });
 }
 
+/** Deletes the account for good and signs this browser out. */
+export async function deleteAccount(): Promise<void> {
+  await call('/api/me/delete', 'POST', {});
+  set({ user: null });
+}
+
 /** Full-page redirect through Google; comes back to `returnTo`. */
 export function googleSignInUrl(returnTo: string): string {
   return `/api/auth/google?return=${encodeURIComponent(returnTo)}`;
