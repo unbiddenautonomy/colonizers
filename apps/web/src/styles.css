@@ -1090,13 +1090,41 @@ form.inline {
     scroll-snap-align: start;
   }
 
+  /* One line of counters, so a card with many of them stays short: the strip
+     scrolls sideways and the board keeps its space. */
   .player-stats {
+    flex-wrap: nowrap;
     gap: 6px;
     font-size: 0.75rem;
   }
 
   .player-stats .award,
   .player-name small {
+    display: none;
+  }
+
+  /* The scenario status sits in the player strip. Lay it out along the strip
+     as one line and drop the explanations: on a phone it used to become a
+     tall column and take all of the board's room. */
+  .players .tda-status {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+
+  .players .tda-status p,
+  .players .tda-status .row {
+    margin: 0;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .players .tda-status small,
+  .players .tda-status .tda-meter,
+  .players .tda-status p:has(> small:only-child) {
     display: none;
   }
 
@@ -1280,13 +1308,38 @@ form.inline {
     padding: 4px 8px;
   }
 
+  /* As upright: one line of counters, and the scenario status as one line, so
+     the strip can't push the action row off the screen. */
   .player-stats {
+    flex-wrap: nowrap;
     gap: 6px;
     font-size: 0.72rem;
   }
 
   .player-stats .award,
   .player-name small {
+    display: none;
+  }
+
+  .players .tda-status {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  .players .tda-status p,
+  .players .tda-status .row {
+    margin: 0;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .players .tda-status small,
+  .players .tda-status .tda-meter,
+  .players .tda-status p:has(> small:only-child) {
     display: none;
   }
 
