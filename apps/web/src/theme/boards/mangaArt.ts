@@ -39,7 +39,9 @@ export type InkRole =
   | 'light' // lit faces
   | 'glow' // the brightest light, almost white
   | 'ink' // the pen
-  | 'tone'; // screentone dots
+  | 'tone' // screentone dots
+  | 'wool' // its own colour, not the land's: fleece, cloud, bone
+  | 'woolShade'; // the shaded side of it
 
 export interface InkStop {
   at: number;
@@ -523,61 +525,87 @@ function pasture(prefix: string): InkScene {
   layers.push(line(strokes(posts), 'ink', 2.2, 0.8, true));
   layers.push(line(pathOf(wander(rail, { rnd, step: 5, amp: 0.5 })), 'ink', INNER, 0.8));
 
-  /** A sheep: a fleece of scallops lit from above, a dark face and four legs. */
+  /**
+   * A sheep. The fleece is its own off-white rather than a lighter green, because a sheep
+   * tinted with the meadow reads as a bush: big soft scallops, a dark head with an ear held
+   * out, and four black legs under it.
+   */
   const sheep = (x: number, y: number, s: number, facing: 1 | -1) => {
     const out: InkLayer[] = [];
-    out.push(castShadow(g, x, y + 9 * s, 12 * s, 3.2 * s));
-    const body = ring(x, y, 9 * s, 6 * s, 11);
-    const fleece = scallop(body, 2.6 * s) + 'Z';
+    out.push(castShadow(g, x, y + 10 * s, 14 * s, 3.4 * s));
+    // The legs go down first, so the fleece sits over the top of them.
+    out.push(
+      line(
+        strokes(
+          [-5.2, -2, 2.6, 5.4].map((dx): Pt[] => [
+            [x + dx * s, y + 3 * s],
+            [x + dx * s * 1.12, y + 10.2 * s],
+          ]),
+        ),
+        'ink',
+        2.2 * s,
+        1,
+        true,
+      ),
+    );
+    const body = ring(x, y, 10 * s, 6.4 * s, 9);
+    const fleece = scallop(body, 4.2 * s) + 'Z';
     const id = g.rad(
       x - 3 * s,
       y - 4 * s,
-      14 * s,
+      16 * s,
       [
-        { at: 0, role: 'glow' },
-        { at: 0.45, role: 'light' },
-        { at: 1, role: 'dark' },
+        { at: 0, role: 'wool' },
+        { at: 0.5, role: 'wool' },
+        { at: 1, role: 'woolShade' },
       ],
       x - 4 * s,
-      y - 5 * s,
+      y - 5.5 * s,
     );
     out.push(shaded(fleece, id));
-    out.push(line(fleece, 'ink', CONTOUR * 0.8));
-    const hx = x + facing * 9.5 * s;
-    const head = [
-      [hx - 2 * s, y - 2.6 * s],
-      [hx + facing * 3.4 * s, y - 2 * s],
-      [hx + facing * 3.8 * s, y + 1.4 * s],
-      [hx - 1 * s, y + 2.2 * s],
-    ] as Pt[];
+    out.push(line(fleece, 'ink', CONTOUR * 0.85));
+    // The head: a muzzle held low, with one ear out behind it.
+    const hx = x + facing * 10.5 * s;
+    const hy = y - 1.4 * s;
+    const head: Pt[] = [
+      [hx - facing * 2.4 * s, hy - 3.4 * s],
+      [hx + facing * 2.6 * s, hy - 2.2 * s],
+      [hx + facing * 3.4 * s, hy + 1.6 * s],
+      [hx + facing * 1.6 * s, hy + 3.4 * s],
+      [hx - facing * 2.2 * s, hy + 2 * s],
+    ];
     out.push(area(pathOf(head, true), 'ink'));
     out.push(
-      line(
-        strokes([
+      area(
+        pathOf(
           [
-            [x - 4 * s, y + 5 * s],
-            [x - 4.6 * s, y + 9 * s],
+            [hx - facing * 2.2 * s, hy - 2.6 * s],
+            [hx - facing * 6 * s, hy - 3.8 * s],
+            [hx - facing * 4.6 * s, hy - 0.8 * s],
           ],
-          [
-            [x - 1 * s, y + 5.4 * s],
-            [x - 1.2 * s, y + 9.4 * s],
-          ],
-          [
-            [x + 3 * s, y + 5 * s],
-            [x + 3.4 * s, y + 9 * s],
-          ],
-        ]),
+          true,
+        ),
         'ink',
-        2 * s,
-        1,
+      ),
+    );
+    // A dab of light on the brow, so the head is a head and not a blot.
+    out.push(
+      line(
+        pathOf([
+          [hx + facing * 0.4 * s, hy - 1.6 * s],
+          [hx + facing * 2 * s, hy - 0.6 * s],
+        ]),
+        'wool',
+        1.3 * s,
+        0.8,
         true,
       ),
     );
     return out;
   };
-  layers.push(...sheep(34, 92, 1.05, -1));
-  layers.push(...sheep(74, 104, 1.2, 1));
-  layers.push(...sheep(88, 78, 0.8, 1));
+  layers.push(...sheep(30, 96, 1.25, -1));
+  layers.push(...sheep(72, 108, 1.4, 1));
+  layers.push(...sheep(86, 80, 0.95, 1));
 
   // Grass: tufts of blades that curve over, bigger toward the front.
   const tufts: Pt[][] = [];

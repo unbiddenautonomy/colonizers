@@ -619,12 +619,14 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 >
                   {h.token}
                 </text>
+                {/* The pips sit tight under the number. A five-pip row set wider or lower than
+                    this runs off the face of a themed disc and over its rim. */}
                 {Array.from({ length: PIPS[h.token] ?? 0 }, (_, i) => (
                   <circle
                     key={i}
-                    cx={c.x + (i - ((PIPS[h.token as number] ?? 0) - 1) / 2) * S * 0.08}
-                    cy={c.y + S * 0.2}
-                    r={S * 0.028}
+                    cx={c.x + (i - ((PIPS[h.token as number] ?? 0) - 1) / 2) * S * 0.073}
+                    cy={c.y + S * 0.165}
+                    r={S * 0.024}
                     fill={h.token === 6 || h.token === 8 ? theme.tokenHot : theme.tokenText}
                   />
                 ))}

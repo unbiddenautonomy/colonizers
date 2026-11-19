@@ -46,6 +46,8 @@ function palette(k: Ink, type: BaseType): Record<InkRole, string> {
     glow: mix(land, k.warm, 0.75),
     ink: k.ink,
     tone: k.ink,
+    wool: k.paper,
+    woolShade: mix(k.paper, k.cool, 0.26),
   };
 }
 
@@ -118,6 +120,9 @@ function scene(k: Ink, type: BaseType): ReactNode {
           />
         );
       })}
+      {/* A thin wash of paper over the finished tile: the drawing stays, but the pieces, roads
+          and number discs on top of it read without fighting the scene underneath. */}
+      <rect width={W} height={H} fill={k.paper} opacity={0.16} />
     </>
   );
 }
@@ -158,8 +163,8 @@ const DISC = (() => {
   const weave = strokes(
     Array.from({ length: 30 }, (_, i): Pt[] => {
       const a = ((i + rnd() * 0.6) / 30) * Math.PI * 2;
-      const r0 = 78 + rnd() * 3;
-      const r1 = 93 + rnd() * 3;
+      const r0 = 84 + rnd() * 3;
+      const r1 = 95 + rnd() * 2;
       return [
         [Math.cos(a) * r0, Math.sin(a) * r0],
         [Math.cos(a) * r1, Math.sin(a) * r1],
@@ -170,12 +175,12 @@ const DISC = (() => {
   // calm pale field to sit on and the hat is told in the narrow brim around it.
   return {
     brim: shut(circle(0, 0, 96, rnd, 1.5)),
-    band: shut(circle(0, -1, 86, rnd, 1)),
-    crown: shut(circle(0, -2, 77, rnd, 1.2)),
+    band: shut(circle(0, -1, 91, rnd, 1)),
+    crown: shut(circle(0, -2, 86, rnd, 1.2)),
     weave,
-    stitch: pathOf(circle(0, 0, 92, rnd, 0.9), true),
+    stitch: pathOf(circle(0, 0, 93, rnd, 0.9), true),
     // The gleam: a short highlight where the light lands on the crown.
-    gleam: pathOf(ring(0, -2, 61, 61, 12, Math.PI * 1.06, Math.PI * 1.5)),
+    gleam: pathOf(ring(0, -2, 70, 70, 12, Math.PI * 1.08, Math.PI * 1.46)),
   };
 })();
 
@@ -366,7 +371,7 @@ function pieces(k: Ink): ThemePieces {
             d={DISC.brim}
             fill="url(#sh-disc-brim)"
             stroke={k.ink}
-            strokeWidth={9}
+            strokeWidth={5}
             strokeLinejoin="round"
           />
           <path
@@ -378,21 +383,20 @@ function pieces(k: Ink): ThemePieces {
             strokeLinecap="round"
           />
           <path d={DISC.stitch} fill="none" stroke={k.ink} strokeOpacity={0.16} strokeWidth={2.6} />
-          <path d={DISC.band} fill="none" stroke={k.ink} strokeWidth={14} />
-          <path d={DISC.band} fill="none" stroke="url(#sh-disc-band)" strokeWidth={10} />
+          <path d={DISC.band} fill="none" stroke="url(#sh-disc-band)" strokeWidth={9} />
           <path
             d={DISC.crown}
             fill="url(#sh-disc-crown)"
             stroke={k.ink}
-            strokeWidth={6}
+            strokeWidth={3.5}
             strokeLinejoin="round"
           />
           <path
             d={DISC.gleam}
             fill="none"
             stroke={k.paper}
-            strokeOpacity={0.55}
-            strokeWidth={8}
+            strokeOpacity={0.5}
+            strokeWidth={7}
             strokeLinecap="round"
           />
         </g>
@@ -426,7 +430,7 @@ function strawHatSkin(id: string, name: string, k: Ink): Theme {
       harborFace: k.paper,
       harborText: k.ink,
       pieceEffect: 'lift',
-      tokenFont: "'Bangers', 'Lilita One', system-ui, sans-serif",
+      tokenFont: 'Nunito, system-ui, sans-serif',
       pieces: pieces(k),
       boardBackground: k.sea,
     },
