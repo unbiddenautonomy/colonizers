@@ -428,6 +428,19 @@ select {
   cursor: pointer;
 }
 
+/* The board is one keyboard stop and the arrow keys move along the places
+   that can be chosen, so the one with the keyboard on it has to stand out. */
+.target:focus {
+  outline: none;
+}
+
+.target:focus-visible {
+  stroke: var(--accent);
+  stroke-width: 6;
+  stroke-dasharray: none;
+  filter: url(#glow);
+}
+
 .target-corner {
   fill: rgba(255, 255, 255, 0.85);
   stroke: #1d2321;

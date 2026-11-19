@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Modal } from './Modal.tsx';
 
 /**
@@ -6,6 +6,9 @@ import { Modal } from './Modal.tsx';
  * `confirm()` box looks nothing like the rest of the app, blocks everything
  * while it is open, and on a phone it is attributed to the site rather than
  * the game.
+ *
+ * Cancel comes first, so it is where the keyboard lands (see Modal) and where
+ * a thumb reaches first.
  */
 export function Confirm({
   title,
@@ -20,28 +23,19 @@ export function Confirm({
   children: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
-  /** The answer cannot be taken back, so the cancel button leads. */
+  /** The answer cannot be taken back: the button that goes on says so. */
   danger?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const first = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    first.current?.focus();
-  }, []);
   return (
     <Modal title={title} onClose={onCancel}>
       <p>{children}</p>
       <div className="confirm-actions">
-        <button type="button" ref={danger ? first : undefined} className="ghost" onClick={onCancel}>
+        <button type="button" className="ghost" onClick={onCancel}>
           {cancelLabel}
         </button>
-        <button
-          type="button"
-          ref={danger ? undefined : first}
-          className="primary"
-          onClick={onConfirm}
-        >
+        <button type="button" className={danger ? 'primary danger' : 'primary'} onClick={onConfirm}>
           {confirmLabel}
         </button>
       </div>
