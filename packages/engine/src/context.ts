@@ -3,7 +3,17 @@ import { RuleError } from './errors.ts';
 import type { CornerId, EdgeId, HexId } from './hex.ts';
 import { plainDice, type DiceResult, type Hooks, type Reducers, type Registry } from './module.ts';
 import { Rng } from './rng.ts';
-import type { Cards, GameEvent, GameState, Location, Phase, Piece, PlayerState } from './types.ts';
+import {
+  HIDDEN_CARD,
+  type Action,
+  type Cards,
+  type GameEvent,
+  type GameState,
+  type Location,
+  type Phase,
+  type Piece,
+  type PlayerState,
+} from './types.ts';
 
 type HookArgs<K extends keyof Hooks> = Hooks[K] extends (ctx: Ctx, ...args: infer A) => void
   ? A
@@ -97,6 +107,63 @@ export class Ctx {
     const from = this.state.phase.id;
     this.state.phase = phase;
     if (from !== phase.id) this.emit({ type: 'phase', from, to: phase.id });
+  }
+
+  /**
+   * Whether a seat has a legal move right now, asking every move its own
+   * check and stopping at the first one. A move that throws on a redacted
+   * player view (where other hands are hidden) is treated as unavailable, so
+   * this is safe to call in a browser. Last-resort rescue moves don't count.
+   */
+  canAct(seat: number): boolean {
+    if (this.state.winner !== null) return false;
+    for (const def of Object.values(this.registry.actions)) {
+      if (def.rescue) continue;
+      if (def.phases && !def.phases.includes(this.state.phase.id)) continue;
+      let options: Action[];
+      try {
+        options = def.enumerate?.(this, seat) ?? [];
+      } catch {
+        continue;
+      }
+      for (const a of options) {
+        try {
+          if (def.check(this, a) === null) return true;
+        } catch (e) {
+          if (!(e instanceof RuleError)) throw e;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Whether this state hides that seat's cards, which it does for everyone
+   * but the viewer when it was built from one player's view. A rule that
+   * needs to see someone's hand can't be answered here, so a move the server
+   * will check anyway should let it pass rather than refuse it.
+   */
+  handHidden(seat: number): boolean {
+    return (this.player(seat).hand[HIDDEN_CARD] ?? 0) > 0;
+  }
+
+  /** Nobody can move and nobody has won: the game has dead-ended. */
+  get stuck(): boolean {
+    // One player's view can't tell: it hides the others' cards, so their moves
+    // look unavailable. Only the server's own state answers this.
+    if (this.state.viewer !== undefined) return false;
+    return this.state.winner === null && !this.state.players.some((p) => this.canAct(p.seat));
+  }
+
+  /** Whether anyone could act if the game were in `phase`. Changes nothing. */
+  canActIn(phase: Phase): boolean {
+    const before = this.state.phase;
+    this.state.phase = phase;
+    try {
+      return this.state.players.some((p) => this.canAct(p.seat));
+    } finally {
+      this.state.phase = before;
+    }
   }
 
   rollDice(): DiceResult {

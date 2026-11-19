@@ -3,9 +3,11 @@ import {
   cleanOptions,
   cleanSettings,
   DEFAULT_SETTINGS,
+  gameRules,
   moduleList,
   resolvedTurnMode,
 } from '../src/protocol.ts';
+import type { ModeId } from '@colonizers/modes';
 import { buildConfig, library } from '../src/rules.ts';
 
 const names = (n: number) => Array.from({ length: n }, (_, i) => `P${i + 1}`);
@@ -42,6 +44,57 @@ describe('game options', () => {
       'special-maps',
       'variants',
       'cities-knights',
+    ]);
+  });
+
+  // The new-game screens build a game from these too, so a rule added here reaches both.
+  it('applies the settings an expansion overrides', () => {
+    const o = cleanOptions({ turnMode: 'specialBuild', friendlyRobber: true, robberHome: true });
+    expect(gameRules([], new Set(), o, 4).settings).toMatchObject({
+      turnMode: 'specialBuild',
+      friendlyRobber: true,
+      robberHome: true,
+    });
+    // Princes & Explorers: no Special Building Phase, and its own robber rules.
+    expect(gameRules([], new Set<ModeId>(['princes']), o, 4).settings).toMatchObject({
+      turnMode: 'normal',
+      friendlyRobber: false,
+      robberHome: false,
+    });
+    // Soldiers & Armies marches after building, so no Special Building Phase either.
+    expect(gameRules([], new Set<ModeId>(['soldiers']), o, 4).settings).toMatchObject({
+      turnMode: 'normal',
+      friendlyRobber: true,
+    });
+  });
+
+  it('carries every chosen expansion into the module list', () => {
+    const on = new Set<ModeId>([
+      'citiesKnights',
+      'greedWealthPower',
+      'civilisations',
+      'worldWonders',
+      'princes',
+      'soldiers',
+      'investors',
+      'kingdoms',
+      'landWater',
+      'strategist',
+    ]);
+    expect(gameRules([], on, cleanOptions({}), 4).modules).toEqual([
+      'base',
+      'landwater',
+      'variants',
+      'cities-knights',
+      'landwater-ck',
+      'strategist',
+      'princes',
+      'soldiers',
+      'investors',
+      'kingdoms',
+      'greed-wealth-power',
+      'world-wonders',
+      'civilisations',
     ]);
   });
 

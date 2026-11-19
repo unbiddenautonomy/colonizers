@@ -1,5 +1,5 @@
 /* Colonizers service worker: keeps the app working offline and shows "your turn" pushes. */
-const CACHE = 'colonizers-v2';
+const CACHE = 'colonizers-v3';
 const SHELL = [
   '/',
   '/manifest.webmanifest',
@@ -9,12 +9,38 @@ const SHELL = [
   '/logo.svg',
 ];
 
+/**
+ * Every built file, from the manifest the build writes. The app is split into
+ * chunks that are fetched when a screen is opened, so saving only the page
+ * left the app working offline on the second visit at best, and unable to
+ * open a game at worst.
+ */
+async function builtFiles() {
+  const res = await fetch('/asset-manifest.json', { cache: 'reload' });
+  if (!res.ok) throw new Error('no manifest');
+  const manifest = await res.json();
+  const files = new Set();
+  for (const entry of Object.values(manifest)) {
+    if (entry.file) files.add(`/${entry.file}`);
+    for (const css of entry.css || []) files.add(`/${css}`);
+    for (const asset of entry.assets || []) files.add(`/${asset}`);
+  }
+  return [...files];
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((c) => c.addAll(SHELL))
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const cache = await caches.open(CACHE);
+      await cache.addAll(SHELL);
+      try {
+        await cache.addAll(await builtFiles());
+      } catch {
+        // Offline while installing, or an older build: the fetch handler
+        // saves each file as it is used instead.
+      }
+      await self.skipWaiting();
+    })(),
   );
 });
 

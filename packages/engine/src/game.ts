@@ -3,7 +3,16 @@ import { RuleError } from './errors.ts';
 import { hexId, type HexId } from './hex.ts';
 import { buildRegistry, resolveModules, type GameModule, type Registry } from './module.ts';
 import { Rng } from './rng.ts';
-import type { Action, GameEvent, GameState, MapSpec, PlayerState } from './types.ts';
+import {
+  HIDDEN_CARD,
+  type Action,
+  type GameEvent,
+  type GameState,
+  type MapSpec,
+  type PlayerState,
+} from './types.ts';
+
+export { HIDDEN_CARD };
 
 export interface GameConfig {
   seed: string;
@@ -153,11 +162,23 @@ export class ModuleLibrary {
     return out;
   }
 
+  /** Whether a seat has a legal move right now. Cheaper than `legalActions`. */
+  canAct(state: GameState, player: number): boolean {
+    return new Ctx(state, this.registry(state.modules)).canAct(player);
+  }
+
   /** Seats that can act right now (several players can act during discards or trades). */
   waitingOn(state: GameState): number[] {
-    return state.players
-      .map((p) => p.seat)
-      .filter((seat) => this.legalActions(state, seat).length > 0);
+    return state.players.map((p) => p.seat).filter((seat) => this.canAct(state, seat));
+  }
+
+  /**
+   * Nobody can move and nobody has won. A game only gets here through a bug,
+   * so the room and the game screen check after every move and play the
+   * `skipStep` rescue, which leaves the dead-ended step.
+   */
+  stuck(state: GameState): boolean {
+    return new Ctx(state, this.registry(state.modules)).stuck;
   }
 
   /**
@@ -237,9 +258,6 @@ function checkWith(ctx: Ctx, registry: Registry, action: Action): string | null 
   }
 }
 
-/** Card name used for cards a viewer can't see. */
-export const HIDDEN_CARD = 'hidden';
-
 /**
  * Turns a player's view back into a full GameState shape so the same rules
  * code (legal moves, costs, scores) can run in the browser. Cards the viewer
@@ -265,5 +283,5 @@ export function stateFromView(view: GameView): GameState {
   const decks = Object.fromEntries(
     Object.entries(view.decks).map(([id, n]) => [id, Array<string>(n).fill(HIDDEN_CARD)]),
   );
-  return { ...rest, players, decks, rng: [0, 0, 0, 0] } as GameState;
+  return { ...rest, viewer, players, decks, rng: [0, 0, 0, 0] } as GameState;
 }

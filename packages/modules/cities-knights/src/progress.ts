@@ -12,7 +12,7 @@ import {
   type Piece,
 } from '@colonizers/engine';
 import {
-  canPlaceRoad,
+  freeRouteSpot,
   RESOURCES,
   robber,
   robberHexes,
@@ -160,16 +160,6 @@ function intrigueTargets(ctx: Ctx, seat: number): Piece[] {
 
 function promotable(ctx: Ctx, seat: number): Piece[] {
   return knightsOf(ctx, seat).filter((k) => promoteBlock(ctx, seat, k) === null);
-}
-
-function freeRouteSpot(ctx: Ctx, seat: number): boolean {
-  for (const type of ['placeFreeRoad', 'placeFreeShip']) {
-    const def = ctx.registry.actions[type];
-    if (!def) continue;
-    for (const edge of ctx.geometry.edges)
-      if (def.check(ctx, { type, player: seat, edge }) === null) return true;
-  }
-  return false;
 }
 
 function deserterLevel(ctx: Ctx, seat: number, level: number): string | null {
@@ -348,7 +338,8 @@ function playEffect(ctx: Ctx, a: Action & Play): void {
       const left =
         ctx.supplyLeft(seat, 'road') +
         (ctx.registry.pieceTypes.ship ? ctx.supplyLeft(seat, 'ship') : 0);
-      ctx.setPhase({ id: 'roadBuilding', remaining: Math.min(2, left), returnTo: 'main' });
+      if (left > 0 && freeRouteSpot(ctx, seat))
+        ctx.setPhase({ id: 'roadBuilding', remaining: Math.min(2, left), returnTo: 'main' });
       return;
     }
     case 'smith':
@@ -425,7 +416,7 @@ function playEffect(ctx: Ctx, a: Action & Play): void {
         if (ctx.vp(s) >= mine && n > 0) owed[s] = n;
       }
       if (Object.keys(owed).length)
-        ctx.setPhase({ id: 'discard', owed, returnTo: 'main', skipRobber: true });
+        ctx.setPhase({ id: 'discard', owed, returnTo: 'main', skipRobber: true, why: 'saboteur' });
       return;
     }
     case 'spy': {
@@ -870,10 +861,7 @@ const diplomatRemove = action<{ edge: EdgeId }>({
     ctx.emit({ type: 'roadRemoved', player: a.player, owner, at: a.edge });
     // Your own road can be put back somewhere else.
     if (owner === a.player) {
-      const spot = ctx.geometry.edges.some(
-        (e) => e !== a.edge && canPlaceRoad(ctx, a.player, e) === null,
-      );
-      if (spot) {
+      if (freeRouteSpot(ctx, a.player)) {
         ctx.setPhase({ id: 'roadBuilding', remaining: 1, returnTo: 'main' });
         return;
       }

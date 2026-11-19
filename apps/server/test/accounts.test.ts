@@ -457,10 +457,11 @@ describe('Crews', () => {
       .crew as CrewDetail;
     expect(detail.members.map((m) => m.name)).toEqual(['CAnn', 'CBen', 'CCat']);
     expect(detail.games).toHaveLength(2);
-    expect(detail.leaderboard.map((r) => [r.name, r.wins, r.games])).toEqual([
-      ['CAnn', 1, 2],
-      ['CBen', 1, 2],
-      ['CCat', 0, 1],
+    // Ann and Ben are level, so they share first place and Cat is third.
+    expect(detail.leaderboard.map((r) => [r.name, r.wins, r.games, r.rank])).toEqual([
+      ['CAnn', 1, 2, 1],
+      ['CBen', 1, 2, 1],
+      ['CCat', 0, 1, 3],
     ]);
 
     // Outsiders can't see it; only the owner can change the link.
@@ -483,6 +484,58 @@ describe('Crews', () => {
     expect(
       ((await api('/api/crews', { cookie: ann.cookie })).data.crews as CrewSummary[]).length,
     ).toBe(0);
+  });
+});
+
+describe('Deleting an account', () => {
+  it('takes the account away and leaves the other players\u2019 games standing', async () => {
+    const dan = await signUp('DDan');
+    const eve = await signUp('DEve');
+    await api('/api/me', { method: 'PATCH', body: { onLeaderboard: true }, cookie: dan.cookie });
+    await api('/api/me', { method: 'PATCH', body: { onLeaderboard: true }, cookie: eve.cookie });
+    // Dan owns a crew that Eve has joined.
+    const crew = (
+      await api('/api/crews', { body: { name: 'Dan\u2019s table' }, cookie: dan.cookie })
+    ).data.crew as CrewSummary;
+    await api('/api/crews/join', { body: { invite: crew.invite }, cookie: eve.cookie });
+    await main().recordGame({
+      id: `del1-${n}`,
+      room: 'rd1',
+      modules: ['base'],
+      players: [
+        { seat: 0, name: 'DDan', userId: dan.user.id },
+        { seat: 1, name: 'DEve', userId: eve.user.id },
+      ],
+    });
+    await main().finishGame(`del1-${n}`, 1, [8, 10]);
+
+    expect((await api('/api/me/delete', { body: {}, cookie: dan.cookie })).status).toBe(200);
+    // The session goes with the account.
+    expect((await api('/api/me/history', { cookie: dan.cookie })).status).toBe(401);
+    expect((await api('/api/me', { cookie: dan.cookie })).data.user).toBe(null);
+    // Signing up again with the same email starts from nothing.
+    const again = await signUp('DDan', dan.email);
+    expect((await api('/api/me/history', { cookie: again.cookie })).data.games).toEqual([]);
+
+    // Eve keeps the game, with the name that sat in the seat.
+    const games = (await api('/api/me/history', { cookie: eve.cookie })).data
+      .games as HistoryGame[];
+    const played = games.find((g) => g.id === `del1-${n}`);
+    expect(played).toBeTruthy();
+    expect(played!.players.map((p) => p.name)).toEqual(['DDan', 'DEve']);
+    // The crew is Eve's now, and Dan is not in it.
+    const detail = (await api(`/api/crews/${crew.id}`, { cookie: eve.cookie })).data
+      .crew as CrewDetail;
+    expect(detail.owner).toBe(eve.user.id);
+    expect(detail.members.map((m) => m.id)).toEqual([eve.user.id]);
+    // And Dan is off the leaderboard.
+    const board = (await api('/api/leaderboard', { cookie: eve.cookie })).data
+      .leaderboard as GlobalLeaderboard;
+    expect(board.rows.some((r) => r.id === dan.user.id)).toBe(false);
+  });
+
+  it('needs a signed-in account', async () => {
+    expect((await api('/api/me/delete', { body: {} })).status).toBe(401);
   });
 });
 

@@ -17,6 +17,7 @@ import {
   myStats,
   leaveCrew,
   logIn,
+  deleteAccount,
   logOut,
   myCrews,
   renewInvite,
@@ -36,6 +37,7 @@ import {
   type MyStats,
 } from '../online/account.ts';
 import { Modal } from '../ui/Modal.tsx';
+import { Confirm } from '../ui/Confirm.tsx';
 import { LOOKS } from '../theme/looks.tsx';
 import { NotifyButton } from '../ui/NotifyButton.tsx';
 
@@ -402,7 +404,48 @@ export function ProfilePage({
       >
         Sign out
       </button>
+      <DeleteAccountCard onDone={onHome} />
     </main>
+  );
+}
+
+/** Closing an account for good. Nothing brings it back, so say what goes and what stays. */
+function DeleteAccountCard({ onDone }: { onDone: () => void }) {
+  const [asking, setAsking] = useState(false);
+  const task = useTask();
+  return (
+    <section className="card danger-card">
+      <h2>Delete your account</h2>
+      <p className="muted">
+        Your name, email, crews, achievements and stats go for good, and you leave every
+        leaderboard. The games you played stay in the other players&rsquo; histories, under the name
+        that sat in your seat, but they no longer point at you.
+      </p>
+      <ErrorLine error={task.error} />
+      <button
+        type="button"
+        className="ghost danger"
+        disabled={task.busy}
+        onClick={() => setAsking(true)}
+      >
+        Delete account
+      </button>
+      {asking && (
+        <Confirm
+          title="Delete your account?"
+          confirmLabel="Delete it"
+          danger
+          onCancel={() => setAsking(false)}
+          onConfirm={() => {
+            setAsking(false);
+            void task.run(deleteAccount).then((ok) => ok && onDone());
+          }}
+        >
+          This cannot be undone: nothing brings the account back, and signing up again starts from
+          nothing.
+        </Confirm>
+      )}
+    </section>
   );
 }
 
@@ -802,11 +845,11 @@ export function CareerCard({
           <div className="stat-tiles">
             <div className="stat">
               <strong>{c.games}</strong>
-              <span>games</span>
+              <span>game{c.games === 1 ? '' : 's'}</span>
             </div>
             <div className="stat">
               <strong>{c.wins}</strong>
-              <span>wins</span>
+              <span>win{c.wins === 1 ? '' : 's'}</span>
             </div>
             <div className="stat">
               <strong>{pct(c.wins, c.games)}</strong>
@@ -831,7 +874,11 @@ export function CareerCard({
               </li>
             )}
             {c.records.mostVp !== null && <li>Most points in a game: {c.records.mostVp}</li>}
-            {c.records.fastestWin !== null && <li>Fastest win: {c.records.fastestWin} turns</li>}
+            {c.records.fastestWin !== null && (
+              <li>
+                Fastest win: {c.records.fastestWin} turn{c.records.fastestWin === 1 ? '' : 's'}
+              </li>
+            )}
             {c.records.longestRoad !== null && <li>Longest road: {c.records.longestRoad}</li>}
             {!!c.records.mostKnights && <li>Most knights in a game: {c.records.mostKnights}</li>}
           </ul>
@@ -1025,7 +1072,10 @@ export function CrewPage({
 }) {
   const { user, loaded } = useAccount();
   const [crew, setCrew] = useState<CrewDetail | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  /** A new invite quietly swaps the text in the box, so say what just happened. */
+  const [renewed, setRenewed] = useState(false);
   const task = useTask();
 
   useEffect(() => {
@@ -1036,12 +1086,33 @@ export function CrewPage({
   if (!loaded) return <main className="setup-page" />;
   if (!user)
     return (
-      <ProfilePage
-        onHome={onHome}
-        onCrew={() => undefined}
-        onRoom={() => undefined}
-        onReplay={onReplay}
-      />
+      <>
+        <p className="muted sign-in-note">Sign in to see this crew.</p>
+        <ProfilePage
+          onHome={onHome}
+          onCrew={() => undefined}
+          onRoom={() => undefined}
+          onReplay={onReplay}
+        />
+      </>
+    );
+  // A link to a crew that is gone, or one this player is not in.
+  if (task.error === 'Unknown crew')
+    return (
+      <main className="setup-page narrow">
+        <h1>Crew not found</h1>
+        <p className="muted">
+          This link may be old, the crew may have been deleted, or you may not be a member of it.
+        </p>
+        <div className="row">
+          <button type="button" className="primary" onClick={onProfile}>
+            Your crews
+          </button>
+          <button type="button" className="ghost" onClick={onHome}>
+            Home
+          </button>
+        </div>
+      </main>
     );
 
   const link = crew ? crewInviteLink(crew.invite) : '';
@@ -1072,11 +1143,11 @@ export function CrewPage({
                 </tr>
               </thead>
               <tbody>
-                {crew.leaderboard.map((row, i) => {
+                {crew.leaderboard.map((row) => {
                   const m = crew.members.find((x) => x.id === row.id);
                   return (
                     <tr key={row.id} className={row.id === user.id ? 'me' : ''}>
-                      <td>{i + 1}</td>
+                      <td>{row.rank}</td>
                       <td>
                         {m?.avatar} {row.name}
                       </td>
@@ -1095,6 +1166,11 @@ export function CrewPage({
           <section className="card">
             <h2>Invite friends</h2>
             <p className="muted">Anyone with this link can join after signing in.</p>
+            {renewed && (
+              <p className="ok-line" role="status">
+                ✓ A new link is ready. The old one has stopped working, so send this one instead.
+              </p>
+            )}
             <div className="row">
               <input readOnly value={link} aria-label="Crew invite link" className="grow" />
               <button
@@ -1114,9 +1190,11 @@ export function CrewPage({
                   className="ghost"
                   title="The old link stops working"
                   onClick={() =>
-                    task.run(async () => {
+                    void task.run(async () => {
                       const invite = await renewInvite(crew.id);
                       setCrew({ ...crew, invite });
+                      setCopied(false);
+                      setRenewed(true);
                     })
                   }
                 >
@@ -1135,16 +1213,25 @@ export function CrewPage({
             )}
           </section>
 
-          <button
-            type="button"
-            className="ghost danger"
-            onClick={async () => {
-              if (!window.confirm(`Leave ${crew.name}?`)) return;
-              if (await task.run(() => leaveCrew(crew.id))) onProfile();
-            }}
-          >
+          <button type="button" className="ghost danger" onClick={() => setLeaving(true)}>
             Leave crew
           </button>
+
+          {leaving && (
+            <Confirm
+              title={`Leave ${crew.name}?`}
+              confirmLabel="Leave crew"
+              cancelLabel="Stay"
+              danger
+              onConfirm={async () => {
+                setLeaving(false);
+                if (await task.run(() => leaveCrew(crew.id))) onProfile();
+              }}
+              onCancel={() => setLeaving(false)}
+            >
+              Your games stay in your own history. You need a new invite to come back.
+            </Confirm>
+          )}
         </>
       )}
     </main>

@@ -77,7 +77,10 @@ export function ReplayPage({ id, onBack }: { id: string; onBack: () => void }) {
 function ReplayView({ replay, onBack }: { replay: Replay; onBack: () => void }) {
   const timeline = useMemo(() => buildTimeline(replay), [replay]);
   const last = replay.actions.length;
-  const [step, setStep] = useState(last);
+  // A replay opens at the first move: opening on the last one left Play with
+  // nothing to do until you found the Start button.
+  const [step, setStep] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const state = useMemo(() => stateAt(replay, timeline, step), [replay, timeline, step]);
@@ -119,7 +122,16 @@ function ReplayView({ replay, onBack }: { replay: Replay; onBack: () => void }) 
           {mapName(replay.map)} · Turn {state.turn.number} · move {step} of {last}
           {state.winner !== null && ` · ${names[state.winner]} wins`}
         </p>
-        <div className="head-actions">
+        <button
+          type="button"
+          className="icon menu-toggle"
+          aria-expanded={menuOpen}
+          aria-label="Menu"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          ☰
+        </button>
+        <div className={`head-actions${menuOpen ? ' open' : ''}`}>
           <ThemePicker compact />
           <button type="button" className="ghost" onClick={onBack}>
             Back

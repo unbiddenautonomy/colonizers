@@ -11,5 +11,8 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    // The service worker reads this to save every built file on the first
+    // visit, so the app works offline straight away (see public/sw.js).
+    manifest: 'asset-manifest.json',
   },
 });

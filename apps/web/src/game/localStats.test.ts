@@ -81,7 +81,14 @@ describe('stats for games on this device', () => {
     recordLocalGame({ config: two.config, actions: two.actions }, two.state);
 
     const players = localPlayers(loadLocalGames());
-    expect(players.map((p) => [p.name, p.games])).toEqual([
+    // Most games first; who won the one-game seats is incidental (it is the
+    // next tie-break), so the rest are compared by name.
+    expect(players[0]).toMatchObject({ name: 'Ann', games: 2 });
+    expect(
+      players
+        .map((p) => [p.name, p.games])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    ).toEqual([
       ['Ann', 2],
       ['Ben', 1],
       ['Cat', 1],

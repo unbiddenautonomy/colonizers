@@ -1,6 +1,7 @@
 import { seatAllows, seatForTrack } from './seats.ts';
 import { attackWindow } from './fancards.ts';
 import type {
+  Action,
   ActionDef,
   Cards,
   CornerId,
@@ -59,7 +60,6 @@ export interface CkData extends Record<string, unknown> {
   /** Tracks whose level 3 ability a player has lost for now (Church's Anathema). */
   lockedTracks?: Record<number, Track[]>;
   /** Set while a roll held for an Indulgence is worked out, so it goes straight through. */
-  releasingRoll?: boolean;
   /** The roller of a joker face, until they pick its track. */
   pendingJoker?: number | null;
   /** City seats (a Diocese, a Citadel): where each player's stands, by kind. */
@@ -610,6 +610,29 @@ export function attack(ctx: Ctx): void {
 }
 
 // ---- The roll ----
+
+/**
+ * Powers that hold a fresh roll so dice can be thrown again: Greece's Athenian
+ * Democracy, the Indulgence card and three wonders. Each works its roll out by
+ * applying `roll` again, so each must know which powers have already had this
+ * roll. Without that, two of them hand the same roll back and forth for ever
+ * and the game never goes on. The list rides on the action and waits in the
+ * step while the roll is held.
+ */
+export function heldAlready(a: Action, power: string): boolean {
+  return Array.isArray(a.released) && (a.released as string[]).includes(power);
+}
+
+/** The powers that have had this roll, to keep in the step while it is held. */
+export function heldSoFar(a: Action): string[] {
+  return Array.isArray(a.released) ? [...(a.released as string[])] : [];
+}
+
+/** The `roll` action that works a held roll out, with `power` marked as done. */
+export function releasedRoll(roller: number, heldBefore: unknown, power: string): Action {
+  const before = Array.isArray(heldBefore) ? (heldBefore as string[]) : [];
+  return { type: 'roll', player: roller, released: [...before, power] };
+}
 
 /** The roll action under ours (base, or base wrapped by Seafarers), by the wrapper we built. */
 export const rollBelow = new WeakMap<ActionDef, ActionDef>();

@@ -31,6 +31,8 @@ export function modesFor(
   const list = [...on];
   return {
     on: picked,
+    /** The same answer as a set, which is what the shared game-building rules take. */
+    chosen: on,
     status: modeStatus(board, list),
     weight: weightOf(board, list),
     warn: (vpTarget: number) => warnings(board, list, vpTarget),

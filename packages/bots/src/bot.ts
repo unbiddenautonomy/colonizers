@@ -4,6 +4,7 @@ import {
   stateFromView,
   type Action,
   type GameState,
+  type HexId,
   type ModuleLibrary,
 } from '@colonizers/engine';
 import { evaluate } from './evaluate.ts';
@@ -124,7 +125,7 @@ export function chooseAction(
 
   if (options.length > MAX_OPTIONS) options = sample(options, MAX_OPTIONS, rand, end);
 
-  const scored = scoreAll(lib, state, seat, config, options);
+  const scored = scoreAll(lib, state, seat, config, options, rand);
   if (!scored.length) return options[0]!;
 
   // A friendly trade before ending the turn, if it would let us build.
@@ -156,7 +157,7 @@ export function chooseAction(
 
   if (config.level === 'easy') return easyPick(scored, rand);
 
-  let ranked = scored.sort((a, b) => b.score - a.score);
+  let ranked = scored.sort((a, b) => b.score - a.score || b.tie - a.tie);
   if (config.level === 'hard')
     ranked = lookAhead(lib, state, seat, config, ranked, opts.budgetMs ?? 2500);
 
@@ -172,6 +173,51 @@ export function chooseAction(
 interface Scored {
   action: Action;
   score: number;
+  /** Decides between moves that score the same; see `tieBreak`. */
+  tie: number;
+}
+
+/**
+ * Two moves often score exactly the same: which player to rob, which hex to
+ * put the robber on. Taking the first of them always picked the lowest seat,
+ * which in a local game is always the person. Prefer the player who is
+ * nearest to winning, and toss a coin between the rest.
+ */
+function tieBreak(ctx: Ctx, seat: number, action: Action, rand: () => number): number {
+  let worst = 0;
+  for (const other of hurts(ctx, seat, action)) worst = Math.max(worst, ctx.vp(other));
+  return worst + rand();
+}
+
+/**
+ * Cities & Knights: whether the progress hand is at its limit, where the next
+ * card drawn is returned at once. A card the bot can play is then better
+ * played than lost, and bots can't read most cards' effects, so they need
+ * telling.
+ */
+function progressFull(state: GameState, seat: number): boolean {
+  const held = state.players[seat]?.held ?? {};
+  let n = 0;
+  for (const [deck, cards] of Object.entries(held)) if (deck !== 'dev') n += cards.length;
+  return n >= Number(state.settings.progressLimit ?? 4);
+}
+
+/** The players a move takes something from, as far as it can be told. */
+function hurts(ctx: Ctx, seat: number, action: Action): number[] {
+  // Steals name their victim: `from` in the base game, `target` in several
+  // expansions. A robber or pirate hex names nobody, so take whoever has a
+  // building on it.
+  for (const key of ['from', 'target', 'victim']) {
+    const who = action[key];
+    if (typeof who === 'number' && who !== seat && ctx.state.players[who]) return [who];
+  }
+  if (typeof action.hex !== 'string') return [];
+  const out = new Set<number>();
+  for (const corner of ctx.geometry.hexCorners.get(action.hex as HexId) ?? []) {
+    const owner = ctx.buildingAt(corner)?.owner;
+    if (owner !== undefined && owner !== null && owner !== seat) out.add(owner);
+  }
+  return [...out];
 }
 
 function scoreAll(
@@ -180,18 +226,28 @@ function scoreAll(
   seat: number,
   config: BotConfig,
   options: Action[],
+  rand: () => number,
 ): Scored[] {
   const registry = lib.registry(state.modules);
-  const here = evaluate(state, new Ctx(state, registry), seat, config.style);
+  const ctx = new Ctx(state, registry);
+  const here = evaluate(state, ctx, seat, config.style);
   const out: Scored[] = [];
+  // Playing a progress card is worth a little more than losing it to the limit.
+  const spend = progressFull(state, seat) ? 1.2 : 0;
   for (const action of options) {
+    const tie = tieBreak(ctx, seat, action, rand);
+    const bonus = action.type === 'playProgress' ? spend : 0;
     if (LUCK.has(action.type)) {
-      out.push({ action, score: here + 0.3 });
+      out.push({ action, score: here + 0.3 + bonus, tie });
       continue;
     }
     try {
       const next = lib.apply(state, action).state;
-      out.push({ action, score: evaluate(next, new Ctx(next, registry), seat, config.style) });
+      out.push({
+        action,
+        score: evaluate(next, new Ctx(next, registry), seat, config.style) + bonus,
+        tie,
+      });
     } catch {
       // Some moves can't be tried on a hidden-information copy; skip them.
     }
@@ -264,10 +320,10 @@ function lookAhead(
       s = nextBest.state;
       best = s.phase.id === 'main' ? Math.max(best, nextBest.score) : nextBest.score;
     }
-    out.push({ action: cand.action, score: best });
+    out.push({ action: cand.action, score: best, tie: cand.tie });
   }
   for (const r of ranked) if (!out.some((o) => o.action === r.action)) out.push(r);
-  return out.sort((a, b) => b.score - a.score);
+  return out.sort((a, b) => b.score - a.score || b.tie - a.tie);
 }
 
 function sample(options: Action[], n: number, rand: () => number, keep?: Action): Action[] {

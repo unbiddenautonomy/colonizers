@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react';
+import { memo, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import {
   buildGeometry,
   cornerToPixel,
@@ -12,6 +12,8 @@ import {
 import { RESOURCE_ICON, TRACK_COLOR, type Theme } from '../theme/clean.ts';
 import { useTheme } from '../theme/themes.tsx';
 import { motionAttrs, useBoardMotion } from './motion.ts';
+import { nearestSpot, type Spot } from './nearest.ts';
+import { spotLabel } from './spotLabel.ts';
 import {
   CanalStretch,
   canalLinks,
@@ -314,8 +316,99 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const dragonAt = (h: HexId | undefined) => !!h && (dragons[h] ?? 0) > 0;
   const pirateHex = pieces.find((p) => p.type === 'pirate')?.at;
 
+  /**
+   * Every place that can be chosen now, in reading order (top to bottom, then
+   * left to right), for taps that land near a spot and for the arrow keys.
+   */
+  const spots = useMemo(() => {
+    const list: (Spot<Action> & { key: string; kind: 'hex' | 'edge' | 'corner' })[] = [];
+    [...targets.hexes].forEach(([id, action], i) => {
+      const h = state.hexes[id];
+      if (!h) return;
+      const c = hexToPixel(h.q, h.r, S);
+      list.push({ ...c, what: action, key: `hex:${i}`, kind: 'hex' });
+    });
+    [...targets.edges].forEach(([id, action], i) => {
+      const [a, b] = edgeEnds(id, g);
+      list.push({
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2,
+        what: action,
+        key: `edge:${i}`,
+        kind: 'edge',
+      });
+    });
+    [...targets.corners].forEach(([id, action], i) => {
+      const c = cornerToPixel(id, S);
+      list.push({ x: c.x, y: c.y, what: action, key: `corner:${i}`, kind: 'corner' });
+    });
+    return list.sort((a, b) => a.y - b.y || a.x - b.x);
+  }, [targets, state.hexes, g]);
+  const spotCount = spots.length;
+
+  /** Which spot the arrow keys are on; the first one until they are used. */
+  const [spotKey, setSpotKey] = useState<string | null>(null);
+  const onSpot = spots.find((s) => s.key === spotKey) ?? spots[0] ?? null;
+  const keyIndex = (key: string) => (onSpot && key === onSpot.key ? 0 : -1);
+
+  /**
+   * The board is one keyboard stop with the arrow keys moving between the
+   * places that can be chosen: none of the 54 building spots could be reached
+   * with a keyboard at all, and 54 tab stops would be worse than none.
+   */
+  const onSpotKey = (e: KeyboardEvent<SVGGElement>) => {
+    const at = spots.findIndex((s) => s.key === (onSpot?.key ?? ''));
+    if (at < 0) return;
+    const go = (to: number) => {
+      e.preventDefault();
+      const next = spots[(to + spots.length) % spots.length]!;
+      setSpotKey(next.key);
+      svgRef.current
+        ?.querySelector<SVGElement & { focus(): void }>(`[data-spot="${next.key}"]`)
+        ?.focus();
+    };
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(at + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(at - 1);
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(spots.length - 1);
+    else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onAction(spots[at]!.what);
+    }
+  };
+
+  /**
+   * A tap that lands on nothing takes the nearest building spot. The spots
+   * themselves are 12 px across on a phone and cannot grow much without a
+   * road's spot and a settlement's spot stealing each other's taps.
+   */
+  const tapNearby = (e: MouseEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || (e.target as Element).closest('.target')) return;
+    const reachable = spots.filter((s) => s.kind !== 'hex');
+    if (!reachable.length) return;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const at = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    // How far from a spot a tap still counts, in board units, so the reach is
+    // the same on screen however far the board is zoomed in. Spots are about
+    // 37 px apart on a phone, so 26 px gives a spot a tap area wider than a
+    // thumb while leaving the middle of a hex, where nothing is meant to be
+    // built, out of reach.
+    const within = 26 / (ctm.a || 1);
+    const action = nearestSpot({ x: at.x, y: at.y }, reachable, within);
+    if (action) onAction(action);
+  };
+
   return (
-    <svg ref={svgRef} className="board" viewBox={viewBox} role="img" aria-label="Game board">
+    <svg
+      ref={svgRef}
+      className="board"
+      viewBox={viewBox}
+      role="img"
+      aria-label="Game board"
+      onClick={tapNearby}
+    >
       <defs>
         <filter id="lift" x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.35" />
@@ -1477,51 +1570,65 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           );
         })}
 
-      {[...targets.hexes].map(([id, action]) => {
-        const h = state.hexes[id];
-        if (!h) return null;
-        return (
-          <polygon
-            key={`t-${id}`}
-            className="target target-hex"
-            points={hexPoints(h.q, h.r)}
-            onClick={() => onAction(action)}
-            role="button"
-            aria-label={`Choose ${h.type} hex`}
-          />
-        );
-      })}
-      {[...targets.edges].map(([id, action]) => {
-        const [a, b] = edgeEnds(id, g);
-        return (
-          <line
-            key={`t-${id}`}
-            className="target target-edge"
-            x1={a.x}
-            y1={a.y}
-            x2={b.x}
-            y2={b.y}
-            onClick={() => onAction(action)}
-            role="button"
-            aria-label="Build here"
-          />
-        );
-      })}
-      {[...targets.corners].map(([id, action]) => {
-        const c = cornerToPixel(id, S);
-        return (
-          <circle
-            key={`t-${id}`}
-            className="target target-corner"
-            cx={c.x}
-            cy={c.y}
-            r={S * 0.16}
-            onClick={() => onAction(action)}
-            role="button"
-            aria-label="Build here"
-          />
-        );
-      })}
+      {!!spotCount && (
+        <g
+          role="group"
+          aria-label={`${spotCount} place${spotCount === 1 ? '' : 's'} to choose from. Arrow keys to move between them, Enter to choose.`}
+          onKeyDown={onSpotKey}
+        >
+          {[...targets.hexes].map(([id, action], i) => {
+            const h = state.hexes[id];
+            if (!h) return null;
+            return (
+              <polygon
+                key={`t-${id}`}
+                className="target target-hex"
+                points={hexPoints(h.q, h.r)}
+                onClick={() => onAction(action)}
+                role="button"
+                tabIndex={keyIndex(`hex:${i}`)}
+                data-spot={`hex:${i}`}
+                aria-label={`${spotLabel(action)}: the ${h.type} hex`}
+              />
+            );
+          })}
+          {[...targets.edges].map(([id, action], i) => {
+            const [a, b] = edgeEnds(id, g);
+            return (
+              <line
+                key={`t-${id}`}
+                className="target target-edge"
+                x1={a.x}
+                y1={a.y}
+                x2={b.x}
+                y2={b.y}
+                onClick={() => onAction(action)}
+                role="button"
+                tabIndex={keyIndex(`edge:${i}`)}
+                data-spot={`edge:${i}`}
+                aria-label={spotLabel(action)}
+              />
+            );
+          })}
+          {[...targets.corners].map(([id, action], i) => {
+            const c = cornerToPixel(id, S);
+            return (
+              <circle
+                key={`t-${id}`}
+                className="target target-corner"
+                cx={c.x}
+                cy={c.y}
+                r={S * 0.16}
+                onClick={() => onAction(action)}
+                role="button"
+                tabIndex={keyIndex(`corner:${i}`)}
+                data-spot={`corner:${i}`}
+                aria-label={spotLabel(action)}
+              />
+            );
+          })}
+        </g>
+      )}
     </svg>
   );
 }

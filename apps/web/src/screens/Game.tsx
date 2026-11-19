@@ -1,4 +1,5 @@
 import { freshSince, logMark, type LogMark } from '../game/freshLog.ts';
+import { discardReason } from '../game/describe.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Ctx,
@@ -10,6 +11,7 @@ import {
 } from '@colonizers/engine';
 import { bankRatio, baseData, publicVp } from '@colonizers/module-base';
 import { citadelSpots } from '@colonizers/module-princes-explorers';
+import { scoreParts } from '../game/scoreParts.ts';
 import { nameOf, pageForError } from '@colonizers/rulebook';
 import { Board, noTargets, type Targets } from '../board/Board.tsx';
 import { play, setSound, soundFor, useSound } from '../game/sounds.ts';
@@ -44,6 +46,8 @@ import {
   total,
 } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
+import { Confirm } from '../ui/Confirm.tsx';
+import { useScrollHint } from '../ui/scrollHint.ts';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { GameLog } from '../ui/GameLog.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
@@ -592,11 +596,26 @@ export interface OnlineExtras {
   sendChat: (text: string) => void;
   nudge: (seat: number) => void;
   rematch: () => void;
+  /** Host: stop the game and take everyone back to the lobby. */
+  endGame: () => void;
+  /** Host: let a bot play for someone who is away. */
+  handSeat: (member: string) => void;
+  /** Take your own seat back from the bot playing it. */
+  takeSeat: () => void;
 }
 
-export function LocalGame({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }) {
+export function LocalGame({
+  saved,
+  onQuit,
+  onStats,
+}: {
+  saved: SavedGame;
+  onQuit: () => void;
+  /** Where this game's result is written down: the "Games on this device" page. */
+  onStats: () => void;
+}) {
   const g = useLocalGame(saved);
-  return <Game g={g} seat={g.actor} onQuit={onQuit} />;
+  return <Game g={g} seat={g.actor} onQuit={onQuit} onStats={onStats} />;
 }
 
 export function Game({
@@ -604,12 +623,15 @@ export function Game({
   seat,
   online,
   onQuit,
+  onStats,
 }: {
   g: GameController;
   /** Whose hand and moves this screen shows: the device holder, or your seat online. */
   seat: number | null;
   online?: OnlineExtras;
   onQuit: () => void;
+  /** Local games: where this game's result was just written down. */
+  onStats?: () => void;
 }) {
   const { state } = g;
   const theme = useTheme();
@@ -660,6 +682,12 @@ export function Game({
   );
   const setCamelBid = (b: { wool: number; grain: number }) => setBidFor({ key: voteKey, ...b });
   const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
+  /** The game-over box can be put away, to look at the final board. */
+  const [overClosed, setOverClosed] = useState(false);
+  /** Fades the end of the player strip that has more players along it. */
+  const strip = useScrollHint<HTMLElement>([state.players.length, state.seq]);
+  /** Questions asked in the game's own dialog: leaving, and ending the game. */
+  const [asking, setAsking] = useState<'leave' | 'end' | null>(null);
   // Duel rules: which neutral builder gets the free piece.
   const [neutral, setNeutral] = useState(0);
   const [privateHands, setPrivateHands] = useState(false);
@@ -861,22 +889,14 @@ export function Game({
           <button
             type="button"
             className="ghost"
-            onClick={() => {
-              if (
-                online ||
-                window.confirm(
-                  'Leave this game? It stays saved on this device until you start a new one.',
-                )
-              )
-                onQuit();
-            }}
+            onClick={() => (online ? onQuit() : setAsking('leave'))}
           >
             {online ? 'Home' : 'Menu'}
           </button>
         </div>
       </header>
 
-      <aside className="players" aria-label="Players">
+      <aside className="players" aria-label="Players" ref={strip}>
         {state.players.map((p) => {
           const t = theme.players[p.seat]!;
           const data = baseData(ctx);
@@ -909,7 +929,14 @@ export function Game({
                   <small className="muted">you</small>
                 )}
                 {(member?.bot ?? bots[p.seat]) && (
-                  <span title={`${(member?.bot ?? bots[p.seat])!.level} bot`} aria-label="Bot">
+                  <span
+                    title={
+                      member?.away
+                        ? `A bot is playing while ${p.name} is away`
+                        : `${(member?.bot ?? bots[p.seat])!.level} bot`
+                    }
+                    aria-label={member?.away ? `Bot playing for ${p.name}` : 'Bot'}
+                  >
                     🤖
                   </span>
                 )}
@@ -961,6 +988,31 @@ export function Game({
                     title={`Remind ${p.name} it's their move`}
                   >
                     👋 Nudge
+                  </button>
+                )}
+                {/* Someone who has gone away need not hold the table up. */}
+                {online?.isHost &&
+                  member &&
+                  !member.bot &&
+                  member.seat !== seat &&
+                  (!member.online || waitingOnThem) && (
+                    <button
+                      type="button"
+                      className="small ghost"
+                      onClick={() => online.handSeat(member.id)}
+                      title={`Let a bot play for ${p.name} until they come back`}
+                    >
+                      🤖 Bot plays
+                    </button>
+                  )}
+                {member?.away && member.seat === seat && (
+                  <button
+                    type="button"
+                    className="small primary"
+                    onClick={() => online?.takeSeat()}
+                    title="Take your seat back from the bot"
+                  >
+                    Take my seat back
                   </button>
                 )}
               </div>
@@ -1599,7 +1651,53 @@ export function Game({
             onSend={online.sendChat}
           />
         )}
+        {state.winner !== null && overClosed && (
+          <p className="room-tools">
+            <button type="button" className="ghost small" onClick={() => setOverClosed(false)}>
+              🏆 Final scores
+            </button>
+          </p>
+        )}
+        {/* The host's way out of a game that has gone wrong or been left. */}
+        {online?.isHost && state.winner === null && (
+          <p className="room-tools">
+            <button type="button" className="ghost small" onClick={() => setAsking('end')}>
+              End game, back to the lobby
+            </button>
+          </p>
+        )}
       </section>
+
+      {asking === 'leave' && (
+        <Confirm
+          title="Leave this game?"
+          confirmLabel="Leave"
+          cancelLabel="Keep playing"
+          onConfirm={() => {
+            setAsking(null);
+            onQuit();
+          }}
+          onCancel={() => setAsking(null)}
+        >
+          The game stays saved on this device until you start a new one.
+        </Confirm>
+      )}
+
+      {asking === 'end' && (
+        <Confirm
+          title="End this game?"
+          confirmLabel="End game"
+          cancelLabel="Keep playing"
+          danger
+          onConfirm={() => {
+            setAsking(null);
+            online?.endGame();
+          }}
+          onCancel={() => setAsking(null)}
+        >
+          The game ends for everyone and the room goes back to the lobby.
+        </Confirm>
+      )}
 
       {owedMe > 0 && actor !== null && (
         <DiscardDialog
@@ -1608,6 +1706,7 @@ export function Game({
           hand={state.players[actor]!.hand}
           owed={(state.phase.owed as Record<number, number>)[actor]!}
           cards={cardKinds}
+          why={state.phase.why}
           onDiscard={(cards) => act({ type: 'discard', player: actor, cards })}
           plays={legal.filter((a) => a.type === 'playProgress')}
           onPlay={act}
@@ -1780,15 +1879,38 @@ export function Game({
         </div>
       )}
 
-      {state.winner !== null && (
-        <Modal title="Game over">
+      {state.winner !== null && !overClosed && (
+        <Modal title="Game over" onClose={() => setOverClosed(true)}>
           <h3>🏆 {names[state.winner]} wins!</h3>
+          <p className="muted">
+            This game was to {ctx.vpTarget()} points, and {names[state.winner]} got there first
+            {state.players.some(
+              (p) => p.seat !== state.winner && ctx.vp(p.seat) >= ctx.vp(state.winner!),
+            )
+              ? ': points only win on your own turn, so a tie goes to whoever reaches the target on theirs.'
+              : '.'}
+          </p>
           <ol className="scores">
             {[...state.players]
-              .sort((a, b) => ctx.vp(b.seat) - ctx.vp(a.seat))
+              .sort(
+                (a, b) =>
+                  Number(b.seat === state.winner) - Number(a.seat === state.winner) ||
+                  ctx.vp(b.seat) - ctx.vp(a.seat),
+              )
               .map((p) => (
                 <li key={p.seat}>
-                  {p.name}: {ctx.vp(p.seat)} VP
+                  <strong>
+                    {p.name}: {ctx.vp(p.seat)} VP
+                  </strong>
+                  <span className="score-parts">
+                    {scoreParts(ctx, p.seat, {
+                      longestRoad: baseData(ctx).longestRoad,
+                      largestArmy: baseData(ctx).largestArmy,
+                      routeName: seafarers ? 'Longest Trade Route' : 'Longest Road',
+                    })
+                      .map((part) => `${part.what} ${part.vp > 0 ? '+' : ''}${part.vp}`)
+                      .join(' · ')}
+                  </span>
                 </li>
               ))}
           </ol>
@@ -1809,16 +1931,31 @@ export function Game({
               {!online.isHost && <p className="muted">The host can set up the next game.</p>}
             </div>
           ) : (
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                clearSavedGame();
-                onQuit();
-              }}
-            >
-              New game
-            </button>
+            <div className="row">
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  clearSavedGame();
+                  onQuit();
+                }}
+              >
+                New game
+              </button>
+              {/* This game has just been written down, so say where it went. */}
+              {onStats && (
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    clearSavedGame();
+                    onStats();
+                  }}
+                >
+                  Games on this device
+                </button>
+              )}
+            </div>
           )}
         </Modal>
       )}
@@ -1870,6 +2007,7 @@ function DiscardDialog({
   hand,
   owed,
   cards,
+  why,
   onDiscard,
   plays = [],
   onPlay,
@@ -1878,6 +2016,8 @@ function DiscardDialog({
   hand: Record<string, number>;
   owed: number;
   cards: readonly string[];
+  /** What the engine says caused this: a rolled 7, or the card played. */
+  why: unknown;
   onDiscard: (c: Record<string, number>) => void;
   /** Progress cards for this moment (Small Dragon). */
   plays?: Action[];
@@ -1886,7 +2026,9 @@ function DiscardDialog({
   const [pick, setPick] = useState<Record<string, number>>({});
   return (
     <Modal title={`${name}: discard ${owed}`}>
-      <p>You hold too many cards (or a Saboteur struck). Choose {owed} to give back.</p>
+      <p>
+        {discardReason(why)} Choose {owed} to give back.
+      </p>
       <CardPicker
         value={pick}
         onChange={setPick}

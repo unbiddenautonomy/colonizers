@@ -1,4 +1,11 @@
-import { ModuleLibrary, type Action, type GameConfig, type GameState } from '@colonizers/engine';
+import {
+  cardsTotal,
+  Ctx,
+  ModuleLibrary,
+  type Action,
+  type GameConfig,
+  type GameState,
+} from '@colonizers/engine';
 import { baseModule } from '@colonizers/module-base';
 import { seafarersModule } from '@colonizers/module-seafarers';
 import { citiesKnightsModule } from '@colonizers/module-cities-knights';
@@ -27,7 +34,7 @@ import {
   specialMapById,
 } from '@colonizers/maps';
 import { MODES, resolve, type BoardInfo, type ModeId } from '@colonizers/modes';
-import { moduleList, optionSettings, type RoomSettings } from './protocol.ts';
+import { gameRules, type RoomSettings } from './protocol.ts';
 import { chosenTarget, winTarget } from './winTarget.ts';
 
 export {
@@ -89,59 +96,25 @@ export function buildConfig(settings: RoomSettings, names: string[], seed: strin
   const n = names.length;
   // One rule for every mix, shared with the new-game screens.
   const on = resolve(boardInfo(settings.map), wantedModes(settings));
-  const ck = on.has('citiesKnights');
-  const gwp = on.has('greedWealthPower');
-  const civs = on.has('civilisations');
-  const church = on.has('church');
-  const witches = on.has('witches');
-  const wonders = on.has('worldWonders');
-  const princes = on.has('princes');
-  const soldiers = on.has('soldiers');
-  const investors = on.has('investors');
-  const kingdoms = on.has('kingdoms');
-  const landWater = on.has('landWater');
-  const strategist = on.has('strategist');
   // The game's own target, moved by the host's choice. The scenario modules add their share in
   // play, so the settings carry the rest.
   const target = winTarget(settings.map, n, on);
   const vpTarget = chosenTarget(target, settings.vpTarget) - target.fromModules;
-  const options = optionSettings(settings.options, n);
-  // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
-  if (princes) {
-    if (options.turnMode === 'specialBuild') options.turnMode = 'normal';
-    options.friendlyRobber = false;
-    options.robberHome = false;
-  }
-  // Soldiers & Armies marches after building, so there's no Special Building Phase either.
-  if (soldiers && options.turnMode === 'specialBuild') options.turnMode = 'normal';
   const config = (
     extra: string[],
     map: GameConfig['map'],
     own: Record<string, unknown>,
-  ): GameConfig => ({
-    seed,
-    players: names,
-    modules: moduleList(
-      [
-        ...extra,
-        ...(princes ? ['princes'] : []),
-        ...(soldiers ? ['soldiers'] : []),
-        ...(investors ? ['investors'] : []),
-        ...(kingdoms ? ['kingdoms'] : []),
-        ...(landWater ? ['landwater'] : []),
-        ...(strategist ? ['strategist'] : []),
-      ],
-      ck,
-      gwp,
-      wonders,
-      civs,
-      church,
-      witches,
-    ),
-    map,
-    settings: { ...options, ...own },
-    fixedSeats: true,
-  });
+  ): GameConfig => {
+    const rules = gameRules(extra, on, settings.options, n);
+    return {
+      seed,
+      players: names,
+      modules: rules.modules,
+      map,
+      settings: { ...rules.settings, ...own },
+      fixedSeats: true,
+    };
+  };
   if (settings.map.kind === 'scenario' && seaScenarioById(settings.map.id)) {
     const sea = generateSeaBoard({ seed: `${seed}-map`, players: n, scenario: settings.map.id });
     return config(['seafarers'], sea.map, { ...sea.settings, vpTarget });
@@ -177,6 +150,12 @@ export function timedSeats(state: GameState): number[] {
   }
   // Soldiers & Armies: the defender decides whether their armies join a battle.
   if (state.phase.id === 'battleCall') return [state.phase.defender as number];
+  // A step of its own, such as the Special Building Phase: ask the rules who
+  // can act, because it is not always the player whose turn it is.
+  if (state.phase.id !== 'main' && state.phase.id !== 'roll') {
+    const waiting = library.waitingOn(state);
+    if (waiting.length) return waiting;
+  }
   return [state.turn.player];
 }
 
@@ -266,6 +245,8 @@ const SAFE_ORDER = [
   'payMerchantToll',
   'relocateMerchant',
   'roll',
+  'placeJunker',
+  'movePirate',
   'placeSetupSettlement',
   'placeSetupRoad',
   'placeSetupShip',
@@ -299,5 +280,27 @@ export function timeoutAction(state: GameState, seat: number, rand: () => number
     if (type === 'answerBattleCall') options = options.filter((a) => a.join === false);
     if (options.length) return options[Math.floor(rand() * options.length)] ?? null;
   }
-  return null;
+  // A step the list above has never heard of: any move that costs the player
+  // nothing. Without this an absent player could stop the game for good in
+  // any step a later expansion adds.
+  const free = legal.filter((a) => a.type !== 'endTurn' && costsNothing(state, a));
+  return free.length ? (free[Math.floor(rand() * free.length)] ?? null) : null;
+}
+
+/** Whether a move leaves the player's cards and points as they were. */
+function costsNothing(state: GameState, action: Action): boolean {
+  let after: GameState;
+  try {
+    after = library.apply(state, action).state;
+  } catch {
+    return false;
+  }
+  const before = state.players[action.player];
+  const now = after.players[action.player];
+  if (!before || !now) return false;
+  const held = (p: typeof before) => Object.values(p.held).reduce((s, cs) => s + cs.length, 0);
+  if (cardsTotal(now.hand) < cardsTotal(before.hand) || held(now) < held(before)) return false;
+  const ctx = new Ctx(after, library.registry(after.modules));
+  const was = new Ctx(state, library.registry(state.modules));
+  return ctx.vp(action.player) >= was.vp(action.player);
 }

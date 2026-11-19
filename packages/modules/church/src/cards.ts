@@ -204,6 +204,7 @@ export const CARDS = defineFanCards(MODULE_ID, {
         owed: censusOwed(ctx, a.player),
         returnTo: 'main',
         skipRobber: true,
+        why: 'census',
       });
     },
   },

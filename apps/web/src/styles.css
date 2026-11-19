@@ -428,6 +428,19 @@ select {
   cursor: pointer;
 }
 
+/* The board is one keyboard stop and the arrow keys move along the places
+   that can be chosen, so the one with the keyboard on it has to stand out. */
+.target:focus {
+  outline: none;
+}
+
+.target:focus-visible {
+  stroke: var(--accent);
+  stroke-width: 6;
+  stroke-dasharray: none;
+  filter: url(#glow);
+}
+
 .target-corner {
   fill: rgba(255, 255, 255, 0.85);
   stroke: #1d2321;
@@ -849,6 +862,20 @@ select {
   margin: 2px 0 0;
 }
 
+/* The card glossary, one heading per expansion and deck. */
+.card-group h3 {
+  margin: 14px 0 6px;
+  font-size: 1rem;
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  padding: 2px 0;
+}
+
+.card-group h3 .muted {
+  font-weight: 400;
+}
+
 .pass-cover {
   position: fixed;
   inset: 0;
@@ -861,6 +888,29 @@ select {
 
 .scores {
   font-size: 1.1rem;
+}
+
+.scores li {
+  margin-bottom: 8px;
+}
+
+.scores li:first-child strong {
+  color: var(--accent);
+}
+
+/* Where each player's points came from, under their total. */
+.score-parts {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* A line above the sign-in page, saying what it is for. */
+.sign-in-note {
+  margin: 16px auto 0;
+  max-width: 720px;
+  padding: 0 16px;
+  text-align: center;
 }
 
 /* ---------- Online ---------- */
@@ -1083,6 +1133,20 @@ form.inline {
     scroll-snap-type: x proximity;
   }
 
+  /* The strip holds about two and a half cards, and nothing said it scrolled:
+     the end with more players along it fades out. */
+  .players[data-more='right'] {
+    mask-image: linear-gradient(to right, #000 85%, transparent 100%);
+  }
+
+  .players[data-more='left'] {
+    mask-image: linear-gradient(to left, #000 85%, transparent 100%);
+  }
+
+  .players[data-more='both'] {
+    mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
+  }
+
   .player {
     flex: none;
     min-width: 132px;
@@ -1090,13 +1154,41 @@ form.inline {
     scroll-snap-align: start;
   }
 
+  /* One line of counters, so a card with many of them stays short: the strip
+     scrolls sideways and the board keeps its space. */
   .player-stats {
+    flex-wrap: nowrap;
     gap: 6px;
     font-size: 0.75rem;
   }
 
   .player-stats .award,
   .player-name small {
+    display: none;
+  }
+
+  /* The scenario status sits in the player strip. Lay it out along the strip
+     as one line and drop the explanations: on a phone it used to become a
+     tall column and take all of the board's room. */
+  .players .tda-status {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+
+  .players .tda-status p,
+  .players .tda-status .row {
+    margin: 0;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .players .tda-status small,
+  .players .tda-status .tda-meter,
+  .players .tda-status p:has(> small:only-child) {
     display: none;
   }
 
@@ -1142,9 +1234,15 @@ form.inline {
   }
 }
 
-/* Phones: a slim header whose settings live behind a menu button. */
-@media (max-width: 700px) and (orientation: portrait),
-  (max-height: 560px) and (orientation: landscape) {
+/*
+ * Phones and tablets: a slim header whose settings live behind a menu button.
+ * The header's buttons need about 880 px upright and 1140 px sideways (the
+ * side panel takes the rest), so Menu and Home used to sit off the screen on
+ * every tablet: 701-834 px upright and 1024-1100 px sideways.
+ */
+@media (max-width: 899px),
+  (max-height: 560px) and (orientation: landscape),
+  (max-width: 1150px) and (orientation: landscape) {
   .game-head {
     position: relative;
     flex-wrap: nowrap;
@@ -1250,8 +1348,46 @@ form.inline {
     order: -1;
   }
 
+  /* Moves you can make come before the ones you cannot afford yet, so the
+     row does not open on greyed-out buttons. */
+  .controls:not(.open) .actions > button:disabled {
+    order: 1;
+  }
+
   .controls:not(.open) .actions .cost {
     display: none;
+  }
+
+  /* An offer on the table used to push this turn's moves out of the sheet and
+     cut off "Withdraw offer". It becomes one row you can swipe, like the
+     moves above it. */
+  .controls:not(.open) .offer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .controls:not(.open) .offer > * {
+    flex: none;
+    margin: 0;
+  }
+
+  /* Withdraw leads the row, so it needs no swiping to reach. */
+  .controls:not(.open) .offer > button {
+    order: -1;
+  }
+
+  .controls:not(.open) .offer .responses {
+    display: flex;
+    gap: 10px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .controls:not(.open) .offer .responses li {
+    white-space: nowrap;
   }
 
   .hand-cards {
@@ -1280,13 +1416,38 @@ form.inline {
     padding: 4px 8px;
   }
 
+  /* As upright: one line of counters, and the scenario status as one line, so
+     the strip can't push the action row off the screen. */
   .player-stats {
+    flex-wrap: nowrap;
     gap: 6px;
     font-size: 0.72rem;
   }
 
   .player-stats .award,
   .player-name small {
+    display: none;
+  }
+
+  .players .tda-status {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  .players .tda-status p,
+  .players .tda-status .row {
+    margin: 0;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .players .tda-status small,
+  .players .tda-status .tda-meter,
+  .players .tda-status p:has(> small:only-child) {
     display: none;
   }
 
@@ -1544,6 +1705,11 @@ a.button.google span {
 
 button.danger {
   color: var(--danger);
+}
+
+/* The one card on a page that closes something for good: marked, not shouted. */
+.danger-card {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
 }
 
 /* ---------- Stats, achievements, replays ---------- */
@@ -2197,11 +2363,14 @@ button.ready {
   margin: 0.3rem 0;
 }
 
-/* ---------- App shell: the screens around the game ---------- */
-/* Every screen outside the board takes the look's --shell-* tokens (theme/looks.ts), so buttons,
-   cards and inputs follow without their own rules. */
+/* ---------- App shell: the screens, and the chrome around the board ---------- */
+/* Every screen takes the look's --shell-* tokens (theme/looks.tsx), so buttons,
+   cards and inputs follow without their own rules. The game screen takes them
+   too: its header, side panels and dialogs are app chrome, and only the board
+   itself keeps the board theme's own colours. */
 
-.setup-page {
+.setup-page,
+.game {
   --bg: var(--shell-bg);
   --card: var(--shell-card);
   --raised: var(--shell-raised);
@@ -2220,9 +2389,12 @@ button.ready {
   --danger: var(--shell-bad);
   --heading: var(--shell-heading);
   color-scheme: var(--shell-scheme);
-  font-family: var(--shell-body);
   background: var(--bg);
   color: var(--text);
+}
+
+.setup-page {
+  font-family: var(--shell-body);
   max-width: 1180px;
   min-height: 100vh;
   padding: 28px 24px 64px;
@@ -2235,7 +2407,8 @@ body:has(.setup-page) {
   background-image: var(--shell-motif);
 }
 
-.setup-page {
+.setup-page,
+.game {
   background-color: var(--shell-bg);
   background-image: var(--shell-motif);
 }
@@ -2243,6 +2416,24 @@ body:has(.setup-page) {
 .setup-page h1,
 .setup-page h2,
 .setup-page .section-title {
+  font-family: var(--heading);
+  font-weight: 400;
+}
+
+/* The look's fonts are named panel by panel rather than on .game, so that a
+   display font can never land on the board's own <text> labels, which are set
+   in the board theme's token font. */
+.game-head,
+.players,
+.controls,
+.game .modal,
+.game .pass-cover {
+  font-family: var(--shell-body);
+}
+
+.game-title,
+.game .modal h2,
+.game .modal h3 {
   font-family: var(--heading);
   font-weight: 400;
 }
@@ -2478,6 +2669,30 @@ body:has(.setup-page) {
   flex-basis: 100%;
   min-height: 48px;
   font-size: 1.05rem;
+}
+
+/*
+ * On a phone or tablet the setup is one long column, and Next and Start sat
+ * only at the very bottom of it. They stay on the screen instead.
+ */
+@media (max-width: 899px) {
+  .setup-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    margin: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Room for the bar, so it never covers the last setting. */
+  .setup-page:has(.setup-nav) {
+    padding-bottom: 150px;
+  }
 }
 
 .fan-grid {
@@ -4283,4 +4498,101 @@ html[data-backdrop] body:has(.setup-page) {
 }
 html[data-backdrop] .setup-page {
   background: transparent;
+}
+
+/* The screen the error boundary shows, so a bug never leaves a blank page. */
+.crash {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.crash-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.crash details {
+  margin-top: 2rem;
+  text-align: left;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.crash pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The host's room tools at the foot of the panel: a quiet way out. */
+.room-tools {
+  margin: 12px 0 0;
+  text-align: center;
+}
+
+/* Two answers to a question, the one that goes on to the right. */
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+/*
+ * A thumb needs about 44px. On a touch screen the setup pages, the cards on
+ * the home, account and stats pages, dialogs, the house-rule switches, the
+ * bottom sheet's handle and the header's icon buttons all give it that much.
+ * The board's own building spots stay small, because they sit 37px apart;
+ * a tap near one lands on it instead (see board/nearest.ts).
+ */
+@media (pointer: coarse) {
+  .setup-page button,
+  .setup-page select,
+  .setup-page input:not([type='checkbox']):not([type='radio']),
+  .editor-page button,
+  .editor-page select,
+  .card button,
+  .card select,
+  .card input:not([type='checkbox']):not([type='radio']),
+  .modal button,
+  .modal select,
+  .modal input:not([type='checkbox']):not([type='radio']),
+  label.toggle,
+  .sheet-handle,
+  .offer button,
+  .game-head .icon {
+    min-height: 44px;
+  }
+
+  .game-head .icon {
+    min-width: 44px;
+  }
+
+  /* A row of digits (how many players, how many points) needs width too. */
+  .setup-page .row > button {
+    min-width: 44px;
+  }
+
+  /* The "Why?" pill on a blocked expansion keeps its own small height on a
+     mouse, so it is named here. */
+  .setup-page .why-btn {
+    min-height: 44px;
+    padding: 2px 14px;
+  }
+
+  /* Links that act as buttons ("Watch replay", "See the rule") were 19px.
+     A short one, such as a player's name in a table, needs the width too: the
+     name links on the stats page were 41px across. */
+  .card .link,
+  .modal .link,
+  .setup-page .link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

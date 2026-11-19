@@ -487,7 +487,13 @@ export const CARDS: Record<string, CardDef> = {
           : 'The robber can not go to a desert';
       }
       if (a.option === 'grain')
-        return others(ctx, a.player).some((s) => (ctx.player(s).hand.grain ?? 0) > 0)
+        // On a player's screen the other hands are a count of hidden cards, so
+        // this is unanswerable there: let it pass and leave it to the server,
+        // which has the real hands. Without this the option is never offered
+        // online, and whoever has no grain simply discards nothing.
+        return others(ctx, a.player).some(
+          (s) => ctx.handHidden(s) || (ctx.player(s).hand.grain ?? 0) > 0,
+        )
           ? null
           : 'Nobody else has grain';
       return 'Pick one';
@@ -642,6 +648,7 @@ export const CARDS: Record<string, CardDef> = {
         owed: almsOwed(ctx, a.player),
         returnTo: 'main',
         skipRobber: true,
+        why: 'almsgiving',
       });
     },
   },

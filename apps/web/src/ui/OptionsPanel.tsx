@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { SPECIAL_MAPS } from '@colonizers/maps';
+import { boardFit, type Fit } from '../game/boardFit.ts';
 import {
   DISCARD_LIMITS,
   resolvedTurnMode,
@@ -193,12 +194,22 @@ export function SpecialMapButtons({
   players,
   selected,
   onPick,
+  seats,
 }: {
   players: number;
   selected: string | null;
   onPick: (id: string) => void;
+  /**
+   * The seats the room has, in a lobby where players are still arriving. With
+   * it, every map is shown and the ones that do not fit are greyed out, rather
+   * than hidden: a host alone in a new room would otherwise see almost none.
+   */
+  seats?: number;
 }) {
-  const maps = SPECIAL_MAPS.filter((m) => players >= m.players.min && players <= m.players.max);
+  const maps =
+    seats === undefined
+      ? SPECIAL_MAPS.filter((m) => players >= m.players.min && players <= m.players.max)
+      : SPECIAL_MAPS;
   if (!maps.length) return null;
   const groups = [
     { title: 'Special maps', maps: maps.filter((m) => !m.group) },
@@ -217,17 +228,24 @@ export function SpecialMapButtons({
           <div key={g.title}>
             <h3 className="subhead">{g.title}</h3>
             <div className="row wrap">
-              {g.maps.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={selected === m.id ? 'on' : ''}
-                  title={m.description}
-                  onClick={() => onPick(m.id)}
-                >
-                  {SPECIAL_ICON[m.id] ?? '🗺️'} {m.name}
-                </button>
-              ))}
+              {g.maps.map((m) => {
+                const fit =
+                  seats === undefined ? ({ ok: true } as Fit) : boardFit(m.players, players, seats);
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={selected === m.id ? 'on' : ''}
+                    disabled={!fit.ok}
+                    title={fit.ok ? m.description : `${fit.why}. ${m.description}`}
+                    onClick={() => onPick(m.id)}
+                  >
+                    {SPECIAL_ICON[m.id] ?? '🗺️'} {m.name}
+                    {!fit.ok && <small> {fit.why}</small>}
+                    {fit.ok && fit.waiting && <small> {fit.waiting}</small>}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}

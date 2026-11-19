@@ -15,6 +15,8 @@ import {
   DEFAULT_SETTINGS,
   mapKey,
   parseClientMessage,
+  PING_MESSAGE,
+  PONG_MESSAGE,
   type ChatMessage,
   type ClientMessage,
   type GameSnapshot,
@@ -37,6 +39,10 @@ const BOT_DELAY_MS = 700;
 /** How long Hard bots may think about one move. */
 const BOT_BUDGET_MS = 2500;
 const MAX_BOTS = 7;
+/** The shortest a turn gets for a player whose time has already run out. */
+const SHORT_TURN_SECONDS = 20;
+/** How long a lobby waits for an absent host before passing the role on. */
+const HOST_GONE_MS = 60_000;
 
 interface Member {
   id: string;
@@ -49,6 +55,15 @@ interface Member {
   userId: string | null;
   /** Set for computer players. */
   bot: BotConfig | null;
+}
+
+/**
+ * A bot that joined as a player of its own, rather than a person's seat that
+ * is being played by a bot while they are away. Only the second can be taken
+ * back by the person it belongs to.
+ */
+function isRealBot(m: Member): boolean {
+  return m.token.startsWith('bot-');
 }
 
 interface Attachment {
@@ -88,6 +103,8 @@ export class GameRoom extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    // The room answers the heartbeat itself, without waking up for it.
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(PING_MESSAGE, PONG_MESSAGE));
     this.sql = ctx.storage.sql;
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -100,6 +117,8 @@ export class GameRoom extends DurableObject<Env> {
         joined INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS actions (seq INTEGER PRIMARY KEY, json TEXT NOT NULL);
+      -- Players the host has removed. They stay out of this room.
+      CREATE TABLE IF NOT EXISTS banned (token TEXT PRIMARY KEY, user_id TEXT);
       CREATE TABLE IF NOT EXISTS chat (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         member TEXT,
@@ -195,10 +214,17 @@ export class GameRoom extends DurableObject<Env> {
     } catch {
       // Already closed.
     }
-    if (this.memberOf(ws)) this.broadcastRoom(ws);
+    const member = this.memberOf(ws);
+    if (member) this.broadcastRoom(ws);
+    // A lobby whose host has gone cannot be started by anybody, so the role
+    // moves on after a minute unless they come back.
+    if (member && this.status === 'lobby' && this.getMeta('host') === member.id) {
+      void this.ctx.storage.setAlarm(Date.now() + HOST_GONE_MS);
+    }
   }
 
   override async alarm(): Promise<void> {
+    if (this.status === 'lobby') return this.passHostOn();
     if (this.status !== 'playing') return;
     this.scheduleBots();
     const game = this.load();
@@ -218,6 +244,7 @@ export class GameRoom extends DurableObject<Env> {
     for (const seat of timedOut) {
       this.systemChat(`Time ran out for ${game.state.players[seat]?.name ?? 'a player'}.`);
     }
+    this.noteMisses(timedOut);
     this.updateTimer(timedOut.size > 0);
   }
 
@@ -225,6 +252,16 @@ export class GameRoom extends DurableObject<Env> {
 
   private hello(ws: WebSocket, token: string, name: string): void {
     const userId = (ws.deserializeAttachment() as Attachment | null)?.userId ?? null;
+    // Someone the host removed does not get back in by reloading.
+    if (this.banned(token, userId)) {
+      this.send(ws, {
+        type: 'error',
+        message: 'The host removed you from this room',
+        code: 'removed',
+      });
+      ws.serializeAttachment(null);
+      return ws.close(4001, 'removed');
+    }
     const all = [...this.members.values()];
     // A signed-in player gets their seat on any device; otherwise the device token decides.
     let member =
@@ -276,7 +313,14 @@ export class GameRoom extends DurableObject<Env> {
       case 'settings': {
         if (!isHost) return deny('Only the host can change settings');
         if (this.status !== 'lobby') return deny('The game has already started');
-        const settings = cleanSettings(msg.settings);
+        // A patch, merged over what the room has: see SettingsPatch. Two
+        // quick changes from the host then can't undo each other.
+        const was = this.settings;
+        const settings = cleanSettings({
+          ...was,
+          ...msg.settings,
+          options: { ...was.options, ...(msg.settings.options ?? {}) },
+        });
         settings.maxPlayers = Math.max(settings.maxPlayers, this.players().length);
         this.setMeta('settings', JSON.stringify(settings));
         return this.broadcastRoom();
@@ -291,7 +335,7 @@ export class GameRoom extends DurableObject<Env> {
         if (this.status !== 'lobby') return deny('Players can only be removed in the lobby');
         const target = this.members.get(msg.member);
         if (!target || target.id === member.id) return;
-        return this.removeMember(target, 'The host removed you from this room');
+        return this.removeMember(target, 'The host removed you from this room', true);
       }
       case 'addBot': {
         if (!isHost) return deny('Only the host can add bots');
@@ -328,6 +372,32 @@ export class GameRoom extends DurableObject<Env> {
         if (!isHost) return deny('Only the host can set up the next game');
         if (this.status !== 'finished') return deny('The game is still going');
         return this.backToLobby();
+      case 'endGame': {
+        if (!isHost) return deny('Only the host can end the game');
+        if (this.status === 'lobby') return deny('The game has not started');
+        this.systemChat(`${member.name} ended the game. Everyone is back in the lobby.`);
+        return this.backToLobby();
+      }
+      case 'handSeat': {
+        if (!isHost) return deny('Only the host can hand a seat to a bot');
+        if (this.status !== 'playing') return deny('Seats are handed over during a game');
+        const target = this.members.get(msg.member);
+        if (!target || target.seat === null) return deny('That player has no seat');
+        if (target.bot) return deny('A bot already has that seat');
+        this.setBot(target, { level: msg.level, style: msg.style });
+        this.systemChat(`A bot is playing for ${target.name} until they come back.`);
+        this.broadcastRoom();
+        return this.scheduleBots(0);
+      }
+      case 'takeSeat': {
+        // Their own seat, so no host check: whoever holds this member's token
+        // is the player it belongs to.
+        if (member.seat === null) return deny('You have no seat in this game');
+        if (!member.bot || isRealBot(member)) return deny('Nobody is playing for you');
+        this.setBot(member, null);
+        this.systemChat(`${member.name} is back and has taken their seat.`);
+        return this.broadcastRoom();
+      }
     }
   }
 
@@ -401,6 +471,8 @@ export class GameRoom extends DurableObject<Env> {
       }
       throw e;
     }
+    // They are back at the table, so their turns are full length again.
+    this.clearMiss(member.seat);
     this.updateTimer();
   }
 
@@ -421,6 +493,7 @@ export class GameRoom extends DurableObject<Env> {
     this.broadcastGame(entries);
     this.scheduleBots();
     this.notifyTurn();
+    this.rescueIfStuck();
     if (r.state.winner !== null) {
       const gameId = this.getMeta('gameId');
       if (gameId) {
@@ -450,6 +523,7 @@ export class GameRoom extends DurableObject<Env> {
     this.deleteMeta('config');
     this.deleteMeta('deadline');
     this.deleteMeta('timerKey');
+    this.deleteMeta('missed');
     this.deleteMeta('bank');
     this.deleteMeta('banking');
     this.setMeta('status', 'lobby');
@@ -463,6 +537,16 @@ export class GameRoom extends DurableObject<Env> {
     }
     void this.ctx.storage.deleteAlarm();
     this.sendWelcomeToAll();
+  }
+
+  /** Hands a seat to a bot while its player is away, or gives it back. */
+  private setBot(member: Member, bot: BotConfig | null): void {
+    member.bot = bot;
+    this.sql.exec(
+      'UPDATE members SET bot = ? WHERE id = ?',
+      bot ? JSON.stringify(bot) : null,
+      member.id,
+    );
   }
 
   private addBot(config: BotConfig): void {
@@ -489,6 +573,21 @@ export class GameRoom extends DurableObject<Env> {
       null,
       JSON.stringify(config),
     );
+  }
+
+  /**
+   * A step nobody can move in only happens through a bug in a scenario's own
+   * rules, but it would end the evening: nobody at the table can do anything
+   * about it. Leave the step and say so, so the game goes on.
+   */
+  private rescueIfStuck(): void {
+    const game = this.load();
+    if (!game || game.state.winner !== null || !library.stuck(game.state)) return;
+    const action: Action = { type: 'skipStep', player: game.state.turn.player };
+    if (library.check(game.state, action) !== null) return;
+    const step = game.state.phase.id;
+    this.applyAction(action);
+    this.systemChat(`Nobody could move in the ${step} step, so the game skipped it.`);
   }
 
   // ---- Bots ----
@@ -561,19 +660,70 @@ export class GameRoom extends DurableObject<Env> {
     this.sql.exec('UPDATE members SET name = ? WHERE id = ?', name, member.id);
   }
 
-  private removeMember(member: Member, reason: string): void {
+  /** The members with a socket open right now. */
+  private onlineIds(): Set<string> {
+    const online = new Set<string>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const m = this.memberOf(ws);
+      if (m) online.add(m.id);
+    }
+    return online;
+  }
+
+  /**
+   * Hands the host role to whoever has been here longest, when the host has
+   * been away for a minute. Without this a lobby is stuck: only the host can
+   * start the game or change the settings.
+   */
+  private passHostOn(): void {
+    const hostId = this.getMeta('host');
+    if (this.status !== 'lobby' || !hostId) return;
+    const online = this.onlineIds();
+    if (online.has(hostId)) return;
+    const next = [...this.members.values()]
+      .filter((m) => !m.bot && m.id !== hostId && online.has(m.id))
+      .sort((a, b) => a.joined - b.joined)[0];
+    if (!next) return;
+    this.setMeta('host', next.id);
+    const was = this.members.get(hostId)?.name ?? 'The host';
+    this.systemChat(`${was} went away, so ${next.name} is the host now.`);
+    this.broadcastRoom();
+  }
+
+  /** Whether this device or account has been removed from the room. */
+  private banned(token: string, userId: string | null): boolean {
+    const rows = [
+      ...this.sql.exec<{ n: number }>(
+        'SELECT COUNT(*) AS n FROM banned WHERE token = ? OR (user_id IS NOT NULL AND user_id = ?)',
+        token,
+        userId,
+      ),
+    ];
+    return (rows[0]?.n ?? 0) > 0;
+  }
+
+  private removeMember(member: Member, reason: string, ban = false): void {
     this.members.delete(member.id);
     this.sql.exec('DELETE FROM members WHERE id = ?', member.id);
+    // A bot has no device to come back on, so there is nothing to keep out.
+    if (ban && !member.bot)
+      this.sql.exec(
+        'INSERT OR REPLACE INTO banned (token, user_id) VALUES (?, ?)',
+        member.token,
+        member.userId,
+      );
     if (this.getMeta('host') === member.id) {
       const next = [...this.members.values()].find((m) => !m.bot);
       if (next) this.setMeta('host', next.id);
       else this.deleteMeta('host');
     }
-    // A spectator moves up into a free seat.
+    // A spectator moves up into a free seat, and is told so: a watcher who
+    // suddenly has a seat should not have to work out why.
     const waiting = [...this.members.values()].find((m) => m.role === 'spectator');
     if (waiting && this.status === 'lobby' && this.players().length < this.settings.maxPlayers) {
       waiting.role = 'player';
       this.sql.exec("UPDATE members SET role = 'player' WHERE id = ?", waiting.id);
+      this.systemChat(`${waiting.name} takes the free seat.`);
     }
     for (const ws of this.ctx.getWebSockets()) {
       if ((ws.deserializeAttachment() as Attachment | null)?.memberId !== member.id) continue;
@@ -655,12 +805,44 @@ export class GameRoom extends DurableObject<Env> {
     const key = timerKey(game.state);
     if (!force && key === this.getMeta('timerKey')) return;
     this.stopBank();
-    const deadline = Date.now() + this.settings.turnTimer * 1000;
+    const deadline = Date.now() + this.turnSeconds(game.state) * 1000;
     this.setMeta('timerKey', key);
     this.setMeta('deadline', String(deadline));
     void this.ctx.storage.setAlarm(deadline);
     // Tell everyone about the new deadline.
     this.broadcastGame([]);
+  }
+
+  /**
+   * How long the step being waited on gets. Once somebody's time has run out,
+   * their later turns are shorter, so a room where a player has left plays on
+   * at a reasonable pace instead of pausing for the full turn every round.
+   * Playing a move of their own gives them the full turn back.
+   */
+  private turnSeconds(state: GameState): number {
+    const full = this.settings.turnTimer;
+    const waiting = timedSeats(state);
+    const missed = new Set(this.misses());
+    if (!waiting.length || !waiting.every((seat) => missed.has(seat))) return full;
+    return Math.max(SHORT_TURN_SECONDS, Math.round(full / 3));
+  }
+
+  /** Seats whose time has run out at least once and who have not played since. */
+  private misses(): number[] {
+    return JSON.parse(this.getMeta('missed') ?? '[]') as number[];
+  }
+
+  private noteMisses(seats: Iterable<number>): void {
+    const all = new Set(this.misses());
+    const before = all.size;
+    for (const seat of seats) all.add(seat);
+    if (all.size !== before) this.setMeta('missed', JSON.stringify([...all]));
+  }
+
+  private clearMiss(seat: number): void {
+    const was = this.misses();
+    const left = was.filter((s) => s !== seat);
+    if (left.length !== was.length) this.setMeta('missed', JSON.stringify(left));
   }
 
   // ---- Time bank ----
@@ -832,8 +1014,9 @@ export class GameRoom extends DurableObject<Env> {
       name: m.name,
       seat: m.seat,
       role: m.role,
-      online: !!m.bot || online.has(m.id),
+      online: isRealBot(m) || online.has(m.id),
       ...(m.bot ? { bot: m.bot } : {}),
+      ...(m.bot && !isRealBot(m) ? { away: true } : {}),
     }));
     return {
       code: this.getMeta('code') ?? '',

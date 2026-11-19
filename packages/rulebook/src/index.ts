@@ -89,6 +89,43 @@ export function allCards(books: RulebookModule[]): CardGlossaryEntry[] {
   return books.flatMap((b) => b.cards);
 }
 
+/** One expansion's cards from one deck, in the order the rulebook lists them. */
+export interface CardGroup {
+  module: string;
+  /** The expansion's name, for the heading. */
+  name: string;
+  deck: string;
+  cards: (CardGlossaryEntry & { alsoIn?: string[] })[];
+}
+
+/**
+ * The card glossary grouped by expansion and deck, with each card shown once.
+ * Thirteen cards belong to two expansions (Road Building is in the base deck
+ * and in Cities & Knights' science deck; the religion cards are shared between
+ * Greed, Wealth & Power and Church, Faith & Reformation). A flat list showed
+ * those twice with no way to tell why, so a card now stays with the first
+ * expansion that lists it and names the others it also belongs to.
+ */
+export function cardGroups(books: RulebookModule[]): CardGroup[] {
+  const groups: CardGroup[] = [];
+  const seen = new Map<string, CardGlossaryEntry & { alsoIn?: string[] }>();
+  for (const book of books) {
+    for (const card of book.cards) {
+      const already = seen.get(card.id);
+      if (already) {
+        already.alsoIn = [...(already.alsoIn ?? []), book.name];
+        continue;
+      }
+      const copy = { ...card };
+      seen.set(card.id, copy);
+      const group = groups.find((g) => g.module === book.module && g.deck === card.deck);
+      if (group) group.cards.push(copy);
+      else groups.push({ module: book.module, name: book.name, deck: card.deck, cards: [copy] });
+    }
+  }
+  return groups;
+}
+
 /**
  * Maps rule-check messages to the page that explains them, so a rejected
  * move can link straight to the rule.

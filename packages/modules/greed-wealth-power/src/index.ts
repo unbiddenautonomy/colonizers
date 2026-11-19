@@ -109,35 +109,10 @@ export {
   neutralPiece,
 } from './neutrals.ts';
 
-interface Placed {
-  corner: CornerId;
-  hex: HexId;
-}
+import { addBeer, beerOf, buildingsOf, gwpData, setBuilding } from './store.ts';
 
-export interface GwpData extends Record<string, unknown> {
-  beer: Record<number, number>;
-  buildings: Record<number, Partial<Record<Building, Placed>>>;
-}
-
-export function gwpData(ctx: Ctx): GwpData {
-  const d = ctx.data<GwpData>(MODULE_ID);
-  d.beer ??= {};
-  d.buildings ??= {};
-  return d;
-}
-
-export function beerOf(ctx: Ctx, seat: number): number {
-  return gwpData(ctx).beer[seat] ?? 0;
-}
-
-export function addBeer(ctx: Ctx, seat: number, n: number): void {
-  const d = gwpData(ctx);
-  d.beer[seat] = Math.max(0, (d.beer[seat] ?? 0) + n);
-}
-
-export function buildingsOf(ctx: Ctx, seat: number): Partial<Record<Building, Placed>> {
-  return (gwpData(ctx).buildings[seat] ??= {});
-}
+/** Reading and writing this module's own store, kept in one place: see store.ts. */
+export * from './store.ts';
 
 type A<T> = Action & T;
 function action<T>(def: ActionDef<A<T>>): ActionDef {
@@ -228,7 +203,7 @@ const buildGwp = action<{ building: Building; corner: CornerId; hex: HexId }>({
       ctx.upgrade(b, 'city');
       ctx.emit({ type: 'built', player: a.player, piece: 'city', at: a.corner });
     }
-    buildingsOf(ctx, a.player)[a.building] = { corner: a.corner, hex: a.hex };
+    setBuilding(ctx, a.player, a.building, { corner: a.corner, hex: a.hex });
     ctx.emit({
       type: 'gwpBuilt',
       player: a.player,

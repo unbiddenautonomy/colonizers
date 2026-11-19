@@ -277,6 +277,14 @@ function permafrost(ctx: Ctx): void {
     if (size > limit) owed[p.seat] = Math.floor(size / 2);
     else delete owed[p.seat];
   }
+  // With nobody left owing cards, hand over the way the last discard would.
+  // Otherwise the step stays open with nothing in it for anyone to do, and the
+  // game stops for good. Before the barbarians' first attack the robber stays
+  // asleep (Cities & Knights marks the step), so skip straight past it.
+  if (!Object.keys(owed).length) {
+    if (ph.skipRobber) ctx.setPhase({ id: (ph.returnTo as string | undefined) ?? 'main' });
+    else ctx.setPhase({ id: 'moveRobber', returnTo: ph.returnTo });
+  }
 }
 
 /** The first time a player reaches 10 points. */

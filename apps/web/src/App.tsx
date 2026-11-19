@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { clearSavedGame, loadSavedGame, type SavedGame } from './game/useLocalGame.ts';
 import { afterGoogle, loadAccount, loadSite, verifyEmail } from './online/account.ts';
 import {
@@ -10,13 +10,39 @@ import {
   ResetDialog,
   SignInDialog,
 } from './screens/Account.tsx';
-import { LocalGame } from './screens/Game.tsx';
-import { MapEditor } from './screens/MapEditor.tsx';
 import { NewGame } from './screens/NewGame.tsx';
-import { OnlineRoom } from './screens/OnlineRoom.tsx';
-import { ReplayPage } from './screens/Replay.tsx';
-import { Rulebook } from './ui/Rulebook.tsx';
-import { LocalStatsPage } from './screens/LocalStats.tsx';
+
+/**
+ * The screens behind the home page are fetched when they are opened, not
+ * before the first visit draws. The board, every expansion's rules and screens,
+ * the rulebook and the map editor are most of the app's weight, and someone
+ * arriving at the home page needs none of it yet.
+ */
+const LocalGame = lazy(() => import('./screens/Game.tsx').then((m) => ({ default: m.LocalGame })));
+const MapEditor = lazy(() =>
+  import('./screens/MapEditor.tsx').then((m) => ({ default: m.MapEditor })),
+);
+const OnlineRoom = lazy(() =>
+  import('./screens/OnlineRoom.tsx').then((m) => ({ default: m.OnlineRoom })),
+);
+const ReplayPage = lazy(() =>
+  import('./screens/Replay.tsx').then((m) => ({ default: m.ReplayPage })),
+);
+const Rulebook = lazy(() => import('./ui/Rulebook.tsx').then((m) => ({ default: m.Rulebook })));
+const LocalStatsPage = lazy(() =>
+  import('./screens/LocalStats.tsx').then((m) => ({ default: m.LocalStatsPage })),
+);
+
+/** What a screen shows while it is being fetched. */
+function Loading() {
+  return (
+    <main className="setup-page narrow" aria-busy="true">
+      <p className="muted">Loading…</p>
+    </main>
+  );
+}
+
+const page = (node: ReactNode) => <Suspense fallback={<Loading />}>{node}</Suspense>;
 
 function roomFromPath(path: string): string | null {
   const m = path.match(/^\/r\/([a-z0-9-]{1,40})\/?$/i);
@@ -130,7 +156,7 @@ export function App() {
   if (room)
     return (
       <>
-        <OnlineRoom key={room} code={room} onHome={() => go('/')} />
+        {page(<OnlineRoom key={room} code={room} onHome={() => go('/')} />)}
         {popups}
       </>
     );
@@ -151,7 +177,7 @@ export function App() {
   if (path === '/stats')
     return (
       <>
-        <LocalStatsPage onHome={() => go('/')} />
+        {page(<LocalStatsPage onHome={() => go('/')} />)}
         {popups}
       </>
     );
@@ -175,7 +201,7 @@ export function App() {
   if (replay)
     return (
       <>
-        <ReplayPage key={replay} id={replay} onBack={() => go('/me')} />
+        {page(<ReplayPage key={replay} id={replay} onBack={() => go('/me')} />)}
         {popups}
       </>
     );
@@ -184,13 +210,13 @@ export function App() {
   if (editor)
     return (
       <>
-        <MapEditor key={path} editId={editor[1] ?? null} onHome={() => go('/')} />
+        {page(<MapEditor key={path} editId={editor[1] ?? null} onHome={() => go('/')} />)}
         {popups}
       </>
     );
 
   if (game) {
-    return (
+    return page(
       <LocalGame
         key={game.config.seed}
         saved={game}
@@ -198,7 +224,12 @@ export function App() {
           setSaved(loadSavedGame());
           setGame(null);
         }}
-      />
+        onStats={() => {
+          setSaved(loadSavedGame());
+          setGame(null);
+          go('/stats');
+        }}
+      />,
     );
   }
   return (
@@ -218,7 +249,7 @@ export function App() {
         onEditor={(id) => go(id ? `/editor/${id}` : '/editor')}
         onStats={() => go('/stats')}
       />
-      {rules && <Rulebook state={null} viewer={null} onClose={() => setRules(false)} />}
+      {rules && page(<Rulebook state={null} viewer={null} onClose={() => setRules(false)} />)}
       {popups}
     </>
   );

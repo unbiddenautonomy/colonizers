@@ -1,8 +1,9 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { artFor } from './boards/art.ts';
 import { ISLAND_COAST, islandFrame } from './frames.ts';
-import { setTheme, THEMES } from './themes.tsx';
+import { setTheme, THEMES, useTheme } from './themes.tsx';
 import { prefPicked } from './prefs.ts';
+import { fontUrl, loadFonts } from './fonts.ts';
 
 /**
  * A look: how the screens around the game are dressed (home, setup, lobby, account, menus).
@@ -913,6 +914,12 @@ function readableOn(hex: string): string {
 /** Puts the look's tokens on the document as --shell-* properties. */
 export function LookStyles() {
   const { look } = useLook();
+  const theme = useTheme();
+  // The fonts this look and board need, fetched after the first draw rather
+  // than every look's fonts before it.
+  useEffect(() => {
+    loadFonts(fontUrl([look.tokens.heading, look.tokens.body, theme.tokenFont]));
+  }, [look, theme.tokenFont]);
   useEffect(() => {
     const root = document.documentElement;
     const t = look.tokens;

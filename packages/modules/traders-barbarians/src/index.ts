@@ -11,7 +11,7 @@ import type {
 } from '@colonizers/engine';
 import {
   connectsAt,
-  legalRoadEdges,
+  freeRouteSpot,
   publicVp,
   RESOURCES,
   robber,
@@ -315,7 +315,9 @@ const spendFish: ActionDef = {
         return ctx.bankHas({ [r]: 1 }) ? null : 'The bank has none left';
       }
       case 'road':
-        return legalRoadEdges(ctx, a.player).length > 0 ? null : 'There is nowhere to build a road';
+        // The free road's own rule, so the fish are never spent on a step
+        // with no edge in it: here the barbarians can hold every open edge.
+        return freeRouteSpot(ctx, a.player) ? null : 'There is nowhere to build a road';
       case 'devCard':
         return ctx.state.decks.dev?.length ? null : 'No development cards left';
     }
@@ -348,7 +350,10 @@ const spendFish: ActionDef = {
         ctx.grant(a.player, { [a.resource as string]: 1 });
         return;
       case 'road':
-        ctx.setPhase({ id: 'roadBuilding', remaining: 1, returnTo: 'main' });
+        // Only start the step when the free road has somewhere to go: on this
+        // board the barbarians can hold every open edge.
+        if (freeRouteSpot(ctx, a.player))
+          ctx.setPhase({ id: 'roadBuilding', remaining: 1, returnTo: 'main' });
         return;
       case 'devCard': {
         const card = ctx.drawCard('dev') as string;

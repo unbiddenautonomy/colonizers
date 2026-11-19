@@ -3,7 +3,7 @@ import { env, exports } from 'cloudflare:workers';
 import { runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { stateFromView, type Action } from '@colonizers/engine';
 import type { GameSnapshot, RoomInfo, ServerMessage } from '../src/protocol.ts';
-import { DEFAULT_OPTIONS } from '../src/protocol.ts';
+import { DEFAULT_OPTIONS, PING_MESSAGE } from '../src/protocol.ts';
 import { library } from '../src/rules.ts';
 
 const BASE = 'https://colonizers.test';
@@ -213,7 +213,7 @@ describe('Lobby', () => {
       landWater: false,
       strategist: false,
       turnTimer: 90,
-      timeBank: 0,
+      timeBank: 300,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,
     });
@@ -222,6 +222,21 @@ describe('Lobby', () => {
     m = a.mark;
     b.close();
     await a.waitFor((x) => x.type === 'room' && x.room.members[1]?.online === false, m);
+    a.close();
+  });
+
+  it('keeps both of two settings changes made in quick succession', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'Nachi');
+    const m = a.mark;
+    // All four sent without waiting for an answer, as fast taps do.
+    a.send({ type: 'settings', settings: { vpTarget: 12 } });
+    a.send({ type: 'settings', settings: { citiesKnights: true } });
+    a.send({ type: 'settings', settings: { options: { friendlyRobber: true } } });
+    a.send({ type: 'settings', settings: { options: { gifting: true } } });
+    await a.waitFor((x) => x.type === 'room' && x.room.settings.options.gifting === true, m);
+    expect(a.room!.settings).toMatchObject({ vpTarget: 12, citiesKnights: true });
+    expect(a.room!.settings.options).toMatchObject({ friendlyRobber: true, gifting: true });
     a.close();
   });
 
@@ -411,6 +426,128 @@ describe('Online game', () => {
     [again, b].forEach((c) => c.close());
   });
 
+  it('lets the host end a game and take everyone back to the lobby', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const b = await join(code, 'B');
+    await startGame([a, b]);
+    expect(a.room!.status).toBe('playing');
+
+    // Only the host.
+    let m = b.mark;
+    b.send({ type: 'endGame' });
+    expect(await b.waitFor((x) => x.type === 'error', m)).toMatchObject({ code: 'denied' });
+
+    m = b.mark;
+    a.send({ type: 'endGame' });
+    await b.waitFor((x) => x.type === 'welcome' && x.room.status === 'lobby', m, 'back to lobby');
+    expect(b.room!.status).toBe('lobby');
+    expect(b.room!.members.every((x) => x.seat === null)).toBe(true);
+    await b.waitFor((x) => x.type === 'chat' && x.message.text.includes('ended the game'), m);
+    [a, b].forEach((c) => c.close());
+  });
+
+  it('hands an absent player’s seat to a bot, and gives it back when they return', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const b = await join(code, 'B');
+    await startGame([a, b]);
+    const them = a.room!.members.find((x) => x.id !== a.you)!;
+
+    let m = a.mark;
+    a.send({ type: 'handSeat', member: them.id, level: 'medium', style: 'balanced' });
+    await a.waitFor(
+      (x) => x.type === 'room' && !!x.room.members.find((y) => y.id === them.id)?.away,
+      m,
+      'seat handed over',
+    );
+    await a.waitFor((x) => x.type === 'chat' && x.message.text.includes('bot is playing'), m);
+
+    // The bot gets on with the game: the host plays their own setup moves and
+    // the handed seat answers without anyone sitting at it.
+    for (let seq = a.game!.seq; seq < 4; seq++) {
+      const mine = legalFor(a);
+      const mark = a.mark;
+      if (mine.length) a.send({ type: 'act', action: mine[0]! });
+      await a.waitFor((x) => x.type === 'game' && x.game.seq > seq, mark, 'the game to move on');
+    }
+    expect(a.game!.seq).toBeGreaterThanOrEqual(4);
+
+    // Only the player it belongs to can take it back, and only from a bot.
+    m = a.mark;
+    a.send({ type: 'takeSeat' });
+    expect(await a.waitFor((x) => x.type === 'error', m)).toMatchObject({ code: 'denied' });
+
+    m = b.mark;
+    b.send({ type: 'takeSeat' });
+    await b.waitFor(
+      (x) => x.type === 'room' && !x.room.members.find((y) => y.id === them.id)?.away,
+      m,
+      'seat back',
+    );
+    expect(b.room!.members.find((x) => x.id === them.id)?.bot).toBeUndefined();
+    [a, b].forEach((c) => c.close());
+  }, 20_000);
+
+  it('keeps a removed player out of the room, even after a reload', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const b = await join(code, 'B');
+    await a.waitFor((x) => x.type === 'room' && x.room.members.length === 2, 0, 'both here');
+    const them = a.room!.members.find((x) => x.id !== a.you)!;
+
+    const m = a.mark;
+    a.send({ type: 'remove', member: them.id });
+    await b.waitFor((x) => x.type === 'error' && x.code === 'removed', 0, 'removed');
+    await a.waitFor((x) => x.type === 'room' && x.room.members.length === 1, m, 'one member left');
+    b.close();
+
+    // Coming back on the same device is refused, and no member is made.
+    const res = await exports.default.fetch(`${BASE}/api/rooms/${code}/ws`, {
+      headers: { Upgrade: 'websocket' },
+    });
+    const again = new Client(res.webSocket!, b.token);
+    again.send({ type: 'hello', token: b.token, name: 'B' });
+    const said = await again.waitFor((x) => x.type === 'error', 0, 'refused');
+    expect(said).toMatchObject({ code: 'removed' });
+    expect(again.messages.some((x) => x.type === 'welcome')).toBe(false);
+    const m2 = a.mark;
+    a.send({ type: 'chat', text: 'still here?' });
+    await a.waitFor((x) => x.type === 'chat', m2);
+    expect(a.room!.members.length).toBe(1);
+    [a, again].forEach((c) => c.close());
+  });
+
+  it('passes the host role on when the host leaves the lobby', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const b = await join(code, 'B');
+    expect(a.room!.hostId).toBe(a.you);
+
+    // The host's device goes away, and the minute passes.
+    const m = b.mark;
+    a.close();
+    await b.waitFor((x) => x.type === 'room' && !x.room.members[0]?.online, m, 'host offline');
+    expect(await runDurableObjectAlarm(env.ROOMS.getByName(code))).toBe(true);
+    await b.waitFor((x) => x.type === 'room' && x.room.hostId === b.you, m, 'the role passed on');
+    await b.waitFor((x) => x.type === 'chat' && x.message.text.includes('is the host now'), m);
+
+    // And the new host can start the game.
+    const m2 = b.mark;
+    b.send({ type: 'start' });
+    await b.waitFor((x) => x.type === 'welcome' && x.room.status === 'playing', m2, 'the game');
+    b.close();
+  });
+
+  it('answers the heartbeat, so a dead connection is noticed', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const m = a.mark;
+    a.send(PING_MESSAGE);
+    await a.waitFor((x) => (x as { type: string }).type === 'pong', m, 'a pong');
+    a.close();
+  });
+
   it('plays a safe move when the turn timer runs out', async () => {
     const code = await createRoom();
     const a = await join(code, 'A');
@@ -420,6 +557,7 @@ describe('Online game', () => {
         map: { kind: 'random', mode: 'classic' },
         vpTarget: 10,
         turnTimer: 60,
+        timeBank: 0,
         maxPlayers: 4,
       },
     });
@@ -433,6 +571,55 @@ describe('Online game', () => {
     expect(a.game!.view.phase.id).toBe('setup');
     [a, b].forEach((c) => c.close());
   });
+
+  it('gives a shorter turn to a player whose time has already run out', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    a.send({
+      type: 'settings',
+      settings: {
+        map: { kind: 'random', mode: 'classic' },
+        vpTarget: 10,
+        turnTimer: 60,
+        timeBank: 0,
+        maxPlayers: 4,
+      },
+    });
+    const b = await join(code, 'B');
+    await startGame([a, b]);
+    expect(a.game!.deadline).toBeGreaterThan(Date.now() + 50_000);
+
+    // Nobody plays, so the seats miss their turns one after another. Once the
+    // seat being waited on has missed before, its turn is a third as long.
+    const stub = env.ROOMS.getByName(code);
+    let short = false;
+    for (let i = 0; i < 6 && !short; i++) {
+      const m = a.mark;
+      expect(await runDurableObjectAlarm(stub)).toBe(true);
+      await a.waitFor((x) => x.type === 'game' && x.game.seq >= i + 1, m, 'timeout move');
+      short = (a.game!.deadline ?? Number.POSITIVE_INFINITY) < Date.now() + 30_000;
+    }
+    expect(short).toBe(true);
+
+    // Playing moves of their own gives the players the full turn back.
+    let full = false;
+    for (let i = 0; i < 8 && !full; i++) {
+      // Both devices must have the latest move before picking who goes next.
+      const seq = Math.max(a.game!.seq, b.game!.seq);
+      await Promise.all(
+        [a, b].map((c) =>
+          c.game!.seq >= seq ? null : c.waitFor((x) => x.type === 'game' && x.game.seq >= seq),
+        ),
+      );
+      const mover = [a, b].find((c) => legalFor(c).length > 0)!;
+      const m = mover.mark;
+      mover.send({ type: 'act', action: legalFor(mover)[0]! });
+      await mover.waitFor((x) => x.type === 'game' && x.game.seq > seq, m, 'the move');
+      full = (a.game!.deadline ?? 0) > Date.now() + 50_000;
+    }
+    expect(full).toBe(true);
+    [a, b].forEach((c) => c.close());
+  }, 20_000);
 
   it('spends the time bank before playing a safe move', async () => {
     const code = await createRoom();

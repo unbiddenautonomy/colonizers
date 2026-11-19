@@ -61,6 +61,17 @@ const EVENT_TEXT: Record<string, string> = {
 
 const vehicle = (t: unknown) => (t === 'ferry' ? 'ship' : String(t));
 
+/**
+ * Why the discard box is open. A rolled 7 is far and away the commonest, and
+ * the box used to say "You hold too many cards (or a Saboteur struck)" even in
+ * a game without Cities & Knights. The phase now says what caused it.
+ */
+export function discardReason(why: unknown): string {
+  if (typeof why === 'string' && why !== 'seven')
+    return `${nameOf(why).name} was played against you: half your hand goes back.`;
+  return 'A 7 was rolled and you hold too many cards.';
+}
+
 /** One line of log text for an event, or null to leave it out. */
 export function describe(e: GameEvent, names: string[]): string | null {
   const n = (seat: unknown) =>
@@ -68,6 +79,8 @@ export function describe(e: GameEvent, names: string[]): string | null {
   switch (e.type) {
     case 'gameCreated':
       return 'New game started.';
+    case 'stepSkipped':
+      return `Nobody could move in the ${String(e.step)} step, so the game skipped it.`;
     case 'turnStarted':
       return `— ${n(e.player)}'s turn —`;
     case 'rolled':
@@ -371,6 +384,13 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `🎣 ${Object.entries(e.fish as Record<string, number>)
         .map(([seat, k]) => `${n(Number(seat))} ${k} fish`)
         .join(', ')}: a resource of their choice for each.`;
+    case 'lwPickOwed': {
+      const owed = e.owed as Record<string, number>;
+      const who = Object.entries(owed).map(
+        ([seat, count]) => `${n(Number(seat))} ${count} card${count === 1 ? '' : 's'}`,
+      );
+      return `🌊 From the bank: ${who.join(', ')}, each of their choice.`;
+    }
     case 'lwPicked':
       return `${n(e.player)} took ${cards(e.cards as Record<string, number>)}.`;
     case 'knightSpeed':
@@ -542,7 +562,7 @@ export function describe(e: GameEvent, names: string[]): string | null {
     case 'wonderHarvest':
       return `🛕 ${n(e.player)} made an offering to Chaac, and a hex produced.`;
     case 'wonderDiceHeld':
-      return null;
+      return `🏛️ ${n(e.player)} threw ${e.a} and ${e.b}, and may use a wonder before it counts.`;
     case 'wonderReroll':
       return `${WONDERS[e.wonder as WonderId]?.icon ?? '🎲'} ${n(e.player)} threw again: ${e.a} and ${e.b}.`;
     case 'wonderPicks':
@@ -599,7 +619,7 @@ export function describe(e: GameEvent, names: string[]): string | null {
         ? `🏳️ ${n(e.player)} threw ${e.total} for the robber.`
         : `🏳️ ${n(e.player)} threw ${e.total}: no hex for the robber there.`;
     case 'civMuscovyHex':
-      return null;
+      return `🏳️ ${n(e.player)} put the robber on the number they threw.`;
     case 'civHabsburg':
       return `🏳️ ${n(e.player)} drew ${e.count} progress cards for the Habsburg Marriage.`;
     case 'civHabsburgKept':
@@ -639,7 +659,9 @@ export function describe(e: GameEvent, names: string[]): string | null {
     case 'civDemocracy':
       return `🏳️ ${n(e.player)} threw the ${(e.dice as string[]).join(' and ')} again: ${(e.red as number) + (e.yellow as number)}.`;
     case 'civSwapReady':
-      return null;
+      return `🏳️ ${n(e.player)} may swap one card from this roll: ${cards(
+        Object.fromEntries((e.cards as string[]).map((c) => [c, 1])),
+      )}.`;
     case 'civSwap':
       return `🏳️ ${n(e.player)} swapped ${cards({ [e.gave as string]: 1 })} for ${cards({ [e.got as string]: 1 })}.`;
     case 'civGain':
@@ -708,8 +730,13 @@ export function describe(e: GameEvent, names: string[]): string | null {
       return `📜 ${n(e.player)} built a settlement: the Land Deed's wall comes back.`;
     case 'heroOfCatan':
       return `🦸 ${n(e.player)} has a level 4 knight: Hero of Catan, +1 point!`;
-    case 'barbariansAdvance':
-      return null;
+    case 'barbariansAdvance': {
+      const at = e.at as number;
+      const away = (e.of as number) - at;
+      if (at <= 0) return '⚔️ The barbarian ship is back at the start.';
+      if (away <= 0) return '⚔️ The barbarian ship has reached Catan!';
+      return `⚔️ The barbarian ship moved: ${away} step${away === 1 ? '' : 's'} from Catan.`;
+    }
     case 'junkerPlaced':
       return `🎩 ${n(e.player)} rolled doubles and put the Junker on a field.`;
     case 'junkerLeft':
@@ -899,7 +926,7 @@ export function describe(e: GameEvent, names: string[]): string | null {
     case 'wagonMoved':
       return typeof e.tollTo === 'number'
         ? `🛒 ${n(e.player)} paid ${n(e.tollTo)} 1 gold to use their road.`
-        : null;
+        : `🛒 ${n(e.player)} moved their wagon.`;
     case 'wagonBoost':
       return `🛒 ${n(e.player)} fed the horses: 2 more moves.`;
     case 'wagonUpgraded':

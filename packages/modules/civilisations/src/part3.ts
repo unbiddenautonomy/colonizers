@@ -1,5 +1,5 @@
 import type { Action, ActionDef, Cards, CornerId, Ctx, GameEvent, HexId } from '@colonizers/engine';
-import { RESOURCES } from '@colonizers/module-base';
+import { distanceRuleOk, RESOURCES } from '@colonizers/module-base';
 import { islands, islandOf } from '@colonizers/module-seafarers';
 import {
   citiesOf,
@@ -20,8 +20,8 @@ import {
   addBeer,
   beerOf,
   buildBlock,
-  buildingsOf,
   FESTIVALS,
+  setBuilding,
 } from '@colonizers/module-greed-wealth-power';
 import { ROAMING } from '@colonizers/module-world-wonders';
 import {
@@ -80,7 +80,7 @@ const civBuilding = action<{ building: 'citadel' | 'diocese'; corner: CornerId; 
   apply(ctx, a) {
     const gift = buildingGifts(ctx, a.player).find(({ g }) => g.options.includes(a.building))!;
     takeGift(ctx, a.player, gift.i);
-    buildingsOf(ctx, a.player)[a.building] = { corner: a.corner, hex: a.hex };
+    setBuilding(ctx, a.player, a.building, { corner: a.corner, hex: a.hex });
     ctx.emit({
       type: 'gwpBuilt',
       player: a.player,
@@ -517,13 +517,27 @@ function mainIsland(ctx: Ctx): string | null {
   return [...all].sort((x, y) => y.length - x.length)[0]?.[0] ?? null;
 }
 
+/** Whether Papua has anywhere off the main island to start. */
+function startsAway(ctx: Ctx, main: string): boolean {
+  // A scenario that pins the start to its home island leaves nowhere else.
+  if ((ctx.setting<HexId[] | null>('setupHexes') ?? []).length) return false;
+  return ctx.geometry.corners.some((c) => {
+    const island = islandOf(ctx, c);
+    return island !== null && island !== main && !ctx.buildingAt(c) && distanceRuleOk(ctx, c);
+  });
+}
+
 export function papuaBlock(ctx: Ctx, seat: number, corner: CornerId): string | null {
   const papua = seatOf(ctx, 'papua');
   if (papua === null) return null;
   if (seat === papua) {
     if (ctx.state.phase.id !== 'setup') return null;
     const main = mainIsland(ctx);
-    return main && islandOf(ctx, corner) === main ? 'Papua starts away from the main island' : null;
+    // Papua's own rule gives way when it would leave the player no starting
+    // spot at all, which froze setup on the sea scenarios that start everyone
+    // on one home island.
+    if (!main || !startsAway(ctx, main)) return null;
+    return islandOf(ctx, corner) === main ? 'Papua starts away from the main island' : null;
   }
   return papuaZone(ctx).has(corner) ? 'Too close to the Papuan tribes' : null;
 }

@@ -4,6 +4,7 @@
  */
 import type { Action, GameEvent, GameView } from '@colonizers/engine';
 import { cleanCustomMap, type MapFile } from '@colonizers/maps';
+import type { ModeId } from '@colonizers/modes';
 
 export type MapChoice =
   | { kind: 'preset'; id: string }
@@ -182,6 +183,49 @@ export function moduleList(
   return order.filter((m) => want.has(m));
 }
 
+/**
+ * The modules and engine settings for a chosen mix of expansions.
+ *
+ * A game is built in two places, the new-game screens and the server's room, and each used to
+ * carry its own copy of this: a new fan expansion had to be added to both module lists, and a
+ * rule one expansion overrides (Princes & Explorers has no Special Building Phase) could be
+ * applied on one side only. Both now call this.
+ */
+export function gameRules(
+  extra: readonly string[],
+  on: ReadonlySet<ModeId>,
+  options: GameOptions,
+  players: number,
+): { modules: string[]; settings: Record<string, unknown> } {
+  const settings = optionSettings(options, players);
+  // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
+  if (on.has('princes')) {
+    if (settings.turnMode === 'specialBuild') settings.turnMode = 'normal';
+    settings.friendlyRobber = false;
+    settings.robberHome = false;
+  }
+  // Soldiers & Armies marches after building, so there's no Special Building Phase either.
+  if (on.has('soldiers') && settings.turnMode === 'specialBuild') settings.turnMode = 'normal';
+  const modules = moduleList(
+    [
+      ...extra,
+      ...(on.has('princes') ? ['princes'] : []),
+      ...(on.has('soldiers') ? ['soldiers'] : []),
+      ...(on.has('investors') ? ['investors'] : []),
+      ...(on.has('kingdoms') ? ['kingdoms'] : []),
+      ...(on.has('landWater') ? ['landwater'] : []),
+      ...(on.has('strategist') ? ['strategist'] : []),
+    ],
+    on.has('citiesKnights'),
+    on.has('greedWealthPower'),
+    on.has('worldWonders'),
+    on.has('civilisations'),
+    on.has('church'),
+    on.has('witches'),
+  );
+  return { modules, settings };
+}
+
 /** A short key for the map, saved with each game for stats by map. */
 export function mapKey(map: MapChoice): string {
   switch (map.kind) {
@@ -259,8 +303,11 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   kingdoms: false,
   landWater: false,
   strategist: false,
-  turnTimer: 0,
-  timeBank: 0,
+  // On by default: a game that waits forever on somebody who has closed their
+  // tab is worse than a turn that moves on without them. The bank means a slow
+  // turn is never cut short, and the host can set both to none.
+  turnTimer: 180,
+  timeBank: 300,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
 };
@@ -276,6 +323,8 @@ export interface MemberInfo {
   online: boolean;
   /** Set for computer players. */
   bot?: { level: BotLevel; style: BotStyle };
+  /** A person whose seat a bot is playing while they are away. */
+  away?: boolean;
 }
 
 export type BotLevel = 'easy' | 'medium' | 'hard';
@@ -319,11 +368,14 @@ export interface ChatMessage {
 export type ClientMessage =
   | { type: 'hello'; token: string; name: string }
   | { type: 'rename'; name: string }
-  | { type: 'settings'; settings: RoomSettings }
+  | { type: 'settings'; settings: SettingsPatch }
   | { type: 'start' }
   | { type: 'remove'; member: string }
   | { type: 'addBot'; level: BotLevel; style: BotStyle }
   | { type: 'leave' }
+  | { type: 'endGame' }
+  | { type: 'handSeat'; member: string; level: BotLevel; style: BotStyle }
+  | { type: 'takeSeat' }
   | { type: 'act'; action: Action }
   | { type: 'chat'; text: string }
   | { type: 'nudge'; seat: number }
@@ -345,6 +397,13 @@ export type ServerMessage =
   /** Achievements the game that just ended unlocked, by seat. */
   | { type: 'achievements'; unlocked: { seat: number; ids: string[] }[] }
   | { type: 'error'; message: string; code?: 'removed' | 'notFound' | 'rule' | 'denied' };
+
+/**
+ * The heartbeat. The room answers a ping without waking up, so a client can
+ * tell a dead connection from a quiet one and say "Reconnecting" in good time.
+ */
+export const PING_MESSAGE = JSON.stringify({ type: 'ping' });
+export const PONG_MESSAGE = JSON.stringify({ type: 'pong' });
 
 /** Big enough for a room's settings with a large custom map in them. */
 export const MAX_MESSAGE = 24_576;
@@ -371,6 +430,35 @@ function int(v: unknown, allowed: readonly number[], fallback: number): number {
 }
 
 /** Makes any settings object safe, keeping what is valid. */
+/**
+ * A change to the room's settings: only the fields the host is changing. The
+ * whole list used to be sent, built from the copy the host last received, so a
+ * second change made before the server's answer arrived silently undid the
+ * first. The server merges a patch over what it has instead.
+ */
+export type SettingsPatch = Partial<Omit<RoomSettings, 'options'>> & {
+  options?: Partial<GameOptions>;
+};
+
+/** Keeps the fields a settings message actually carries, each one cleaned. */
+export function cleanSettingsPatch(raw: unknown): SettingsPatch {
+  const given = (typeof raw === 'object' && raw ? raw : {}) as Record<string, unknown>;
+  const full: Record<string, unknown> = { ...cleanSettings(given) };
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(full)) if (key in given) out[key] = full[key];
+  if ('options' in given) out.options = cleanOptionsPatch(given.options);
+  return out as SettingsPatch;
+}
+
+/** The same, for the options inside a settings patch. */
+export function cleanOptionsPatch(raw: unknown): Partial<GameOptions> {
+  const given = (typeof raw === 'object' && raw ? raw : {}) as Record<string, unknown>;
+  const full: Record<string, unknown> = { ...cleanOptions(given) };
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(full)) if (key in given) out[key] = full[key];
+  return out as Partial<GameOptions>;
+}
+
 export function cleanSettings(raw: unknown): RoomSettings {
   const s = (typeof raw === 'object' && raw ? raw : {}) as Record<string, unknown>;
   const m = (typeof s.map === 'object' && s.map ? s.map : {}) as Record<string, unknown>;
@@ -429,11 +517,24 @@ export function parseClientMessage(raw: string | ArrayBuffer): ClientMessage | n
     case 'rename':
       return { type: 'rename', name: cleanName(msg.name) };
     case 'settings':
-      return { type: 'settings', settings: cleanSettings(msg.settings) };
+      return { type: 'settings', settings: cleanSettingsPatch(msg.settings) };
     case 'start':
     case 'leave':
     case 'rematch':
+    case 'endGame':
+    case 'takeSeat':
       return { type: msg.type };
+    case 'handSeat':
+      return typeof msg.member === 'string' &&
+        BOT_LEVELS.includes(msg.level as string) &&
+        BOT_STYLES.includes(msg.style as string)
+        ? {
+            type: 'handSeat',
+            member: msg.member,
+            level: msg.level as BotLevel,
+            style: msg.style as BotStyle,
+          }
+        : null;
     case 'remove':
       return typeof msg.member === 'string' ? { type: 'remove', member: msg.member } : null;
     case 'addBot':

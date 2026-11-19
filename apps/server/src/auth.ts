@@ -295,6 +295,12 @@ export async function accountRoutes(
       return fromResult(await acc.savePush(token, b.subscription), () => ({ ok: true }));
     case 'POST /api/me/push/remove':
       return fromResult(await acc.removePush(token, b.endpoint), () => ({ ok: true }));
+    case 'POST /api/me/delete': {
+      const r = await acc.deleteAccount(token);
+      if (!r.ok) return error(r.error, r.status);
+      // The session is gone with the account, so take the cookie off the browser too.
+      return json({ ok: true }, { headers: { 'Set-Cookie': cookie(SESSION_COOKIE, '', 0) } });
+    }
     case 'POST /api/me/password':
       return fromResult(await acc.setPassword(token, b.current, b.password), () => ({ ok: true }));
     case 'POST /api/me/claim': {

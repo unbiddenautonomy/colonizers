@@ -1,18 +1,21 @@
 import {
   cardsTotal,
   isCards,
+  rule,
   type Action,
   type ActionDef,
   type CornerId,
   type Ctx,
   type EdgeId,
   type HexId,
+  type Phase,
 } from '@colonizers/engine';
 import { DEV_CARDS, RESOURCES } from './constants.ts';
 import {
   baseData,
   canPlaceRoad,
   canPlaceSettlement,
+  freeRouteSpot,
   isResource,
   legalRoadEdges,
   playerData,
@@ -150,7 +153,7 @@ export function startSeven(ctx: Ctx): void {
     if (size > limit) owed[p.seat] = Math.floor(size / 2);
   }
   if (Object.keys(owed).length) {
-    ctx.setPhase({ id: 'discard', owed, returnTo: 'main' });
+    ctx.setPhase({ id: 'discard', owed, returnTo: 'main', why: 'seven' });
   } else {
     ctx.setPhase({ id: 'moveRobber', returnTo: 'main' });
   }
@@ -393,9 +396,11 @@ const playDevCard = action<PlayDev>({
       if (!ctx.bankHas(want)) return 'The bank does not have those resources';
     }
     if (a.card === 'monopoly' && !knownResource(a.resource)) return 'Pick a resource';
-    if (a.card === 'roadBuilding') {
+    if (a.card === 'roadBuilding' && !freeRouteSpot(ctx, a.player)) {
+      // Ask the free-road move itself, so a scenario that refuses every edge
+      // can't start a step with no legal move in it.
       if (ctx.supplyLeft(a.player, 'road') <= 0) return 'No roads left';
-      if (legalRoadEdges(ctx, a.player).length === 0) return 'There is nowhere to build a road';
+      return 'There is nowhere to build a road';
     }
     return null;
   },
@@ -473,8 +478,7 @@ const placeFreeRoad = action<{ edge: EdgeId }>({
     ctx.place('road', a.player, { kind: 'edge', id: a.edge });
     ctx.emit({ type: 'built', player: a.player, piece: 'road', at: a.edge, free: true });
     const remaining = ph.remaining - 1;
-    if (remaining > 0 && legalRoadEdges(ctx, a.player).length > 0)
-      ctx.setPhase({ ...ph, remaining });
+    if (remaining > 0 && freeRouteSpot(ctx, a.player)) ctx.setPhase({ ...ph, remaining });
     else ctx.setPhase({ id: ph.returnTo });
   },
   enumerate(ctx, player) {
@@ -615,7 +619,12 @@ const confirmTrade = action<{ offer: number; with: number }>({
     if (a.player !== offer.from) return 'Only the player who made the offer can confirm it';
     if (offer.responses[a.with] !== 'accept') return 'That player has not accepted';
     if (!ctx.has(a.player, offer.give)) return 'You no longer have the cards you offered';
-    if (!ctx.has(a.with, offer.get)) return 'They no longer have the cards';
+    // A bot plans on the same view a player sees, where the other hands are
+    // hidden, so this is unanswerable there: let it pass and leave it to the
+    // server, which has the real hands. Without this a bot could never
+    // complete a trade it offered.
+    if (!ctx.handHidden(a.with) && !ctx.has(a.with, offer.get))
+      return 'They no longer have the cards';
     return null;
   },
   apply(ctx, a) {
@@ -659,6 +668,50 @@ const endTurn = action<object>({
   enumerate: (ctx, player) => (player === ctx.active ? [{ type: 'endTurn', player }] : []),
 });
 
+// ---- Rescue ----
+
+/** Steps that are never skipped: the game would be left half set up. */
+const NEVER_SKIP = ['start', 'setup', 'gameOver'];
+
+/** Steps a dead-ended step could hand over to, best first. */
+function waysOut(ctx: Ctx): Phase[] {
+  const ph = ctx.state.phase;
+  const back = ph.returnTo;
+  const out: Phase[] = [];
+  if (typeof back === 'string') out.push({ id: back });
+  else if (back && typeof back === 'object' && typeof (back as Phase).id === 'string')
+    out.push(structuredClone(back) as Phase);
+  // The robber step is where a discard normally hands over to.
+  if (ph.id === 'discard') out.push({ id: 'moveRobber', returnTo: back ?? 'main' });
+  out.push({ id: 'main' }, { id: 'roll' });
+  return out.filter((p) => p.id !== ph.id);
+}
+
+/**
+ * The last resort when a step dead-ends: nobody can move and nobody has won,
+ * which only happens through a bug in a scenario's own rules. It leaves the
+ * step for one the table can play on from. The room and the game screen play
+ * it by themselves, so a game is never lost to a freeze; it is recorded like
+ * any other move, so replays and saved games stay right.
+ */
+const skipStep = action<object>({
+  rescue: true,
+  check(ctx, a) {
+    if (a.player !== ctx.active) return 'Not your turn';
+    if (NEVER_SKIP.includes(ctx.state.phase.id)) return `Can not skip ${ctx.state.phase.id}`;
+    if (!ctx.stuck) return 'Someone can still move';
+    return waysOut(ctx).some((p) => ctx.canActIn(p)) ? null : 'There is no step to go on to';
+  },
+  apply(ctx, a) {
+    const from = ctx.state.phase;
+    const to = waysOut(ctx).find((p) => ctx.canActIn(p));
+    rule(to, 'There is no step to go on to');
+    ctx.setPhase(to);
+    ctx.emit({ type: 'stepSkipped', player: a.player, step: from.id });
+  },
+  enumerate: (ctx, player) => (player === ctx.active ? [{ type: 'skipStep', player }] : []),
+});
+
 export const baseActions: Record<string, ActionDef> = {
   placeSetupSettlement,
   placeSetupRoad,
@@ -678,4 +731,5 @@ export const baseActions: Record<string, ActionDef> = {
   confirmTrade,
   cancelTrade,
   endTurn,
+  skipStep,
 };

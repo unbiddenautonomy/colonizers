@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "node scripts/dev-assets.mjs && wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:check": "wrangler deploy --dry-run --outdir dist",
     "typegen": "wrangler types",

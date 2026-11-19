@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Ctx, type GameState } from '@colonizers/engine';
 import {
-  allCards,
+  cardGroups,
   fillSettings,
   rulebookFor,
   RULEBOOKS,
@@ -13,6 +13,17 @@ import { CostLine } from './Cards.tsx';
 import { Modal } from './Modal.tsx';
 
 type Tab = 'game' | 'costs' | 'cards' | 'all';
+
+/** What each deck is called in the game, for the glossary's headings. */
+const DECK_NAME: Record<string, string> = {
+  dev: 'development cards',
+  science: 'science (green)',
+  trade: 'trade (yellow)',
+  politics: 'politics (blue)',
+  magic: 'magic (purple)',
+  religion: 'religion (red)',
+  wealth: 'wealth (gold)',
+};
 
 /** Renders the rulebook's tiny markup: paragraphs, bullets, numbered lines and **bold**. */
 function RuleText({ text }: { text: string }) {
@@ -66,7 +77,9 @@ export function Rulebook({
   initialPage?: string | null;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>(initialPage ? 'all' : 'game');
+  // "This game" and the cost card need a game; from the home page the rulebook
+  // opens on the full book instead of showing a tab that cannot say anything.
+  const [tab, setTab] = useState<Tab>(initialPage || !state ? 'all' : 'game');
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<string | null>(initialPage ?? null);
   const settings: Record<string, unknown> = state
@@ -130,8 +143,12 @@ export function Rulebook({
       <div className="tabs" role="tablist">
         {(
           [
-            ['game', 'This game'],
-            ['costs', 'Cost card'],
+            ...(state
+              ? ([
+                  ['game', 'This game'],
+                  ['costs', 'Cost card'],
+                ] as [Tab, string][])
+              : []),
             ['cards', 'Cards'],
             ['all', 'Full rulebook'],
           ] as [Tab, string][]
@@ -192,16 +209,25 @@ export function Rulebook({
         </table>
       )}
 
-      {tab === 'cards' && (
-        <dl className="glossary">
-          {allCards(books).map((c) => (
-            <div key={c.id}>
-              <dt>{c.name}</dt>
-              <dd>{c.text}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      {tab === 'cards' &&
+        cardGroups(books).map((g) => (
+          <section key={`${g.module}/${g.deck}`} className="card-group">
+            <h3>
+              {g.name} <span className="muted">{DECK_NAME[g.deck] ?? g.deck}</span>
+            </h3>
+            <dl className="glossary">
+              {g.cards.map((c) => (
+                <div key={c.id}>
+                  <dt>{c.name}</dt>
+                  <dd>
+                    {c.text}
+                    {c.alsoIn && <span className="muted"> Also in {c.alsoIn.join(' and ')}.</span>}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
     </Modal>
   );
 }

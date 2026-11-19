@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MODES as MODE_IDS, type ModeId } from '@colonizers/modes';
+import { boardFit } from '../game/boardFit.ts';
 import { modesFor } from '../game/modeFlags.ts';
 import { MODES, PRESETS, SEA_SCENARIOS, SPECIAL_MAPS } from '@colonizers/maps';
 import {
@@ -9,6 +10,7 @@ import {
   type MapChoice,
   type RoomInfo,
   type RoomSettings,
+  type SettingsPatch,
 } from '../../../server/src/protocol.ts';
 import {
   adoptSeatFromUrl,
@@ -37,8 +39,14 @@ import { DEFAULT_VP_BASE, defaultOptionsFor, hasRobber } from '../game/defaults.
 import { chosenTarget, winTarget } from '../../../server/src/winTarget.ts';
 import { TargetPicker } from '../ui/TargetPicker.tsx';
 import { loadCustomMaps } from '../game/customMaps.ts';
+import { changedOptions } from '../online/settingsPatch.ts';
+import { joinNote } from '../game/joinNote.ts';
+import { roomSummary, type RoomSummary } from '../online/api.ts';
 import { currentUser } from '../online/account.ts';
 import { LEVEL_INFO, LEVELS, STYLE_INFO, STYLES, type Level, type Style } from '@colonizers/bots';
+
+/** The same four steps as setting up a game on this device. */
+const LOBBY_STEPS = ['Seats', 'Map', 'Expansions', 'House rules'];
 
 type Room = ReturnType<typeof useOnlineRoom>;
 
@@ -62,7 +70,24 @@ function NamePrompt({
   onName: (n: string) => void;
   onHome: () => void;
 }) {
-  const [value, setValue] = useState('');
+  const user = currentUser();
+  const [value, setValue] = useState(user?.name ?? '');
+  const [room, setRoom] = useState<RoomSummary | null>(null);
+  const [online, setOnline] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine,
+  );
+  useEffect(() => {
+    let live = true;
+    void roomSummary(code).then((r) => live && setRoom(r));
+    const change = () => setOnline(navigator.onLine);
+    window.addEventListener('online', change);
+    window.addEventListener('offline', change);
+    return () => {
+      live = false;
+      window.removeEventListener('online', change);
+      window.removeEventListener('offline', change);
+    };
+  }, [code]);
   return (
     <main className="setup-page narrow">
       <h1>Join room {code}</h1>
@@ -83,9 +108,18 @@ function NamePrompt({
             aria-label="Your name"
           />
         </label>
-        <p className="muted">You play as a guest. Accounts come later and keep your history.</p>
+        <p className="muted">{joinNote(room, online)}</p>
+        <p className="muted">
+          {user
+            ? `Signed in as ${user.name}, so this game goes in your history.`
+            : 'You can play as a guest. Sign in on the home page instead to keep your history, achievements and crews.'}
+        </p>
         <div className="row">
-          <button type="submit" className="primary" disabled={!value.trim()}>
+          <button
+            type="submit"
+            className="primary"
+            disabled={!value.trim() || (online && room?.exists === false)}
+          >
             Join
           </button>
           <button type="button" className="ghost" onClick={onHome}>
@@ -166,6 +200,10 @@ function Connected({
         sendChat: (text) => r.send({ type: 'chat', text }),
         nudge: (s) => r.send({ type: 'nudge', seat: s }),
         rematch: () => r.send({ type: 'rematch' }),
+        endGame: () => r.send({ type: 'endGame' }),
+        handSeat: (member) =>
+          r.send({ type: 'handSeat', member, level: 'medium', style: 'balanced' }),
+        takeSeat: () => r.send({ type: 'takeSeat' }),
       }}
       onQuit={onHome}
     />
@@ -199,6 +237,7 @@ function Lobby({
   onHome: () => void;
 }) {
   const theme = useTheme();
+  const [step, setStep] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
   const [rules, setRules] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -207,8 +246,9 @@ function Lobby({
   const players = room.members.filter((m) => m.role === 'player');
   const watchers = room.members.filter((m) => m.role === 'spectator');
   const s = room.settings;
-  const set = (patch: Partial<RoomSettings>) =>
-    r.send({ type: 'settings', settings: { ...s, ...patch } });
+  // Only what changed: sending the whole list meant a second change made
+  // before the server answered silently undid the first.
+  const set = (patch: SettingsPatch) => r.send({ type: 'settings', settings: patch });
   // A new map or expansion starts from that game type's standard points and options.
   const setGame = (patch: Partial<RoomSettings>) =>
     set({ ...patch, vpTarget: DEFAULT_VP_BASE, options: defaultOptionsFor() });
@@ -221,10 +261,12 @@ function Lobby({
   };
 
   const [customMaps] = useState(loadCustomMaps);
-  const presets = PRESETS.filter(
-    (p) => players.length >= p.players.min && players.length <= p.players.max,
-  );
-  const scenarios = SEA_SCENARIOS.filter((x) => players.length <= x.players.max);
+  // Every board is shown in the lobby: a host alone in a new room would see
+  // almost none if the list only had the ones the players here already fit.
+  const fits = (range: { min: number; max: number }) =>
+    boardFit(range, players.length, s.maxPlayers);
+  const presets = PRESETS;
+  const scenarios = SEA_SCENARIOS;
   const mapLabel = (m: MapChoice) =>
     m.kind === 'random'
       ? `${MODES[m.mode].name} (random)`
@@ -397,255 +439,46 @@ function Lobby({
         </ul>
         {isHost && players.length < s.maxPlayers && <AddBot send={r.send} />}
         {watchers.length > 0 && (
-          <p className="muted">Watching: {watchers.map((m) => m.name).join(', ')}</p>
+          <p className="muted">
+            Watching:{' '}
+            {watchers.map((m, i) => (
+              <span key={m.id}>
+                {i > 0 && ', '}
+                {m.name}
+                {isHost && m.id !== r.you && (
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => r.send({ type: 'remove', member: m.id })}
+                  >
+                    remove
+                  </button>
+                )}
+              </span>
+            ))}
+          </p>
         )}
         <p className="muted">Seats are shuffled when the game starts.</p>
       </section>
 
-      <section className="card">
-        <h2>Settings</h2>
-        {isHost ? (
-          <>
-            <div className="field">
-              <span>Map</span>
-              <div className="row wrap">
-                {(['classic', 'balanced', 'wild'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={s.map.kind === 'random' && s.map.mode === mode ? 'on' : ''}
-                    title={MODES[mode].description}
-                    onClick={() => setGame({ map: { kind: 'random', mode } })}
-                  >
-                    🎲 {MODES[mode].name}
-                  </button>
-                ))}
-                {presets.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={s.map.kind === 'preset' && s.map.id === p.id ? 'on' : ''}
-                    title={p.description}
-                    onClick={() => setGame({ map: { kind: 'preset', id: p.id } })}
-                  >
-                    {PRESET_ICON[p.id] ?? '🗺️'} {p.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {customMaps.length > 0 && (
-              <div className="field">
-                <span>Your maps</span>
-                <div className="row wrap">
-                  {customMaps.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      className={s.map.kind === 'custom' && s.map.map.id === m.id ? 'on' : ''}
-                      title={`${m.description || m.name} (${m.players.min}–${m.players.max} players)`}
-                      onClick={() => setGame({ map: { kind: 'custom', map: m } })}
-                    >
-                      ✏️ {m.name}
-                    </button>
-                  ))}
-                </div>
-                {s.map.kind === 'custom' &&
-                  (players.length < s.map.map.players.min ||
-                    players.length > s.map.map.players.max) && (
-                    <p className="muted">
-                      This map is for {s.map.map.players.min}–{s.map.map.players.max} players. With{' '}
-                      {players.length}, the game starts on a random board instead.
-                    </p>
-                  )}
-              </div>
-            )}
-            {scenarios.length > 0 && (
-              <div className="field">
-                <span>Seafarers</span>
-                <div className="row wrap">
-                  {scenarios.map((x) => (
-                    <button
-                      key={x.id}
-                      type="button"
-                      className={s.map.kind === 'scenario' && s.map.id === x.id ? 'on' : ''}
-                      title={x.description}
-                      onClick={() => setGame({ map: { kind: 'scenario', id: x.id } })}
-                    >
-                      {SEA_ICON[x.id] ?? '⛵'} {x.name}
-                    </button>
-                  ))}
-                </div>
-                {seaPick && <p className="muted">{seaPick.description}</p>}
-              </div>
-            )}
-            <SpecialMapButtons
-              players={Math.max(players.length, 2)}
-              selected={specialPick?.id ?? null}
-              onPick={(id) => setGame({ map: { kind: 'special', id } })}
-            />
-            {specialPick && <p className="muted">{specialPick.description}</p>}
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={ck}
-                disabled={noCk || needsCk}
-                onChange={(e) => setGame({ citiesKnights: e.target.checked })}
-              />{' '}
-              ⚔️ Cities &amp; Knights (knights, barbarians, city improvements; +3 points to win)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={gwp}
-                disabled={!ck || !!specialPick}
-                onChange={(e) => setGame({ greedWealthPower: e.target.checked })}
-              />{' '}
-              👑 Greed, Wealth &amp; Power (fan expansion on top of Cities &amp; Knights; 18 points)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={church}
-                disabled={!ck || gwp || !!specialPick}
-                onChange={(e) => setGame({ church: e.target.checked })}
-              />{' '}
-              ⛪ Church, Faith &amp; Reformation (fan expansion on top of Cities &amp; Knights, not
-              with Greed, Wealth &amp; Power; 15 points)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={witches}
-                disabled={!ck || gwp || !!specialPick}
-                onChange={(e) => setGame({ witches: e.target.checked })}
-              />{' '}
-              🧙 Witches, Wizards &amp; Dragons (fan expansion on top of Cities &amp; Knights, not
-              with Greed, Wealth &amp; Power; 15 points, 17 with Church)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={princes}
-                disabled={!princesOk}
-                onChange={(e) => setGame({ princes: e.target.checked })}
-              />{' '}
-              🤴 Princes &amp; Explorers (fan expansion for the usual maps and Seafarers, with or
-              without Cities &amp; Knights, not with the special maps or the other fan expansions
-              yet; 4 points more than usual)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={soldiers}
-                disabled={!soldiersOk}
-                onChange={(e) => setGame({ soldiers: e.target.checked })}
-              />{' '}
-              ⚔️ Soldiers &amp; Armies (fan expansion for the usual maps and Seafarers, with or
-              without Cities &amp; Knights, not with the other fan expansions yet; 3 points more
-              than usual)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={s.investors && investorsOk}
-                disabled={!investorsOk}
-                onChange={(e) => setGame({ investors: e.target.checked })}
-              />{' '}
-              📈 Investors &amp; Speculators (fan expansion for the usual maps, Seafarers, Explorers
-              &amp; Pirates and Traders &amp; Barbarians: moving exchange rates, savings and loans;
-              not on the Treasures, Dragons &amp; Adventurers maps yet)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={kingdoms}
-                disabled={!kingdomsOk}
-                onChange={(e) => setGame({ kingdoms: e.target.checked })}
-              />{' '}
-              👑 Kingdoms &amp; Warriors (fan expansion for the usual maps and Seafarers, with or
-              without Cities &amp; Knights: kingdoms that spread from your cities and are fought
-              over; 2 points more than usual)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={landWater}
-                disabled={!landWaterOk}
-                onChange={(e) => setGame({ landWater: e.target.checked })}
-              />{' '}
-              🚂 Land &amp; Water (fan expansion for the base game or Cities &amp; Knights on the
-              usual maps and Seafarers without fog: trains, ships and planes instead of roads; plays
-              to 12, or 14 with Cities &amp; Knights)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={strategist}
-                disabled={!strategistOk}
-                onChange={(e) => setGame({ strategist: e.target.checked })}
-              />{' '}
-              ♟️ Strategist &amp; Commander (fan expansion for Cities &amp; Knights, not with Greed,
-              Wealth &amp; Power or Land &amp; Water: the Junker freezes a field and hides it from
-              the barbarians; the Duke and the Scholar join the progress cards)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={wonders}
-                disabled={!!specialPick}
-                onChange={(e) => setGame({ worldWonders: e.target.checked })}
-              />{' '}
-              🏛️ World Wonders (fan expansion: wonders in four stages; a finished one is needed to
-              win)
-            </label>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={civs}
-                disabled={!gwp}
-                onChange={(e) => setGame({ civilisations: e.target.checked })}
-              />{' '}
-              🏳️ Civilisations (fan expansion on top of Greed, Wealth &amp; Power; 20 points)
-            </label>
-            {noCk && (
-              <p className="muted small">
-                Traders &amp; Barbarians scenarios use the base game only.
-              </p>
-            )}
-            <div className="row wrap">
-              <TargetPicker
-                target={target}
-                stored={s.vpTarget}
-                onChange={(v) => set({ vpTarget: v })}
-              />
-              <label>
-                Turn timer{' '}
-                <select
-                  value={s.turnTimer}
-                  onChange={(e) => set({ turnTimer: Number(e.target.value) })}
-                >
-                  {TURN_TIMERS.map((t) => (
-                    <option key={t} value={t}>
-                      {timerLabel(t)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {s.turnTimer > 0 && (
-                <label>
-                  Time bank{' '}
-                  <select
-                    value={s.timeBank}
-                    onChange={(e) => set({ timeBank: Number(e.target.value) })}
-                  >
-                    {TIME_BANKS.map((t) => (
-                      <option key={t} value={t}>
-                        {bankLabel(t)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+      {isHost ? (
+        <>
+          <nav className="stepper" aria-label="Setup steps">
+            {LOBBY_STEPS.map((label, i) => (
+              <button
+                key={label}
+                type="button"
+                className={i === step ? 'on' : i < step ? 'done' : ''}
+                aria-current={i === step ? 'step' : undefined}
+                onClick={() => setStep(i)}
+              >
+                <span className="step-num">{i < step ? '✓' : i + 1}</span> {label}
+              </button>
+            ))}
+          </nav>
+          <div className="setup-steps">
+            <section className="card setup-step" hidden={step !== 0}>
+              <h2>Seats</h2>
               <label>
                 Seats{' '}
                 <select
@@ -659,9 +492,320 @@ function Lobby({
                   ))}
                 </select>
               </label>
-            </div>
-          </>
-        ) : (
+              <p className="muted small">
+                How many can play. A board that needs more players than the room has seats is greyed
+                out on the next step. Add a bot above to fill a seat.
+              </p>
+            </section>
+            <section className="card setup-step" hidden={step !== 1}>
+              <h2>Map</h2>
+              <div className="field">
+                <span>Map</span>
+                <div className="row wrap">
+                  {(['classic', 'balanced', 'wild'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={s.map.kind === 'random' && s.map.mode === mode ? 'on' : ''}
+                      title={MODES[mode].description}
+                      onClick={() => setGame({ map: { kind: 'random', mode } })}
+                    >
+                      🎲 {MODES[mode].name}
+                    </button>
+                  ))}
+                  {presets.map((p) => {
+                    const fit = fits(p.players);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={s.map.kind === 'preset' && s.map.id === p.id ? 'on' : ''}
+                        disabled={!fit.ok}
+                        title={fit.ok ? p.description : `${fit.why}. ${p.description}`}
+                        onClick={() => setGame({ map: { kind: 'preset', id: p.id } })}
+                      >
+                        {PRESET_ICON[p.id] ?? '🗺️'} {p.name}
+                        {fit.ok ? (
+                          fit.waiting && <small> {fit.waiting}</small>
+                        ) : (
+                          <small> {fit.why}</small>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {customMaps.length > 0 && (
+                <div className="field">
+                  <span>Your maps</span>
+                  <div className="row wrap">
+                    {customMaps.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        className={s.map.kind === 'custom' && s.map.map.id === m.id ? 'on' : ''}
+                        title={`${m.description || m.name} (${m.players.min}–${m.players.max} players)`}
+                        onClick={() => setGame({ map: { kind: 'custom', map: m } })}
+                      >
+                        ✏️ {m.name}
+                      </button>
+                    ))}
+                  </div>
+                  {s.map.kind === 'custom' &&
+                    (players.length < s.map.map.players.min ||
+                      players.length > s.map.map.players.max) && (
+                      <p className="muted">
+                        This map is for {s.map.map.players.min}–{s.map.map.players.max} players.
+                        With {players.length}, the game starts on a random board instead.
+                      </p>
+                    )}
+                </div>
+              )}
+              {scenarios.length > 0 && (
+                <div className="field">
+                  <span>Seafarers</span>
+                  <div className="row wrap">
+                    {scenarios.map((x) => {
+                      const fit = fits(x.players);
+                      return (
+                        <button
+                          key={x.id}
+                          type="button"
+                          className={s.map.kind === 'scenario' && s.map.id === x.id ? 'on' : ''}
+                          disabled={!fit.ok}
+                          title={fit.ok ? x.description : `${fit.why}. ${x.description}`}
+                          onClick={() => setGame({ map: { kind: 'scenario', id: x.id } })}
+                        >
+                          {SEA_ICON[x.id] ?? '⛵'} {x.name}
+                          {fit.ok ? (
+                            fit.waiting && <small> {fit.waiting}</small>
+                          ) : (
+                            <small> {fit.why}</small>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {seaPick && <p className="muted">{seaPick.description}</p>}
+                </div>
+              )}
+              <SpecialMapButtons
+                players={players.length}
+                seats={s.maxPlayers}
+                selected={specialPick?.id ?? null}
+                onPick={(id) => setGame({ map: { kind: 'special', id } })}
+              />
+              {specialPick && <p className="muted">{specialPick.description}</p>}
+            </section>
+            <section className="card setup-step" hidden={step !== 2}>
+              <h2>Expansions</h2>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={ck}
+                  disabled={noCk || needsCk}
+                  onChange={(e) => setGame({ citiesKnights: e.target.checked })}
+                />{' '}
+                ⚔️ Cities &amp; Knights (knights, barbarians, city improvements; +3 points to win)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={gwp}
+                  disabled={!ck || !!specialPick}
+                  onChange={(e) => setGame({ greedWealthPower: e.target.checked })}
+                />{' '}
+                👑 Greed, Wealth &amp; Power (fan expansion on top of Cities &amp; Knights; 18
+                points)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={church}
+                  disabled={!ck || gwp || !!specialPick}
+                  onChange={(e) => setGame({ church: e.target.checked })}
+                />{' '}
+                ⛪ Church, Faith &amp; Reformation (fan expansion on top of Cities &amp; Knights,
+                not with Greed, Wealth &amp; Power; 15 points)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={witches}
+                  disabled={!ck || gwp || !!specialPick}
+                  onChange={(e) => setGame({ witches: e.target.checked })}
+                />{' '}
+                🧙 Witches, Wizards &amp; Dragons (fan expansion on top of Cities &amp; Knights, not
+                with Greed, Wealth &amp; Power; 15 points, 17 with Church)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={princes}
+                  disabled={!princesOk}
+                  onChange={(e) => setGame({ princes: e.target.checked })}
+                />{' '}
+                🤴 Princes &amp; Explorers (fan expansion for the usual maps and Seafarers, with or
+                without Cities &amp; Knights, not with the special maps or the other fan expansions
+                yet; 4 points more than usual)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={soldiers}
+                  disabled={!soldiersOk}
+                  onChange={(e) => setGame({ soldiers: e.target.checked })}
+                />{' '}
+                ⚔️ Soldiers &amp; Armies (fan expansion for the usual maps and Seafarers, with or
+                without Cities &amp; Knights, not with the other fan expansions yet; 3 points more
+                than usual)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={s.investors && investorsOk}
+                  disabled={!investorsOk}
+                  onChange={(e) => setGame({ investors: e.target.checked })}
+                />{' '}
+                📈 Investors &amp; Speculators (fan expansion for the usual maps, Seafarers,
+                Explorers &amp; Pirates and Traders &amp; Barbarians: moving exchange rates, savings
+                and loans; not on the Treasures, Dragons &amp; Adventurers maps yet)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={kingdoms}
+                  disabled={!kingdomsOk}
+                  onChange={(e) => setGame({ kingdoms: e.target.checked })}
+                />{' '}
+                👑 Kingdoms &amp; Warriors (fan expansion for the usual maps and Seafarers, with or
+                without Cities &amp; Knights: kingdoms that spread from your cities and are fought
+                over; 2 points more than usual)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={landWater}
+                  disabled={!landWaterOk}
+                  onChange={(e) => setGame({ landWater: e.target.checked })}
+                />{' '}
+                🚂 Land &amp; Water (fan expansion for the base game or Cities &amp; Knights on the
+                usual maps and Seafarers without fog: trains, ships and planes instead of roads;
+                plays to 12, or 14 with Cities &amp; Knights)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={strategist}
+                  disabled={!strategistOk}
+                  onChange={(e) => setGame({ strategist: e.target.checked })}
+                />{' '}
+                ♟️ Strategist &amp; Commander (fan expansion for Cities &amp; Knights, not with
+                Greed, Wealth &amp; Power or Land &amp; Water: the Junker freezes a field and hides
+                it from the barbarians; the Duke and the Scholar join the progress cards)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={wonders}
+                  disabled={!!specialPick}
+                  onChange={(e) => setGame({ worldWonders: e.target.checked })}
+                />{' '}
+                🏛️ World Wonders (fan expansion: wonders in four stages; a finished one is needed to
+                win)
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={civs}
+                  disabled={!gwp}
+                  onChange={(e) => setGame({ civilisations: e.target.checked })}
+                />{' '}
+                🏳️ Civilisations (fan expansion on top of Greed, Wealth &amp; Power; 20 points)
+              </label>
+              {noCk && (
+                <p className="muted small">
+                  Traders &amp; Barbarians scenarios use the base game only.
+                </p>
+              )}
+            </section>
+            <section className="card setup-step" hidden={step !== 3}>
+              <h2>Winning and house rules</h2>
+              <div className="row wrap">
+                <TargetPicker
+                  target={target}
+                  stored={s.vpTarget}
+                  onChange={(v) => set({ vpTarget: v })}
+                />
+                <label>
+                  Turn timer{' '}
+                  <select
+                    value={s.turnTimer}
+                    onChange={(e) => set({ turnTimer: Number(e.target.value) })}
+                  >
+                    {TURN_TIMERS.map((t) => (
+                      <option key={t} value={t}>
+                        {timerLabel(t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {s.turnTimer > 0 && (
+                  <label>
+                    Time bank{' '}
+                    <select
+                      value={s.timeBank}
+                      onChange={(e) => set({ timeBank: Number(e.target.value) })}
+                    >
+                      {TIME_BANKS.map((t) => (
+                        <option key={t} value={t}>
+                          {bankLabel(t)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+              <p className="muted small">
+                {s.turnTimer > 0
+                  ? 'A player who runs out of time dips into their bank, and after that a safe move is played for them, so the game never waits forever. Someone who has missed a turn gets shorter turns until they play again.'
+                  : 'With no timer, a game waits for a player who has left until you hand their seat to a bot or end the game.'}
+              </p>
+              <OptionsPanel
+                options={s.options}
+                players={Math.max(players.length, s.maxPlayers)}
+                citiesKnights={ck}
+                gwp={gwp}
+                wonders={wonders}
+                robber={hasRobber(specialPick?.id ?? null)}
+                dragons={specialPick?.id === 'desert-dragons'}
+                onChange={(options) => set({ options: changedOptions(s.options, options) })}
+              />
+              {s.turnTimer > 0 && (
+                <p className="muted">
+                  When time runs out
+                  {s.timeBank > 0 ? ', your time bank starts; when that runs out too' : ''}, the
+                  room plays the smallest safe move (roll, discard, or end the turn).
+                </p>
+              )}
+            </section>
+          </div>
+          <div className="setup-nav">
+            {step > 0 && (
+              <button type="button" className="ghost" onClick={() => setStep(step - 1)}>
+                Back
+              </button>
+            )}
+            {step < LOBBY_STEPS.length - 1 && (
+              <button type="button" className="ghost" onClick={() => setStep(step + 1)}>
+                Next: {LOBBY_STEPS[step + 1]}
+              </button>
+            )}
+          </div>
+        </>
+      ) : (
+        <section className="card">
+          <h2>Settings</h2>
           <ul className="settings-list">
             <li>Map: {mapLabel(s.map)}</li>
             <li>
@@ -691,27 +835,15 @@ function Lobby({
               <li key={o}>{o}</li>
             ))}
           </ul>
-        )}
-        {isHost && (
-          <OptionsPanel
-            options={s.options}
-            players={Math.max(players.length, s.maxPlayers)}
-            citiesKnights={ck}
-            gwp={gwp}
-            wonders={wonders}
-            robber={hasRobber(specialPick?.id ?? null)}
-            dragons={specialPick?.id === 'desert-dragons'}
-            onChange={(options) => set({ options })}
-          />
-        )}
-        {s.turnTimer > 0 && (
-          <p className="muted">
-            When time runs out
-            {s.timeBank > 0 ? ', your time bank starts; when that runs out too' : ''}, the room
-            plays the smallest safe move (roll, discard, or end the turn).
-          </p>
-        )}
-      </section>
+          {s.turnTimer > 0 && (
+            <p className="muted">
+              When time runs out
+              {s.timeBank > 0 ? ', your time bank starts; when that runs out too' : ''}, the room
+              plays the smallest safe move (roll, discard, or end the turn).
+            </p>
+          )}
+        </section>
+      )}
 
       {me?.role === 'player' && (
         <details className="card">
