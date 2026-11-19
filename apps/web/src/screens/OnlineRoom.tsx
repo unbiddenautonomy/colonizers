@@ -73,11 +73,19 @@ function NamePrompt({
   const user = currentUser();
   const [value, setValue] = useState(user?.name ?? '');
   const [room, setRoom] = useState<RoomSummary | null>(null);
+  const [online, setOnline] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine,
+  );
   useEffect(() => {
     let live = true;
     void roomSummary(code).then((r) => live && setRoom(r));
+    const change = () => setOnline(navigator.onLine);
+    window.addEventListener('online', change);
+    window.addEventListener('offline', change);
     return () => {
       live = false;
+      window.removeEventListener('online', change);
+      window.removeEventListener('offline', change);
     };
   }, [code]);
   return (
@@ -100,7 +108,7 @@ function NamePrompt({
             aria-label="Your name"
           />
         </label>
-        <p className="muted">{joinNote(room)}</p>
+        <p className="muted">{joinNote(room, online)}</p>
         <p className="muted">
           {user
             ? `Signed in as ${user.name}, so this game goes in your history.`
@@ -110,7 +118,7 @@ function NamePrompt({
           <button
             type="submit"
             className="primary"
-            disabled={!value.trim() || room?.exists === false}
+            disabled={!value.trim() || (online && room?.exists === false)}
           >
             Join
           </button>

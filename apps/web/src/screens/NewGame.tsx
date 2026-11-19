@@ -51,6 +51,7 @@ import { moduleList, optionSettings, type GameOptions } from '../../../server/sr
 import { chosenTarget, winTarget } from '../../../server/src/winTarget.ts';
 import { TargetPicker } from '../ui/TargetPicker.tsx';
 import { useAccount } from '../online/account.ts';
+import { networkMessage } from '../game/joinNote.ts';
 import { loadCustomMaps } from '../game/customMaps.ts';
 import { loadLocalGames } from '../game/localStats.ts';
 import { changedOptions, DEFAULT_VP_BASE, defaultOptionsFor, hasRobber } from '../game/defaults.ts';
@@ -964,7 +965,7 @@ function OnlinePanel({ onOnline }: { onOnline: (code: string) => void }) {
             try {
               go(await createRoom());
             } catch (e) {
-              setError(e instanceof Error ? e.message : 'Could not create a room');
+              setError(networkMessage(e, navigator.onLine));
             } finally {
               setBusy(false);
             }

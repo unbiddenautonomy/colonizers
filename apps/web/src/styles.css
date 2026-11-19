@@ -878,6 +878,14 @@ select {
   color: var(--muted);
 }
 
+/* A line above the sign-in page, saying what it is for. */
+.sign-in-note {
+  margin: 16px auto 0;
+  max-width: 720px;
+  padding: 0 16px;
+  text-align: center;
+}
+
 /* ---------- Online ---------- */
 
 .section-title {

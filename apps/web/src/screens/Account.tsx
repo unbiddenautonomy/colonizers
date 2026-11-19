@@ -1036,12 +1036,33 @@ export function CrewPage({
   if (!loaded) return <main className="setup-page" />;
   if (!user)
     return (
-      <ProfilePage
-        onHome={onHome}
-        onCrew={() => undefined}
-        onRoom={() => undefined}
-        onReplay={onReplay}
-      />
+      <>
+        <p className="muted sign-in-note">Sign in to see this crew.</p>
+        <ProfilePage
+          onHome={onHome}
+          onCrew={() => undefined}
+          onRoom={() => undefined}
+          onReplay={onReplay}
+        />
+      </>
+    );
+  // A link to a crew that is gone, or one this player is not in.
+  if (task.error === 'Unknown crew')
+    return (
+      <main className="setup-page narrow">
+        <h1>Crew not found</h1>
+        <p className="muted">
+          This link may be old, the crew may have been deleted, or you may not be a member of it.
+        </p>
+        <div className="row">
+          <button type="button" className="primary" onClick={onProfile}>
+            Your crews
+          </button>
+          <button type="button" className="ghost" onClick={onHome}>
+            Home
+          </button>
+        </div>
+      </main>
     );
 
   const link = crew ? crewInviteLink(crew.invite) : '';

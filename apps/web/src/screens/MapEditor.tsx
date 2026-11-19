@@ -67,6 +67,31 @@ function seedNow(): string {
 }
 
 export function MapEditor({ editId, onHome }: { editId: string | null; onHome: () => void }) {
+  // A link to a map this device does not have: an empty editor looked like the
+  // map had been lost, or silently emptied.
+  const [missing] = useState(() => !!editId && !loadCustomMaps().some((m) => m.id === editId));
+  if (missing) return <MapNotFound onHome={onHome} />;
+  return <MapEditorScreen editId={editId} onHome={onHome} />;
+}
+
+function MapNotFound({ onHome }: { onHome: () => void }) {
+  return (
+    <main className="setup-page narrow">
+      <h1>Map not found</h1>
+      <p className="muted">
+        Maps you draw are kept on the device you drew them on, so a link to one does not open
+        anywhere else. This map may have been deleted, or drawn on another device.
+      </p>
+      <div className="row">
+        <button type="button" className="primary" onClick={onHome}>
+          Home
+        </button>
+      </div>
+    </main>
+  );
+}
+
+function MapEditorScreen({ editId, onHome }: { editId: string | null; onHome: () => void }) {
   const theme = useTheme();
   const [draft, setDraft] = useState<MapDraft>(() => {
     const saved = editId ? loadCustomMaps().find((m) => m.id === editId) : undefined;

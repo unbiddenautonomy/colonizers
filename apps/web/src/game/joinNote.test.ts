@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { joinNote } from './joinNote.ts';
+import { joinNote, networkMessage } from './joinNote.ts';
 
 describe('what an invite link says before you join', () => {
   it('waits for the answer', () => {
@@ -34,5 +34,24 @@ describe('what an invite link says before you join', () => {
     expect(joinNote({ exists: true, status: 'finished', players: 3, maxPlayers: 4 })).toContain(
       'finished',
     );
+  });
+});
+
+describe('when the server cannot be reached', () => {
+  it('says so plainly when the device is offline', () => {
+    expect(joinNote({ exists: true, status: 'lobby', players: 1, maxPlayers: 4 }, false)).toContain(
+      'You are offline',
+    );
+    expect(networkMessage(new Error('Failed to fetch'), false)).toContain('You are offline');
+  });
+
+  it('turns a fetch failure into something a person can act on', () => {
+    expect(networkMessage(new Error('Failed to fetch'), true)).toBe(
+      'The server did not answer. Check your connection and try again.',
+    );
+  });
+
+  it('keeps a message the server itself sent', () => {
+    expect(networkMessage(new Error('That room is full'), true)).toBe('That room is full');
   });
 });
