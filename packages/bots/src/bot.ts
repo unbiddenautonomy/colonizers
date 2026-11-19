@@ -152,7 +152,12 @@ export function chooseAction(
   if (!end && state.phase.id === 'main' && seat !== state.turn.player) {
     const here = evaluate(state, new Ctx(state, registry), seat, config.style);
     const best = scored.reduce((x, y) => (y.score > x.score ? y : x));
-    return best.score > here + 0.3 ? best.action : null;
+    if (best.score > here + 0.3) return best.action;
+    // Doing nothing is only safe while somebody else can move. When the game is
+    // waiting on this seat alone, declining would hold the turn for ever: the
+    // screen and the room would ask again, get nothing, and ask again. There is
+    // no action that means "pass" here, so the bot takes its best move instead.
+    return lib.waitingOn(full).some((s) => s !== seat) ? null : best.action;
   }
 
   if (config.level === 'easy') return easyPick(scored, rand);
