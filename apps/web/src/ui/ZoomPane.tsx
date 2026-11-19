@@ -80,6 +80,9 @@ export function ZoomPane({ children }: { children: ReactNode }) {
       onPointerDown={(e) => {
         if (e.pointerType === 'mouse' && e.button !== 0) return;
         pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        // A pinch ends without a click, so a swallow left over from one would
+        // have eaten the next real tap: the first tap after a zoom did nothing.
+        swallowClick.current = false;
         if (pointers.current.size === 1) gesture.current = null;
         begin();
       }}
@@ -117,6 +120,7 @@ export function ZoomPane({ children }: { children: ReactNode }) {
       onPointerCancel={(e) => {
         pointers.current.delete(e.pointerId);
         gesture.current = null;
+        if (!pointers.current.size) swallowClick.current = false;
       }}
       onClickCapture={(e) => {
         // The end of a drag or pinch is not a tap on the board.

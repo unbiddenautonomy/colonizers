@@ -1120,6 +1120,20 @@ form.inline {
     scroll-snap-type: x proximity;
   }
 
+  /* The strip holds about two and a half cards, and nothing said it scrolled:
+     the end with more players along it fades out. */
+  .players[data-more='right'] {
+    mask-image: linear-gradient(to right, #000 85%, transparent 100%);
+  }
+
+  .players[data-more='left'] {
+    mask-image: linear-gradient(to left, #000 85%, transparent 100%);
+  }
+
+  .players[data-more='both'] {
+    mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
+  }
+
   .player {
     flex: none;
     min-width: 132px;
@@ -1207,9 +1221,15 @@ form.inline {
   }
 }
 
-/* Phones: a slim header whose settings live behind a menu button. */
-@media (max-width: 700px) and (orientation: portrait),
-  (max-height: 560px) and (orientation: landscape) {
+/*
+ * Phones and tablets: a slim header whose settings live behind a menu button.
+ * The header's buttons need about 880 px upright and 1140 px sideways (the
+ * side panel takes the rest), so Menu and Home used to sit off the screen on
+ * every tablet: 701-834 px upright and 1024-1100 px sideways.
+ */
+@media (max-width: 899px),
+  (max-height: 560px) and (orientation: landscape),
+  (max-width: 1150px) and (orientation: landscape) {
   .game-head {
     position: relative;
     flex-wrap: nowrap;
@@ -1315,8 +1335,46 @@ form.inline {
     order: -1;
   }
 
+  /* Moves you can make come before the ones you cannot afford yet, so the
+     row does not open on greyed-out buttons. */
+  .controls:not(.open) .actions > button:disabled {
+    order: 1;
+  }
+
   .controls:not(.open) .actions .cost {
     display: none;
+  }
+
+  /* An offer on the table used to push this turn's moves out of the sheet and
+     cut off "Withdraw offer". It becomes one row you can swipe, like the
+     moves above it. */
+  .controls:not(.open) .offer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .controls:not(.open) .offer > * {
+    flex: none;
+    margin: 0;
+  }
+
+  /* Withdraw leads the row, so it needs no swiping to reach. */
+  .controls:not(.open) .offer > button {
+    order: -1;
+  }
+
+  .controls:not(.open) .offer .responses {
+    display: flex;
+    gap: 10px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .controls:not(.open) .offer .responses li {
+    white-space: nowrap;
   }
 
   .hand-cards {
@@ -2568,6 +2626,30 @@ body:has(.setup-page) {
   flex-basis: 100%;
   min-height: 48px;
   font-size: 1.05rem;
+}
+
+/*
+ * On a phone or tablet the setup is one long column, and Next and Start sat
+ * only at the very bottom of it. They stay on the screen instead.
+ */
+@media (max-width: 899px) {
+  .setup-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    margin: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Room for the bar, so it never covers the last setting. */
+  .setup-page:has(.setup-nav) {
+    padding-bottom: 150px;
+  }
 }
 
 .fan-grid {
@@ -4415,4 +4497,56 @@ html[data-backdrop] .setup-page {
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+/*
+ * A thumb needs about 44px. On a touch screen the setup pages, the cards on
+ * the home, account and stats pages, dialogs, the house-rule switches, the
+ * bottom sheet's handle and the header's icon buttons all give it that much.
+ * The board's own building spots stay small, because they sit 37px apart;
+ * a tap near one lands on it instead (see board/nearest.ts).
+ */
+@media (pointer: coarse) {
+  .setup-page button,
+  .setup-page select,
+  .setup-page input:not([type='checkbox']):not([type='radio']),
+  .editor-page button,
+  .editor-page select,
+  .card button,
+  .card select,
+  .card input:not([type='checkbox']):not([type='radio']),
+  .modal button,
+  .modal select,
+  .modal input:not([type='checkbox']):not([type='radio']),
+  label.toggle,
+  .sheet-handle,
+  .offer button,
+  .game-head .icon {
+    min-height: 44px;
+  }
+
+  .game-head .icon {
+    min-width: 44px;
+  }
+
+  /* A row of digits (how many players, how many points) needs width too. */
+  .setup-page .row > button {
+    min-width: 44px;
+  }
+
+  /* The "Why?" pill on a blocked expansion keeps its own small height on a
+     mouse, so it is named here. */
+  .setup-page .why-btn {
+    min-height: 44px;
+    padding: 2px 14px;
+  }
+
+  /* Links that act as buttons ("Watch replay", "See the rule") were 19px. */
+  .card .link,
+  .modal .link,
+  .setup-page .link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }

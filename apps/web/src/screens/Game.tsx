@@ -47,6 +47,7 @@ import {
 } from '../ui/Cards.tsx';
 import { Modal } from '../ui/Modal.tsx';
 import { Confirm } from '../ui/Confirm.tsx';
+import { useScrollHint } from '../ui/scrollHint.ts';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { GameLog } from '../ui/GameLog.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
@@ -671,6 +672,8 @@ export function Game({
   const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
   /** The game-over box can be put away, to look at the final board. */
   const [overClosed, setOverClosed] = useState(false);
+  /** Fades the end of the player strip that has more players along it. */
+  const strip = useScrollHint<HTMLElement>([state.players.length, state.seq]);
   /** Questions asked in the game's own dialog: leaving, and ending the game. */
   const [asking, setAsking] = useState<'leave' | 'end' | null>(null);
   // Duel rules: which neutral builder gets the free piece.
@@ -881,7 +884,7 @@ export function Game({
         </div>
       </header>
 
-      <aside className="players" aria-label="Players">
+      <aside className="players" aria-label="Players" ref={strip}>
         {state.players.map((p) => {
           const t = theme.players[p.seat]!;
           const data = baseData(ctx);

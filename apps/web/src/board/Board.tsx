@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react';
+import { memo, useMemo, useRef, type MouseEvent } from 'react';
 import {
   buildGeometry,
   cornerToPixel,
@@ -12,6 +12,7 @@ import {
 import { RESOURCE_ICON, TRACK_COLOR, type Theme } from '../theme/clean.ts';
 import { useTheme } from '../theme/themes.tsx';
 import { motionAttrs, useBoardMotion } from './motion.ts';
+import { nearestSpot, type Spot } from './nearest.ts';
 import {
   CanalStretch,
   canalLinks,
@@ -314,8 +315,46 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const dragonAt = (h: HexId | undefined) => !!h && (dragons[h] ?? 0) > 0;
   const pirateHex = pieces.find((p) => p.type === 'pirate')?.at;
 
+  /**
+   * A tap that lands on nothing takes the nearest building spot. The spots
+   * themselves are 12 px across on a phone and cannot grow much without a
+   * road's spot and a settlement's spot stealing each other's taps.
+   */
+  const tapNearby = (e: MouseEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || (e.target as Element).closest('.target')) return;
+    if (!targets.corners.size && !targets.edges.size) return;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const at = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    const spots: Spot<Action>[] = [];
+    for (const [id, action] of targets.corners) {
+      const c = cornerToPixel(id, S);
+      spots.push({ x: c.x, y: c.y, what: action });
+    }
+    for (const [id, action] of targets.edges) {
+      const [a, b] = edgeEnds(id, g);
+      spots.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, what: action });
+    }
+    // How far from a spot a tap still counts, in board units, so the reach is
+    // the same on screen however far the board is zoomed in. Spots are about
+    // 37 px apart on a phone, so 26 px gives a spot a tap area wider than a
+    // thumb while leaving the middle of a hex, where nothing is meant to be
+    // built, out of reach.
+    const within = 26 / (ctm.a || 1);
+    const action = nearestSpot({ x: at.x, y: at.y }, spots, within);
+    if (action) onAction(action);
+  };
+
   return (
-    <svg ref={svgRef} className="board" viewBox={viewBox} role="img" aria-label="Game board">
+    <svg
+      ref={svgRef}
+      className="board"
+      viewBox={viewBox}
+      role="img"
+      aria-label="Game board"
+      onClick={tapNearby}
+    >
       <defs>
         <filter id="lift" x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.35" />
