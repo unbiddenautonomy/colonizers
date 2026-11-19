@@ -1,8 +1,30 @@
 import { describe, expect, it } from 'vitest';
+import type { GameState } from '@colonizers/engine';
 import { chooseAction, newMemory, type BotConfig } from '../src/index.ts';
 import { game, lib, play, rng } from './play.ts';
 
 const medium: BotConfig = { level: 'medium', style: 'balanced' };
+
+/** Plays the setup, then puts the given seat in the main phase. */
+function toMain(state: GameState, seed: number): GameState {
+  let t = state;
+  const rand = rng(seed);
+  const mem = state.players.map(() => newMemory());
+  while (t.phase.id !== 'main') {
+    const seat = lib.waitingOn(t)[0]!;
+    const a = chooseAction(lib, t, seat, medium, mem[seat]!, { rand });
+    if (!a) throw new Error(`No move in ${t.phase.id}`);
+    t = lib.apply(t, a).state;
+  }
+  return t;
+}
+
+/** Changes a copy of the state directly, for setting up test positions. */
+function edit(state: GameState, fn: (s: GameState) => void): GameState {
+  const next = structuredClone(state);
+  fn(next);
+  return next;
+}
 
 describe('Bots', () => {
   it('three Medium bots and an Easy one finish a base game', () => {
@@ -238,4 +260,74 @@ describe('Bots', () => {
     const b = chooseAction(lib, other, seat, medium, newMemory(), { rand: rng(1) });
     expect(a).toEqual(b);
   });
+
+  it('completes a trade it offered, although it cannot see the other hand', () => {
+    let t = toMain(game('t1', 4, 'base'), 7);
+    const seat = t.turn.player;
+    const other = (seat + 1) % 4;
+    t = edit(t, (s) => {
+      s.players[seat]!.hand = { brick: 3, lumber: 1 };
+      s.players[other]!.hand = { ore: 3 };
+      (s.data.base as Record<string, unknown>).trade = {
+        id: 1,
+        from: seat,
+        give: { brick: 1 },
+        get: { ore: 1 },
+        to: null,
+        responses: { [other]: 'accept' },
+      };
+    });
+    const a = chooseAction(lib, t, seat, medium, newMemory(), { rand: rng(3) });
+    expect(a).toMatchObject({ type: 'confirmTrade', player: seat, with: other });
+    const after = lib.apply(t, a!).state;
+    expect(after.players[seat]!.hand.ore).toBe(1);
+  });
+
+  it('does not always pick on the first seat when the choices are equal', () => {
+    let t = toMain(game('s1', 4, 'base'), 11);
+    const seat = t.turn.player;
+    // Every other player holds the same hand, so stealing from any is the same.
+    t = edit(t, (s) => {
+      for (const p of s.players) p.hand = p.seat === seat ? { brick: 1 } : { ore: 2 };
+      s.phase = {
+        id: 'steal',
+        candidates: s.players.filter((p) => p.seat !== seat).map((p) => p.seat),
+        returnTo: 'main',
+      };
+    });
+    const picked = new Set<number>();
+    for (let i = 1; i <= 24; i++) {
+      const a = chooseAction(lib, t, seat, medium, newMemory(), { rand: rng(i) });
+      if (a?.type === 'steal') picked.add(a.from as number);
+    }
+    expect(picked.size).toBeGreaterThan(1);
+  }, 60_000);
+
+  it('plays a progress card instead of letting the next one go back', () => {
+    let t = toMain(game('p1', 4, 'ck'), 13);
+    const seat = t.turn.player;
+    t = edit(t, (s) => {
+      // A full progress hand: the next card drawn would go straight back.
+      s.players[seat]!.held.trade = [
+        { card: 'merchantFleet', acquiredTurn: -1 },
+        { card: 'masterMerchant', acquiredTurn: -1 },
+      ];
+      s.players[seat]!.held.politics = [
+        { card: 'bishop', acquiredTurn: -1 },
+        { card: 'diplomat', acquiredTurn: -1 },
+      ];
+    });
+    const played: string[] = [];
+    const rand = rng(17);
+    const mem = newMemory();
+    const turn = t.turn.number;
+    for (let i = 0; i < 30 && t.turn.number === turn && t.winner === null; i++) {
+      const who = lib.waitingOn(t)[0]!;
+      const a = chooseAction(lib, t, who, medium, who === seat ? mem : newMemory(), { rand });
+      if (!a) break;
+      if (a.type === 'playProgress' && a.player === seat) played.push(String(a.card));
+      t = lib.apply(t, a).state;
+    }
+    expect(played.length).toBeGreaterThan(0);
+  }, 60_000);
 });

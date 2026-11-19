@@ -619,7 +619,12 @@ const confirmTrade = action<{ offer: number; with: number }>({
     if (a.player !== offer.from) return 'Only the player who made the offer can confirm it';
     if (offer.responses[a.with] !== 'accept') return 'That player has not accepted';
     if (!ctx.has(a.player, offer.give)) return 'You no longer have the cards you offered';
-    if (!ctx.has(a.with, offer.get)) return 'They no longer have the cards';
+    // A bot plans on the same view a player sees, where the other hands are
+    // hidden, so this is unanswerable there: let it pass and leave it to the
+    // server, which has the real hands. Without this a bot could never
+    // complete a trade it offered.
+    if (!ctx.handHidden(a.with) && !ctx.has(a.with, offer.get))
+      return 'They no longer have the cards';
     return null;
   },
   apply(ctx, a) {

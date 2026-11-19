@@ -186,7 +186,18 @@ export function evaluate(state: GameState, ctx: Ctx, seat: number, style: Style)
   // A played knight is worth a little more than one in hand, so bots play them (the robber
   // and the army race come after); at the same weight they sat on every knight they drew.
   score += (me.played.knight ?? 0) * 2 * w.army;
-  for (const cards of Object.values(me.held)) score += cards.length * 1.6 * w.army;
+  // Cards in hand. Development cards keep their worth; Cities & Knights
+  // progress cards are capped, and the ones over the cap go back on the pile
+  // at the end of the roll, so they are worth nothing. Counting those too made
+  // bots sit on their progress hand: in the test games they returned four of
+  // every five cards they ever drew.
+  let progress = 0;
+  for (const [deck, cards] of Object.entries(me.held)) {
+    if (deck === 'dev') score += cards.length * 1.6 * w.army;
+    else progress += cards.length;
+  }
+  if (progress)
+    score += Math.min(progress, Number(state.settings.progressLimit ?? 4)) * 0.9 * w.army;
   // Free roads still to place from a Road Building card.
   if (state.phase.id === 'roadBuilding' && state.turn.player === seat)
     score += Number(state.phase.remaining ?? 0) * 1.2 * w.road;

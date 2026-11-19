@@ -3,15 +3,16 @@ import { RuleError } from './errors.ts';
 import type { CornerId, EdgeId, HexId } from './hex.ts';
 import { plainDice, type DiceResult, type Hooks, type Reducers, type Registry } from './module.ts';
 import { Rng } from './rng.ts';
-import type {
-  Action,
-  Cards,
-  GameEvent,
-  GameState,
-  Location,
-  Phase,
-  Piece,
-  PlayerState,
+import {
+  HIDDEN_CARD,
+  type Action,
+  type Cards,
+  type GameEvent,
+  type GameState,
+  type Location,
+  type Phase,
+  type Piece,
+  type PlayerState,
 } from './types.ts';
 
 type HookArgs<K extends keyof Hooks> = Hooks[K] extends (ctx: Ctx, ...args: infer A) => void
@@ -134,6 +135,16 @@ export class Ctx {
       }
     }
     return false;
+  }
+
+  /**
+   * Whether this state hides that seat's cards, which it does for everyone
+   * but the viewer when it was built from one player's view. A rule that
+   * needs to see someone's hand can't be answered here, so a move the server
+   * will check anyway should let it pass rather than refuse it.
+   */
+  handHidden(seat: number): boolean {
+    return (this.player(seat).hand[HIDDEN_CARD] ?? 0) > 0;
   }
 
   /** Nobody can move and nobody has won: the game has dead-ended. */

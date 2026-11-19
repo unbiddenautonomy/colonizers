@@ -3,7 +3,16 @@ import { RuleError } from './errors.ts';
 import { hexId, type HexId } from './hex.ts';
 import { buildRegistry, resolveModules, type GameModule, type Registry } from './module.ts';
 import { Rng } from './rng.ts';
-import type { Action, GameEvent, GameState, MapSpec, PlayerState } from './types.ts';
+import {
+  HIDDEN_CARD,
+  type Action,
+  type GameEvent,
+  type GameState,
+  type MapSpec,
+  type PlayerState,
+} from './types.ts';
+
+export { HIDDEN_CARD };
 
 export interface GameConfig {
   seed: string;
@@ -248,9 +257,6 @@ function checkWith(ctx: Ctx, registry: Registry, action: Action): string | null 
     throw e;
   }
 }
-
-/** Card name used for cards a viewer can't see. */
-export const HIDDEN_CARD = 'hidden';
 
 /**
  * Turns a player's view back into a full GameState shape so the same rules

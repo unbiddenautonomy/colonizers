@@ -70,6 +70,9 @@ export interface TurnState {
   round: number;
 }
 
+/** Card name used for cards a viewer can't see. */
+export const HIDDEN_CARD = 'hidden';
+
 export interface GameState {
   schema: 1;
   modules: string[];
