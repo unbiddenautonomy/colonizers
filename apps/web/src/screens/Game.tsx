@@ -604,9 +604,18 @@ export interface OnlineExtras {
   takeSeat: () => void;
 }
 
-export function LocalGame({ saved, onQuit }: { saved: SavedGame; onQuit: () => void }) {
+export function LocalGame({
+  saved,
+  onQuit,
+  onStats,
+}: {
+  saved: SavedGame;
+  onQuit: () => void;
+  /** Where this game's result is written down: the "Games on this device" page. */
+  onStats: () => void;
+}) {
   const g = useLocalGame(saved);
-  return <Game g={g} seat={g.actor} onQuit={onQuit} />;
+  return <Game g={g} seat={g.actor} onQuit={onQuit} onStats={onStats} />;
 }
 
 export function Game({
@@ -614,12 +623,15 @@ export function Game({
   seat,
   online,
   onQuit,
+  onStats,
 }: {
   g: GameController;
   /** Whose hand and moves this screen shows: the device holder, or your seat online. */
   seat: number | null;
   online?: OnlineExtras;
   onQuit: () => void;
+  /** Local games: where this game's result was just written down. */
+  onStats?: () => void;
 }) {
   const { state } = g;
   const theme = useTheme();
@@ -1919,16 +1931,31 @@ export function Game({
               {!online.isHost && <p className="muted">The host can set up the next game.</p>}
             </div>
           ) : (
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                clearSavedGame();
-                onQuit();
-              }}
-            >
-              New game
-            </button>
+            <div className="row">
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  clearSavedGame();
+                  onQuit();
+                }}
+              >
+                New game
+              </button>
+              {/* This game has just been written down, so say where it went. */}
+              {onStats && (
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    clearSavedGame();
+                    onStats();
+                  }}
+                >
+                  Games on this device
+                </button>
+              )}
+            </div>
           )}
         </Modal>
       )}

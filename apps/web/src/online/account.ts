@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { PRESETS, SEA_SCENARIOS, SPECIAL_MAPS } from '@colonizers/maps';
+import { MODES, PRESETS, SEA_SCENARIOS, SPECIAL_MAPS } from '@colonizers/maps';
 import type {
   CrewDetail,
   CrewSummary,
@@ -295,17 +295,14 @@ export function describeModules(modules: string[]): string {
   return extra.length ? extra.join(' + ') : 'Base game';
 }
 
-const RANDOM_NAMES: Record<string, string> = {
-  classic: 'Random board',
-  balanced: 'Balanced board',
-  wild: 'Wild board',
-};
-
 /** A friendly name for a saved map key such as "special:volcano". */
 export function mapName(key: string | null): string {
   if (!key || key === 'unknown') return 'Older game';
   const [kind, id = ''] = key.split(':');
-  if (kind === 'random') return RANDOM_NAMES[id] ?? 'Random board';
+  // The same wording the setup screen uses, so a game is named the same way
+  // wherever it is listed: "Classic (random)", not "Random board".
+  if (kind === 'random')
+    return id in MODES ? `${MODES[id as keyof typeof MODES].name} (random)` : 'Random board';
   if (kind === 'custom') return `Custom map (${id})`;
   const list: { id: string; name: string }[] =
     kind === 'preset' ? PRESETS : kind === 'scenario' ? SEA_SCENARIOS : SPECIAL_MAPS;

@@ -224,6 +224,11 @@ export function App() {
           setSaved(loadSavedGame());
           setGame(null);
         }}
+        onStats={() => {
+          setSaved(loadSavedGame());
+          setGame(null);
+          go('/stats');
+        }}
       />,
     );
   }
