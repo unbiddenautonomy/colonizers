@@ -10,6 +10,7 @@ import {
 } from '@colonizers/engine';
 import { bankRatio, baseData, publicVp } from '@colonizers/module-base';
 import { citadelSpots } from '@colonizers/module-princes-explorers';
+import { scoreParts } from '../game/scoreParts.ts';
 import { nameOf, pageForError } from '@colonizers/rulebook';
 import { Board, noTargets, type Targets } from '../board/Board.tsx';
 import { play, setSound, soundFor, useSound } from '../game/sounds.ts';
@@ -666,6 +667,8 @@ export function Game({
   );
   const setCamelBid = (b: { wool: number; grain: number }) => setBidFor({ key: voteKey, ...b });
   const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
+  /** The game-over box can be put away, to look at the final board. */
+  const [overClosed, setOverClosed] = useState(false);
   // Duel rules: which neutral builder gets the free piece.
   const [neutral, setNeutral] = useState(0);
   const [privateHands, setPrivateHands] = useState(false);
@@ -1637,6 +1640,13 @@ export function Game({
             onSend={online.sendChat}
           />
         )}
+        {state.winner !== null && overClosed && (
+          <p className="room-tools">
+            <button type="button" className="ghost small" onClick={() => setOverClosed(false)}>
+              🏆 Final scores
+            </button>
+          </p>
+        )}
         {/* The host's way out of a game that has gone wrong or been left. */}
         {online?.isHost && state.winner === null && (
           <p className="room-tools">
@@ -1833,15 +1843,38 @@ export function Game({
         </div>
       )}
 
-      {state.winner !== null && (
-        <Modal title="Game over">
+      {state.winner !== null && !overClosed && (
+        <Modal title="Game over" onClose={() => setOverClosed(true)}>
           <h3>🏆 {names[state.winner]} wins!</h3>
+          <p className="muted">
+            This game was to {ctx.vpTarget()} points, and {names[state.winner]} got there first
+            {state.players.some(
+              (p) => p.seat !== state.winner && ctx.vp(p.seat) >= ctx.vp(state.winner!),
+            )
+              ? ': points only win on your own turn, so a tie goes to whoever reaches the target on theirs.'
+              : '.'}
+          </p>
           <ol className="scores">
             {[...state.players]
-              .sort((a, b) => ctx.vp(b.seat) - ctx.vp(a.seat))
+              .sort(
+                (a, b) =>
+                  Number(b.seat === state.winner) - Number(a.seat === state.winner) ||
+                  ctx.vp(b.seat) - ctx.vp(a.seat),
+              )
               .map((p) => (
                 <li key={p.seat}>
-                  {p.name}: {ctx.vp(p.seat)} VP
+                  <strong>
+                    {p.name}: {ctx.vp(p.seat)} VP
+                  </strong>
+                  <span className="score-parts">
+                    {scoreParts(ctx, p.seat, {
+                      longestRoad: baseData(ctx).longestRoad,
+                      largestArmy: baseData(ctx).largestArmy,
+                      routeName: seafarers ? 'Longest Trade Route' : 'Longest Road',
+                    })
+                      .map((part) => `${part.what} ${part.vp > 0 ? '+' : ''}${part.vp}`)
+                      .join(' · ')}
+                  </span>
                 </li>
               ))}
           </ol>

@@ -12,6 +12,7 @@ import { bankRatio } from '@colonizers/module-base';
 import { CARDS, deckCards } from '../src/cards.ts';
 import { greedWealthPowerModule } from '../src/index.ts';
 import { act, ctxOf, edit, game, lib, main, placeCity, rng } from './helpers.ts';
+import { stateFromView } from '@colonizers/engine';
 
 function hold(state: GameState, seat: number, deck: string, card: string): GameState {
   return edit(state, (ctx) => {
@@ -216,5 +217,22 @@ describe('New progress cards', () => {
 
   it('module hooks leave the cards alone outside their turn', () => {
     expect(greedWealthPowerModule.wrapActions?.playProgress).toBeTypeOf('function');
+  });
+});
+
+describe('Raven Flight on a player\u2019s own screen', () => {
+  it('offers the grain option, which only the server can check', () => {
+    const s = edit(hold(busy(), 0, 'magic', 'ravenFlight'), (ctx) => {
+      ctx.state.turn.player = 0;
+      for (const p of ctx.state.players) if (p.seat !== 0) ctx.grant(p.seat, { grain: 1 });
+    });
+    const grain = (state: GameState) =>
+      lib
+        .legalActions(state, 0)
+        .some((a) => a.type === 'playProgress' && a.card === 'ravenFlight' && a.option === 'grain');
+    expect(grain(s)).toBe(true);
+    // The browser rebuilds the game from one player's view, where the other
+    // hands are hidden. The option must still be there.
+    expect(grain(stateFromView(lib.view(s, 0)))).toBe(true);
   });
 });

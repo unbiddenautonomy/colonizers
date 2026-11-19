@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MODES as MODE_IDS, type ModeId } from '@colonizers/modes';
 import { boardFit } from '../game/boardFit.ts';
 import { modesFor } from '../game/modeFlags.ts';
@@ -40,6 +40,8 @@ import { chosenTarget, winTarget } from '../../../server/src/winTarget.ts';
 import { TargetPicker } from '../ui/TargetPicker.tsx';
 import { loadCustomMaps } from '../game/customMaps.ts';
 import { changedOptions } from '../online/settingsPatch.ts';
+import { joinNote } from '../game/joinNote.ts';
+import { roomSummary, type RoomSummary } from '../online/api.ts';
 import { currentUser } from '../online/account.ts';
 import { LEVEL_INFO, LEVELS, STYLE_INFO, STYLES, type Level, type Style } from '@colonizers/bots';
 
@@ -68,7 +70,16 @@ function NamePrompt({
   onName: (n: string) => void;
   onHome: () => void;
 }) {
-  const [value, setValue] = useState('');
+  const user = currentUser();
+  const [value, setValue] = useState(user?.name ?? '');
+  const [room, setRoom] = useState<RoomSummary | null>(null);
+  useEffect(() => {
+    let live = true;
+    void roomSummary(code).then((r) => live && setRoom(r));
+    return () => {
+      live = false;
+    };
+  }, [code]);
   return (
     <main className="setup-page narrow">
       <h1>Join room {code}</h1>
@@ -89,9 +100,18 @@ function NamePrompt({
             aria-label="Your name"
           />
         </label>
-        <p className="muted">You play as a guest. Accounts come later and keep your history.</p>
+        <p className="muted">{joinNote(room)}</p>
+        <p className="muted">
+          {user
+            ? `Signed in as ${user.name}, so this game goes in your history.`
+            : 'You can play as a guest. Sign in on the home page instead to keep your history, achievements and crews.'}
+        </p>
         <div className="row">
-          <button type="submit" className="primary" disabled={!value.trim()}>
+          <button
+            type="submit"
+            className="primary"
+            disabled={!value.trim() || room?.exists === false}
+          >
             Join
           </button>
           <button type="button" className="ghost" onClick={onHome}>

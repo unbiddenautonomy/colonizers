@@ -863,6 +863,21 @@ select {
   font-size: 1.1rem;
 }
 
+.scores li {
+  margin-bottom: 8px;
+}
+
+.scores li:first-child strong {
+  color: var(--accent);
+}
+
+/* Where each player's points came from, under their total. */
+.score-parts {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 /* ---------- Online ---------- */
 
 .section-title {
