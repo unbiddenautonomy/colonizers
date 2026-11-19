@@ -52,22 +52,26 @@ const svg = (body: string) =>
 
 // ---- Islands: a coastline with depth contours around it ----
 
-/** The coast along the top edge piece: two uneven bays, flat where pieces meet. */
-function coast(y: number): Seg[] {
+/**
+ * The coast along the top edge piece: two uneven bays, flat where pieces meet. `calm` flattens
+ * the bays, from 1 (a drawn island) down towards 0 (a card with a soft edge).
+ */
+function coast(y: number, calm = 1): Seg[] {
   const x = S;
+  const d = (n: number) => y + n * calm;
   return [
     [
       [x + 12, y],
-      [x + 18, y - 9],
-      [x + 34, y - 8],
+      [x + 18, d(-9)],
+      [x + 34, d(-8)],
     ],
     [
-      [x + 48, y - 7],
-      [x + 52, y + 6],
-      [x + 68, y + 5],
+      [x + 48, d(-7)],
+      [x + 52, d(6)],
+      [x + 68, d(5)],
     ],
     [
-      [x + 82, y + 4],
+      [x + 82, d(4)],
       [x + 90, y],
       [x + M, y],
     ],
@@ -83,18 +87,21 @@ export interface IslandColours {
   width?: number;
   /** Depth lines round the coast, 0 to 3. Small islands set close together want none. */
   rings?: number;
+  /** How wavy the coast is: 1 is a drawn island, lower reads as a card with a soft edge. */
+  calm?: number;
 }
 
 /** Where the coast sits, measured in from the image edge. Use it as border-image-outset. */
 export const ISLAND_COAST = 62;
 
 export function islandFrame(c: IslandColours): string {
+  const calm = c.calm ?? 1;
   const ring = (d: number) =>
     loop(
       [S - (S - ISLAND_COAST + d), S],
-      [corner(S - ISLAND_COAST + d), ...coast(ISLAND_COAST - d)],
+      [corner(S - ISLAND_COAST + d), ...coast(ISLAND_COAST - d, calm)],
     );
-  const land = loop([ISLAND_COAST, S], [corner(S - ISLAND_COAST), ...coast(ISLAND_COAST)]);
+  const land = loop([ISLAND_COAST, S], [corner(S - ISLAND_COAST), ...coast(ISLAND_COAST, calm)]);
   const sw = c.width ?? 2.5;
   const rings = [
     [10, 1.6, 0.55],
@@ -111,7 +118,7 @@ export function islandFrame(c: IslandColours): string {
         c.dashed ? ` stroke-dasharray='7 6'` : ''
       }/>` +
       // A beach line just inside the coast.
-      `<path d='${loop([ISLAND_COAST + 9, S], [corner(S - ISLAND_COAST - 9), ...coast(ISLAND_COAST + 9)])}' fill='none' stroke='${c.shore}' stroke-opacity='0.18' stroke-width='1.2' stroke-dasharray='2 5' stroke-linecap='round'/>`,
+      `<path d='${loop([ISLAND_COAST + 9, S], [corner(S - ISLAND_COAST - 9), ...coast(ISLAND_COAST + 9, calm)])}' fill='none' stroke='${c.shore}' stroke-opacity='0.18' stroke-width='1.2' stroke-dasharray='2 5' stroke-linecap='round'/>`,
   );
 }
 
