@@ -20,8 +20,8 @@ import {
   addBeer,
   beerOf,
   buildBlock,
-  buildingsOf,
   FESTIVALS,
+  setBuilding,
 } from '@colonizers/module-greed-wealth-power';
 import { ROAMING } from '@colonizers/module-world-wonders';
 import {
@@ -80,7 +80,7 @@ const civBuilding = action<{ building: 'citadel' | 'diocese'; corner: CornerId; 
   apply(ctx, a) {
     const gift = buildingGifts(ctx, a.player).find(({ g }) => g.options.includes(a.building))!;
     takeGift(ctx, a.player, gift.i);
-    buildingsOf(ctx, a.player)[a.building] = { corner: a.corner, hex: a.hex };
+    setBuilding(ctx, a.player, a.building, { corner: a.corner, hex: a.hex });
     ctx.emit({
       type: 'gwpBuilt',
       player: a.player,

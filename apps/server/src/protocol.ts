@@ -4,6 +4,7 @@
  */
 import type { Action, GameEvent, GameView } from '@colonizers/engine';
 import { cleanCustomMap, type MapFile } from '@colonizers/maps';
+import type { ModeId } from '@colonizers/modes';
 
 export type MapChoice =
   | { kind: 'preset'; id: string }
@@ -180,6 +181,49 @@ export function moduleList(
     ...(citiesKnights && extra.includes('landwater') ? ['landwater-ck'] : []),
   ]);
   return order.filter((m) => want.has(m));
+}
+
+/**
+ * The modules and engine settings for a chosen mix of expansions.
+ *
+ * A game is built in two places, the new-game screens and the server's room, and each used to
+ * carry its own copy of this: a new fan expansion had to be added to both module lists, and a
+ * rule one expansion overrides (Princes & Explorers has no Special Building Phase) could be
+ * applied on one side only. Both now call this.
+ */
+export function gameRules(
+  extra: readonly string[],
+  on: ReadonlySet<ModeId>,
+  options: GameOptions,
+  players: number,
+): { modules: string[]; settings: Record<string, unknown> } {
+  const settings = optionSettings(options, players);
+  // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
+  if (on.has('princes')) {
+    if (settings.turnMode === 'specialBuild') settings.turnMode = 'normal';
+    settings.friendlyRobber = false;
+    settings.robberHome = false;
+  }
+  // Soldiers & Armies marches after building, so there's no Special Building Phase either.
+  if (on.has('soldiers') && settings.turnMode === 'specialBuild') settings.turnMode = 'normal';
+  const modules = moduleList(
+    [
+      ...extra,
+      ...(on.has('princes') ? ['princes'] : []),
+      ...(on.has('soldiers') ? ['soldiers'] : []),
+      ...(on.has('investors') ? ['investors'] : []),
+      ...(on.has('kingdoms') ? ['kingdoms'] : []),
+      ...(on.has('landWater') ? ['landwater'] : []),
+      ...(on.has('strategist') ? ['strategist'] : []),
+    ],
+    on.has('citiesKnights'),
+    on.has('greedWealthPower'),
+    on.has('worldWonders'),
+    on.has('civilisations'),
+    on.has('church'),
+    on.has('witches'),
+  );
+  return { modules, settings };
 }
 
 /** A short key for the map, saved with each game for stats by map. */

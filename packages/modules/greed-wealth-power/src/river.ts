@@ -1,5 +1,5 @@
 import type { Cards, Ctx, HexId, HexState } from '@colonizers/engine';
-import { MODULE_ID } from './constants.ts';
+import { buildingsOf } from './store.ts';
 
 /**
  * The river (the `gwpRiver` switch): a river of four hexes takes the place of
@@ -64,16 +64,6 @@ export function riverHexes(ctx: Ctx): HexId[] {
     hexes.filter((h) => h.type === t && isRiver(h)).map((h) => h.id),
   );
   return [...swamp, ...river];
-}
-
-interface Placed {
-  hex: HexId;
-}
-
-function buildingsOf(ctx: Ctx, seat: number): Partial<Record<string, Placed>> {
-  const d = ctx.state.data[MODULE_ID] as
-    { buildings?: Record<number, Partial<Record<string, Placed>>> } | undefined;
-  return d?.buildings?.[seat] ?? {};
 }
 
 /** Does this seat's city on this hex take Gold for the river? */

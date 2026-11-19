@@ -47,7 +47,7 @@ import {
   SEA_ICON,
   SpecialMapButtons,
 } from '../ui/OptionsPanel.tsx';
-import { moduleList, optionSettings, type GameOptions } from '../../../server/src/protocol.ts';
+import { gameRules, type GameOptions } from '../../../server/src/protocol.ts';
 import { chosenTarget, winTarget } from '../../../server/src/winTarget.ts';
 import { TargetPicker } from '../ui/TargetPicker.tsx';
 import { useAccount } from '../online/account.ts';
@@ -196,7 +196,7 @@ export function NewGame({
         ? 'special'
         : 'usual';
   const modeGroup = SPECIAL_MAPS.find((x) => x.id === specialId)?.group ?? null;
-  const { on, status, weight, warn } = useMemo(
+  const { on, chosen, status, weight, warn } = useMemo(
     () =>
       modesFor(modeKind, modeGroup, fog, needsCk, noCk, {
         citiesKnights: ckWanted,
@@ -289,39 +289,16 @@ export function NewGame({
 
   const start = () => {
     const players = names.slice(0, count).map((n, i) => n.trim() || `Player ${i + 1}`);
-    const opts = optionSettings(options, count);
-    // Princes & Explorers has no Special Building Phase, and its robber goes by its own rules.
-    if (princes) {
-      if (opts.turnMode === 'specialBuild') opts.turnMode = 'normal';
-      opts.friendlyRobber = false;
-      opts.robberHome = false;
-    }
-    // Soldiers & Armies marches after building, so no Special Building Phase either.
-    if (soldiers && opts.turnMode === 'specialBuild') opts.turnMode = 'normal';
-    const make = (extraModules: string[], map: MapSpec, own: Record<string, unknown>) =>
-      onStart({
+    const make = (extraModules: string[], map: MapSpec, own: Record<string, unknown>) => {
+      // The modules and the settings each expansion overrides, shared with the server.
+      const rules = gameRules(extraModules, chosen, options, count);
+      return onStart({
         config: {
           seed: `${seed}-${Date.now().toString(36)}`,
           players,
-          modules: moduleList(
-            [
-              ...extraModules,
-              ...(princes ? ['princes'] : []),
-              ...(soldiers ? ['soldiers'] : []),
-              ...(investors ? ['investors'] : []),
-              ...(kingdoms ? ['kingdoms'] : []),
-              ...(landWater ? ['landwater'] : []),
-              ...(strategist ? ['strategist'] : []),
-            ],
-            ck,
-            gwp,
-            wonders,
-            civs,
-            church,
-            witches,
-          ),
+          modules: rules.modules,
           map,
-          settings: { ...opts, ...own },
+          settings: { ...rules.settings, ...own },
           fixedSeats: true,
         },
         actions: [],
@@ -331,6 +308,7 @@ export function NewGame({
             ? `random:${effective.mode}`
             : `${effective.kind}:${effective.id}`,
       });
+    };
     // The scenario modules add their share of the target in play.
     const own = winAt - target.fromModules;
     if (sea) return make(['seafarers'], sea.map, { ...sea.settings, vpTarget: own });

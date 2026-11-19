@@ -8,7 +8,15 @@ import {
 } from '@colonizers/engine';
 import { produce } from '@colonizers/module-base';
 import { ckData, levels } from '@colonizers/module-cities-knights';
-import { beerOf, beerRatio, buildingsOf, gwpData, NEUTRALS } from '../src/index.ts';
+import {
+  addBeer,
+  beerOf,
+  beerRatio,
+  buildingsOf,
+  gwpData,
+  NEUTRALS,
+  setBuilding,
+} from '../src/index.ts';
 import {
   lib,
   game,
@@ -24,6 +32,29 @@ import {
   improve,
   grant,
 } from './helpers.ts';
+
+describe('the module\u2019s own store', () => {
+  // The browser asks these questions while it is only drawing a screen, with its own copy of the
+  // game, so a read that wrote an empty store left that copy a step from the one the rules keep.
+  it('answers without writing anything into the game', () => {
+    const s = game();
+    delete s.data['greed-wealth-power'];
+    const before = JSON.stringify(s);
+    const ctx = ctxOf(s);
+    expect(beerOf(ctx, 0)).toBe(0);
+    expect(buildingsOf(ctx, 0)).toEqual({});
+    expect(JSON.stringify(s)).toBe(before);
+  });
+
+  it('writes when something is actually built', () => {
+    const s = game();
+    const ctx = ctxOf(s);
+    setBuilding(ctx, 1, 'citadel', { corner: 'c1' as CornerId, hex: 'h1' as HexId });
+    addBeer(ctx, 1, 2);
+    expect(buildingsOf(ctxOf(s), 1).citadel).toEqual({ corner: 'c1', hex: 'h1' });
+    expect(beerOf(ctxOf(s), 1)).toBe(2);
+  });
+});
 
 describe('Greed, Wealth & Power setup', () => {
   it('adds three tracks, three commodities, a 12-sided die, 18 points and 5 progress cards', () => {

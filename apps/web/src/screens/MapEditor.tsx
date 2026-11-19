@@ -216,8 +216,19 @@ function MapEditorScreen({ editId, onHome }: { editId: string | null; onHome: ()
     }
   };
 
+  /** Each palette button is one tool, so the tool names it in the rows built with map(). */
+  const toolKey = (t: Tool) =>
+    t.kind === 'terrain'
+      ? `terrain:${t.type}`
+      : t.kind === 'number'
+        ? `number:${t.token}`
+        : t.kind === 'harbor'
+          ? `harbor:${t.resource}`
+          : t.kind;
+
   const toolButton = (t: Tool, label: ReactNode, title: string, on: boolean) => (
     <button
+      key={toolKey(t)}
       type="button"
       className={on ? 'on' : ''}
       aria-pressed={on}
