@@ -259,8 +259,11 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   kingdoms: false,
   landWater: false,
   strategist: false,
-  turnTimer: 0,
-  timeBank: 0,
+  // On by default: a game that waits forever on somebody who has closed their
+  // tab is worse than a turn that moves on without them. The bank means a slow
+  // turn is never cut short, and the host can set both to none.
+  turnTimer: 180,
+  timeBank: 300,
   maxPlayers: 4,
   options: DEFAULT_OPTIONS,
 };

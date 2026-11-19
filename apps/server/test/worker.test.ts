@@ -213,7 +213,7 @@ describe('Lobby', () => {
       landWater: false,
       strategist: false,
       turnTimer: 90,
-      timeBank: 0,
+      timeBank: 300,
       maxPlayers: 3,
       options: DEFAULT_OPTIONS,
     });
@@ -498,6 +498,7 @@ describe('Online game', () => {
         map: { kind: 'random', mode: 'classic' },
         vpTarget: 10,
         turnTimer: 60,
+        timeBank: 0,
         maxPlayers: 4,
       },
     });
@@ -511,6 +512,55 @@ describe('Online game', () => {
     expect(a.game!.view.phase.id).toBe('setup');
     [a, b].forEach((c) => c.close());
   });
+
+  it('gives a shorter turn to a player whose time has already run out', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    a.send({
+      type: 'settings',
+      settings: {
+        map: { kind: 'random', mode: 'classic' },
+        vpTarget: 10,
+        turnTimer: 60,
+        timeBank: 0,
+        maxPlayers: 4,
+      },
+    });
+    const b = await join(code, 'B');
+    await startGame([a, b]);
+    expect(a.game!.deadline).toBeGreaterThan(Date.now() + 50_000);
+
+    // Nobody plays, so the seats miss their turns one after another. Once the
+    // seat being waited on has missed before, its turn is a third as long.
+    const stub = env.ROOMS.getByName(code);
+    let short = false;
+    for (let i = 0; i < 6 && !short; i++) {
+      const m = a.mark;
+      expect(await runDurableObjectAlarm(stub)).toBe(true);
+      await a.waitFor((x) => x.type === 'game' && x.game.seq >= i + 1, m, 'timeout move');
+      short = (a.game!.deadline ?? Number.POSITIVE_INFINITY) < Date.now() + 30_000;
+    }
+    expect(short).toBe(true);
+
+    // Playing moves of their own gives the players the full turn back.
+    let full = false;
+    for (let i = 0; i < 8 && !full; i++) {
+      // Both devices must have the latest move before picking who goes next.
+      const seq = Math.max(a.game!.seq, b.game!.seq);
+      await Promise.all(
+        [a, b].map((c) =>
+          c.game!.seq >= seq ? null : c.waitFor((x) => x.type === 'game' && x.game.seq >= seq),
+        ),
+      );
+      const mover = [a, b].find((c) => legalFor(c).length > 0)!;
+      const m = mover.mark;
+      mover.send({ type: 'act', action: legalFor(mover)[0]! });
+      await mover.waitFor((x) => x.type === 'game' && x.game.seq > seq, m, 'the move');
+      full = (a.game!.deadline ?? 0) > Date.now() + 50_000;
+    }
+    expect(full).toBe(true);
+    [a, b].forEach((c) => c.close());
+  }, 20_000);
 
   it('spends the time bank before playing a safe move', async () => {
     const code = await createRoom();

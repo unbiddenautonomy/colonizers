@@ -37,6 +37,8 @@ const BOT_DELAY_MS = 700;
 /** How long Hard bots may think about one move. */
 const BOT_BUDGET_MS = 2500;
 const MAX_BOTS = 7;
+/** The shortest a turn gets for a player whose time has already run out. */
+const SHORT_TURN_SECONDS = 20;
 
 interface Member {
   id: string;
@@ -227,6 +229,7 @@ export class GameRoom extends DurableObject<Env> {
     for (const seat of timedOut) {
       this.systemChat(`Time ran out for ${game.state.players[seat]?.name ?? 'a player'}.`);
     }
+    this.noteMisses(timedOut);
     this.updateTimer(timedOut.size > 0);
   }
 
@@ -443,6 +446,8 @@ export class GameRoom extends DurableObject<Env> {
       }
       throw e;
     }
+    // They are back at the table, so their turns are full length again.
+    this.clearMiss(member.seat);
     this.updateTimer();
   }
 
@@ -493,6 +498,7 @@ export class GameRoom extends DurableObject<Env> {
     this.deleteMeta('config');
     this.deleteMeta('deadline');
     this.deleteMeta('timerKey');
+    this.deleteMeta('missed');
     this.deleteMeta('bank');
     this.deleteMeta('banking');
     this.setMeta('status', 'lobby');
@@ -723,12 +729,44 @@ export class GameRoom extends DurableObject<Env> {
     const key = timerKey(game.state);
     if (!force && key === this.getMeta('timerKey')) return;
     this.stopBank();
-    const deadline = Date.now() + this.settings.turnTimer * 1000;
+    const deadline = Date.now() + this.turnSeconds(game.state) * 1000;
     this.setMeta('timerKey', key);
     this.setMeta('deadline', String(deadline));
     void this.ctx.storage.setAlarm(deadline);
     // Tell everyone about the new deadline.
     this.broadcastGame([]);
+  }
+
+  /**
+   * How long the step being waited on gets. Once somebody's time has run out,
+   * their later turns are shorter, so a room where a player has left plays on
+   * at a reasonable pace instead of pausing for the full turn every round.
+   * Playing a move of their own gives them the full turn back.
+   */
+  private turnSeconds(state: GameState): number {
+    const full = this.settings.turnTimer;
+    const waiting = timedSeats(state);
+    const missed = new Set(this.misses());
+    if (!waiting.length || !waiting.every((seat) => missed.has(seat))) return full;
+    return Math.max(SHORT_TURN_SECONDS, Math.round(full / 3));
+  }
+
+  /** Seats whose time has run out at least once and who have not played since. */
+  private misses(): number[] {
+    return JSON.parse(this.getMeta('missed') ?? '[]') as number[];
+  }
+
+  private noteMisses(seats: Iterable<number>): void {
+    const all = new Set(this.misses());
+    const before = all.size;
+    for (const seat of seats) all.add(seat);
+    if (all.size !== before) this.setMeta('missed', JSON.stringify([...all]));
+  }
+
+  private clearMiss(seat: number): void {
+    const was = this.misses();
+    const left = was.filter((s) => s !== seat);
+    if (left.length !== was.length) this.setMeta('missed', JSON.stringify(left));
   }
 
   // ---- Time bank ----

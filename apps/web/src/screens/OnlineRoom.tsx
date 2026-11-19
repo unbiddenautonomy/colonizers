@@ -667,6 +667,11 @@ function Lobby({
                 </select>
               </label>
             </div>
+            <p className="muted small">
+              {s.turnTimer > 0
+                ? 'A player who runs out of time dips into their bank, and after that a safe move is played for them, so the game never waits forever. Someone who has missed a turn gets shorter turns until they play again.'
+                : 'With no timer, a game waits for a player who has left until you hand their seat to a bot or end the game.'}
+            </p>
           </>
         ) : (
           <ul className="settings-list">
