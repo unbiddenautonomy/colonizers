@@ -15,6 +15,8 @@ import {
   DEFAULT_SETTINGS,
   mapKey,
   parseClientMessage,
+  PING_MESSAGE,
+  PONG_MESSAGE,
   type ChatMessage,
   type ClientMessage,
   type GameSnapshot,
@@ -99,6 +101,8 @@ export class GameRoom extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    // The room answers the heartbeat itself, without waking up for it.
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(PING_MESSAGE, PONG_MESSAGE));
     this.sql = ctx.storage.sql;
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);

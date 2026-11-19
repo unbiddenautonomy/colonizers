@@ -3,7 +3,7 @@ import { env, exports } from 'cloudflare:workers';
 import { runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { stateFromView, type Action } from '@colonizers/engine';
 import type { GameSnapshot, RoomInfo, ServerMessage } from '../src/protocol.ts';
-import { DEFAULT_OPTIONS } from '../src/protocol.ts';
+import { DEFAULT_OPTIONS, PING_MESSAGE } from '../src/protocol.ts';
 import { library } from '../src/rules.ts';
 
 const BASE = 'https://colonizers.test';
@@ -488,6 +488,15 @@ describe('Online game', () => {
     expect(b.room!.members.find((x) => x.id === them.id)?.bot).toBeUndefined();
     [a, b].forEach((c) => c.close());
   }, 20_000);
+
+  it('answers the heartbeat, so a dead connection is noticed', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const m = a.mark;
+    a.send(PING_MESSAGE);
+    await a.waitFor((x) => (x as { type: string }).type === 'pong', m, 'a pong');
+    a.close();
+  });
 
   it('plays a safe move when the turn timer runs out', async () => {
     const code = await createRoom();

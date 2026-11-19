@@ -354,6 +354,13 @@ export type ServerMessage =
   | { type: 'achievements'; unlocked: { seat: number; ids: string[] }[] }
   | { type: 'error'; message: string; code?: 'removed' | 'notFound' | 'rule' | 'denied' };
 
+/**
+ * The heartbeat. The room answers a ping without waking up, so a client can
+ * tell a dead connection from a quiet one and say "Reconnecting" in good time.
+ */
+export const PING_MESSAGE = JSON.stringify({ type: 'ping' });
+export const PONG_MESSAGE = JSON.stringify({ type: 'pong' });
+
 /** Big enough for a room's settings with a large custom map in them. */
 export const MAX_MESSAGE = 24_576;
 export const MAX_CHAT = 300;
