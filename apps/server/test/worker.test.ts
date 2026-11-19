@@ -489,6 +489,56 @@ describe('Online game', () => {
     [a, b].forEach((c) => c.close());
   }, 20_000);
 
+  it('keeps a removed player out of the room, even after a reload', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const b = await join(code, 'B');
+    await a.waitFor((x) => x.type === 'room' && x.room.members.length === 2, 0, 'both here');
+    const them = a.room!.members.find((x) => x.id !== a.you)!;
+
+    const m = a.mark;
+    a.send({ type: 'remove', member: them.id });
+    await b.waitFor((x) => x.type === 'error' && x.code === 'removed', 0, 'removed');
+    await a.waitFor((x) => x.type === 'room' && x.room.members.length === 1, m, 'one member left');
+    b.close();
+
+    // Coming back on the same device is refused, and no member is made.
+    const res = await exports.default.fetch(`${BASE}/api/rooms/${code}/ws`, {
+      headers: { Upgrade: 'websocket' },
+    });
+    const again = new Client(res.webSocket!, b.token);
+    again.send({ type: 'hello', token: b.token, name: 'B' });
+    const said = await again.waitFor((x) => x.type === 'error', 0, 'refused');
+    expect(said).toMatchObject({ code: 'removed' });
+    expect(again.messages.some((x) => x.type === 'welcome')).toBe(false);
+    const m2 = a.mark;
+    a.send({ type: 'chat', text: 'still here?' });
+    await a.waitFor((x) => x.type === 'chat', m2);
+    expect(a.room!.members.length).toBe(1);
+    [a, again].forEach((c) => c.close());
+  });
+
+  it('passes the host role on when the host leaves the lobby', async () => {
+    const code = await createRoom();
+    const a = await join(code, 'A');
+    const b = await join(code, 'B');
+    expect(a.room!.hostId).toBe(a.you);
+
+    // The host's device goes away, and the minute passes.
+    const m = b.mark;
+    a.close();
+    await b.waitFor((x) => x.type === 'room' && !x.room.members[0]?.online, m, 'host offline');
+    expect(await runDurableObjectAlarm(env.ROOMS.getByName(code))).toBe(true);
+    await b.waitFor((x) => x.type === 'room' && x.room.hostId === b.you, m, 'the role passed on');
+    await b.waitFor((x) => x.type === 'chat' && x.message.text.includes('is the host now'), m);
+
+    // And the new host can start the game.
+    const m2 = b.mark;
+    b.send({ type: 'start' });
+    await b.waitFor((x) => x.type === 'welcome' && x.room.status === 'playing', m2, 'the game');
+    b.close();
+  });
+
   it('answers the heartbeat, so a dead connection is noticed', async () => {
     const code = await createRoom();
     const a = await join(code, 'A');

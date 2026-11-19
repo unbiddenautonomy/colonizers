@@ -41,6 +41,8 @@ const BOT_BUDGET_MS = 2500;
 const MAX_BOTS = 7;
 /** The shortest a turn gets for a player whose time has already run out. */
 const SHORT_TURN_SECONDS = 20;
+/** How long a lobby waits for an absent host before passing the role on. */
+const HOST_GONE_MS = 60_000;
 
 interface Member {
   id: string;
@@ -115,6 +117,8 @@ export class GameRoom extends DurableObject<Env> {
         joined INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS actions (seq INTEGER PRIMARY KEY, json TEXT NOT NULL);
+      -- Players the host has removed. They stay out of this room.
+      CREATE TABLE IF NOT EXISTS banned (token TEXT PRIMARY KEY, user_id TEXT);
       CREATE TABLE IF NOT EXISTS chat (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         member TEXT,
@@ -210,10 +214,17 @@ export class GameRoom extends DurableObject<Env> {
     } catch {
       // Already closed.
     }
-    if (this.memberOf(ws)) this.broadcastRoom(ws);
+    const member = this.memberOf(ws);
+    if (member) this.broadcastRoom(ws);
+    // A lobby whose host has gone cannot be started by anybody, so the role
+    // moves on after a minute unless they come back.
+    if (member && this.status === 'lobby' && this.getMeta('host') === member.id) {
+      void this.ctx.storage.setAlarm(Date.now() + HOST_GONE_MS);
+    }
   }
 
   override async alarm(): Promise<void> {
+    if (this.status === 'lobby') return this.passHostOn();
     if (this.status !== 'playing') return;
     this.scheduleBots();
     const game = this.load();
@@ -241,6 +252,16 @@ export class GameRoom extends DurableObject<Env> {
 
   private hello(ws: WebSocket, token: string, name: string): void {
     const userId = (ws.deserializeAttachment() as Attachment | null)?.userId ?? null;
+    // Someone the host removed does not get back in by reloading.
+    if (this.banned(token, userId)) {
+      this.send(ws, {
+        type: 'error',
+        message: 'The host removed you from this room',
+        code: 'removed',
+      });
+      ws.serializeAttachment(null);
+      return ws.close(4001, 'removed');
+    }
     const all = [...this.members.values()];
     // A signed-in player gets their seat on any device; otherwise the device token decides.
     let member =
@@ -314,7 +335,7 @@ export class GameRoom extends DurableObject<Env> {
         if (this.status !== 'lobby') return deny('Players can only be removed in the lobby');
         const target = this.members.get(msg.member);
         if (!target || target.id === member.id) return;
-        return this.removeMember(target, 'The host removed you from this room');
+        return this.removeMember(target, 'The host removed you from this room', true);
       }
       case 'addBot': {
         if (!isHost) return deny('Only the host can add bots');
@@ -639,19 +660,70 @@ export class GameRoom extends DurableObject<Env> {
     this.sql.exec('UPDATE members SET name = ? WHERE id = ?', name, member.id);
   }
 
-  private removeMember(member: Member, reason: string): void {
+  /** The members with a socket open right now. */
+  private onlineIds(): Set<string> {
+    const online = new Set<string>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const m = this.memberOf(ws);
+      if (m) online.add(m.id);
+    }
+    return online;
+  }
+
+  /**
+   * Hands the host role to whoever has been here longest, when the host has
+   * been away for a minute. Without this a lobby is stuck: only the host can
+   * start the game or change the settings.
+   */
+  private passHostOn(): void {
+    const hostId = this.getMeta('host');
+    if (this.status !== 'lobby' || !hostId) return;
+    const online = this.onlineIds();
+    if (online.has(hostId)) return;
+    const next = [...this.members.values()]
+      .filter((m) => !m.bot && m.id !== hostId && online.has(m.id))
+      .sort((a, b) => a.joined - b.joined)[0];
+    if (!next) return;
+    this.setMeta('host', next.id);
+    const was = this.members.get(hostId)?.name ?? 'The host';
+    this.systemChat(`${was} went away, so ${next.name} is the host now.`);
+    this.broadcastRoom();
+  }
+
+  /** Whether this device or account has been removed from the room. */
+  private banned(token: string, userId: string | null): boolean {
+    const rows = [
+      ...this.sql.exec<{ n: number }>(
+        'SELECT COUNT(*) AS n FROM banned WHERE token = ? OR (user_id IS NOT NULL AND user_id = ?)',
+        token,
+        userId,
+      ),
+    ];
+    return (rows[0]?.n ?? 0) > 0;
+  }
+
+  private removeMember(member: Member, reason: string, ban = false): void {
     this.members.delete(member.id);
     this.sql.exec('DELETE FROM members WHERE id = ?', member.id);
+    // A bot has no device to come back on, so there is nothing to keep out.
+    if (ban && !member.bot)
+      this.sql.exec(
+        'INSERT OR REPLACE INTO banned (token, user_id) VALUES (?, ?)',
+        member.token,
+        member.userId,
+      );
     if (this.getMeta('host') === member.id) {
       const next = [...this.members.values()].find((m) => !m.bot);
       if (next) this.setMeta('host', next.id);
       else this.deleteMeta('host');
     }
-    // A spectator moves up into a free seat.
+    // A spectator moves up into a free seat, and is told so: a watcher who
+    // suddenly has a seat should not have to work out why.
     const waiting = [...this.members.values()].find((m) => m.role === 'spectator');
     if (waiting && this.status === 'lobby' && this.players().length < this.settings.maxPlayers) {
       waiting.role = 'player';
       this.sql.exec("UPDATE members SET role = 'player' WHERE id = ?", waiting.id);
+      this.systemChat(`${waiting.name} takes the free seat.`);
     }
     for (const ws of this.ctx.getWebSockets()) {
       if ((ws.deserializeAttachment() as Attachment | null)?.memberId !== member.id) continue;
