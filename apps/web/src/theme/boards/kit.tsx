@@ -64,8 +64,12 @@ function paintedHex(id: string, href: string, under: string): ReactNode {
 /** One repeat of a painted sea, in board units: a little wider than a hex. */
 const SEA_REPEAT = 160;
 
-/** Sizes of painted pieces, as a share of the hex size. */
-const PIECE = { settlement: 0.54, city: 0.72, robber: 1 };
+/**
+ * Sizes of painted pieces, as a share of the hex size. A crew's settlement and city are often
+ * the same kind of thing twice — two of its ships, say — so the gap between them has to carry
+ * the difference on its own: at a glance across a board, size is what tells them apart.
+ */
+const PIECE = { settlement: 0.5, city: 0.84, robber: 1 };
 /** Where a painted robber stands: down the hex, and back from the board's own offset, which
  *  was set for a piece a third of this one's size and puts a whole figure on the hex's edge. */
 const ROBBER_FOOT = 0.4;
