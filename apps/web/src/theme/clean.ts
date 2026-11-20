@@ -60,6 +60,11 @@ export interface Theme {
   pieces?: ThemePieces;
   /** The font for number tokens and harbor ratios. */
   tokenFont?: string;
+  /**
+   * True when the hexes are paintings rather than flat colour or line work. What is laid over a
+   * hex has to be lighter on these, or it covers the picture instead of shading it.
+   */
+  painted?: boolean;
 }
 
 export interface ThemePieces {

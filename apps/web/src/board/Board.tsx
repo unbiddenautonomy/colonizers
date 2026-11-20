@@ -41,6 +41,12 @@ import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
 
 const S = 60;
+/**
+ * How dark the robber's hex goes. A painted hex needs a far lighter wash: the same shade that
+ * reads as "nothing is produced here" over flat colour simply blots out a picture.
+ */
+const ROBBER_DIM = (theme: Theme): number => (theme.painted === true ? 0.2 : 0.42);
+
 /** The number disc, as a share of the hex size. */
 const TOKEN_R = 0.35;
 /** The pips' arc under the number: how far out they sit, and how far apart. */
@@ -569,7 +575,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 points={hexPoints(h.q, h.r)}
                 className="robber-dim"
                 fill="#14110f"
-                opacity={robbed ? 0.2 : 0}
+                opacity={robbed ? ROBBER_DIM(theme) : 0}
                 pointerEvents="none"
                 aria-hidden={robbed ? undefined : true}
               >

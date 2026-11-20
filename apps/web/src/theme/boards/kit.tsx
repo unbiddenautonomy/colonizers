@@ -218,6 +218,7 @@ export function skin(spec: SkinSpec): Theme {
       ore: spec.terrain.mountains,
     },
     ui: { '--sea': spec.sea },
+    painted,
     ...spec.rest,
     ...(painted ? { pieces: paintedPieces(paint, spec.rest.pieces) } : {}),
   };
