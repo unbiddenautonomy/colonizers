@@ -190,7 +190,10 @@ export function skin(spec: SkinSpec): Theme {
             <circle cx={0.5} cy={0.5} r={0.5} />
           </clipPath>
         )}
-        {!painted && spec.defs}
+        {/* Always: a skin's own gradients are what its drawn pieces are painted with, and a
+            drawing survives any painting but its own, so dropping these would leave a piece
+            pointing at a gradient that is not there. */}
+        {spec.defs}
       </>
     ),
     patterned: [...Object.keys(TILE_PALETTE), ...BASE, 'sea'],
