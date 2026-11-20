@@ -4473,6 +4473,19 @@ body:has(.setup-page) {
   border-radius: 12px;
   box-shadow: var(--shell-shadow);
 }
+:root[data-look='strawhat'] .look-art.look-art-painting,
+:root[data-look='heart'] .look-art.look-art-painting {
+  /* The crew's ship alone, cut out, sailing on the page's own waters. */
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+:root[data-look='strawhat'] .look-art-painting img,
+:root[data-look='heart'] .look-art-painting img {
+  object-fit: contain;
+  filter: drop-shadow(0 10px 14px rgba(10, 40, 80, 0.3));
+}
 .look-art-painting img {
   display: block;
   width: 100%;
@@ -4502,13 +4515,21 @@ body:has(.setup-page) {
 html[data-backdrop]:has(.setup-page) {
   background-image:
     linear-gradient(
-      color-mix(in srgb, var(--shell-bg) 84%, transparent),
-      color-mix(in srgb, var(--shell-bg) 84%, transparent)
+      color-mix(in srgb, var(--shell-bg) var(--backdrop-wash, 84%), transparent),
+      color-mix(in srgb, var(--shell-bg) var(--backdrop-wash, 84%), transparent)
     ),
     var(--shell-backdrop);
   background-size: cover;
   background-position: center top;
   background-attachment: fixed;
+}
+/* The Grand Line crews: their own waters are the page, so they show through far more. */
+html[data-look='strawhat'] {
+  --backdrop-wash: 42%;
+}
+/* A dark page needs more of its own colour over the picture for the text on it to read. */
+html[data-look='heart'] {
+  --backdrop-wash: 64%;
 }
 html[data-backdrop] body:has(.setup-page) {
   background: transparent;

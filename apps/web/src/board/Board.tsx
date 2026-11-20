@@ -569,7 +569,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 points={hexPoints(h.q, h.r)}
                 className="robber-dim"
                 fill="#14110f"
-                opacity={robbed ? 0.42 : 0}
+                opacity={robbed ? 0.2 : 0}
                 pointerEvents="none"
                 aria-hidden={robbed ? undefined : true}
               >
