@@ -3,6 +3,7 @@ import type { Theme, ThemePieces } from '../clean.ts';
 import { resourceIcon } from './icons.tsx';
 import { DECO_ICONS } from './iconSets.ts';
 import { artFor } from './art.ts';
+import { crestRest, crestToken } from './crest.tsx';
 import { BASE, H, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
@@ -184,29 +185,7 @@ function pieces(k: Ink): ThemePieces {
         </g>
       );
     },
-    // A family crest: paper disc, ink ring, and a thin ring inside it.
-    token: ({ x, y, r }) => (
-      <>
-        <circle
-          className="token-face"
-          cx={x}
-          cy={y}
-          r={r}
-          fill={k.paper}
-          stroke={k.ink}
-          strokeWidth={2.2}
-        />
-        <circle
-          cx={x}
-          cy={y}
-          r={r * 0.84}
-          fill="none"
-          stroke={k.vermilion}
-          strokeOpacity={0.7}
-          strokeWidth={1}
-        />
-      </>
-    ),
+    token: crestToken,
   };
 }
 
@@ -223,9 +202,7 @@ function beastsSkin(id: string, name: string, k: Ink): Theme {
     seaPattern: sea(k),
     paintings: artFor('wano'),
     rest: {
-      token: k.paper,
-      tokenText: k.ink,
-      tokenHot: k.vermilion,
+      ...crestRest,
       outline: k.ink,
       robber: k.vermilion,
       landStroke: k.ink,
@@ -234,7 +211,6 @@ function beastsSkin(id: string, name: string, k: Ink): Theme {
       harborFace: k.paper,
       harborText: k.ink,
       pieceEffect: 'lift',
-      tokenFont: "'Shippori Mincho B1', 'Noto Serif JP', Georgia, serif",
       pieces: pieces(k),
       boardBackground: k.sea,
     },

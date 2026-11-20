@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Theme, ThemePieces } from '../clean.ts';
 import { ICONS, resourceIcon } from './icons.tsx';
 import { artFor } from './art.ts';
+import { crestRest, crestToken } from './crest.tsx';
 import { BASE, CX, CY, H, poly, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
@@ -197,30 +198,7 @@ function pieces(k: Ink): ThemePieces {
         </g>
       );
     },
-    // The Marines' colours: a blue rim, a gold rope ring, and white for the number.
-    token: ({ x, y, r }) => (
-      <>
-        <circle
-          className="token-face"
-          cx={x}
-          cy={y}
-          r={r}
-          fill={k.blue}
-          stroke={k.ink}
-          strokeWidth={1.6}
-        />
-        <circle
-          cx={x}
-          cy={y}
-          r={r * 0.87}
-          fill="none"
-          stroke={k.gold}
-          strokeWidth={1.6}
-          strokeDasharray="2 1.4"
-        />
-        <circle cx={x} cy={y} r={r * 0.76} fill={k.white} stroke={k.ink} strokeWidth={0.8} />
-      </>
-    ),
+    token: crestToken,
   };
 }
 
@@ -237,9 +215,7 @@ function navySkin(id: string, name: string, k: Ink): Theme {
     seaPattern: sea(k),
     paintings: artFor('navy'),
     rest: {
-      token: k.white,
-      tokenText: k.ink,
-      tokenHot: '#c0262d',
+      ...crestRest,
       outline: k.ink,
       robber: k.pirate,
       landStroke: k.ink,
@@ -248,7 +224,6 @@ function navySkin(id: string, name: string, k: Ink): Theme {
       harborFace: k.white,
       harborText: k.ink,
       pieceEffect: 'lift',
-      tokenFont: "'Oswald', system-ui, sans-serif",
       pieces: pieces(k),
       boardBackground: k.sea,
     },

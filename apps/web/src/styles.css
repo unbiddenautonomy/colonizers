@@ -4541,6 +4541,10 @@ html[data-look='bigmom'],
 html[data-look='navy'] {
   --backdrop-wash: 42%;
 }
+:root[data-look='bigmom'] .look-art-painting img {
+  /* Sail to the right, clear of the cake island behind. */
+  translate: 22% 0;
+}
 html[data-look='wano'] {
   --backdrop-wash: 50%;
 }

@@ -3,6 +3,7 @@ import type { Theme, ThemePieces } from '../clean.ts';
 import { resourceIcon } from './icons.tsx';
 import { WONDER_ICONS } from './iconSets.ts';
 import { artFor } from './art.ts';
+import { crestRest, crestToken } from './crest.tsx';
 import { BASE, CX, H, r1, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
@@ -270,31 +271,7 @@ function pieces(k: Ink): ThemePieces {
         </g>
       );
     },
-    // A macaron from above: a frilled pink shell, cream in the middle for the number.
-    token: ({ x, y, r }) => {
-      const n = 14;
-      const r0 = r * 0.9;
-      const pts = Array.from({ length: n }, (_, i) => {
-        const a = (2 * Math.PI * i) / n;
-        return [x + r0 * Math.cos(a), y + r0 * Math.sin(a)] as const;
-      });
-      const bump = r1(r0 * Math.sin(Math.PI / n) * 1.15);
-      const d =
-        `M${r1(pts[0]![0])},${r1(pts[0]![1])} ` +
-        pts
-          .map((_, i) => {
-            const [px, py] = pts[(i + 1) % n]!;
-            return `A${bump},${bump} 0 0 1 ${r1(px)},${r1(py)}`;
-          })
-          .join(' ') +
-        ' Z';
-      return (
-        <>
-          <path className="token-face" d={d} fill={k.shell} stroke={k.ink} strokeWidth={1.5} />
-          <circle cx={x} cy={y} r={r * 0.74} fill={k.icing} stroke={k.ink} strokeWidth={1} />
-        </>
-      );
-    },
+    token: crestToken,
   };
 }
 
@@ -311,9 +288,7 @@ function bigMomSkin(id: string, name: string, k: Ink): Theme {
     seaPattern: sea(k),
     paintings: artFor('bigmom'),
     rest: {
-      token: k.icing,
-      tokenText: k.ink,
-      tokenHot: '#b0174f',
+      ...crestRest,
       outline: k.ink,
       robber: k.silver,
       landStroke: k.ink,
@@ -322,7 +297,6 @@ function bigMomSkin(id: string, name: string, k: Ink): Theme {
       harborFace: k.icing,
       harborText: k.ink,
       pieceEffect: 'lift',
-      tokenFont: "'Chewy', 'Fredoka', system-ui, sans-serif",
       pieces: pieces(k),
       boardBackground: k.sea,
     },
