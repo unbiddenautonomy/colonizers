@@ -64,6 +64,14 @@ function paintedHex(id: string, href: string, under: string): ReactNode {
 /** One repeat of a painted sea, in board units: a little wider than a hex. */
 const SEA_REPEAT = 160;
 
+/** A #rrggbb colour mixed toward black (to = 0) or white (to = 1) by the share `by`. */
+function shade(hex: string, to: 0 | 1, by: number): string {
+  const n = parseInt(hex.slice(1, 7), 16);
+  const mix = (c: number) => Math.round(c + (to * 255 - c) * by);
+  const [r, g, b] = [mix((n >> 16) & 255), mix((n >> 8) & 255), mix(n & 255)];
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
 /**
  * Sizes of painted pieces, as a share of the hex size. A crew's settlement and city are often
  * the same kind of thing twice — two of its ships, say — so the gap between them has to carry
@@ -101,7 +109,25 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined): ThemePieces {
             </feComponentTransfer>
             <feFlood floodColor={o.color} />
             <feBlend in2="lit" mode="multiply" />
-            <feComposite in2="SourceAlpha" operator="in" />
+            <feComposite in2="SourceAlpha" operator="in" result="piece" />
+            {/* A thin rim in the player's own colour, a deep shade inside a pale one, so the
+                piece stands off any hex, light or dark. */}
+            {/* Only the solid body: a faint fringe left from the painting's backdrop must not
+                grow into a box around the piece. */}
+            <feComponentTransfer in="SourceAlpha" result="body">
+              <feFuncA type="linear" slope={4} intercept={-2.4} />
+            </feComponentTransfer>
+            <feMorphology in="body" operator="dilate" radius={0.016 * o.s} result="inner" />
+            <feMorphology in="body" operator="dilate" radius={0.03 * o.s} result="outer" />
+            <feFlood floodColor={shade(o.color, 0, 0.6)} />
+            <feComposite in2="inner" operator="in" result="deep" />
+            <feFlood floodColor={shade(o.color, 1, 0.72)} />
+            <feComposite in2="outer" operator="in" result="pale" />
+            <feMerge>
+              <feMergeNode in="pale" />
+              <feMergeNode in="deep" />
+              <feMergeNode in="piece" />
+            </feMerge>
           </filter>
           <image
             href={href}
