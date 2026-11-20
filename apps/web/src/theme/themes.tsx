@@ -17,8 +17,9 @@ import { navyBoard } from './boards/navy.tsx';
 import { woodTheme } from './pictures.tsx';
 import { tilesTheme } from './tiles.tsx';
 import { prefPicked } from './prefs.ts';
+import { playerColorsFor } from './playerColors.ts';
 
-export const THEMES: Theme[] = [
+const BOARDS: Theme[] = [
   tilesTheme,
   woodTheme,
   cleanTheme,
@@ -45,8 +46,16 @@ export const THEMES: Theme[] = [
   navyBoard,
 ];
 
+/** Every board, each with player colours chosen for it (see playerColors.ts). */
+export const THEMES: Theme[] = BOARDS.map((t) => {
+  const colors = playerColorsFor(t.id);
+  return colors
+    ? { ...t, players: t.players.map((p, i) => ({ ...p, color: colors[i] ?? p.color })) }
+    : t;
+});
+
 /** What a new device shows. */
-export const DEFAULT_THEME = tilesTheme;
+export const DEFAULT_THEME = THEMES[0]!;
 
 export function themeById(id: string | null | undefined): Theme {
   return THEMES.find((t) => t.id === id) ?? DEFAULT_THEME;

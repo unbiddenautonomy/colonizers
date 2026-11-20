@@ -92,8 +92,15 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined): ThemePieces {
       return (
         <g>
           <filter id={id} colorInterpolationFilters="sRGB">
+            {/* Lift the greys first, so the shading keeps the colour bright instead of muddying it;
+                black lines stay black. */}
+            <feComponentTransfer in="SourceGraphic" result="lit">
+              <feFuncR type="gamma" exponent={0.55} />
+              <feFuncG type="gamma" exponent={0.55} />
+              <feFuncB type="gamma" exponent={0.55} />
+            </feComponentTransfer>
             <feFlood floodColor={o.color} />
-            <feBlend in2="SourceGraphic" mode="multiply" />
+            <feBlend in2="lit" mode="multiply" />
             <feComposite in2="SourceAlpha" operator="in" />
           </filter>
           <image
