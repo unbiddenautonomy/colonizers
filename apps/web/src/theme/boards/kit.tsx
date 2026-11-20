@@ -65,7 +65,11 @@ function paintedHex(id: string, href: string, under: string): ReactNode {
 const SEA_REPEAT = 160;
 
 /** Sizes of painted pieces, as a share of the hex size. */
-const PIECE = { settlement: 0.54, city: 0.72, robber: 0.72 };
+const PIECE = { settlement: 0.54, city: 0.72, robber: 1 };
+/** Where a painted robber stands: down the hex, and back from the board's own offset, which
+ *  was set for a piece a third of this one's size and puts a whole figure on the hex's edge. */
+const ROBBER_FOOT = 0.4;
+const ROBBER_BACK = 0.09;
 
 /**
  * Painted pieces where there are paintings, drawn ones elsewhere. Settlements and cities are
@@ -103,15 +107,20 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined): ThemePieces {
   }
   if (p.robber) {
     const href = p.robber;
+    // A painted robber is usually a whole character rather than a token, so it is drawn about
+    // half the height of a hex and stands well down it. At the old token's size it read as a
+    // sticker dropped in the corner, next to a number disc nearly as big as it was.
     out.robber = ({ x, y, s }) => {
       const size = PIECE.robber * s;
+      const foot = y + ROBBER_FOOT * s;
+      const cx = x - ROBBER_BACK * s;
       return (
         <g>
-          <ellipse cx={x} cy={y + 0.18 * s} rx={0.2 * s} ry={0.05 * s} fill="#000" opacity={0.35} />
+          <ellipse cx={cx} cy={foot} rx={0.22 * s} ry={0.055 * s} fill="#000" opacity={0.35} />
           <image
             href={href}
-            x={x - size / 2}
-            y={y + 0.2 * s - size}
+            x={cx - size / 2}
+            y={foot - size}
             width={size}
             height={size}
             preserveAspectRatio="xMidYMax meet"
