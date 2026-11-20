@@ -4474,7 +4474,10 @@ body:has(.setup-page) {
   box-shadow: var(--shell-shadow);
 }
 :root[data-look='strawhat'] .look-art.look-art-painting,
-:root[data-look='heart'] .look-art.look-art-painting {
+:root[data-look='heart'] .look-art.look-art-painting,
+:root[data-look='bigmom'] .look-art.look-art-painting,
+:root[data-look='wano'] .look-art.look-art-painting,
+:root[data-look='navy'] .look-art.look-art-painting {
   /* The crew's ship alone, cut out, sailing on the page's own waters. */
   border: none;
   border-radius: 0;
@@ -4482,7 +4485,10 @@ body:has(.setup-page) {
   overflow: visible;
 }
 :root[data-look='strawhat'] .look-art-painting img,
-:root[data-look='heart'] .look-art-painting img {
+:root[data-look='heart'] .look-art-painting img,
+:root[data-look='bigmom'] .look-art-painting img,
+:root[data-look='wano'] .look-art-painting img,
+:root[data-look='navy'] .look-art-painting img {
   object-fit: contain;
   filter: drop-shadow(0 10px 14px rgba(10, 40, 80, 0.3));
 }
@@ -4530,6 +4536,13 @@ html[data-look='strawhat'] {
 /* A dark page needs more of its own colour over the picture for the text on it to read. */
 html[data-look='heart'] {
   --backdrop-wash: 64%;
+}
+html[data-look='bigmom'],
+html[data-look='navy'] {
+  --backdrop-wash: 42%;
+}
+html[data-look='wano'] {
+  --backdrop-wash: 50%;
 }
 html[data-backdrop] body:has(.setup-page) {
   background: transparent;
