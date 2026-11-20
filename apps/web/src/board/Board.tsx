@@ -41,6 +41,12 @@ import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
 
 const S = 60;
+/** The number disc, as a share of the hex size. */
+const TOKEN_R = 0.35;
+/** The pips' arc under the number: how far out they sit, and how far apart. */
+const PIP_ARC = 0.175;
+const PIP_STEP = (24 * Math.PI) / 180;
+
 const PIPS: Record<number, number> = {
   2: 1,
   3: 2,
@@ -595,14 +601,14 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   theme.pieces.token({
                     x: c.x,
                     y: c.y,
-                    r: S * 0.33,
+                    r: S * TOKEN_R,
                     hot: h.token === 6 || h.token === 8,
                   })
                 ) : (
                   <circle
                     cx={c.x}
                     cy={c.y}
-                    r={S * 0.33}
+                    r={S * TOKEN_R}
                     fill={theme.token}
                     stroke={theme.outline}
                     strokeWidth={1.5}
@@ -619,17 +625,22 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 >
                   {h.token}
                 </text>
-                {/* The pips sit tight under the number. A five-pip row set wider or lower than
-                    this runs off the face of a themed disc and over its rim. */}
-                {Array.from({ length: PIPS[h.token] ?? 0 }, (_, i) => (
-                  <circle
-                    key={i}
-                    cx={c.x + (i - ((PIPS[h.token as number] ?? 0) - 1) / 2) * S * 0.073}
-                    cy={c.y + S * 0.165}
-                    r={S * 0.024}
-                    fill={h.token === 6 || h.token === 8 ? theme.tokenHot : theme.tokenText}
-                  />
-                ))}
+                {/* The pips curve under the number rather than lying in a line: the ends rise
+                    into the open space either side of it, which keeps even a row of five well
+                    inside the face of a themed disc instead of running onto its rim. */}
+                {Array.from({ length: PIPS[h.token] ?? 0 }, (_, i) => {
+                  const n = PIPS[h.token as number] ?? 0;
+                  const a = Math.PI / 2 + (i - (n - 1) / 2) * PIP_STEP;
+                  return (
+                    <circle
+                      key={i}
+                      cx={c.x + Math.cos(a) * S * PIP_ARC}
+                      cy={c.y + Math.sin(a) * S * PIP_ARC}
+                      r={S * 0.025}
+                      fill={h.token === 6 || h.token === 8 ? theme.tokenHot : theme.tokenText}
+                    />
+                  );
+                })}
               </g>
             )}
           </g>
