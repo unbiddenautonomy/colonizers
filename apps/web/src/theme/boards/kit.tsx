@@ -3,21 +3,15 @@ import { cleanTheme, type Theme, type ThemePieces } from '../clean.ts';
 import { drawnPatterns } from '../motifs.tsx';
 import { PALETTE as TILE_PALETTE } from '../tiles.tsx';
 import type { ArtSet } from './art.ts';
+import { BASE, H, W, type BaseType } from './hex.ts';
+
+export { BASE, CX, CY, H, poly, r1, W, type BaseType } from './hex.ts';
 
 /**
  * Shared pieces for the hand-drawn board skins. Each skin draws its own picture for the six base
  * hexes and the sea; rarer hex types (gold, volcano, lakes and so on) use the Tiles drawings so
  * every map still works.
  */
-
-/** A hex's box at the board's hex size (60): 60·√3 wide, 120 tall, pointy top. */
-export const W = 103.92;
-export const H = 120;
-export const CX = W / 2;
-export const CY = H / 2;
-
-export const BASE = ['forest', 'hills', 'pasture', 'fields', 'mountains', 'desert'] as const;
-export type BaseType = (typeof BASE)[number];
 
 /** A picture that fills one hex. */
 export function hexPattern(id: string, body: ReactNode): ReactNode {
@@ -39,17 +33,6 @@ export function seaTile(w: number, h: number, body: ReactNode): ReactNode {
 
 export const fill = (c: string) => <rect width={W} height={H} fill={c} />;
 
-/** Rounds to one decimal for shorter paths. */
-export const r1 = (n: number) => Math.round(n * 10) / 10;
-
-/** A regular polygon's points. */
-export function poly(cx: number, cy: number, r: number, n: number, rot = -90): string {
-  return Array.from({ length: n }, (_, i) => {
-    const a = ((rot + (360 / n) * i) * Math.PI) / 180;
-    return `${r1(cx + r * Math.cos(a))},${r1(cy + r * Math.sin(a))}`;
-  }).join(' ');
-}
-
 export interface SkinSpec {
   id: string;
   name: string;
@@ -64,6 +47,8 @@ export interface SkinSpec {
   rest: Partial<Theme>;
   /** Painted artwork that replaces the drawings above, piece by piece (see art.ts). */
   paintings?: ArtSet;
+  /** Gradients and the like the skin's pieces refer to, defined once for the whole board. */
+  defs?: ReactNode;
 }
 
 /** A painting that fills one hex, cropped to cover it, over the flat colour while it loads. */
@@ -79,15 +64,23 @@ function paintedHex(id: string, href: string, under: string): ReactNode {
 /** One repeat of a painted sea, in board units: a little wider than a hex. */
 const SEA_REPEAT = 160;
 
-/** Sizes of painted pieces, as a share of the hex size. */
-const PIECE = { settlement: 0.54, city: 0.72, robber: 0.72 };
+/**
+ * Sizes of painted pieces, as a share of the hex size. A crew's settlement and city are often
+ * the same kind of thing twice — two of its ships, say — so the gap between them has to carry
+ * the difference on its own: at a glance across a board, size is what tells them apart.
+ */
+const PIECE = { settlement: 0.5, city: 0.84, robber: 1 };
+/** Where a painted robber stands: down the hex, and back from the board's own offset, which
+ *  was set for a piece a third of this one's size and puts a whole figure on the hex's edge. */
+const ROBBER_FOOT = 0.4;
+const ROBBER_BACK = 0.09;
 
 /**
  * Painted pieces where there are paintings, drawn ones elsewhere. Settlements and cities are
  * painted in white and grey and multiplied by the player's colour, so whites take the colour,
  * greys shade it and black lines stay black.
  */
-function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined): ThemePieces {
+function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): ThemePieces {
   const out: ThemePieces = { ...drawn };
   if (p.settlement || p.city) {
     const draw = drawn?.house;
@@ -99,9 +92,29 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined): ThemePieces {
       return (
         <g>
           <filter id={id} colorInterpolationFilters="sRGB">
+            {/* Lift the greys first, so the shading keeps the colour bright instead of muddying it;
+                black lines stay black. */}
+            <feComponentTransfer in="SourceGraphic" result="lit">
+              <feFuncR type="gamma" exponent={0.55} />
+              <feFuncG type="gamma" exponent={0.55} />
+              <feFuncB type="gamma" exponent={0.55} />
+            </feComponentTransfer>
             <feFlood floodColor={o.color} />
-            <feBlend in2="SourceGraphic" mode="multiply" />
-            <feComposite in2="SourceAlpha" operator="in" />
+            <feBlend in2="lit" mode="multiply" />
+            <feComposite in2="SourceAlpha" operator="in" result="piece" />
+            {/* A thin rim in the board's own ink, the same for every player, so the piece
+                stands off any hex. Only the solid body grows it: a faint fringe left from the
+                painting's backdrop must not swell into a box around the piece. */}
+            <feComponentTransfer in="SourceAlpha" result="body">
+              <feFuncA type="linear" slope={4} intercept={-2.4} />
+            </feComponentTransfer>
+            <feMorphology in="body" operator="dilate" radius={0.022 * o.s} result="grown" />
+            <feFlood floodColor={rim} />
+            <feComposite in2="grown" operator="in" result="rim" />
+            <feMerge>
+              <feMergeNode in="rim" />
+              <feMergeNode in="piece" />
+            </feMerge>
           </filter>
           <image
             href={href}
@@ -118,15 +131,20 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined): ThemePieces {
   }
   if (p.robber) {
     const href = p.robber;
+    // A painted robber is usually a whole character rather than a token, so it is drawn about
+    // half the height of a hex and stands well down it. At the old token's size it read as a
+    // sticker dropped in the corner, next to a number disc nearly as big as it was.
     out.robber = ({ x, y, s }) => {
       const size = PIECE.robber * s;
+      const foot = y + ROBBER_FOOT * s;
+      const cx = x - ROBBER_BACK * s;
       return (
         <g>
-          <ellipse cx={x} cy={y + 0.18 * s} rx={0.2 * s} ry={0.05 * s} fill="#000" opacity={0.35} />
+          <ellipse cx={cx} cy={foot} rx={0.22 * s} ry={0.055 * s} fill="#000" opacity={0.35} />
           <image
             href={href}
-            x={x - size / 2}
-            y={y + 0.2 * s - size}
+            x={cx - size / 2}
+            y={foot - size}
             width={size}
             height={size}
             preserveAspectRatio="xMidYMax meet"
@@ -205,6 +223,10 @@ export function skin(spec: SkinSpec): Theme {
             <circle cx={0.5} cy={0.5} r={0.5} />
           </clipPath>
         )}
+        {/* Always: a skin's own gradients are what its drawn pieces are painted with, and a
+            drawing survives any painting but its own, so dropping these would leave a piece
+            pointing at a gradient that is not there. */}
+        {spec.defs}
       </>
     ),
     patterned: [...Object.keys(TILE_PALETTE), ...BASE, 'sea'],
@@ -216,7 +238,10 @@ export function skin(spec: SkinSpec): Theme {
       ore: spec.terrain.mountains,
     },
     ui: { '--sea': spec.sea },
+    painted,
     ...spec.rest,
-    ...(painted ? { pieces: paintedPieces(paint, spec.rest.pieces) } : {}),
+    ...(painted
+      ? { pieces: paintedPieces(paint, spec.rest.pieces, spec.rest.outline ?? cleanTheme.outline) }
+      : {}),
   };
 }

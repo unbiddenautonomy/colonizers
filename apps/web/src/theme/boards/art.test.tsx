@@ -26,6 +26,7 @@ function painted(paintings: ReturnType<typeof artFor>) {
     art: Object.fromEntries(BASE.map((t) => [t, fill('#888888')])) as never,
     seaPattern: null,
     rest: { pieces: { house: drawnHouse } },
+    defs: <linearGradient id="t-grad" />,
     paintings,
   });
 }
@@ -39,6 +40,15 @@ describe('painted artwork', () => {
       robber: '/a/robber.jpg',
     });
     expect(artFor('wano', files)).toEqual({});
+  });
+
+  it("keeps the skin's own gradients, which its drawings are painted with", () => {
+    // A painted land does not replace the drawn number disc, and that disc is filled from
+    // these: without them it would come out hollow on any crew that has artwork.
+    for (const folder of ['navy', 'wano']) {
+      const theme = painted(artFor(folder, files));
+      expect(renderToStaticMarkup(<svg>{theme.patterns?.()}</svg>)).toContain('id="t-grad"');
+    }
   });
 
   it('uses a painting where there is one and the drawing everywhere else', () => {
