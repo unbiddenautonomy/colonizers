@@ -1403,6 +1403,20 @@ form.inline {
   .hand-cards {
     justify-content: space-between;
   }
+
+  /* Someone else's turn: the sheet folds to its handle, which shows the hand
+     as one line of counts, and the board takes the room. */
+  .controls.folded {
+    padding: 4px 10px 6px;
+  }
+
+  .controls.folded > :not(.sheet-handle) {
+    display: none;
+  }
+
+  .controls.folded .sheet-handle {
+    align-self: stretch;
+  }
 }
 
 /* Phone landscape: board on the left, everything else on the right. */
@@ -1469,6 +1483,77 @@ form.inline {
     padding: 8px;
     gap: 8px;
   }
+
+  /* Someone else's turn: the side panel narrows to the players and a column of
+     card counts, and the board takes the width. A tap opens it again. */
+  .game.resting .sheet-handle {
+    display: flex;
+    flex: none;
+    justify-content: center;
+    min-height: 30px;
+    padding: 2px 10px;
+    font-size: 0.8rem;
+    border-radius: 999px;
+  }
+
+  .game.folded {
+    grid-template-columns: minmax(0, 1fr) 144px;
+  }
+
+  .game.folded .players {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    mask-image: none;
+  }
+
+  .game.folded .player {
+    min-width: 0;
+    padding: 3px 6px;
+  }
+
+  .game.folded .player-stats > :not(:first-child),
+  .game.folded .players .tda-status {
+    display: none;
+  }
+
+  .game.folded .controls > :not(.sheet-handle) {
+    display: none;
+  }
+
+  .game.folded .sheet-handle {
+    border-radius: 12px;
+    padding: 6px;
+  }
+
+  .game.folded .hand-mini {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 2px 10px;
+  }
+}
+
+.hand-mini {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 12px;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hand-mini > span {
+  white-space: nowrap;
+}
+
+.hand-mini > .none {
+  opacity: 0.45;
+}
+
+.hand-mini-more {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .subhead {
