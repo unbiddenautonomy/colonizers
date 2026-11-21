@@ -31,6 +31,7 @@ import { partnerOf, type EventId } from '@colonizers/module-variants';
 import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { ThemePicker, useTheme } from '../theme/themes.tsx';
+import { RESOURCE_ICON } from '../theme/clean.ts';
 import { DicePicker, DiceTray } from '../ui/Dice.tsx';
 import { ZoomPane } from '../ui/ZoomPane.tsx';
 import { CardFlights } from '../ui/Flights.tsx';
@@ -749,6 +750,24 @@ export function Game({
     null;
   const offer = baseData(ctx).trade;
 
+  // Phones: while nothing on the table needs this player, the hand folds down to
+  // one line of card counts so the board gets the room. It opens again by itself
+  // when their turn comes, an offer goes up, or the rules ask them for a move.
+  const resting =
+    actor !== null &&
+    state.winner === null &&
+    actor !== state.turn.player &&
+    !outOfTurn &&
+    !offer &&
+    !g.error &&
+    legal.every((a) => a.type === 'offerTrade');
+  const [wasResting, setWasResting] = useState(resting);
+  if (wasResting !== resting) {
+    setWasResting(resting);
+    setSheetOpen(false);
+  }
+  const folded = resting && !sheetOpen;
+
   const act = (a: Action) => {
     if (a.type === 'selectShip' || a.type === 'selectKnight') {
       setSelectedShip((a.ship ?? a.knight) as string);
@@ -827,7 +846,7 @@ export function Game({
   };
 
   return (
-    <div className="game">
+    <div className={`game${resting ? ' resting' : ''}${folded ? ' folded' : ''}`}>
       <CardFlights log={g.log} ctx={ctx} viewer={viewer} theme={theme} turnCue={turnCue} />
       <header className="game-head">
         <h1 className="game-title brand">
@@ -1050,14 +1069,36 @@ export function Game({
         )}
       </main>
 
-      <section className={`controls${sheetOpen ? ' open' : ''}`} aria-label="Your turn">
+      <section
+        className={`controls${sheetOpen ? ' open' : ''}${folded ? ' folded' : ''}`}
+        aria-label="Your turn"
+      >
         <button
           type="button"
           className="sheet-handle"
-          aria-expanded={sheetOpen}
+          aria-expanded={sheetOpen || !resting}
           onClick={() => setSheetOpen(!sheetOpen)}
         >
-          {sheetOpen ? '▼ Less' : '▲ Hand, log and more'}
+          {sheetOpen ? (
+            '▼ Less'
+          ) : folded && actor !== null && !hiddenHand ? (
+            <span className="hand-mini">
+              {[...cardKinds, ...(ep ? ['gold'] : [])].map((k) => {
+                const n = state.players[actor]!.hand[k] ?? 0;
+                return (
+                  <span key={k} className={n ? undefined : 'none'}>
+                    {RESOURCE_ICON[k] ?? '?'}
+                    {n}
+                  </span>
+                );
+              })}
+              <span className="hand-mini-more" aria-hidden="true">
+                ▲
+              </span>
+            </span>
+          ) : (
+            '▲ Hand, log and more'
+          )}
         </button>
         {g.error && (
           <div className="error" role="alert">
