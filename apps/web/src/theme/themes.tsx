@@ -14,6 +14,8 @@ import { whitebeardBoard } from './boards/whitebeard.tsx';
 import { bigMomBoard } from './boards/bigmom.tsx';
 import { beastsBoard } from './boards/beasts.tsx';
 import { navyBoard } from './boards/navy.tsx';
+import { casinoEmeraldBoard } from './boards/casino.tsx';
+import { basicCleanBoard } from './boards/basicClean.tsx';
 import { woodTheme } from './pictures.tsx';
 import { tilesTheme } from './tiles.tsx';
 import { prefPicked } from './prefs.ts';
@@ -44,6 +46,8 @@ const BOARDS: Theme[] = [
   bigMomBoard,
   beastsBoard,
   navyBoard,
+  casinoEmeraldBoard,
+  basicCleanBoard,
 ];
 
 /** Every board, each with player colours chosen for it (see playerColors.ts). */
