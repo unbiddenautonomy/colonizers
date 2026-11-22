@@ -1386,8 +1386,10 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           const h = state.hexes[(p.at as { id: HexId }).id];
           if (!h) return null;
           const c = hexToPixel(h.q, h.r, S);
-          const x = c.x - S * 0.42;
-          const y = c.y + S * 0.12;
+          // Beside the number disc, wherever the board puts it.
+          const drop = theme.tokenDrop ?? 0;
+          const x = c.x - S * (drop ? 0.56 : 0.42);
+          const y = c.y + S * (0.12 + drop);
           return (
             <g
               key={p.id}
@@ -1448,15 +1450,18 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   fx={fx}
                 />
               );
-            return (
-              <g key={p.id} filter={fx} opacity={p.props.damaged === true ? 0.6 : 1}>
-                {p.props.damaged === true && <title>Damaged in battle</title>}
+            // A painted city stands taller and wider than the drawn one and would hide walls
+            // behind it, so on a painted board they are drawn in front, along its foot.
+            const paintedHouse = theme.painted === true && !!theme.pieces?.house;
+            const wallY = paintedHouse ? 0.14 : 0.08;
+            const walls = (
+              <>
                 {typeof p.props.walls === 'number' &&
                   Array.from({ length: p.props.walls }, (_, i) => (
                     <rect
                       key={`wall-${i}`}
                       x={c.x - S * 0.32}
-                      y={c.y + S * (0.08 + i * 0.09)}
+                      y={c.y + S * (wallY + i * 0.09)}
                       width={S * 0.64}
                       height={S * 0.08}
                       rx={2}
@@ -1470,7 +1475,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 {p.props.wall === true && (
                   <rect
                     x={c.x - S * 0.32}
-                    y={c.y + S * 0.08}
+                    y={c.y + S * wallY}
                     width={S * 0.64}
                     height={S * 0.14}
                     rx={2}
@@ -1481,6 +1486,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                     <title>City wall</title>
                   </rect>
                 )}
+              </>
+            );
+            return (
+              <g key={p.id} filter={fx} opacity={p.props.damaged === true ? 0.6 : 1}>
+                {p.props.damaged === true && <title>Damaged in battle</title>}
+                {!paintedHouse && walls}
                 <HouseShape
                   x={c.x}
                   y={c.y}
@@ -1488,6 +1499,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   city={p.type === 'city'}
                   theme={theme}
                 />
+                {paintedHouse && walls}
                 {p.type === 'harbor' && (
                   <g pointerEvents="none">
                     <text
@@ -1524,7 +1536,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   <g>
                     <rect
                       x={c.x - S * 0.07}
-                      y={c.y - S * 0.42}
+                      y={c.y - S * (paintedHouse ? 0.74 : 0.42)}
                       width={S * 0.14}
                       height={S * 0.24}
                       fill={TRACK_COLOR[p.props.metropolis] ?? '#fff'}

@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { cleanTheme, type Theme, type ThemePieces } from '../clean.ts';
-import { drawnPatterns } from '../motifs.tsx';
+import { drawnArt, drawnPatterns, type Palette } from '../motifs.tsx';
 import { PALETTE as TILE_PALETTE } from '../tiles.tsx';
 import type { ArtSet } from './art.ts';
-import { BASE, H, W, type BaseType } from './hex.ts';
+import { BASE, H, poly, W, type BaseType } from './hex.ts';
 
 export { BASE, CX, CY, H, poly, r1, W, type BaseType } from './hex.ts';
 
@@ -174,6 +174,33 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): 
   return out;
 }
 
+/**
+ * A rarer land (gold, volcano, lakes and the like) on a board laid out with the picture on top
+ * and the number below: its flat colour, with the whole Tiles drawing shrunk to a small hex
+ * where the base lands have their object, so the number disc never covers it.
+ */
+function badgeHex(id: string, p: Palette, ink: string): ReactNode {
+  const k = 0.36;
+  const cx = W / 2;
+  const cy = H / 2 - 0.45 * (H / 2);
+  const clip = `${id}-clip`;
+  const hex = poly(cx, cy, (H / 2) * k, 6);
+  return (
+    <pattern key={id} id={id} patternUnits="objectBoundingBox" width="1" height="1">
+      <rect width={W} height={H} fill={p.base} />
+      <clipPath id={clip}>
+        <polygon points={hex} />
+      </clipPath>
+      <g clipPath={`url(#${clip})`}>
+        <g transform={`translate(${cx - (W / 2) * k} ${cy - (H / 2) * k}) scale(${k})`}>
+          {drawnArt(id.replace(/^pat-/, ''), p)}
+        </g>
+      </g>
+      <polygon points={hex} fill="none" stroke={ink} strokeWidth={1.4} strokeLinejoin="round" />
+    </pattern>
+  );
+}
+
 /** Builds a theme from a skin: its own seven pictures, Tiles drawings for everything else. */
 export function skin(spec: SkinSpec): Theme {
   const paint = spec.paintings ?? {};
@@ -197,7 +224,11 @@ export function skin(spec: SkinSpec): Theme {
     seaEdge: spec.seaEdge,
     patterns: () => (
       <>
-        {drawnPatterns(others)}
+        {spec.rest.tokenDrop
+          ? Object.entries(others).map(([t, p]) =>
+              badgeHex(`pat-${t}`, p, spec.rest.outline ?? cleanTheme.outline),
+            )
+          : drawnPatterns(others)}
         {BASE.map((t) => {
           const href = paint[t];
           return href

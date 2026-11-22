@@ -22,5 +22,6 @@ export const casinoEmeraldBoard = paintedBoard({
   ink: '#1a0f0f',
   robber: '#5e1620',
   token: crestToken,
-  rest: crestRest,
+  // The pirate ship in ivory: a dark one is lost on the night-teal sea.
+  rest: { ...crestRest, pirate: '#efe4c8' },
 });
