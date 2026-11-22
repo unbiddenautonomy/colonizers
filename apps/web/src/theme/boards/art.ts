@@ -8,7 +8,7 @@ import type { BaseType } from './kit.tsx';
  *   backdrop    a wide picture behind the setup page, kept faint under the page colour
  *   forest … desert   the six land hexes, square, cut to a hexagon
  *   sea         a seamless sea texture, repeated
- *   settlement, city   pieces painted in white and grey; the game tints them per player
+ *   settlement, city, ship   pieces painted in white and grey; the game tints them per player
  *   robber      the robber, in full colour
  *   token       the disc under each number, seen from above, with a plain centre
  *
@@ -17,7 +17,7 @@ import type { BaseType } from './kit.tsx';
  */
 
 export type ArtSlot =
-  'header' | 'backdrop' | BaseType | 'sea' | 'settlement' | 'city' | 'robber' | 'token';
+  'header' | 'backdrop' | BaseType | 'sea' | 'settlement' | 'city' | 'ship' | 'robber' | 'token';
 
 export type ArtSet = Partial<Record<ArtSlot, string>>;
 

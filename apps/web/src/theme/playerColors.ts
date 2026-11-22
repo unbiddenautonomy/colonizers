@@ -74,6 +74,10 @@ export const PLAYER_COLORS: Record<string, readonly string[]> = {
   wano: ['#e8322b', '#3d7dff', '#ff9a1f', '#2ec26a', '#ff5fb0', '#3fd2e6', '#ffd84a', '#b07cff'],
   /** Signal flags against the deep blue. */
   navy: ['#ff3b30', '#5aa0ff', '#ffa31a', '#2fc46e', '#ff63b8', '#3fe0e0', '#ffe14d', '#f2f2f2'],
+  /** Chip colours, lit up against the felt and the dark sea. */
+  casino: ['#ff3f45', '#4d8dff', '#ff9d2e', '#35d07f', '#ff5fc8', '#3fe3e8', '#ffe066', '#f4f1ea'],
+  /** Plain, clear colours that stand off the calm lands. */
+  basic: ['#e8352b', '#2f6fe8', '#ff9416', '#2fbf5b', '#e0469f', '#2ec4e6', '#ffe14a', '#8b5cf6'],
 };
 
 /** Which set a board takes, by its id or the start of it. */
@@ -95,6 +99,8 @@ const FAMILY: [prefix: string, set: string][] = [
   ['bigmom-', 'bigmom'],
   ['beasts-', 'wano'],
   ['navy-', 'navy'],
+  ['casino-', 'casino'],
+  ['basic-clean', 'basic'],
 ];
 
 /** The player colours for a board id, or undefined to keep the board's own. */

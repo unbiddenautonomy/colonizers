@@ -18,6 +18,7 @@ describe('themes', () => {
   it('has unique ids and falls back to the default', () => {
     expect(new Set(THEMES.map((t) => t.id)).size).toBe(THEMES.length);
     expect(themeById('nope')).toBe(DEFAULT_THEME);
+    expect(DEFAULT_THEME.id).toBe('basic-clean');
   });
 
   for (const theme of THEMES) {

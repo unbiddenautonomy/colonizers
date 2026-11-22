@@ -458,6 +458,11 @@ const ART: Record<string, Art> = {
 export const MOTIF_TYPES = Object.keys(ART);
 
 /** <pattern> elements "pat-<type>" for every type the palettes cover. */
+/** One drawn tile's picture, filling a 104×120 hex box, or undefined if there is none. */
+export function drawnArt(type: string, palette: Palette): ReactNode {
+  return ART[type]?.(palette);
+}
+
 export function drawnPatterns(palettes: Record<string, Palette>): ReactNode {
   return Object.entries(palettes).map(([type, p]) => {
     const art = ART[type];

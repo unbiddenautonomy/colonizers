@@ -4577,6 +4577,12 @@ body:has(.setup-page) {
   object-fit: contain;
   filter: drop-shadow(0 10px 14px rgba(10, 40, 80, 0.3));
 }
+:root[data-look='casino'] .look-art.look-art-painting {
+  /* A wide banner, not a picture: shown whole, the width of the column. */
+  width: min(720px, 100%);
+  aspect-ratio: 8 / 1;
+  border-width: 2px;
+}
 .look-art-painting img {
   display: block;
   width: 100%;
@@ -4734,5 +4740,26 @@ html[data-backdrop] .setup-page {
     align-items: center;
     min-height: 44px;
     min-width: 44px;
+  }
+}
+
+/* A glowing hex border (enchanted, held by barbarians) breathes slowly; still when motion is off. */
+.hex-glow {
+  animation: hex-breathe 2.6s ease-in-out infinite alternate;
+}
+@keyframes hex-breathe {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+[data-motion='off'] .hex-glow {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hex-glow {
+    animation: none;
   }
 }

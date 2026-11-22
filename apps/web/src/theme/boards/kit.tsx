@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { cleanTheme, type Theme, type ThemePieces } from '../clean.ts';
-import { drawnPatterns } from '../motifs.tsx';
+import { drawnArt, drawnPatterns, type Palette } from '../motifs.tsx';
 import { PALETTE as TILE_PALETTE } from '../tiles.tsx';
 import type { ArtSet } from './art.ts';
+import { LAND_ICON, RARE_LAND } from './landIcons.tsx';
 import { BASE, H, W, type BaseType } from './hex.ts';
 
 export { BASE, CX, CY, H, poly, r1, W, type BaseType } from './hex.ts';
@@ -69,15 +70,66 @@ const SEA_REPEAT = 160;
  * the same kind of thing twice — two of its ships, say — so the gap between them has to carry
  * the difference on its own: at a glance across a board, size is what tells them apart.
  */
-const PIECE = { settlement: 0.5, city: 0.84, robber: 1 };
+const PIECE = { settlement: 0.5, city: 0.84, ship: 0.6, robber: 1 };
 /** Where a painted robber stands: down the hex, and back from the board's own offset, which
  *  was set for a piece a third of this one's size and puts a whole figure on the hex's edge. */
 const ROBBER_FOOT = 0.4;
 const ROBBER_BACK = 0.09;
 
+/** A painting in white and grey, multiplied by the player's colour, with a rim in the board's ink. */
+function tinted(
+  href: string,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  rim: string,
+  s: number,
+) {
+  const id = `tint-${color.replace(/[^a-z0-9]/gi, '')}`;
+  return (
+    <g>
+      <filter id={id} colorInterpolationFilters="sRGB">
+        {/* Lift the greys first, so the shading keeps the colour bright instead of muddying it;
+            black lines stay black. */}
+        <feComponentTransfer in="SourceGraphic" result="lit">
+          <feFuncR type="gamma" exponent={0.55} />
+          <feFuncG type="gamma" exponent={0.55} />
+          <feFuncB type="gamma" exponent={0.55} />
+        </feComponentTransfer>
+        <feFlood floodColor={color} />
+        <feBlend in2="lit" mode="multiply" />
+        <feComposite in2="SourceAlpha" operator="in" result="piece" />
+        {/* A thin rim in the board's own ink, the same for every player, so the piece
+            stands off any hex. Only the solid body grows it: a faint fringe left from the
+            painting's backdrop must not swell into a box around the piece. */}
+        <feComponentTransfer in="SourceAlpha" result="body">
+          <feFuncA type="linear" slope={4} intercept={-2.4} />
+        </feComponentTransfer>
+        <feMorphology in="body" operator="dilate" radius={0.022 * s} result="grown" />
+        <feFlood floodColor={rim} />
+        <feComposite in2="grown" operator="in" result="rim" />
+        <feMerge>
+          <feMergeNode in="rim" />
+          <feMergeNode in="piece" />
+        </feMerge>
+      </filter>
+      <image
+        href={href}
+        x={x - size / 2}
+        y={y - size}
+        width={size}
+        height={size}
+        preserveAspectRatio="xMidYMax meet"
+        filter={`url(#${id})`}
+      />
+    </g>
+  );
+}
+
 /**
- * Painted pieces where there are paintings, drawn ones elsewhere. Settlements and cities are
- * painted in white and grey and multiplied by the player's colour, so whites take the colour,
+ * Painted pieces where there are paintings, drawn ones elsewhere. Settlements, cities and ships
+ * are painted in white and grey and multiplied by the player's colour, so whites take the colour,
  * greys shade it and black lines stay black.
  */
 function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): ThemePieces {
@@ -88,46 +140,21 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): 
       const href = o.city ? p.city : p.settlement;
       if (!href) return draw ? draw(o) : null;
       const size = (o.city ? PIECE.city : PIECE.settlement) * o.s;
-      const id = `tint-${o.color.replace(/[^a-z0-9]/gi, '')}`;
-      return (
-        <g>
-          <filter id={id} colorInterpolationFilters="sRGB">
-            {/* Lift the greys first, so the shading keeps the colour bright instead of muddying it;
-                black lines stay black. */}
-            <feComponentTransfer in="SourceGraphic" result="lit">
-              <feFuncR type="gamma" exponent={0.55} />
-              <feFuncG type="gamma" exponent={0.55} />
-              <feFuncB type="gamma" exponent={0.55} />
-            </feComponentTransfer>
-            <feFlood floodColor={o.color} />
-            <feBlend in2="lit" mode="multiply" />
-            <feComposite in2="SourceAlpha" operator="in" result="piece" />
-            {/* A thin rim in the board's own ink, the same for every player, so the piece
-                stands off any hex. Only the solid body grows it: a faint fringe left from the
-                painting's backdrop must not swell into a box around the piece. */}
-            <feComponentTransfer in="SourceAlpha" result="body">
-              <feFuncA type="linear" slope={4} intercept={-2.4} />
-            </feComponentTransfer>
-            <feMorphology in="body" operator="dilate" radius={0.022 * o.s} result="grown" />
-            <feFlood floodColor={rim} />
-            <feComposite in2="grown" operator="in" result="rim" />
-            <feMerge>
-              <feMergeNode in="rim" />
-              <feMergeNode in="piece" />
-            </feMerge>
-          </filter>
-          <image
-            href={href}
-            x={o.x - size / 2}
-            y={o.y + 0.2 * o.s - size}
-            width={size}
-            height={size}
-            preserveAspectRatio="xMidYMax meet"
-            filter={`url(#${id})`}
-          />
-        </g>
-      );
+      return tinted(href, o.x, o.y + 0.2 * o.s, size, o.color, rim, o.s);
     };
+  }
+  if (p.ship) {
+    const href = p.ship;
+    out.ship = ({ a, b, color, s }) =>
+      tinted(
+        href,
+        (a.x + b.x) / 2,
+        (a.y + b.y) / 2 + PIECE.ship * 0.28 * s,
+        PIECE.ship * s,
+        color,
+        rim,
+        s,
+      );
   }
   if (p.robber) {
     const href = p.robber;
@@ -174,6 +201,34 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): 
   return out;
 }
 
+/**
+ * A rarer land on a board laid out with the picture on top and the number below: a flat colour
+ * with a plain borderless icon where the base lands have their object. Lands with no icon of
+ * their own keep a shrunken copy of the Tiles drawing.
+ */
+function iconHex(id: string, type: string, p: Palette): ReactNode {
+  const own = LAND_ICON[type];
+  const size = 0.56 * W;
+  const cx = W / 2;
+  // Its foot just clear of the lowered number disc.
+  const cy = H / 2 - 0.55 * (H / 2);
+  return (
+    <pattern key={id} id={id} patternUnits="objectBoundingBox" width="1" height="1">
+      <rect width={W} height={H} fill={RARE_LAND[type] ?? p.base} />
+      {type === 'hidden' ? (
+        // Fog covers the whole unexplored hex, not one spot of it.
+        <g transform={`scale(${W / 100} ${H / 100})`}>{own}</g>
+      ) : own ? (
+        <g transform={`translate(${cx - size / 2} ${cy - size / 2}) scale(${size / 100})`}>{own}</g>
+      ) : (
+        <g transform={`translate(${cx - (W / 2) * 0.36} ${cy - (H / 2) * 0.36}) scale(0.36)`}>
+          {drawnArt(type, p)}
+        </g>
+      )}
+    </pattern>
+  );
+}
+
 /** Builds a theme from a skin: its own seven pictures, Tiles drawings for everything else. */
 export function skin(spec: SkinSpec): Theme {
   const paint = spec.paintings ?? {};
@@ -191,13 +246,16 @@ export function skin(spec: SkinSpec): Theme {
     terrain: {
       ...cleanTheme.terrain,
       ...Object.fromEntries(Object.entries(TILE_PALETTE).map(([k, p]) => [k, p.base])),
+      ...(spec.rest.tokenDrop ? RARE_LAND : {}),
       ...spec.terrain,
     },
     sea: spec.sea,
     seaEdge: spec.seaEdge,
     patterns: () => (
       <>
-        {drawnPatterns(others)}
+        {spec.rest.tokenDrop
+          ? Object.entries(others).map(([t, p]) => iconHex(`pat-${t}`, t, p))
+          : drawnPatterns(others)}
         {BASE.map((t) => {
           const href = paint[t];
           return href

@@ -26,7 +26,9 @@ export interface Look {
     | 'whitebeard'
     | 'bigmom'
     | 'wano'
-    | 'navy';
+    | 'navy'
+    | 'casino'
+    | 'clean';
   familyName: string;
   /** The scheme or mode within the theme. */
   name: string;
@@ -823,6 +825,67 @@ const navy: Look = {
   },
 };
 
+/** Casino: felt green and burgundy lacquer under gold leaf. */
+const casinoEmerald: Look = {
+  id: 'casino-emerald',
+  family: 'casino',
+  familyName: 'Casino',
+  name: 'Emerald & Burgundy',
+  dark: true,
+  board: 'casino-emerald',
+  tokens: {
+    bg: '#0b261c',
+    card: '#123426',
+    raised: '#173f2f',
+    sunk: '#0e2c21',
+    text: '#f3ead2',
+    soft: '#e0d4b4',
+    muted: '#c7b992',
+    faint: '#b3a682',
+    accent: '#d9b45f',
+    accentText: '#1a1406',
+    border: '#6e1f2b',
+    dash: '#2f5446',
+    good: '#56c194',
+    bad: '#f08a7a',
+    ...DECO_TYPE,
+    shadow: '0 18px 40px rgb(0 0 0 / 0.45)',
+    ink: '#d9b45f',
+    pop: '#8e2433',
+  },
+};
+
+/** Basic Clean: calm flat colours, navy ink, harbour teal and sand. */
+const basicClean: Look = {
+  id: 'clean-basic',
+  family: 'clean',
+  familyName: 'Basic Clean',
+  name: 'Navy & Sand',
+  dark: false,
+  board: 'basic-clean',
+  tokens: {
+    bg: '#f4ede0',
+    card: '#ffffff',
+    raised: '#f9f5ec',
+    sunk: '#efe7d6',
+    text: '#1c2939',
+    soft: '#2a3a4e',
+    muted: '#3b4b5e',
+    faint: '#4f5d6c',
+    accent: '#305a66',
+    accentText: '#ffffff',
+    border: '#d8ccb4',
+    dash: '#d9cbb0',
+    good: '#2f7d58',
+    bad: '#b3261e',
+    heading: 'Fraunces, Georgia, serif',
+    body: 'Manrope, system-ui, sans-serif',
+    shadow: '0 8px 24px rgb(28 41 57 / 0.1)',
+    ink: '#1c2939',
+    pop: '#e2c38d',
+  },
+};
+
 export const LOOKS: Look[] = [
   night,
   atelier,
@@ -845,6 +908,8 @@ export const LOOKS: Look[] = [
   bigMom,
   wano,
   navy,
+  casinoEmerald,
+  basicClean,
 ];
 
 /** Picks that aren't a single look: BasicBench following the device's light or dark setting. */
