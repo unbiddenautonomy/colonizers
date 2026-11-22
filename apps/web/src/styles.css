@@ -4742,3 +4742,24 @@ html[data-backdrop] .setup-page {
     min-width: 44px;
   }
 }
+
+/* A glowing hex border (enchanted, held by barbarians) breathes slowly; still when motion is off. */
+.hex-glow {
+  animation: hex-breathe 2.6s ease-in-out infinite alternate;
+}
+@keyframes hex-breathe {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+[data-motion='off'] .hex-glow {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hex-glow {
+    animation: none;
+  }
+}

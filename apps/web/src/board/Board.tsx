@@ -143,9 +143,49 @@ const CARGO_NAME: Record<string, string> = {
 };
 
 /** What a ship or harbor settlement carries (Explorers & Pirates). */
-function Cargo({ x, y, props }: { x: number; y: number; props: Record<string, unknown> }) {
+function Cargo({
+  x,
+  y,
+  props,
+  crates = false,
+}: {
+  x: number;
+  y: number;
+  props: Record<string, unknown>;
+  crates?: boolean;
+}) {
   const cargo = Array.isArray(props.cargo) ? (props.cargo as string[]) : [];
   if (!cargo.length) return null;
+  if (crates) {
+    // Wooden crates in a row, the first at (x, y): a brown box with its boards and brace in black.
+    const c = S * 0.2;
+    return (
+      <g pointerEvents="none" className="cargo">
+        {cargo.map((_, i) => {
+          const cx = x + i * c * 1.05;
+          return (
+            <g key={i}>
+              <rect
+                x={cx}
+                y={y - c}
+                width={c}
+                height={c}
+                fill="#9a6a3a"
+                stroke="#1b1b1b"
+                strokeWidth={1.4}
+              />
+              <path
+                d={`M${cx},${y - c * 0.5} h${c} M${cx},${y - c} L${cx + c},${y}`}
+                stroke="#1b1b1b"
+                strokeWidth={1}
+              />
+            </g>
+          );
+        })}
+        <title>{`Carrying ${cargo.map((c) => CARGO_NAME[c] ?? c).join(' and ')}`}</title>
+      </g>
+    );
+  }
   const w = S * 0.26 * cargo.length;
   return (
     <g pointerEvents="none" className="cargo">
@@ -256,22 +296,147 @@ function Ship({
         strokeLinecap="round"
         strokeDasharray={`${S * 0.08} ${S * 0.07}`}
       />
-      <g transform={`translate(${mx} ${my})`}>
-        <path
-          d={`M${-k * 1.3},${-k * 0.1} h${k * 2.6} l${-k * 0.5},${k * 0.7} h${-k * 1.6} z`}
-          fill={color}
-          stroke={theme.outline}
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
-        <path
-          d={`M${-k * 0.1},${-k * 0.15} v${-k * 1.1} l${k * 0.85},${k * 1.1} z`}
-          fill={theme.harborFace}
-          stroke={theme.outline}
-          strokeWidth={1.5}
-        />
-      </g>
+      {theme.pieces?.ship ? (
+        theme.pieces.ship({ a, b, color, s: S })
+      ) : (
+        <g transform={`translate(${mx} ${my})`}>
+          <path
+            d={`M${-k * 1.3},${-k * 0.1} h${k * 2.6} l${-k * 0.5},${k * 0.7} h${-k * 1.6} z`}
+            fill={color}
+            stroke={theme.outline}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+          <path
+            d={`M${-k * 0.1},${-k * 0.15} v${-k * 1.1} l${k * 0.85},${k * 1.1} z`}
+            fill={theme.harborFace}
+            stroke={theme.outline}
+            strokeWidth={1.5}
+          />
+        </g>
+      )}
       <title>Ship</title>
+    </g>
+  );
+}
+
+/** True for a light colour, which wants dark marks on it. */
+function isLight(hex: string): boolean {
+  const n = parseInt(hex.replace('#', '').slice(0, 6), 16);
+  if (Number.isNaN(n)) return false;
+  return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 150;
+}
+
+/** The pirate: a ship under a black sail with a skull and crossbones, larger than a player's ship. */
+function PirateShip({ x, y, color, ink }: { x: number; y: number; color: string; ink: string }) {
+  const u = S * 0.1;
+  const bone = isLight(color) ? '#1b1b1b' : '#f4efe4';
+  const sx = x + 0.2 * u;
+  const sy = y - 3.1 * u;
+  return (
+    <>
+      <path
+        d={`M${x - 4.4 * u},${y + 0.2 * u} h${8.8 * u} l${-1.6 * u},${2.6 * u} h${-5.6 * u} z`}
+        fill={color}
+        stroke={ink}
+        strokeWidth={1.6}
+        strokeLinejoin="round"
+      />
+      <line x1={x} y1={y + 0.2 * u} x2={x} y2={y - 6 * u} stroke={ink} strokeWidth={S * 0.04} />
+      <path
+        d={`M${x - 2.8 * u},${y - 5.4 * u} q${3 * u},${-0.6 * u} ${6.2 * u},0 v${4.6 * u} q${-3.2 * u},${-0.6 * u} ${-6.2 * u},0 z`}
+        fill={color}
+        stroke={ink}
+        strokeWidth={1.4}
+      />
+      <path
+        d={`M${sx - 1.3 * u},${sy + 0.6 * u} L${sx + 1.3 * u},${sy + 1.9 * u} M${sx + 1.3 * u},${sy + 0.6 * u} L${sx - 1.3 * u},${sy + 1.9 * u}`}
+        stroke={bone}
+        strokeWidth={S * 0.035}
+        strokeLinecap="round"
+      />
+      <circle cx={sx} cy={sy} r={0.95 * u} fill={bone} />
+      <circle cx={sx - 0.35 * u} cy={sy - 0.05 * u} r={0.24 * u} fill={color} />
+      <circle cx={sx + 0.35 * u} cy={sy - 0.05 * u} r={0.24 * u} fill={color} />
+    </>
+  );
+}
+
+/** A pirate's treasure chest: a domed lid, iron bands, a lock and gold spilling out. */
+function TreasureChest({ x, y }: { x: number; y: number }) {
+  const u = S * 0.1;
+  const edge = { stroke: '#2b1a0e', strokeWidth: 1.5, strokeLinejoin: 'round' as const };
+  return (
+    <>
+      <path
+        d={`M${x - 2.6 * u},${y - 0.6 * u} q${2.6 * u},${-1.6 * u} ${5.2 * u},0`}
+        fill="#f2c230"
+        stroke="#8a5a10"
+        strokeWidth={1.2}
+      />
+      <rect
+        x={x - 2.6 * u}
+        y={y - 0.6 * u}
+        width={5.2 * u}
+        height={2.8 * u}
+        rx={2}
+        fill="#8a5a2b"
+        {...edge}
+      />
+      <path
+        d={`M${x - 2.8 * u},${y - 0.6 * u} q${2.8 * u},${-2.4 * u} ${5.6 * u},0 z`}
+        fill="#a86e35"
+        {...edge}
+      />
+      <path
+        d={`M${x - 1.6 * u},${y + 2.2 * u} V${y - 1.4 * u} M${x + 1.6 * u},${y + 2.2 * u} V${y - 1.4 * u}`}
+        stroke="#4a4a4a"
+        strokeWidth={S * 0.045}
+      />
+      <rect
+        x={x - 0.55 * u}
+        y={y - 0.9 * u}
+        width={1.1 * u}
+        height={1.3 * u}
+        rx={1}
+        fill="#f2c230"
+        {...edge}
+        strokeWidth={1}
+      />
+    </>
+  );
+}
+
+/** A small dragon in profile: wings up, long neck, curled tail. */
+function Dragon({ x, y, fill }: { x: number; y: number; fill: string }) {
+  const k = (S * 0.68) / 100;
+  return (
+    <g transform={`translate(${x - 50 * k} ${y - 58 * k}) scale(${k})`}>
+      <path
+        d="M30,62 Q10,74 6,56 Q14,64 26,56 z"
+        fill={fill}
+        stroke="#1a0a06"
+        strokeWidth={4}
+        strokeLinejoin="round"
+      />
+      <path
+        d="M38,52 L18,14 L32,26 L36,6 L48,28 L56,12 L58,48 z"
+        fill="#c9583a"
+        stroke="#1a0a06"
+        strokeWidth={4}
+        strokeLinejoin="round"
+      />
+      <ellipse cx={50} cy={62} rx={24} ry={13} fill={fill} stroke="#1a0a06" strokeWidth={4} />
+      <path
+        d="M64,58 Q74,40 82,32 L96,36 L90,44 L80,44 Q78,52 72,66 z"
+        fill={fill}
+        stroke="#1a0a06"
+        strokeWidth={4}
+        strokeLinejoin="round"
+      />
+      <path d="M84,32 l-2,-8 l6,6 z" fill="#f6d27a" stroke="#1a0a06" strokeWidth={2} />
+      <circle cx={87} cy={37} r={2.4} fill="#f6d27a" />
+      <path d="M38,72 v12 M58,72 v12" stroke="#1a0a06" strokeWidth={6} strokeLinecap="round" />
     </g>
   );
 }
@@ -584,14 +749,19 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               </polygon>
             )}
             {(barbarians[h.id] ?? 0) >= 3 && (
-              <polygon
-                points={hexPoints(h.q, h.r)}
-                fill="#2b1d14"
-                opacity={0.45}
-                pointerEvents="none"
-              >
+              <g pointerEvents="none">
+                <polygon points={hexPoints(h.q, h.r)} fill="#2b1d14" opacity={0.35} />
+                <polygon
+                  className="hex-glow"
+                  points={hexPoints(h.q, h.r, 0.96)}
+                  fill="none"
+                  stroke="#ff4a3a"
+                  strokeWidth={S * 0.07}
+                  strokeLinejoin="round"
+                  filter="url(#glow)"
+                />
                 <title>Held by barbarians: no production, and no building next to it</title>
-              </polygon>
+              </g>
             )}
             {dry && h.props?.farmland === true && (
               <DryFarmland hex={h} S={S} points={hexPoints(h.q, h.r)} />
@@ -767,6 +937,27 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                     strokeWidth={S * 0.1}
                     strokeLinecap="round"
                   />
+                  {/* Planks across the deck. */}
+                  {Array.from({ length: 7 }, (_, i) => {
+                    const t = 0.14 + (i * 0.72) / 6;
+                    const len = Math.hypot(b.x - a.x, b.y - a.y);
+                    const nx = (-(b.y - a.y) / len) * S * 0.11;
+                    const ny = ((b.x - a.x) / len) * S * 0.11;
+                    const mx = a.x + (b.x - a.x) * t;
+                    const my = a.y + (b.y - a.y) * t;
+                    return (
+                      <line
+                        key={i}
+                        x1={mx - nx}
+                        y1={my - ny}
+                        x2={mx + nx}
+                        y2={my + ny}
+                        stroke={theme.outline}
+                        strokeOpacity={0.7}
+                        strokeWidth={1.3}
+                      />
+                    );
+                  })}
                   <title>Bridge</title>
                 </g>
               );
@@ -791,7 +982,16 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               return (
                 <g key={p.id}>
                   <Ship a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />
-                  <Cargo x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - S * 0.3} props={p.props} />
+                  {theme.crateCargo ? (
+                    <Cargo
+                      x={(a.x + b.x) / 2 + S * 0.2}
+                      y={(a.y + b.y) / 2 + S * 0.1}
+                      props={p.props}
+                      crates
+                    />
+                  ) : (
+                    <Cargo x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - S * 0.3} props={p.props} />
+                  )}
                 </g>
               );
             if (theme.pieces?.road)
@@ -960,8 +1160,6 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         .map((p) => {
           const corner = (p.at as { id: CornerId }).id;
           const c = cornerToPixel(corner, S);
-          const w = S * 0.44;
-          const h = S * 0.28;
           return (
             <g
               key={p.id}
@@ -969,31 +1167,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'treasure' })}
             >
-              <rect
-                x={c.x - w / 2}
-                y={c.y - h / 2 + S * 0.03}
-                width={w}
-                height={h}
-                rx={2}
-                fill="#8a5a2b"
-                stroke="#3b2616"
-                strokeWidth={1.5}
-              />
-              <path
-                d={`M${c.x - w / 2},${c.y - h / 2 + S * 0.03} q${w / 2},${-h * 0.9} ${w},0 z`}
-                fill="#a86e35"
-                stroke="#3b2616"
-                strokeWidth={1.5}
-              />
-              <rect
-                x={c.x - S * 0.05}
-                y={c.y - S * 0.05}
-                width={S * 0.1}
-                height={S * 0.11}
-                fill="#f2c230"
-                stroke="#3b2616"
-                strokeWidth={1}
-              />
+              <TreasureChest x={c.x} y={c.y} />
               <title>Treasure chest: build a road or ship here to open it</title>
             </g>
           );
@@ -1004,10 +1178,13 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         .map((h) => (
           <polygon
             key={`ench-${h.id}`}
-            className="enchanted"
-            points={hexPoints(h.q, h.r)}
-            fill="#6b3fa0"
-            opacity={0.16}
+            className="enchanted hex-glow"
+            points={hexPoints(h.q, h.r, 0.96)}
+            fill="none"
+            stroke="#ffe7a0"
+            strokeWidth={S * 0.07}
+            strokeLinejoin="round"
+            filter="url(#glow)"
             pointerEvents="none"
           />
         ))}
@@ -1026,24 +1203,11 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'dragon' })}
             >
-              <circle
-                cx={c.x}
-                cy={c.y}
-                r={r}
-                fill={tier === 3 ? '#3a0b07' : tier === 2 ? '#7a1a12' : '#a8452a'}
-                stroke="#f6d27a"
-                strokeWidth={2}
-              />
-              <text
+              <Dragon
                 x={c.x}
-                y={c.y + S * 0.01}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={S * 0.18}
-                pointerEvents="none"
-              >
-                🐉
-              </text>
+                y={c.y}
+                fill={tier === 3 ? '#3a0b07' : tier === 2 ? '#7a1a12' : '#a8452a'}
+              />
               {Array.from({ length: tier }, (_, i) => (
                 <circle
                   key={i}
@@ -1165,22 +1329,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs('pirate', `hex:${pirateHex.id}`, c.x, c.y)}
             >
-              <path
-                d={`M${c.x - S * 0.32},${c.y + S * 0.05} h${S * 0.64} l${-S * 0.12},${S * 0.2} h${-S * 0.4} z`}
-                fill={theme.pirate}
-              />
-              <line
-                x1={c.x}
-                y1={c.y + S * 0.05}
-                x2={c.x}
-                y2={c.y - S * 0.38}
-                stroke={theme.pirate}
-                strokeWidth={S * 0.04}
-              />
-              <path
-                d={`M${c.x},${c.y - S * 0.36} l${S * 0.26},${S * 0.1} l${-S * 0.26},${S * 0.1} z`}
-                fill={theme.pirate}
-              />
+              <PirateShip x={c.x} y={c.y} color={theme.pirate} ink={theme.outline} />
               <title>Pirate</title>
             </g>
           );
@@ -1397,21 +1546,30 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs(p.id, `hex:${h.id}`, x, y)}
             >
+              {/* A gold coin stamped M, rimmed in its owner's colour. */}
               <circle
                 cx={x}
                 cy={y}
-                r={S * 0.15}
+                r={S * 0.17}
                 fill={color(p.owner)}
                 stroke={theme.outline}
-                strokeWidth={2}
+                strokeWidth={1.5}
+              />
+              <circle
+                cx={x}
+                cy={y}
+                r={S * 0.125}
+                fill="#f2c230"
+                stroke="#8a5a10"
+                strokeWidth={1.4}
               />
               <text
                 x={x}
-                y={y + S * 0.06}
+                y={y + S * 0.055}
                 textAnchor="middle"
-                fontSize={S * 0.17}
-                fontWeight={700}
-                fill="#fff"
+                fontSize={S * 0.15}
+                fontWeight={800}
+                fill="#6b4507"
               >
                 M
               </text>
@@ -1518,7 +1676,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   </g>
                 )}
                 {p.type === 'harbor' && (
-                  <Cargo x={c.x + S * 0.3} y={c.y - S * 0.25} props={p.props} />
+                  <Cargo
+                    x={c.x + S * 0.3}
+                    y={c.y - S * (theme.crateCargo ? 0 : 0.25)}
+                    props={p.props}
+                    crates={theme.crateCargo === true}
+                  />
                 )}
                 {p.type === 'city' && p.props.citadel === true && (
                   <g pointerEvents="none">
@@ -1536,7 +1699,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   <g>
                     <rect
                       x={c.x - S * 0.07}
-                      y={c.y - S * (paintedHouse ? 0.74 : 0.42)}
+                      y={c.y - S * (paintedHouse ? 0.64 : 0.42)}
                       width={S * 0.14}
                       height={S * 0.24}
                       fill={TRACK_COLOR[p.props.metropolis] ?? '#fff'}

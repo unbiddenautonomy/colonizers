@@ -11,7 +11,7 @@ export const casinoEmeraldBoard = paintedBoard({
   description: 'Felt green, burgundy and gold leaf: high rollers, yachts and a mobster robber.',
   folder: 'casino',
   land: {
-    forest: '#083226',
+    forest: '#104c36',
     hills: '#8c2e40',
     pasture: '#3c845a',
     fields: '#9c8a5a',

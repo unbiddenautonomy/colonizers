@@ -61,6 +61,8 @@ export interface Theme {
   /** How far below the hex centre the number disc sits, as a share of the hex size, leaving
    *  the top of the hex for the land's picture. */
   tokenDrop?: number;
+  /** Show a ship's or harbor's cargo as plain wooden crates beside it, not as icons. */
+  crateCargo?: boolean;
   /** The font for number tokens and harbor ratios. */
   tokenFont?: string;
   /**
@@ -77,6 +79,8 @@ export interface ThemePieces {
   robber?: (o: { x: number; y: number; s: number }) => ReactNode;
   /** The disc under a number token, centred on (x, y) with radius r. */
   token?: (o: { x: number; y: number; r: number; hot: boolean }) => ReactNode;
+  /** A ship on the sea edge from a to b. */
+  ship?: (o: { a: Pt; b: Pt; color: string; s: number }) => ReactNode;
   /** A road from a to b (already pulled in from the corners). */
   road?: (o: { a: Pt; b: Pt; color: string; s: number }) => ReactNode;
 }

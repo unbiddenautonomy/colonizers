@@ -90,6 +90,7 @@ export function paintedBoard(k: PaintedSpec): Theme {
       boardBackground: k.sea,
       // The land's object sits in the top of the hex, the number below the centre.
       tokenDrop: 0.25,
+      crateCargo: true,
       ...k.rest,
     },
   });
