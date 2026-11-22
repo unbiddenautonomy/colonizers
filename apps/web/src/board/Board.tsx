@@ -750,7 +750,6 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             )}
             {(barbarians[h.id] ?? 0) >= 3 && (
               <g pointerEvents="none">
-                <polygon points={hexPoints(h.q, h.r)} fill="#2b1d14" opacity={0.35} />
                 <polygon
                   className="hex-glow"
                   points={hexPoints(h.q, h.r, 0.96)}
