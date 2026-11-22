@@ -83,6 +83,19 @@ export interface ThemePieces {
   ship?: (o: { a: Pt; b: Pt; color: string; s: number }) => ReactNode;
   /** A road from a to b (already pulled in from the corners). */
   road?: (o: { a: Pt; b: Pt; color: string; s: number }) => ReactNode;
+  /**
+   * Any other painted piece or marker by name (knight1, dragon2, camel, crown …), standing with
+   * its foot at (x, y), `size` tall; tinted like the pieces when `color` is given. Null when the
+   * board has no painting by that name, so the drawing stays.
+   */
+  sprite?: (o: {
+    key: string;
+    x: number;
+    y: number;
+    size: number;
+    color?: string;
+    s: number;
+  }) => ReactNode;
 }
 
 type Pt = { x: number; y: number };

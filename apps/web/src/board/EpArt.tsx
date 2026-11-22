@@ -1,5 +1,5 @@
 import { motionAttrs } from './motion.ts';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { hexToPixel, type GameState, type HexId } from '@colonizers/engine';
 
 /** Explorers & Pirates on the board: pirate lairs, the crews storming them, and spice villages. */
@@ -13,10 +13,13 @@ export function LairMarkers({
   state,
   S,
   color,
+  paint,
 }: {
   state: GameState;
   S: number;
   color: (seat: number | null) => string;
+  /** The board's painting by name, foot at (x, y), `size` hexes tall; null if it has none. */
+  paint?: (key: string, x: number, y: number, size: number) => ReactNode;
 }) {
   const d = state.data['explorers-pirates'] as EpView | undefined;
   if (!d) return null;
@@ -24,6 +27,16 @@ export function LairMarkers({
   for (const h of Object.values(state.hexes)) {
     if (h.hidden || h.props?.village !== true) continue;
     const c = hexToPixel(h.q, h.r, S);
+    const art = paint?.('village', c.x, c.y - S * 0.2, 0.5) ?? null;
+    if (art) {
+      marks.push(
+        <g key={`village-${h.id}`} pointerEvents="none" className="village">
+          {art}
+          <title>Spice village: a ship beside it buys spice for 2 gold</title>
+        </g>,
+      );
+      continue;
+    }
     marks.push(
       <g key={`village-${h.id}`} pointerEvents="none" className="village">
         <circle

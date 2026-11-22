@@ -50,6 +50,8 @@ export interface SkinSpec {
   paintings?: ArtSet;
   /** Gradients and the like the skin's pieces refer to, defined once for the whole board. */
   defs?: ReactNode;
+  /** Colours for the rarer lands (gold, volcano, lake …), over the shared ones. */
+  rareLand?: Partial<Record<string, string>>;
 }
 
 /** A painting that fills one hex, cropped to cover it, over the flat colour while it loads. */
@@ -156,6 +158,22 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): 
         s,
       );
   }
+  // Any other painting in the folder, by its file name: knights, dragons, markers and the like.
+  out.sprite = ({ key, x, y, size, color, s }) => {
+    const href = p[key];
+    if (!href) return null;
+    if (color) return tinted(href, x, y, size, color, rim, s);
+    return (
+      <image
+        href={href}
+        x={x - size / 2}
+        y={y - size}
+        width={size}
+        height={size}
+        preserveAspectRatio="xMidYMax meet"
+      />
+    );
+  };
   if (p.robber) {
     const href = p.robber;
     // A painted robber is usually a whole character rather than a token, so it is drawn about
@@ -206,7 +224,13 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): 
  * with a plain borderless icon where the base lands have their object. Lands with no icon of
  * their own keep a shrunken copy of the Tiles drawing.
  */
-function iconHex(id: string, type: string, p: Palette): ReactNode {
+function iconHex(
+  id: string,
+  type: string,
+  p: Palette,
+  fillColor: string | undefined,
+  painting: string | undefined,
+): ReactNode {
   const own = LAND_ICON[type];
   const size = 0.56 * W;
   const cx = W / 2;
@@ -214,8 +238,20 @@ function iconHex(id: string, type: string, p: Palette): ReactNode {
   const cy = H / 2 - 0.55 * (H / 2);
   return (
     <pattern key={id} id={id} patternUnits="objectBoundingBox" width="1" height="1">
-      <rect width={W} height={H} fill={RARE_LAND[type] ?? p.base} />
-      {type === 'hidden' ? (
+      <rect width={W} height={H} fill={fillColor ?? RARE_LAND[type] ?? p.base} />
+      {painting && type !== 'hidden' ? (
+        // A painted object, in the same spot as the base lands' objects.
+        <image
+          href={painting}
+          x={cx - (0.32 * H) / 2}
+          y={0.27 * H - (0.32 * H) / 2}
+          width={0.32 * H}
+          height={0.32 * H}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      ) : painting ? (
+        <image href={painting} width={W} height={H} preserveAspectRatio="xMidYMid meet" />
+      ) : type === 'hidden' ? (
         // Fog covers the whole unexplored hex, not one spot of it.
         <g transform={`scale(${W / 100} ${H / 100})`}>{own}</g>
       ) : own ? (
@@ -247,6 +283,7 @@ export function skin(spec: SkinSpec): Theme {
       ...cleanTheme.terrain,
       ...Object.fromEntries(Object.entries(TILE_PALETTE).map(([k, p]) => [k, p.base])),
       ...(spec.rest.tokenDrop ? RARE_LAND : {}),
+      ...spec.rareLand,
       ...spec.terrain,
     },
     sea: spec.sea,
@@ -254,7 +291,9 @@ export function skin(spec: SkinSpec): Theme {
     patterns: () => (
       <>
         {spec.rest.tokenDrop
-          ? Object.entries(others).map(([t, p]) => iconHex(`pat-${t}`, t, p))
+          ? Object.entries(others).map(([t, p]) =>
+              iconHex(`pat-${t}`, t, p, spec.rareLand?.[t], paint[`land-${t.toLowerCase()}`]),
+            )
           : drawnPatterns(others)}
         {BASE.map((t) => {
           const href = paint[t];

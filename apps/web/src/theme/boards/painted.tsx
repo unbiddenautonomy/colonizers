@@ -21,6 +21,8 @@ export interface PaintedSpec {
   ink: string;
   /** The robber's colour where it is drawn rather than painted. */
   robber: string;
+  /** Colours for the rarer lands (gold, volcano, lake …). */
+  rareLand?: Partial<Record<string, string>>;
   /** A number disc of the board's own, drawn under each number. */
   token?: ThemePieces['token'];
   /** Anything else for the theme, such as the number disc's colours and font. */
@@ -77,6 +79,7 @@ export function paintedBoard(k: PaintedSpec): Theme {
     art: art(k),
     seaPattern: seaTile(W, H, <rect width={W} height={H} fill={k.sea} />),
     paintings: artFor(k.folder),
+    ...(k.rareLand ? { rareLand: k.rareLand } : {}),
     rest: {
       outline: k.ink,
       robber: k.robber,

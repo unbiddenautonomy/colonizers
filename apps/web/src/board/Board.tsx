@@ -1,4 +1,12 @@
-import { memo, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import {
+  memo,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import {
   buildGeometry,
   cornerToPixel,
@@ -148,14 +156,29 @@ function Cargo({
   y,
   props,
   crates = false,
+  theme,
 }: {
   x: number;
   y: number;
   props: Record<string, unknown>;
   crates?: boolean;
+  theme?: Theme;
 }) {
   const cargo = Array.isArray(props.cargo) ? (props.cargo as string[]) : [];
   if (!cargo.length) return null;
+  // Painted cargo, side by side, the first standing at (x, y).
+  const art = theme
+    ? cargo.map((c, i) => sprite(theme, `cargo-${c}`, x + S * 0.12 + i * S * 0.26, y, 0.3))
+    : [];
+  if (art.length && art.every((a) => a !== null))
+    return (
+      <g pointerEvents="none" className="cargo">
+        {art.map((a, i) => (
+          <g key={i}>{a}</g>
+        ))}
+        <title>{`Carrying ${cargo.map((c) => CARGO_NAME[c] ?? c).join(' and ')}`}</title>
+      </g>
+    );
   if (crates) {
     // Wooden crates in a row, the first at (x, y): a brown box with its boards and brace in black.
     const c = S * 0.2;
@@ -217,6 +240,72 @@ function Cargo({
 
 const KNIGHT_LEVEL: Record<string, number> = { knight1: 1, knight2: 2, knight3: 3 };
 
+/** The board's painting by name, its foot at (x, y), `size` hexes tall, tinted when `color` is
+ *  given; null when the board has none, so the drawing stays. */
+function sprite(
+  theme: Theme,
+  key: string,
+  x: number,
+  y: number,
+  size: number,
+  color?: string,
+): ReactNode {
+  return (
+    theme.pieces?.sprite?.({ key, x, y, size: size * S, s: S, ...(color ? { color } : {}) }) ?? null
+  );
+}
+
+/** Marker emoji and the painting that can stand in for each. */
+const EMOJI_SPRITE: Record<string, string> = {
+  '🏰': 'citadel',
+  '⛪': 'diocese',
+  '🗿': 'monument',
+  '🌾': 'silo',
+  '🍻': 'festival',
+  '👁️': 'inquisitor',
+  '⚖️': 'inquisitor',
+  '🧙': 'wizard',
+  '🎩': 'junker',
+  '🎖️': 'duke',
+  '🎓': 'scholar',
+  '📜': 'scholar',
+  '💼': 'envoy',
+  '🐉': 'gwpdragon',
+  '👸': 'damsel',
+  '🤴': 'prince',
+  '👑': 'crown',
+  '☢️': 'nukemark',
+  '🚂': 'train',
+  '⛴️': 'ferry',
+  '✈️': 'plane',
+};
+
+/** A marker's emoji, or the board's painting for it, filling a chip of radius r at (x, y). */
+function MarkerIcon({
+  theme,
+  icon,
+  x,
+  y,
+  r,
+  fontSize,
+}: {
+  theme: Theme;
+  icon: string;
+  x: number;
+  y: number;
+  r: number;
+  fontSize: number;
+}) {
+  const key = EMOJI_SPRITE[icon];
+  const art = key ? sprite(theme, key, x, y + r * 0.85, (r * 1.7) / S) : null;
+  if (art) return <g pointerEvents="none">{art}</g>;
+  return (
+    <text x={x} y={y + fontSize * 0.36} textAnchor="middle" fontSize={fontSize}>
+      {icon}
+    </text>
+  );
+}
+
 /** A shield: filled when active, pale when not, with one bar per strength level. */
 function Knight({
   x,
@@ -236,6 +325,14 @@ function Knight({
   fx: string;
 }) {
   const k = S * 0.22;
+  const art = sprite(theme, `knight${level}`, x, y + S * 0.27, 0.62, color);
+  if (art)
+    return (
+      <g filter={fx} opacity={active ? 1 : 0.55}>
+        {art}
+        <title>{`${['Basic', 'Strong', 'Mighty'][level - 1]} knight${active ? ' (active)' : ' (inactive)'}`}</title>
+      </g>
+    );
   return (
     <g filter={fx} opacity={active ? 1 : 0.85}>
       <path
@@ -873,7 +970,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         );
       })}
 
-      <LairMarkers state={state} S={S} color={color} />
+      <LairMarkers
+        state={state}
+        S={S}
+        color={color}
+        paint={(k, x, y, size) => sprite(theme, k, x, y, size)}
+      />
       <WonderMarkers state={state} S={S} color={color} outline={theme.outline} />
 
       {pieces
@@ -983,13 +1085,19 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   <Ship a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />
                   {theme.crateCargo ? (
                     <Cargo
+                      theme={theme}
                       x={(a.x + b.x) / 2 + S * 0.2}
                       y={(a.y + b.y) / 2 + S * 0.1}
                       props={p.props}
                       crates
                     />
                   ) : (
-                    <Cargo x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - S * 0.3} props={p.props} />
+                    <Cargo
+                      x={(a.x + b.x) / 2}
+                      y={(a.y + b.y) / 2 - S * 0.3}
+                      props={p.props}
+                      theme={theme}
+                    />
                   )}
                 </g>
               );
@@ -1027,6 +1135,14 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
 
       {((state.data['traders-barbarians']?.camels as EdgeId[] | undefined) ?? []).map((e) => {
         const [a, b] = edgeEnds(e, g);
+        const art = sprite(theme, 'camel', (a.x + b.x) / 2, (a.y + b.y) / 2 + S * 0.2, 0.42);
+        if (art)
+          return (
+            <g key={`camel-${e}`} className="camel" filter="url(#lift)">
+              {art}
+              <title>Camel: a road here counts double</title>
+            </g>
+          );
         return (
           <text
             key={`camel-${e}`}
@@ -1045,6 +1161,17 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const h = state.hexes[id as HexId];
         if (!h || n <= 0) return null;
         const c = hexToPixel(h.q, h.r, S);
+        const band = sprite(theme, `barb${Math.min(n, 3)}`, c.x, c.y + S * 0.86, 0.5);
+        if (band)
+          return (
+            <g key={`barb-${id}`} className="barbarians" filter="url(#lift)">
+              {band}
+              <title>
+                {n} barbarian{n === 1 ? '' : 's'}
+                {n >= 3 ? ': this hex is held' : ''}
+              </title>
+            </g>
+          );
         return (
           <g key={`barb-${id}`} className="barbarians" filter="url(#lift)">
             <circle
@@ -1166,7 +1293,9 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'treasure' })}
             >
-              <TreasureChest x={c.x} y={c.y} />
+              {sprite(theme, 'chest', c.x, c.y + S * 0.2, 0.42) ?? (
+                <TreasureChest x={c.x} y={c.y} />
+              )}
               <title>Treasure chest: build a road or ship here to open it</title>
             </g>
           );
@@ -1202,11 +1331,13 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'dragon' })}
             >
-              <Dragon
-                x={c.x}
-                y={c.y}
-                fill={tier === 3 ? '#3a0b07' : tier === 2 ? '#7a1a12' : '#a8452a'}
-              />
+              {sprite(theme, `dragon${tier}`, c.x, c.y + S * 0.3, 0.62) ?? (
+                <Dragon
+                  x={c.x}
+                  y={c.y}
+                  fill={tier === 3 ? '#3a0b07' : tier === 2 ? '#7a1a12' : '#a8452a'}
+                />
+              )}
               {Array.from({ length: tier }, (_, i) => (
                 <circle
                   key={i}
@@ -1240,16 +1371,27 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             filter="url(#lift)"
             {...motionAttrs(`ebarb-${e}`, `edge:${e}`, x, y)}
           >
-            <circle cx={x} cy={y} r={S * 0.17} fill="#3b2a20" stroke="#f1e3c8" strokeWidth={2} />
-            <text
-              x={x}
-              y={y + S * 0.07}
-              textAnchor="middle"
-              fontSize={S * 0.18}
-              pointerEvents="none"
-            >
-              🪓
-            </text>
+            {sprite(theme, 'barb1', x, y + S * 0.2, 0.42) ?? (
+              <>
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={S * 0.17}
+                  fill="#3b2a20"
+                  stroke="#f1e3c8"
+                  strokeWidth={2}
+                />
+                <text
+                  x={x}
+                  y={y + S * 0.07}
+                  textAnchor="middle"
+                  fontSize={S * 0.18}
+                  pointerEvents="none"
+                >
+                  🪓
+                </text>
+              </>
+            )}
             <title>Barbarian: blocks road building; wagons pay 2 more moves to pass</title>
           </g>
         );
@@ -1267,18 +1409,22 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             filter="url(#lift)"
             {...motionAttrs(`wagon-${seat}`, `corner:${w.corner}`, x, y)}
           >
-            <rect
-              x={x - S * 0.15}
-              y={y - S * 0.11}
-              width={S * 0.3}
-              height={S * 0.18}
-              rx={S * 0.04}
-              fill={color(Number(seat))}
-              stroke={theme.outline}
-              strokeWidth={2}
-            />
-            <circle cx={x - S * 0.08} cy={y + S * 0.09} r={S * 0.05} fill={theme.outline} />
-            <circle cx={x + S * 0.08} cy={y + S * 0.09} r={S * 0.05} fill={theme.outline} />
+            {sprite(theme, 'wagon', x, y + S * 0.16, 0.4, color(Number(seat))) ?? (
+              <>
+                <rect
+                  x={x - S * 0.15}
+                  y={y - S * 0.11}
+                  width={S * 0.3}
+                  height={S * 0.18}
+                  rx={S * 0.04}
+                  fill={color(Number(seat))}
+                  stroke={theme.outline}
+                  strokeWidth={2}
+                />
+                <circle cx={x - S * 0.08} cy={y + S * 0.09} r={S * 0.05} fill={theme.outline} />
+                <circle cx={x + S * 0.08} cy={y + S * 0.09} r={S * 0.05} fill={theme.outline} />
+              </>
+            )}
             <title>Wagon</title>
           </g>
         );
@@ -1328,7 +1474,9 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs('pirate', `hex:${pirateHex.id}`, c.x, c.y)}
             >
-              <PirateShip x={c.x} y={c.y} color={theme.pirate} ink={theme.outline} />
+              {sprite(theme, 'pirate', c.x, c.y + S * 0.36, 0.85) ?? (
+                <PirateShip x={c.x} y={c.y} color={theme.pirate} ink={theme.outline} />
+              )}
               <title>Pirate</title>
             </g>
           );
@@ -1397,9 +1545,14 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               stroke={theme.outline}
               strokeWidth={1.5}
             />
-            <text x={x} y={y + r * 0.42} textAnchor="middle" fontSize={r * 1.2}>
-              {GWP_ICON[m.building]}
-            </text>
+            <MarkerIcon
+              theme={theme}
+              icon={GWP_ICON[m.building]}
+              x={x}
+              y={y}
+              r={r}
+              fontSize={r * 1.2}
+            />
             <title>{m.label}</title>
           </g>
         );
@@ -1454,9 +1607,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               stroke={theme.outline}
               strokeWidth={1.5}
             />
-            <text x={x} y={y + r * 0.4} textAnchor="middle" fontSize={r * 1.1}>
-              {m.icon}
-            </text>
+            <MarkerIcon theme={theme} icon={m.icon} x={x} y={y} r={r} fontSize={r * 1.1} />
             <title>{m.title}</title>
           </g>
         );
@@ -1490,9 +1641,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               stroke={theme.outline}
               strokeWidth={2}
             />
-            <text x={x} y={y + r * 0.42} textAnchor="middle" fontSize={r * 1.25}>
-              {m.icon}
-            </text>
+            <MarkerIcon theme={theme} icon={m.icon} x={x} y={y} r={r} fontSize={r * 1.25} />
             <title>{m.label}</title>
           </g>
         );
@@ -1520,9 +1669,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               strokeWidth={2}
               strokeDasharray={v.passive ? '3 2' : undefined}
             />
-            <text x={v.x} y={v.y + r * 0.42} textAnchor="middle" fontSize={r * 1.2}>
-              {v.icon}
-            </text>
+            <MarkerIcon theme={theme} icon={v.icon} x={v.x} y={v.y} r={r} fontSize={r * 1.2} />
             <title>{v.title}</title>
           </g>
         );
@@ -1611,7 +1758,20 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             // behind it, so on a painted board they are drawn in front, along its foot.
             const paintedHouse = theme.painted === true && !!theme.pieces?.house;
             const wallY = paintedHouse ? 0.14 : 0.08;
-            const walls = (
+            const harborArt =
+              p.type === 'harbor'
+                ? sprite(theme, 'harbor', c.x, c.y + S * 0.2, 0.62, pieceColor(p))
+                : null;
+            const wallArt =
+              p.props.wall === true || typeof p.props.walls === 'number'
+                ? sprite(theme, 'wall', c.x, c.y + S * 0.34, 0.42)
+                : null;
+            const walls = wallArt ? (
+              <g pointerEvents="none">
+                {wallArt}
+                <title>City wall</title>
+              </g>
+            ) : (
               <>
                 {typeof p.props.walls === 'number' &&
                   Array.from({ length: p.props.walls }, (_, i) => (
@@ -1649,15 +1809,18 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               <g key={p.id} filter={fx} opacity={p.props.damaged === true ? 0.6 : 1}>
                 {p.props.damaged === true && <title>Damaged in battle</title>}
                 {!paintedHouse && walls}
-                <HouseShape
-                  x={c.x}
-                  y={c.y}
-                  color={pieceColor(p)}
-                  city={p.type === 'city'}
-                  theme={theme}
-                />
+                {(p.type === 'harbor' && harborArt) || (
+                  <HouseShape
+                    x={c.x}
+                    y={c.y}
+                    color={pieceColor(p)}
+                    city={p.type === 'city'}
+                    theme={theme}
+                  />
+                )}
                 {paintedHouse && walls}
-                {p.type === 'harbor' && (
+                {p.type === 'harbor' && harborArt && <title>Harbor settlement (2 points)</title>}
+                {p.type === 'harbor' && !harborArt && (
                   <g pointerEvents="none">
                     <text
                       x={c.x}
@@ -1676,38 +1839,63 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 )}
                 {p.type === 'harbor' && (
                   <Cargo
+                    theme={theme}
                     x={c.x + S * 0.3}
                     y={c.y - S * (theme.crateCargo ? 0 : 0.25)}
                     props={p.props}
                     crates={theme.crateCargo === true}
                   />
                 )}
-                {p.type === 'city' && p.props.citadel === true && (
-                  <g pointerEvents="none">
-                    <path
-                      d={`M${c.x + S * 0.12},${c.y - S * 0.14} v${-S * 0.26} h${S * 0.05} v${S * 0.05} h${S * 0.05} v${-S * 0.05} h${S * 0.05} v${S * 0.05} h${S * 0.05} v${-S * 0.05} h${S * 0.05} v${S * 0.26} Z`}
-                      fill="#f2c14e"
-                      stroke={theme.outline}
-                      strokeWidth={1.6}
-                      strokeLinejoin="round"
-                    />
-                    <title>Citadel (a point more)</title>
-                  </g>
-                )}
-                {typeof p.props.metropolis === 'string' && (
-                  <g>
-                    <rect
-                      x={c.x - S * 0.07}
-                      y={c.y - S * (paintedHouse ? 0.64 : 0.42)}
-                      width={S * 0.14}
-                      height={S * 0.24}
-                      fill={TRACK_COLOR[p.props.metropolis] ?? '#fff'}
-                      stroke={theme.outline}
-                      strokeWidth={2}
-                    />
-                    <title>{`Metropolis (${p.props.metropolis})`}</title>
-                  </g>
-                )}
+                {p.type === 'city' &&
+                  p.props.citadel === true &&
+                  sprite(theme, 'citadel', c.x + S * 0.34, c.y + S * 0.12, 0.46) !== null && (
+                    <g pointerEvents="none">
+                      {sprite(theme, 'citadel', c.x + S * 0.34, c.y + S * 0.12, 0.46)}
+                      <title>Citadel (a point more)</title>
+                    </g>
+                  )}
+                {p.type === 'city' &&
+                  p.props.citadel === true &&
+                  !sprite(theme, 'citadel', 0, 0, 1) && (
+                    <g pointerEvents="none">
+                      <path
+                        d={`M${c.x + S * 0.12},${c.y - S * 0.14} v${-S * 0.26} h${S * 0.05} v${S * 0.05} h${S * 0.05} v${-S * 0.05} h${S * 0.05} v${S * 0.05} h${S * 0.05} v${-S * 0.05} h${S * 0.05} v${S * 0.26} Z`}
+                        fill="#f2c14e"
+                        stroke={theme.outline}
+                        strokeWidth={1.6}
+                        strokeLinejoin="round"
+                      />
+                      <title>Citadel (a point more)</title>
+                    </g>
+                  )}
+                {typeof p.props.metropolis === 'string' &&
+                  sprite(theme, `metro-${p.props.metropolis}`, 0, 0, 1) !== null && (
+                    <g pointerEvents="none">
+                      {sprite(
+                        theme,
+                        `metro-${p.props.metropolis}`,
+                        c.x - S * 0.34,
+                        c.y + S * 0.12,
+                        0.5,
+                      )}
+                      <title>{`Metropolis (${p.props.metropolis})`}</title>
+                    </g>
+                  )}
+                {typeof p.props.metropolis === 'string' &&
+                  sprite(theme, `metro-${p.props.metropolis}`, 0, 0, 1) === null && (
+                    <g>
+                      <rect
+                        x={c.x - S * 0.07}
+                        y={c.y - S * (paintedHouse ? 0.64 : 0.42)}
+                        width={S * 0.14}
+                        height={S * 0.24}
+                        fill={TRACK_COLOR[p.props.metropolis] ?? '#fff'}
+                        stroke={theme.outline}
+                        strokeWidth={2}
+                      />
+                      <title>{`Metropolis (${p.props.metropolis})`}</title>
+                    </g>
+                  )}
               </g>
             );
           })();
@@ -1738,9 +1926,11 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 stroke={theme.outline}
                 strokeWidth={2}
               />
-              <text x={x} y={y + S * 0.06} textAnchor="middle" fontSize={S * 0.17}>
-                ☢️
-              </text>
+              {sprite(theme, 'nuke', x, y + S * 0.12, 0.26) ?? (
+                <text x={x} y={y + S * 0.06} textAnchor="middle" fontSize={S * 0.17}>
+                  ☢️
+                </text>
+              )}
               <title>Nuke: once, on a field up to 6 away</title>
             </g>
           );
