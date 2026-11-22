@@ -11,9 +11,9 @@ export const basicCleanBoard = paintedBoard({
   description: 'Calm flat colours, one object to a land, and simple house and boat pieces.',
   folder: 'clean',
   land: {
-    forest: '#2c3f39',
-    hills: '#d5cbc2',
-    pasture: '#5b7454',
+    forest: '#1b2924',
+    hills: '#62242a',
+    pasture: '#84a86c',
     fields: '#edb53e',
     mountains: '#475465',
     desert: '#c2b197',
