@@ -12,7 +12,7 @@ export const RARE_LAND: Record<string, string> = {
   fishingLake: '#5b67c9',
   swamp: '#6b6536',
   oasis: '#e3c584',
-  castle: '#9b9184',
+  castle: '#f3f0ea',
   quarry: '#85857f',
   glassworks: '#5f9a9c',
   hidden: '#a9b3bc',
@@ -118,7 +118,7 @@ export const LAND_ICON: Record<string, ReactNode> = {
   ),
   castle: (
     <>
-      <path d="M22,88 V40 h10 v-10 h10 v10 h16 v-10 h10 v10 h10 V88 z" fill="#f6f2ea" {...line} />
+      <path d="M22,88 V40 h10 v-10 h10 v10 h16 v-10 h10 v10 h10 V88 z" fill="#8d8882" {...line} />
       <path d="M42,88 v-18 a8,8 0 0 1 16,0 v18 z" fill="#5a4a3a" {...line} strokeWidth={1.8} />
       <path d="M50,30 V8" stroke={INK} strokeWidth={2.4} />
       <path d="M50,8 h18 l-5,6 l5,6 h-18 z" fill="#d23a2e" {...line} strokeWidth={1.8} />

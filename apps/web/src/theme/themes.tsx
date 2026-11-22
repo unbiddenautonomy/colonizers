@@ -59,7 +59,7 @@ export const THEMES: Theme[] = BOARDS.map((t) => {
 });
 
 /** What a new device shows. */
-export const DEFAULT_THEME = THEMES[0]!;
+export const DEFAULT_THEME = THEMES.find((t) => t.id === 'basic-clean')!;
 
 export function themeById(id: string | null | undefined): Theme {
   return THEMES.find((t) => t.id === id) ?? DEFAULT_THEME;
