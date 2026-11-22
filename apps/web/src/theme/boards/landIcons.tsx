@@ -160,16 +160,17 @@ export const LAND_ICON: Record<string, ReactNode> = {
   ),
   hidden: (
     <g>
-      <ellipse cx={36} cy={50} rx={28} ry={15} fill="#f4f6f8" opacity={0.85} />
-      <ellipse cx={64} cy={40} rx={30} ry={16} fill="#ffffff" opacity={0.85} />
-      <ellipse cx={50} cy={66} rx={38} ry={14} fill="#e6eaee" opacity={0.85} />
+      <ellipse cx={30} cy={30} rx={34} ry={16} fill="#ffffff" opacity={0.55} />
+      <ellipse cx={72} cy={42} rx={36} ry={17} fill="#f4f6f8" opacity={0.6} />
+      <ellipse cx={28} cy={64} rx={36} ry={16} fill="#eef1f4" opacity={0.6} />
+      <ellipse cx={70} cy={78} rx={38} ry={16} fill="#ffffff" opacity={0.55} />
       <path
-        d="M10,30 q20,-10 40,0 t40,0 M8,84 q20,-8 40,0 t40,0"
+        d="M4,20 q24,-10 46,0 t46,0 M2,52 q24,-10 46,0 t46,0 M4,88 q24,-10 46,0 t46,0"
         stroke="#ffffff"
-        strokeWidth={6}
+        strokeWidth={5}
         fill="none"
         strokeLinecap="round"
-        opacity={0.75}
+        opacity={0.7}
       />
     </g>
   ),

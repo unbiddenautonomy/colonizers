@@ -215,7 +215,10 @@ function iconHex(id: string, type: string, p: Palette): ReactNode {
   return (
     <pattern key={id} id={id} patternUnits="objectBoundingBox" width="1" height="1">
       <rect width={W} height={H} fill={RARE_LAND[type] ?? p.base} />
-      {own ? (
+      {type === 'hidden' ? (
+        // Fog covers the whole unexplored hex, not one spot of it.
+        <g transform={`scale(${W / 100} ${H / 100})`}>{own}</g>
+      ) : own ? (
         <g transform={`translate(${cx - size / 2} ${cy - size / 2}) scale(${size / 100})`}>{own}</g>
       ) : (
         <g transform={`translate(${cx - (W / 2) * 0.36} ${cy - (H / 2) * 0.36}) scale(0.36)`}>
