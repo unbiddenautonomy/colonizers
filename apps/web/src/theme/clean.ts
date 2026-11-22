@@ -58,6 +58,9 @@ export interface Theme {
   landOverlay?: string;
   /** Hand-drawn pieces for themes that have their own; anything left out uses the plain shapes. */
   pieces?: ThemePieces;
+  /** How far below the hex centre the number disc sits, as a share of the hex size, leaving
+   *  the top of the hex for the land's picture. */
+  tokenDrop?: number;
   /** The font for number tokens and harbor ratios. */
   tokenFont?: string;
   /**

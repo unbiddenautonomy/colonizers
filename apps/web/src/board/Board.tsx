@@ -453,6 +453,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const isSea = type === 'sea' || shoal;
         const lakeNumbers = type === 'fishingLake' ? ((h.props?.tokens as number[]) ?? []) : [];
         const c = hexToPixel(h.q, h.r, S);
+        const drop = S * (theme.tokenDrop ?? 0);
         const key = isSea ? 'sea' : type;
         const fill = patterned.has(key)
           ? `url(#pat-${key})`
@@ -606,14 +607,14 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 {theme.pieces?.token ? (
                   theme.pieces.token({
                     x: c.x,
-                    y: c.y,
+                    y: c.y + drop,
                     r: S * TOKEN_R,
                     hot: h.token === 6 || h.token === 8,
                   })
                 ) : (
                   <circle
                     cx={c.x}
-                    cy={c.y}
+                    cy={c.y + drop}
                     r={S * TOKEN_R}
                     fill={theme.token}
                     stroke={theme.outline}
@@ -622,7 +623,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 )}
                 <text
                   x={c.x}
-                  y={c.y + S * 0.06}
+                  y={c.y + drop + S * 0.06}
                   textAnchor="middle"
                   fontSize={S * 0.3}
                   fontWeight={700}
@@ -641,7 +642,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                     <circle
                       key={i}
                       cx={c.x + Math.cos(a) * S * PIP_ARC}
-                      cy={c.y + Math.sin(a) * S * PIP_ARC}
+                      cy={c.y + drop + Math.sin(a) * S * PIP_ARC}
                       r={S * 0.025}
                       fill={h.token === 6 || h.token === 8 ? theme.tokenHot : theme.tokenText}
                     />

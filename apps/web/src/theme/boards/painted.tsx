@@ -88,6 +88,8 @@ export function paintedBoard(k: PaintedSpec): Theme {
       pieceEffect: 'lift',
       pieces: k.token ? { road: road(k.ink), token: k.token } : { road: road(k.ink) },
       boardBackground: k.sea,
+      // The land's object sits in the top of the hex, the number below the centre.
+      tokenDrop: 0.25,
       ...k.rest,
     },
   });
