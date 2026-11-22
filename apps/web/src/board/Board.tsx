@@ -504,6 +504,37 @@ function PirateShip({ x, y, color, ink }: { x: number; y: number; color: string;
   );
 }
 
+/** A stretch of city wall with battlements, its top edge at y, centred on x. */
+function Battlement({ x, y, ink }: { x: number; y: number; ink: string }) {
+  const w = S * 0.7;
+  const h = S * 0.1;
+  const m = S * 0.055;
+  const n = 6;
+  const step = w / (2 * n - 1);
+  // The top runs merlon, gap, merlon … across; the body is a band of stone below it.
+  let d = `M${x - w / 2},${y + h}`;
+  for (let i = 0; i < 2 * n - 1; i++) {
+    const x0 = x - w / 2 + i * step;
+    d += i % 2 === 0 ? ` V${y - m} H${x0 + step} V${y}` : ` H${x0 + step}`;
+  }
+  d += ` V${y + h} Z`;
+  const joints = Array.from({ length: 5 }, (_, i) => {
+    const bx = x - w / 2 + ((i + 0.5) * w) / 5;
+    return `M${bx},${y} V${y + h / 2} M${bx + w / 10},${y + h / 2} V${y + h}`;
+  }).join(' ');
+  return (
+    <g pointerEvents="none">
+      <path d={d} fill="#b9b2a6" stroke={ink} strokeWidth={1.6} strokeLinejoin="round" />
+      <path
+        d={`M${x - w / 2},${y + h / 2} H${x + w / 2} ${joints}`}
+        stroke={ink}
+        strokeOpacity={0.45}
+        strokeWidth={1}
+      />
+    </g>
+  );
+}
+
 /** A pirate's treasure chest: a domed lid, iron bands, a lock and gold spilling out. */
 function TreasureChest({ x, y }: { x: number; y: number }) {
   const u = S * 0.1;
@@ -1934,35 +1965,30 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               </g>
             ) : (
               <>
-                {typeof p.props.walls === 'number' &&
-                  Array.from({ length: p.props.walls }, (_, i) => (
-                    <rect
+                {Array.from(
+                  {
+                    length:
+                      typeof p.props.walls === 'number'
+                        ? p.props.walls
+                        : p.props.wall === true
+                          ? 1
+                          : 0,
+                  },
+                  (_, i) => (
+                    <Battlement
                       key={`wall-${i}`}
-                      x={c.x - S * 0.32}
-                      y={c.y + S * (wallY + i * 0.09)}
-                      width={S * 0.64}
-                      height={S * 0.08}
-                      rx={2}
-                      fill="#8a7f72"
-                      stroke={theme.outline}
-                      strokeWidth={1.5}
-                    >
-                      <title>{`City walls: ${p.props.walls as number}`}</title>
-                    </rect>
-                  ))}
-                {p.props.wall === true && (
-                  <rect
-                    x={c.x - S * 0.32}
-                    y={c.y + S * wallY}
-                    width={S * 0.64}
-                    height={S * 0.14}
-                    rx={2}
-                    fill="#8a7f72"
-                    stroke={theme.outline}
-                    strokeWidth={2}
-                  >
-                    <title>City wall</title>
-                  </rect>
+                      x={c.x}
+                      y={c.y + S * (wallY + i * 0.11)}
+                      ink={theme.outline}
+                    />
+                  ),
+                )}
+                {(typeof p.props.walls === 'number' || p.props.wall === true) && (
+                  <title>
+                    {typeof p.props.walls === 'number'
+                      ? `City walls: ${p.props.walls}`
+                      : 'City wall'}
+                  </title>
                 )}
               </>
             );
