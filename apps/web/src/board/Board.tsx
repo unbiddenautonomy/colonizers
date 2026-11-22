@@ -280,6 +280,51 @@ const EMOJI_SPRITE: Record<string, string> = {
   '✈️': 'plane',
 };
 
+/** Paintings that are white figures, tinted in their owner's colour like the pieces. */
+const WHITE_FIGURES = new Set([
+  'wizard',
+  'junker',
+  'duke',
+  'scholar',
+  'inquisitor',
+  'envoy',
+  'gwpdragon',
+  'damsel',
+  'train',
+  'ferry',
+  'plane',
+]);
+
+/**
+ * A marker as the board's painting, standing on its own (no chip) and centred near (x, y): a
+ * white figure takes its owner's colour; a coloured building stands on a base in that colour.
+ * Null when the board has no painting for it.
+ */
+function markerArt(theme: Theme, icon: string, x: number, y: number, owner?: string): ReactNode {
+  const key = EMOJI_SPRITE[icon];
+  if (!key) return null;
+  const foot = y + S * 0.2;
+  if (WHITE_FIGURES.has(key)) return sprite(theme, key, x, foot, 0.44, owner);
+  const art = sprite(theme, key, x, foot, 0.44);
+  if (!art) return null;
+  return (
+    <>
+      {owner && (
+        <ellipse
+          cx={x}
+          cy={foot - S * 0.01}
+          rx={S * 0.17}
+          ry={S * 0.055}
+          fill={owner}
+          stroke={theme.outline}
+          strokeWidth={1.2}
+        />
+      )}
+      {art}
+    </>
+  );
+}
+
 /** A marker's emoji, or the board's painting for it, filling a chip of radius r at (x, y). */
 function MarkerIcon({
   theme,
@@ -1017,51 +1062,110 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   <title>River: only a bridge can cross</title>
                 </g>
               );
-            if (p.type === 'bridge')
+            if (p.type === 'bridge') {
+              const len = Math.hypot(b.x - a.x, b.y - a.y);
+              // Unit vectors along the bridge and across it.
+              const ux = (b.x - a.x) / len;
+              const uy = (b.y - a.y) / len;
+              const nx = -uy;
+              const ny = ux;
+              const at = (t: number, off: number) => ({
+                x: a.x + (b.x - a.x) * t + nx * off * S,
+                y: a.y + (b.y - a.y) * t + ny * off * S,
+              });
+              const rail = (side: number) => {
+                const p0 = at(0.06, side * 0.15);
+                const p1 = at(0.94, side * 0.15);
+                return (
+                  <g key={`rail-${side}`}>
+                    <line
+                      x1={p0.x}
+                      y1={p0.y}
+                      x2={p1.x}
+                      y2={p1.y}
+                      stroke={theme.outline}
+                      strokeWidth={S * 0.05}
+                      strokeLinecap="round"
+                    />
+                    <line
+                      x1={p0.x}
+                      y1={p0.y}
+                      x2={p1.x}
+                      y2={p1.y}
+                      stroke="#c99a62"
+                      strokeWidth={S * 0.022}
+                      strokeLinecap="round"
+                    />
+                    {[0.06, 0.5, 0.94].map((t) => {
+                      const q = at(t, side * 0.15);
+                      return (
+                        <circle
+                          key={t}
+                          cx={q.x}
+                          cy={q.y}
+                          r={S * 0.04}
+                          fill="#8a5a34"
+                          stroke={theme.outline}
+                          strokeWidth={1.4}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              };
               return (
                 <g key={p.id} filter={fx}>
+                  {/* The wooden deck, its planks, the owner's road along it, a rail each side. */}
                   <line
-                    x1={a.x + (b.x - a.x) * 0.08}
-                    y1={a.y + (b.y - a.y) * 0.08}
-                    x2={b.x - (b.x - a.x) * 0.08}
-                    y2={b.y - (b.y - a.y) * 0.08}
-                    stroke={theme.harborWood}
-                    strokeWidth={S * 0.22}
+                    x1={a.x + ux * len * 0.06}
+                    y1={a.y + uy * len * 0.06}
+                    x2={b.x - ux * len * 0.06}
+                    y2={b.y - uy * len * 0.06}
+                    stroke={theme.outline}
+                    strokeWidth={S * 0.32}
                     strokeLinecap="butt"
                   />
+                  <line
+                    x1={a.x + ux * len * 0.065}
+                    y1={a.y + uy * len * 0.065}
+                    x2={b.x - ux * len * 0.065}
+                    y2={b.y - uy * len * 0.065}
+                    stroke="#a8743f"
+                    strokeWidth={S * 0.27}
+                    strokeLinecap="butt"
+                  />
+                  {Array.from({ length: 9 }, (_, i) => {
+                    const t = 0.1 + (i * 0.8) / 8;
+                    const p0 = at(t, -0.13);
+                    const p1 = at(t, 0.13);
+                    return (
+                      <line
+                        key={i}
+                        x1={p0.x}
+                        y1={p0.y}
+                        x2={p1.x}
+                        y2={p1.y}
+                        stroke={theme.outline}
+                        strokeOpacity={0.45}
+                        strokeWidth={1.1}
+                      />
+                    );
+                  })}
                   <line
                     x1={a.x + (b.x - a.x) * k}
                     y1={a.y + (b.y - a.y) * k}
                     x2={b.x - (b.x - a.x) * k}
                     y2={b.y - (b.y - a.y) * k}
                     stroke={color(p.owner)}
-                    strokeWidth={S * 0.1}
+                    strokeWidth={S * 0.09}
                     strokeLinecap="round"
                   />
-                  {/* Planks across the deck. */}
-                  {Array.from({ length: 7 }, (_, i) => {
-                    const t = 0.14 + (i * 0.72) / 6;
-                    const len = Math.hypot(b.x - a.x, b.y - a.y);
-                    const nx = (-(b.y - a.y) / len) * S * 0.11;
-                    const ny = ((b.x - a.x) / len) * S * 0.11;
-                    const mx = a.x + (b.x - a.x) * t;
-                    const my = a.y + (b.y - a.y) * t;
-                    return (
-                      <line
-                        key={i}
-                        x1={mx - nx}
-                        y1={my - ny}
-                        x2={mx + nx}
-                        y2={my + ny}
-                        stroke={theme.outline}
-                        strokeOpacity={0.7}
-                        strokeWidth={1.3}
-                      />
-                    );
-                  })}
+                  {rail(-1)}
+                  {rail(1)}
                   <title>Bridge</title>
                 </g>
               );
+            }
             if (p.type === 'road' && p.props.damaged)
               return (
                 <line
@@ -1528,6 +1632,19 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const x = k.x + (c.x - k.x) * 0.42;
         const y = k.y + (c.y - k.y) * 0.42;
         const r = S * 0.13;
+        const art = markerArt(theme, GWP_ICON[m.building], x, y, color(m.owner));
+        if (art)
+          return (
+            <g
+              key={m.key}
+              className="gwp-building"
+              filter="url(#lift)"
+              {...motionAttrs(m.key, `gwp:${m.hex}:${m.corner}`, x, y)}
+            >
+              {art}
+              <title>{m.label}</title>
+            </g>
+          );
         return (
           <g
             key={m.key}
@@ -1597,6 +1714,14 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const r = S * 0.15;
         const x = k.x + (m.slot === 1 ? S * 0.32 : 0);
         const y = k.y - (m.slot === 0 ? 0 : S * 0.34);
+        const art = markerArt(theme, m.icon, x, y, m.owner === null ? undefined : color(m.owner));
+        if (art)
+          return (
+            <g key={m.key} className="church-marker" pointerEvents="none" filter="url(#lift)">
+              {art}
+              <title>{m.title}</title>
+            </g>
+          );
         return (
           <g key={m.key} className="church-marker" pointerEvents="none" filter="url(#lift)">
             <circle
@@ -1626,6 +1751,27 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const x = c.x + S * m.dx;
         const y = c.y + S * m.dy;
         const r = S * (m.owner === null ? 0.2 : 0.15);
+        // A painted figure stands on its own, in the owner's colour, low beside the number
+        // disc, clear of the land's picture at the top of the hex.
+        const key = EMOJI_SPRITE[m.icon];
+        const side = m.dx < 0 ? -1 : 1;
+        const fx2 = c.x + side * S * 0.52;
+        const fy2 = c.y + S * 0.62;
+        const figure = key
+          ? sprite(theme, key, fx2, fy2, 0.46, m.owner === null ? undefined : color(m.owner))
+          : null;
+        if (figure)
+          return (
+            <g
+              key={m.id}
+              className="gwp-neutral"
+              filter="url(#lift)"
+              {...motionAttrs(m.id, `hex:${m.hex}`, fx2, fy2)}
+            >
+              {figure}
+              <title>{m.label}</title>
+            </g>
+          );
         return (
           <g
             key={m.id}
@@ -1649,6 +1795,21 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
 
       {landWaterVehicles(state, S).map((v) => {
         const r = S * 0.17;
+        const art = markerArt(theme, v.icon, v.x, v.y, color(v.owner));
+        if (art)
+          return (
+            <g
+              key={v.id}
+              className="lw-vehicle"
+              filter="url(#lift)"
+              pointerEvents="none"
+              opacity={v.passive ? 0.55 : 1}
+              {...motionAttrs(v.id, v.at, v.x, v.y)}
+            >
+              {art}
+              <title>{v.title}</title>
+            </g>
+          );
         return (
           <g
             key={v.id}
@@ -1916,6 +2077,14 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           const c = cornerToPixel(corner, S);
           const x = c.x - S * 0.24;
           const y = c.y - S * 0.24;
+          const art = sprite(theme, 'nuke', x, y + S * 0.22, 0.44, color(p.owner));
+          if (art)
+            return (
+              <g key={p.id} filter={fx}>
+                {art}
+                <title>Nuke: once, on a field up to 6 away</title>
+              </g>
+            );
           return (
             <g key={p.id} filter={fx}>
               <circle
@@ -1926,11 +2095,9 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 stroke={theme.outline}
                 strokeWidth={2}
               />
-              {sprite(theme, 'nuke', x, y + S * 0.12, 0.26) ?? (
-                <text x={x} y={y + S * 0.06} textAnchor="middle" fontSize={S * 0.17}>
-                  ☢️
-                </text>
-              )}
+              <text x={x} y={y + S * 0.06} textAnchor="middle" fontSize={S * 0.17}>
+                ☢️
+              </text>
               <title>Nuke: once, on a field up to 6 away</title>
             </g>
           );
