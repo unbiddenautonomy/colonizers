@@ -291,9 +291,12 @@ export function skin(spec: SkinSpec): Theme {
     patterns: () => (
       <>
         {spec.rest.tokenDrop
-          ? Object.entries(others).map(([t, p]) =>
-              iconHex(`pat-${t}`, t, p, spec.rareLand?.[t], paint[`land-${t.toLowerCase()}`]),
-            )
+          ? Object.entries(others).map(([t, p]) => {
+              const tile = paint[`tile-${t.toLowerCase()}`];
+              return tile
+                ? paintedHex(`pat-${t}`, tile, spec.rareLand?.[t] ?? RARE_LAND[t] ?? p.base)
+                : iconHex(`pat-${t}`, t, p, spec.rareLand?.[t], paint[`land-${t.toLowerCase()}`]);
+            })
           : drawnPatterns(others)}
         {BASE.map((t) => {
           const href = paint[t];
