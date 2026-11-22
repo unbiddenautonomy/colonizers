@@ -81,6 +81,42 @@ function read(): string {
 let current = read();
 let forced: string | null = null;
 
+/**
+ * Boards with their own art for every expansion piece and marker. A game with any expansion
+ * shows one of these; the others draw generic stand-ins, so they are kept for the base game.
+ */
+export const EXPANSION_THEMES: readonly string[] = ['basic-clean', 'casino-emerald'];
+
+/** True when a game's modules go beyond the base game and its house rules. */
+export function isExpansionGame(modules: readonly string[]): boolean {
+  return modules.some((m) => m !== 'base' && m !== 'variants');
+}
+
+let expansions = false;
+
+function setExpansionGame(on: boolean): void {
+  if (expansions === on) return;
+  expansions = on;
+  for (const l of listeners) l();
+}
+
+/**
+ * While a screen with an expansion game is open, show a board that has art for it. The pick is
+ * kept, so the player's own board comes back when the expansions go.
+ */
+export function useExpansionLock(on: boolean): void {
+  useEffect(() => {
+    setExpansionGame(on);
+    return () => setExpansionGame(false);
+  }, [on]);
+}
+
+/** The board this device shows now: the pick, unless an expansion game needs another. */
+function shown(): string {
+  const id = forced ?? current;
+  return expansions && !EXPANSION_THEMES.includes(themeById(id).id) ? DEFAULT_THEME.id : id;
+}
+
 /** An admin's board skin for everyone, or null to let each player choose. */
 export function setForcedTheme(id: string | null): void {
   forced = id;
@@ -113,7 +149,7 @@ function subscribe(l: () => void): () => void {
 
 /** The theme this device shows. Each player can pick their own, even mid-game. */
 export function useTheme(): Theme {
-  return themeById(useSyncExternalStore(subscribe, () => forced ?? current));
+  return themeById(useSyncExternalStore(subscribe, shown));
 }
 
 /** A card's colour in a theme, falling back to the Clean colours. */
@@ -136,12 +172,33 @@ export function ThemeStyles() {
   return null;
 }
 
+/** One quiet line saying the board was swapped for an expansion game; nothing otherwise. */
+export function ThemeLockNote() {
+  const theme = useTheme();
+  const pick = useSyncExternalStore(subscribe, () => current);
+  const locked = useSyncExternalStore(subscribe, () => expansions);
+  if (forced !== null || !locked || themeById(pick).id === theme.id) return null;
+  return (
+    <p className="theme-note">
+      🎨 Expansions are played on Basic or Casino, which have art for every piece. Your{' '}
+      {themeById(pick).name} board comes back for base games.
+    </p>
+  );
+}
+
 /** A small picker for the theme. */
 export function ThemePicker({ compact }: { compact?: boolean }) {
   const theme = useTheme();
+  const pick = useSyncExternalStore(subscribe, () => current);
+  const locked = useSyncExternalStore(subscribe, () => expansions);
   if (forced !== null) return null;
+  // The player's own board, set aside while an expansion game needs one with art for it.
+  const aside = locked && themeById(pick).id !== theme.id ? themeById(pick) : null;
+  const why = aside
+    ? `Expansions need a board with art for every piece, so this game uses ${theme.name}. ${aside.name} comes back for base games.`
+    : theme.description;
   return (
-    <label className="theme-picker" title={theme.description}>
+    <label className="theme-picker" title={why}>
       {compact ? <span aria-hidden="true">🎨</span> : 'Board '}
       <select
         value={theme.id}
@@ -152,11 +209,17 @@ export function ThemePicker({ compact }: { compact?: boolean }) {
         aria-label="Board skin"
       >
         {THEMES.map((t) => (
-          <option key={t.id} value={t.id}>
+          <option key={t.id} value={t.id} disabled={locked && !EXPANSION_THEMES.includes(t.id)}>
             {t.name}
           </option>
         ))}
       </select>
+      {aside && !compact && (
+        <span className="theme-note">
+          Expansions use Basic or Casino. {aside.name} is back for base games.
+        </span>
+      )}
+      {aside && compact && <span aria-hidden="true">ⓘ</span>}
     </label>
   );
 }

@@ -19,6 +19,12 @@
   max-width: 100%;
 }
 
+/* Why the board was swapped for an expansion game: one quiet line beside the picker. */
+.theme-note {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+
 /* A long look name mustn't push the picker off a phone screen. */
 .theme-picker select {
   min-width: 0;
