@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { library } from '../game/library.ts';
-import { cardColor, DEFAULT_THEME, THEMES, themeById } from './themes.tsx';
+import {
+  cardColor,
+  DEFAULT_THEME,
+  EXPANSION_THEMES,
+  isExpansionGame,
+  THEMES,
+  themeById,
+} from './themes.tsx';
 
 describe('themes', () => {
   // T&B can't share a game with Seafarers, so gather hex types from both.
@@ -19,6 +26,15 @@ describe('themes', () => {
     expect(new Set(THEMES.map((t) => t.id)).size).toBe(THEMES.length);
     expect(themeById('nope')).toBe(DEFAULT_THEME);
     expect(DEFAULT_THEME.id).toBe('basic-clean');
+  });
+
+  it('keeps expansion games to the boards with art for every piece', () => {
+    expect(isExpansionGame(['base'])).toBe(false);
+    expect(isExpansionGame(['base', 'variants'])).toBe(false);
+    expect(isExpansionGame(['base', 'seafarers'])).toBe(true);
+    expect(isExpansionGame(['base', 'variants', 'cities-knights'])).toBe(true);
+    for (const id of EXPANSION_THEMES) expect(themeById(id).id).toBe(id);
+    expect(EXPANSION_THEMES).toContain(DEFAULT_THEME.id);
   });
 
   for (const theme of THEMES) {

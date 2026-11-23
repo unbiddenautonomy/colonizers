@@ -11,6 +11,9 @@ import type { BaseType } from './kit.tsx';
  *   settlement, city, ship   pieces painted in white and grey; the game tints them per player
  *   robber      the robber, in full colour
  *   token       the disc under each number, seen from above, with a plain centre
+ *   tile-<type> a whole painted tile for a rarer land (tile-gold …), like the six above
+ *   land-<type> the object for a rarer land (land-gold, land-fishinglake …), on its flat colour
+ *   anything else  a piece or marker by name (knight1, dragon2, camel, crown …): see Board.tsx
  *
  * A file that is there replaces the drawing for that piece; anything missing keeps the drawing,
  * so the art can arrive a few pieces at a time.
@@ -19,7 +22,8 @@ import type { BaseType } from './kit.tsx';
 export type ArtSlot =
   'header' | 'backdrop' | BaseType | 'sea' | 'settlement' | 'city' | 'ship' | 'robber' | 'token';
 
-export type ArtSet = Partial<Record<ArtSlot, string>>;
+/** The slots above, plus any other painting by file name: knight1, land-gold, camel … */
+export type ArtSet = Partial<Record<ArtSlot, string>> & Partial<Record<string, string>>;
 
 const FILES = import.meta.glob<string>('../../art/*/*.{webp,png,jpg,jpeg}', {
   eager: true,
@@ -31,7 +35,7 @@ const FILES = import.meta.glob<string>('../../art/*/*.{webp,png,jpg,jpeg}', {
 export function artFor(folder: string, files: Record<string, string> = FILES): ArtSet {
   const set: ArtSet = {};
   for (const [path, url] of Object.entries(files)) {
-    const m = /\/art\/([^/]+)\/([a-z]+)\.(?:webp|png|jpe?g)$/.exec(path);
+    const m = /\/art\/([^/]+)\/([a-z0-9-]+)\.(?:webp|png|jpe?g)$/.exec(path);
     if (m && m[1] === folder) set[m[2] as ArtSlot] = url;
   }
   return set;

@@ -6,7 +6,7 @@ import { Board } from '../board/Board.tsx';
 import { describe } from '../game/describe.ts';
 import { library } from '../game/library.ts';
 import { getReplay, mapName, type Replay } from '../online/account.ts';
-import { ThemePicker, useTheme } from '../theme/themes.tsx';
+import { isExpansionGame, ThemePicker, useExpansionLock, useTheme } from '../theme/themes.tsx';
 import { DiceTray } from '../ui/Dice.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 
@@ -84,6 +84,7 @@ function ReplayView({ replay, onBack }: { replay: Replay; onBack: () => void }) 
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const state = useMemo(() => stateAt(replay, timeline, step), [replay, timeline, step]);
+  useExpansionLock(isExpansionGame(state.modules));
   const ctx = useMemo(() => new Ctx(state, library.registry(state.modules)), [state]);
   const names = state.players.map((p) => p.name);
   const theme = useTheme();

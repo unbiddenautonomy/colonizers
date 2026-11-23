@@ -24,7 +24,14 @@ import {
   type Mode,
 } from '@colonizers/maps';
 import type { MapSpec } from '@colonizers/engine';
-import { ThemePicker, useTheme } from '../theme/themes.tsx';
+import {
+  isExpansionGame,
+  ThemeLockNote,
+  ThemePicker,
+  useExpansionLock,
+  useTheme,
+} from '../theme/themes.tsx';
+import { FinishPicker } from '../theme/finish.tsx';
 import { DicePicker } from '../ui/Dice.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { RESOURCE_ICON } from '../theme/clean.ts';
@@ -287,6 +294,15 @@ export function NewGame({
     return { map: b.map, report: b.report };
   }, [effective.kind, effective.kind === 'random' ? effective.mode : effective.id, seed, count]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The modules this setup would start with, for the board picker's expansion lock.
+  const setupModules = gameRules(
+    sea ? ['seafarers'] : special ? special.modules : [],
+    chosen,
+    options,
+    count,
+  ).modules;
+  useExpansionLock(isExpansionGame(setupModules));
+
   const start = () => {
     const players = names.slice(0, count).map((n, i) => n.trim() || `Player ${i + 1}`);
     const make = (extraModules: string[], map: MapSpec, own: Record<string, unknown>) => {
@@ -372,6 +388,7 @@ export function NewGame({
               <LookPicker />
               <ThemePicker />
               <DicePicker />
+              <FinishPicker />
             </div>
           </div>
           <LookArt />
@@ -615,6 +632,7 @@ export function NewGame({
 
           <section className="card setup-step" hidden={step !== 2}>
             <h2>Expansions</h2>
+            <ThemeLockNote />
             <h3 className="subhead">Official</h3>
             <div className="expansions">
               <button

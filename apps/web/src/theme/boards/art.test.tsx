@@ -63,7 +63,8 @@ describe('painted artwork', () => {
       );
     // The city is painted and tinted in the player's colour; the settlement is still drawn.
     expect(house(true)).toContain('href="/a/city.webp"');
-    expect(house(true)).toContain('flood-color="#d55e00"');
+    expect(house(true)).toContain('tint-enamel-d55e00');
+    expect(house(true)).toContain('tableValues="0.020 0.209 0.418 0.626 0.794 0.860"');
     expect(house(false)).toContain('data-drawn="house"');
     expect(
       renderToStaticMarkup(<svg>{theme.pieces?.robber?.({ x: 0, y: 0, s: 60 })}</svg>),

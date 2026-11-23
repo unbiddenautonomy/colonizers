@@ -2,23 +2,29 @@ import { crestRest, crestToken } from './crest.tsx';
 import { paintedBoard } from './painted.tsx';
 
 /**
- * Casino · Emerald & Burgundy: felt-green and lacquer lands with gold-leaf objects, a dark teal
- * sea, a yacht for a city and a mobster in a burgundy suit for the robber.
+ * Casino · Emerald & Burgundy: painted, textured lands (pine forest, red clay, wheat, slate …)
+ * each with a bold icon on top, a deep night sea, crisp white pieces in the player's colour and
+ * a bearded robber in red.
+ *
+ * Still borrowed from Basic Clean until the casino add-ons sheet arrives (src/art/casino/):
+ * barb1-3, camel, cargo-*, citadel, crown, diocese, festival, metro-tower-*, metro-emblem-*, monument, nukemark,
+ * prince, silo, village.
  */
 export const casinoEmeraldBoard = paintedBoard({
   id: 'casino-emerald',
   name: 'Casino · Emerald & Burgundy',
-  description: 'Felt green, burgundy and gold leaf: high rollers, yachts and a mobster robber.',
+  description: 'Rich painted lands with bold icons, a night sea and crisp white pieces.',
   folder: 'casino',
   land: {
-    forest: '#104c36',
-    hills: '#8c2e40',
-    pasture: '#3c845a',
-    fields: '#9c8a5a',
-    mountains: '#3a434a',
-    desert: '#c8b383',
+    forest: '#15553a',
+    hills: '#7a3a26',
+    pasture: '#3f6a3c',
+    fields: '#b9902e',
+    mountains: '#3a4352',
+    desert: '#a89474',
   },
-  sea: '#123c3e',
+  rareLand: { castle: '#ece6da', quarry: '#8d8c88' },
+  sea: '#102a44',
   ink: '#1a0f0f',
   robber: '#5e1620',
   token: crestToken,
