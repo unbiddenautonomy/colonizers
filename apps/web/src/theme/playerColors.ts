@@ -57,17 +57,6 @@ export const PLAYER_COLORS: Record<string, readonly string[]> = {
   ],
   /** Lit up against the polar night, and no white on the snow. */
   heart: ['#ff3b47', '#3d8bff', '#ffb020', '#2ed67a', '#ff5fc3', '#28d7e6', '#ffe24a', '#a06bff'],
-  /** Bold flag colours over the teal sea. */
-  whitebeard: [
-    '#e32d2d',
-    '#2a5fd9',
-    '#ff9420',
-    '#25b35a',
-    '#e04bb0',
-    '#7a4fe0',
-    '#ffd33d',
-    '#f2f2f2',
-  ],
   /** Sweets: strawberry, blueberry, mint, candy pink. */
   bigmom: ['#ff3d6e', '#2f6bff', '#ff9f2e', '#1fbf7a', '#ff4fd8', '#22c3ee', '#ffe14d', '#6d28d9'],
   /** Lantern brights against the night sea. */
@@ -95,7 +84,6 @@ const FAMILY: [prefix: string, set: string][] = [
   ['chart-', 'chart'],
   ['strawhat-', 'strawhat'],
   ['heart-', 'heart'],
-  ['whitebeard-', 'whitebeard'],
   ['bigmom-', 'bigmom'],
   ['beasts-', 'wano'],
   ['navy-', 'navy'],
