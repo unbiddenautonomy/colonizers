@@ -281,11 +281,23 @@ function sprite(
   y: number,
   size: number,
   color?: string,
+  plain?: boolean,
 ): ReactNode {
   return (
-    theme.pieces?.sprite?.({ key, x, y, size: size * S, s: S, ...(color ? { color } : {}) }) ?? null
+    theme.pieces?.sprite?.({
+      key,
+      x,
+      y,
+      size: size * S,
+      s: S,
+      ...(color ? { color } : {}),
+      ...(plain ? { plain } : {}),
+    }) ?? null
   );
 }
+
+/** Dragons are neutral: copper, crimson and obsidian by strength, never a player's colour. */
+const DRAGON_TINT: Record<number, string> = { 1: '#d6783c', 2: '#be242c', 3: '#463446' };
 
 /** Marker emoji and the painting that can stand in for each. */
 const EMOJI_SPRITE: Record<string, string> = {
@@ -442,6 +454,41 @@ function Knight({
 }
 
 /** A small boat in the middle of the edge, over a thin wake line. */
+/**
+ * Three wind lines trailing from a boosted ship's stern (extra sails this turn). Each dips in the
+ * middle and turns up at both ends, at the height of the hull.
+ */
+function BoostWind({
+  a,
+  b,
+  bow,
+}: {
+  a: { x: number; y: number };
+  b: { x: number; y: number };
+  bow: 'left' | 'right';
+}) {
+  const x = (a.x + b.x) / 2;
+  const foot = (a.y + b.y) / 2 + S * 0.168;
+  const side = bow === 'left' ? 1 : -1;
+  const k = S / 60;
+  return (
+    <g pointerEvents="none">
+      {[-21, -14, -7].map((dy) => (
+        <path
+          key={dy}
+          d={`M${x + side * 17 * k},${foot + dy * k} q${side * 8 * k},${4 * k} ${side * 16 * k},0`}
+          fill="none"
+          stroke="#fff"
+          strokeWidth={1.25 * k}
+          strokeOpacity={0.6}
+          strokeLinecap="round"
+        />
+      ))}
+      <title>Extra sails: two more moves this turn</title>
+    </g>
+  );
+}
+
 function Ship({
   a,
   b,
@@ -796,6 +843,17 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
       <defs>
         <filter id="lift" x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.35" />
+        </filter>
+        <filter id="boost-aura" x="-40%" y="-40%" width="180%" height="180%">
+          <feMorphology in="SourceAlpha" operator="dilate" radius={1.2} />
+          <feGaussianBlur stdDeviation={3.2} result="spread" />
+          <feFlood floodColor="#ffcf4a" />
+          <feComposite in2="spread" operator="in" result="aura" />
+          <feMerge>
+            <feMergeNode in="aura" />
+            <feMergeNode in="aura" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
         </filter>
         <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
@@ -1251,18 +1309,15 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             if (p.type === 'ship')
               return (
                 <g key={p.id}>
-                  <Ship a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />
-                  {p.props.boost === true && sprite(theme, 'extra-sails', 0, 0, 1) !== null && (
-                    <g pointerEvents="none" filter="url(#lift)">
-                      {sprite(
-                        theme,
-                        'extra-sails',
-                        (a.x + b.x) / 2 + S * 0.36,
-                        (a.y + b.y) / 2 + S * 0.19,
-                        0.34,
-                      )}
-                      <title>Extra sails: two more moves this turn</title>
+                  {p.props.boost === true ? (
+                    <g filter="url(#boost-aura)">
+                      <Ship a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />
                     </g>
+                  ) : (
+                    <Ship a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />
+                  )}
+                  {p.props.boost === true && (
+                    <BoostWind a={a} b={b} bow={theme.shipBow ?? 'left'} />
                   )}
                   {theme.crateCargo ? (
                     <Cargo
@@ -1395,7 +1450,13 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           c.x + S * (TOKEN_R + 0.12),
           c.y + drop + S * (TOKEN_R + 0.02),
           0.4,
+          DRAGON_TINT[2],
+          true,
         );
+        // In the desert, a bigger dragon with the number of dragons beside it.
+        const lairArt = lair
+          ? sprite(theme, 'dragon1', c.x, c.y + S * 0.42, 0.6, DRAGON_TINT[2], true)
+          : null;
         return (
           <g key={`dragon-${id}`} className="dragon" pointerEvents="none">
             {!lair && (
@@ -1411,6 +1472,24 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             )}
             {!lair && painted ? (
               <g filter="url(#lift)">{painted}</g>
+            ) : lairArt ? (
+              <g filter="url(#lift)">
+                {lairArt}
+                <text
+                  x={c.x + S * 0.22}
+                  y={c.y + S * 0.36}
+                  textAnchor="middle"
+                  fontSize={S * 0.28}
+                  fontWeight={800}
+                  fill="#ffd36a"
+                  stroke="#2a0a08"
+                  strokeWidth={S * 0.06}
+                  strokeLinejoin="round"
+                  paintOrder="stroke"
+                >
+                  {n}
+                </text>
+              </g>
             ) : (
               <g filter="url(#lift)">
                 <circle
@@ -1537,7 +1616,15 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'dragon' })}
             >
-              {sprite(theme, `dragon${tier}`, c.x, c.y + S * 0.3, 0.62) ?? (
+              {sprite(
+                theme,
+                `dragon${tier}`,
+                c.x,
+                c.y + S * 0.3,
+                0.62,
+                DRAGON_TINT[tier] ?? DRAGON_TINT[2],
+                true,
+              ) ?? (
                 <Dragon
                   x={c.x}
                   y={c.y}

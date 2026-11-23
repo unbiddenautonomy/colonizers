@@ -88,6 +88,55 @@ function rgb(color: string): [number, number, number] {
 }
 
 /** The ramp a grey turns into: black lines stay near black, whites take a pale tint. */
+/**
+ * The plain tint, for neutral figures: the greys lifted so the shading stays bright, multiplied
+ * by the colour, with black lines kept black and a thin rim in the board's ink.
+ */
+function plainTint(
+  href: string,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  rim: string,
+  s: number,
+  id: string,
+) {
+  return (
+    <g>
+      <filter id={id} colorInterpolationFilters="sRGB">
+        <feComponentTransfer in="SourceGraphic" result="lit">
+          <feFuncR type="gamma" exponent={0.55} />
+          <feFuncG type="gamma" exponent={0.55} />
+          <feFuncB type="gamma" exponent={0.55} />
+        </feComponentTransfer>
+        <feFlood floodColor={color} />
+        <feBlend in2="lit" mode="multiply" />
+        <feComposite in2="SourceAlpha" operator="in" result="piece" />
+        <feComponentTransfer in="SourceAlpha" result="body">
+          <feFuncA type="linear" slope={4} intercept={-2.4} />
+        </feComponentTransfer>
+        <feMorphology in="body" operator="dilate" radius={0.022 * s} result="grown" />
+        <feFlood floodColor={rim} />
+        <feComposite in2="grown" operator="in" result="rim" />
+        <feMerge>
+          <feMergeNode in="rim" />
+          <feMergeNode in="piece" />
+        </feMerge>
+      </filter>
+      <image
+        href={href}
+        x={x - size / 2}
+        y={y - size}
+        width={size}
+        height={size}
+        preserveAspectRatio="xMidYMax meet"
+        filter={`url(#${id})`}
+      />
+    </g>
+  );
+}
+
 function ramp(c: number, finish: Finish): string {
   const mix = (w: number) => c + (1 - c) * w;
   const steps =
@@ -110,11 +159,12 @@ function tinted(
   color: string,
   rim: string,
   s: number,
+  finish: Finish | 'plain' = pieceFinish(),
 ) {
-  const finish = pieceFinish();
   const [r, g, b] = rgb(color);
   const id = `tint-${finish}-${color.replace(/[^a-z0-9]/gi, '')}-${rim.replace(/[^a-z0-9]/gi, '')}`;
   const light = <feDistantLight azimuth={225} elevation={42} />;
+  if (finish === 'plain') return plainTint(href, x, y, size, color, rim, s, id);
   return (
     <g>
       <filter id={id} x="-40%" y="-40%" width="180%" height="180%" colorInterpolationFilters="sRGB">
@@ -271,10 +321,10 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): 
       );
   }
   // Any other painting in the folder, by its file name: knights, dragons, markers and the like.
-  out.sprite = ({ key, x, y, size, color, s }) => {
+  out.sprite = ({ key, x, y, size, color, plain, s }) => {
     const href = p[key];
     if (!href) return null;
-    if (color) return tinted(href, x, y, size, color, rim, s);
+    if (color) return tinted(href, x, y, size, color, rim, s, plain ? 'plain' : pieceFinish());
     return (
       <image
         href={href}

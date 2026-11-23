@@ -34,4 +34,6 @@ export const basicCleanBoard = paintedBoard({
   sea: '#1e6091',
   ink: '#1c2939',
   robber: '#5a2340',
+  // The white ship sails to the right, so its stern is on the left.
+  rest: { shipBow: 'right' },
 });

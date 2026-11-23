@@ -61,6 +61,8 @@ export interface Theme {
   /** How far below the hex centre the number disc sits, as a share of the hex size, leaving
    *  the top of the hex for the land's picture. */
   tokenDrop?: number;
+  /** Which way the board's ship faces, so wind lines can trail from its stern. Left when unset. */
+  shipBow?: 'left' | 'right';
   /** Show a ship's or harbor's cargo as plain wooden crates beside it, not as icons. */
   crateCargo?: boolean;
   /** The font for number tokens and harbor ratios. */
@@ -85,8 +87,9 @@ export interface ThemePieces {
   road?: (o: { a: Pt; b: Pt; color: string; s: number }) => ReactNode;
   /**
    * Any other painted piece or marker by name (knight1, dragon2, camel, crown …), standing with
-   * its foot at (x, y), `size` tall; tinted like the pieces when `color` is given. Null when the
-   * board has no painting by that name, so the drawing stays.
+   * its foot at (x, y), `size` tall; tinted like the pieces when `color` is given. `plain` tints
+   * without the player's piece finish, for neutral figures such as dragons. Null when the board
+   * has no painting by that name, so the drawing stays.
    */
   sprite?: (o: {
     key: string;
@@ -94,6 +97,7 @@ export interface ThemePieces {
     y: number;
     size: number;
     color?: string;
+    plain?: boolean;
     s: number;
   }) => ReactNode;
 }
