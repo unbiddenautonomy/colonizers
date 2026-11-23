@@ -56,5 +56,8 @@ A private, original-art remake of a hex-and-resources trading game (Catan / Colo
 
 - Start each piece of work in its own thread, and keep the project chat for routing.
 - Update this file in the same PR when something above changes, so the next restart stays cheap.
-- New painted art for a board goes in with `scripts/import-art.py` (resizes, keys out backgrounds, splits sheets).
+- New painted art for a board goes in with `scripts/import-art.py` (resizes, keys out backgrounds, splits sheets). `scripts/make-metro-towers.py` makes the metropolis towers.
+- Whole-game QA: `tools/qa/` (bot simulator over every board, mode and house rule, plus Playwright UI scripts). See its README.
+- Older task list and decision log: `docs/TASKS.md`. Art specs and prompts: `docs/art/`.
+- Keep every useful script, spec and prompt in the repo, never only in the project folder, so the project can move.
 - Open images only when needed, since they cost tokens.

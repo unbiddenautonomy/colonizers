@@ -11,6 +11,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/worker-configuration.d.ts',
       'apps/web/public/**',
+      'tools/qa/**',
     ],
   },
   js.configs.recommended,
