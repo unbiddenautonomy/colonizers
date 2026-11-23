@@ -63,6 +63,8 @@ export interface Theme {
   tokenDrop?: number;
   /** Which way the board's ship faces, so wind lines can trail from its stern. Left when unset. */
   shipBow?: 'left' | 'right';
+  /** How much larger than usual the board's knight pictures are drawn. 1 when unset. */
+  knightScale?: number;
   /** Show a ship's or harbor's cargo as plain wooden crates beside it, not as icons. */
   crateCargo?: boolean;
   /** The font for number tokens and harbor ratios. */
