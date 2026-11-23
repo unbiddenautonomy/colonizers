@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOKS } from './looks.tsx';
+import { AUTO, DEFAULT_LOOK, lookById, LOOKS } from './looks.tsx';
 
 const lum = (hex: string) => {
   const n = hex.replace('#', '');
@@ -13,6 +13,13 @@ const ratio = (a: string, b: string) => {
 };
 
 describe('looks', () => {
+  it('starts new devices on Basic Clean, with its own board', () => {
+    expect(DEFAULT_LOOK).toBe('clean-basic');
+    expect(lookById(DEFAULT_LOOK, true).board).toBe('basic-clean');
+    expect(lookById('nope', false).id).toBe('clean-basic');
+    expect(lookById(AUTO, true).id).toBe('basicbench-dark');
+  });
+
   it('has unique ids', () => {
     expect(new Set(LOOKS.map((l) => l.id)).size).toBe(LOOKS.length);
   });

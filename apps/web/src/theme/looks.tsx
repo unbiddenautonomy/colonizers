@@ -882,9 +882,12 @@ export const LOOKS: Look[] = [
 /** Picks that aren't a single look: BasicBench following the device's light or dark setting. */
 export const AUTO = 'basicbench-auto';
 
+/** What a device with no saved pick shows: Basic Clean. */
+export const DEFAULT_LOOK = basicClean.id;
+
 export function lookById(id: string, prefersDark: boolean): Look {
   if (id === AUTO) return prefersDark ? night : atelier;
-  return LOOKS.find((l) => l.id === id) ?? (prefersDark ? night : atelier);
+  return LOOKS.find((l) => l.id === id) ?? basicClean;
 }
 
 // ---- The chosen look, per device (an admin can set one for everyone) ----
@@ -894,9 +897,9 @@ const listeners = new Set<() => void>();
 
 function read(): string {
   try {
-    return localStorage.getItem(KEY) ?? AUTO;
+    return localStorage.getItem(KEY) ?? DEFAULT_LOOK;
   } catch {
-    return AUTO;
+    return DEFAULT_LOOK;
   }
 }
 
