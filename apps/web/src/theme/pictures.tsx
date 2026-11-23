@@ -41,9 +41,9 @@ const CARDS = (c: Record<string, string>) => ({
 // ---- Wooden board: printed tiles on wood, from a photo ----
 
 const WOOD_COLOURS = {
-  forest: '#6f9a3c',
+  forest: '#4e7a2c',
   hills: '#c0503a',
-  pasture: '#7fae3e',
+  pasture: '#a2c95a',
   fields: '#ef8a22',
   mountains: '#8a7566',
   desert: '#e8a838',
