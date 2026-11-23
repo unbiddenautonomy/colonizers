@@ -16,6 +16,7 @@ import {
   type EdgeId,
   type GameState,
   type HexId,
+  type Piece,
 } from '@colonizers/engine';
 import { RESOURCE_ICON, TRACK_COLOR, type Theme } from '../theme/clean.ts';
 import { useTheme } from '../theme/themes.tsx';
@@ -43,7 +44,7 @@ import { princesMarkers } from '../screens/Princes.tsx';
 import { kingdomsMarkers } from '../screens/Kingdoms.tsx';
 import { landWaterVehicles } from '../screens/LandWater.tsx';
 import { sfCornerMarkers, sfHexMarkers } from '../screens/Strategist.tsx';
-import { ArmyFlag, soldiersMarkers } from '../screens/Soldiers.tsx';
+import { ArmyFlag, armyLabel, soldiersMarkers, units } from '../screens/Soldiers.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
@@ -584,6 +585,38 @@ function PirateShip({ x, y, color, ink }: { x: number; y: number; color: string;
       <circle cx={sx - 0.35 * u} cy={sy - 0.05 * u} r={0.24 * u} fill={color} />
       <circle cx={sx + 0.35 * u} cy={sy - 0.05 * u} r={0.24 * u} fill={color} />
     </>
+  );
+}
+
+/**
+ * A painted board's army: its figures in the owner's colour with a disc counting its units, or
+ * null when the board has no army painting and the flag is drawn instead.
+ */
+function armyArt(theme: Theme, army: Piece, x: number, y: number, fill: string): ReactNode {
+  const art = sprite(theme, 'army', x - S * 0.06, y + S * 0.28, 0.6, fill);
+  if (!art) return null;
+  const u = units(army);
+  const n = u.infantry + u.cavalry + u.artillery;
+  const bx = x + S * 0.2;
+  const by = y - S * 0.06;
+  return (
+    <g>
+      {art}
+      <circle cx={bx} cy={by} r={S * 0.1} fill={fill} stroke={theme.outline} strokeWidth={1.5} />
+      <text
+        x={bx}
+        y={by + S * 0.045}
+        textAnchor="middle"
+        fontSize={S * 0.13}
+        fontWeight={800}
+        fill="#fff"
+        stroke={theme.outline}
+        strokeWidth={0.6}
+      >
+        {n}
+      </text>
+      <title>{armyLabel(army)}</title>
+    </g>
   );
 }
 
@@ -2045,6 +2078,20 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           const drop = theme.tokenDrop ?? 0;
           const x = c.x - S * (drop ? 0.56 : 0.42);
           const y = c.y + S * (0.12 + drop);
+          // A painted board's merchant figure stands beside the number disc, in its owner's colour.
+          const art = sprite(theme, 'merchant', x, y + S * 0.24, 0.52, color(p.owner));
+          if (art)
+            return (
+              <g
+                key={p.id}
+                className="merchant"
+                filter={fx}
+                {...motionAttrs(p.id, `hex:${h.id}`, x, y)}
+              >
+                {art}
+                <title>Merchant</title>
+              </g>
+            );
           return (
             <g
               key={p.id}
@@ -2313,7 +2360,9 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter={fx}
               {...motionAttrs(p.id, `corner:${corner}`, x, y, { owner: p.owner, kind: p.type })}
             >
-              <ArmyFlag x={x} y={y} color={color(p.owner)} army={p} theme={theme} />
+              {armyArt(theme, p, x, y, color(p.owner)) ?? (
+                <ArmyFlag x={x} y={y} color={color(p.owner)} army={p} theme={theme} />
+              )}
             </g>
           );
         })}

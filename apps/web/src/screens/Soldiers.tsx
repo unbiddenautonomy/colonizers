@@ -34,7 +34,7 @@ const UNIT_NAME: Record<string, string> = {
   artillery: 'Artillery',
 };
 
-function units(p: Piece): { infantry: number; cavalry: number; artillery: number } {
+export function units(p: Piece): { infantry: number; cavalry: number; artillery: number } {
   const n = (k: string) => (typeof p.props[k] === 'number' ? (p.props[k] as number) : 0);
   return { infantry: n('infantry'), cavalry: n('cavalry'), artillery: n('artillery') };
 }
