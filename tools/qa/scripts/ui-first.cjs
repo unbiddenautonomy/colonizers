@@ -1,0 +1,20 @@
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch();
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+  const page = await ctx.newPage();
+  const logs = [];
+  page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') logs.push(`${m.type()}: ${m.text()}`); });
+  page.on('pageerror', (e) => logs.push(`pageerror: ${e.message}`));
+  page.on('requestfailed', (r) => logs.push(`requestfailed: ${r.url()} ${r.failure()?.errorText}`));
+  const t0 = Date.now();
+  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+  console.log('loaded in', Date.now() - t0, 'ms');
+  await page.screenshot({ path: 'shots/home-1440.png', fullPage: true });
+  console.log(await page.title());
+  const buttons = await page.$$eval('button, a, select, input', (els) => els.map((e) => `${e.tagName.toLowerCase()}${e.type ? '[' + e.type + ']' : ''}: ${(e.innerText || e.getAttribute('aria-label') || e.placeholder || e.value || '').trim().slice(0, 50)}${e.disabled ? ' (disabled)' : ''}${e.offsetParent === null ? ' (hidden)' : ''}`));
+  console.log(buttons.join('\n'));
+  console.log('--- logs');
+  console.log(logs.join('\n'));
+  await browser.close();
+})();

@@ -22,8 +22,13 @@ packages/
   rulebook/     Plain-language rule pages, card glossary, cost card data
 scripts/
   import-art.py  Turns painted artwork into a board skin's art files (needs Python 3 with Pillow and NumPy; usage in the file)
+  make-metro-towers.py  Recolours the metropolis tower art for trade, politics and science
+tools/
+  qa/           Bot-game simulator, Playwright UI scripts and game lists from the full test run (see its README)
 docs/
   BRIEF.md      One-page project brief: current state, rules and decisions. Read first
+  TASKS.md      Running task list and decisions, last updated 19 Nov 2026
+  art/          Art specs and image-generator prompts
   PLAN.md       Master plan
   DEPLOY.md     How deploys work and the one-time Cloudflare setup
   FREE-TIER.md  Cloudflare free plan limits and what they mean for the design
