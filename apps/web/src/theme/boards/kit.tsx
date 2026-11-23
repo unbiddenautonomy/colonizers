@@ -88,61 +88,14 @@ function rgb(color: string): [number, number, number] {
 }
 
 /** The ramp a grey turns into: black lines stay near black, whites take a pale tint. */
-/**
- * The plain tint, for neutral figures: the greys lifted so the shading stays bright, multiplied
- * by the colour, with black lines kept black and a thin rim in the board's ink.
- */
-function plainTint(
-  href: string,
-  x: number,
-  y: number,
-  size: number,
-  color: string,
-  rim: string,
-  s: number,
-  id: string,
-) {
-  return (
-    <g>
-      <filter id={id} colorInterpolationFilters="sRGB">
-        <feComponentTransfer in="SourceGraphic" result="lit">
-          <feFuncR type="gamma" exponent={0.55} />
-          <feFuncG type="gamma" exponent={0.55} />
-          <feFuncB type="gamma" exponent={0.55} />
-        </feComponentTransfer>
-        <feFlood floodColor={color} />
-        <feBlend in2="lit" mode="multiply" />
-        <feComposite in2="SourceAlpha" operator="in" result="piece" />
-        <feComponentTransfer in="SourceAlpha" result="body">
-          <feFuncA type="linear" slope={4} intercept={-2.4} />
-        </feComponentTransfer>
-        <feMorphology in="body" operator="dilate" radius={0.022 * s} result="grown" />
-        <feFlood floodColor={rim} />
-        <feComposite in2="grown" operator="in" result="rim" />
-        <feMerge>
-          <feMergeNode in="rim" />
-          <feMergeNode in="piece" />
-        </feMerge>
-      </filter>
-      <image
-        href={href}
-        x={x - size / 2}
-        y={y - size}
-        width={size}
-        height={size}
-        preserveAspectRatio="xMidYMax meet"
-        filter={`url(#${id})`}
-      />
-    </g>
-  );
-}
-
-function ramp(c: number, finish: Finish): string {
+function ramp(c: number, finish: Finish | 'dragon'): string {
   const mix = (w: number) => c + (1 - c) * w;
   const steps =
     finish === 'lounge'
       ? [0.02, c * 0.2, c * 0.36, c * 0.52, c * 0.7, mix(0.08)]
-      : [0.02, c * 0.25, c * 0.5, c * 0.75, c * 0.95, mix(0.15)];
+      : finish === 'dragon'
+        ? [0.02, c * 0.28, c * 0.55, c * 0.8, c * 0.97, mix(0.3)]
+        : [0.02, c * 0.25, c * 0.5, c * 0.75, c * 0.95, mix(0.15)];
   return steps.map((v) => v.toFixed(3)).join(' ');
 }
 
@@ -159,12 +112,11 @@ function tinted(
   color: string,
   rim: string,
   s: number,
-  finish: Finish | 'plain' = pieceFinish(),
+  finish: Finish | 'dragon' = pieceFinish(),
 ) {
   const [r, g, b] = rgb(color);
   const id = `tint-${finish}-${color.replace(/[^a-z0-9]/gi, '')}-${rim.replace(/[^a-z0-9]/gi, '')}`;
   const light = <feDistantLight azimuth={225} elevation={42} />;
-  if (finish === 'plain') return plainTint(href, x, y, size, color, rim, s, id);
   return (
     <g>
       <filter id={id} x="-40%" y="-40%" width="180%" height="180%" colorInterpolationFilters="sRGB">
@@ -196,7 +148,14 @@ function tinted(
           {light}
         </feSpecularLighting>
         <feComposite in="shine" in2="body" operator="in" result="gloss" />
-        <feComposite in="ramp" in2="gloss" operator="arithmetic" k2={1} k3={0.55} result="lit" />
+        <feComposite
+          in="ramp"
+          in2="gloss"
+          operator="arithmetic"
+          k2={1}
+          k3={finish === 'dragon' ? 0.5 : 0.55}
+          result="lit"
+        />
         <feComposite in="lit" in2="SourceAlpha" operator="in" result="piece" />
         {/* A thin rim in the board's own ink, the same for every player, so the piece stands
             off any hex. */}
@@ -262,7 +221,7 @@ function tinted(
             </feMerge>
           </>
         )}
-        {finish === 'enamel' && (
+        {(finish === 'enamel' || finish === 'dragon') && (
           <feMerge>
             <feMergeNode in="rim" />
             <feMergeNode in="piece" />
@@ -324,7 +283,7 @@ function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): 
   out.sprite = ({ key, x, y, size, color, plain, s }) => {
     const href = p[key];
     if (!href) return null;
-    if (color) return tinted(href, x, y, size, color, rim, s, plain ? 'plain' : pieceFinish());
+    if (color) return tinted(href, x, y, size, color, rim, s, plain ? 'dragon' : pieceFinish());
     return (
       <image
         href={href}

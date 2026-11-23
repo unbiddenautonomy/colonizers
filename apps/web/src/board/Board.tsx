@@ -47,7 +47,7 @@ import { ArmyFlag, soldiersMarkers } from '../screens/Soldiers.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
-import { usePieceFinish } from '../theme/finishStore.ts';
+import { dragonTint, useDragonColour, usePieceFinish } from '../theme/finishStore.ts';
 
 const S = 60;
 /**
@@ -295,9 +295,6 @@ function sprite(
     }) ?? null
   );
 }
-
-/** Dragons are neutral: copper, crimson and obsidian by strength, never a player's colour. */
-const DRAGON_TINT: Record<number, string> = { 1: '#d6783c', 2: '#be242c', 3: '#463446' };
 
 /** Marker emoji and the painting that can stand in for each. */
 const EMOJI_SPRITE: Record<string, string> = {
@@ -699,6 +696,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const fx = theme.pieceEffect === 'glow' ? 'url(#glow)' : 'url(#lift)';
   // Painted pieces read the finish as they draw, so a new pick has to redraw the board.
   usePieceFinish();
+  useDragonColour();
   const patterned = new Set(theme.patterned ?? []);
   const hexes = useMemo(() => Object.values(state.hexes), [state.hexes]);
   const canal = useMemo(() => canalLinks(state, S), [state]);
@@ -1450,12 +1448,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           c.x + S * (TOKEN_R + 0.12),
           c.y + drop + S * (TOKEN_R + 0.02),
           0.4,
-          DRAGON_TINT[2],
+          dragonTint(2),
           true,
         );
         // In the desert, a bigger dragon with the number of dragons beside it.
         const lairArt = lair
-          ? sprite(theme, 'dragon1', c.x, c.y + S * 0.42, 0.6, DRAGON_TINT[2], true)
+          ? sprite(theme, 'dragon1', c.x, c.y + S * 0.42, 0.6, dragonTint(2), true)
           : null;
         return (
           <g key={`dragon-${id}`} className="dragon" pointerEvents="none">
@@ -1481,7 +1479,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   textAnchor="middle"
                   fontSize={S * 0.28}
                   fontWeight={800}
-                  fill="#ffd36a"
+                  fill="#f6d27a"
                   stroke="#2a0a08"
                   strokeWidth={S * 0.06}
                   strokeLinejoin="round"
@@ -1616,15 +1614,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'dragon' })}
             >
-              {sprite(
-                theme,
-                `dragon${tier}`,
-                c.x,
-                c.y + S * 0.3,
-                0.62,
-                DRAGON_TINT[tier] ?? DRAGON_TINT[2],
-                true,
-              ) ?? (
+              {sprite(theme, `dragon${tier}`, c.x, c.y + S * 0.3, 0.62, dragonTint(tier), true) ?? (
                 <Dragon
                   x={c.x}
                   y={c.y}

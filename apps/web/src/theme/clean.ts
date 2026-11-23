@@ -87,8 +87,8 @@ export interface ThemePieces {
   road?: (o: { a: Pt; b: Pt; color: string; s: number }) => ReactNode;
   /**
    * Any other painted piece or marker by name (knight1, dragon2, camel, crown …), standing with
-   * its foot at (x, y), `size` tall; tinted like the pieces when `color` is given. `plain` tints
-   * without the player's piece finish, for neutral figures such as dragons. Null when the board
+   * its foot at (x, y), `size` tall; tinted like the pieces when `color` is given. `plain` gives
+   * a neutral figure such as a dragon a fixed enamel, not the player's piece finish. Null when the board
    * has no painting by that name, so the drawing stays.
    */
   sprite?: (o: {

@@ -49,3 +49,49 @@ export function usePieceFinish(): Finish {
     () => current,
   );
 }
+
+/** The colour dragons take: neutral, never a player's, darkening with the dragon's strength. */
+export const DRAGON_COLOURS = [
+  { id: 'gold', name: 'Gold', tiers: ['#f6dc8a', '#d29d2c', '#8a5a1e'] },
+  { id: 'emerald', name: 'Emerald', tiers: ['#86e6b0', '#21a35a', '#0f5a33'] },
+] as const;
+export type DragonColour = (typeof DRAGON_COLOURS)[number]['id'];
+
+const DRAGON_KEY = 'colonizers.dragons';
+
+function readDragon(): DragonColour {
+  try {
+    const v = localStorage.getItem(DRAGON_KEY);
+    return DRAGON_COLOURS.some((d) => d.id === v) ? (v as DragonColour) : 'gold';
+  } catch {
+    return 'gold';
+  }
+}
+
+let dragon = readDragon();
+
+export function setDragonColour(id: DragonColour): void {
+  dragon = id;
+  try {
+    localStorage.setItem(DRAGON_KEY, id);
+  } catch {
+    // Private mode: the choice lasts until the page closes.
+  }
+  for (const l of listeners) l();
+}
+
+export function useDragonColour(): DragonColour {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => dragon,
+  );
+}
+
+/** The shade for a dragon of strength `tier` (1 to 3) in the colour picked on this device. */
+export function dragonTint(tier: number, colour: DragonColour = dragon): string {
+  const tiers = DRAGON_COLOURS.find((d) => d.id === colour)!.tiers;
+  return tiers[Math.min(Math.max(tier, 1), 3) - 1]!;
+}
