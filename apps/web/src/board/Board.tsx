@@ -47,6 +47,7 @@ import { ArmyFlag, soldiersMarkers } from '../screens/Soldiers.tsx';
 import { LairMarkers } from './EpArt.tsx';
 import { RiverHex, riverRun, riverTitle } from './RiverArt.tsx';
 import { WonderMarkers } from './WonderArt.tsx';
+import { usePieceFinish } from '../theme/finishStore.ts';
 
 const S = 60;
 /**
@@ -103,6 +104,37 @@ function hexPoints(q: number, r: number, scale = 1): string {
 function edgeEnds(edge: EdgeId, g: ReturnType<typeof buildGeometry>) {
   const [a, b] = g.edgeCorners.get(edge) as [CornerId, CornerId];
   return [cornerToPixel(a, S), cornerToPixel(b, S)] as const;
+}
+
+/** The glowing border on a hex a dragon holds. Pink, so it doesn't read as the barbarians' red. */
+const DRAGON_PINK = '#ff5fa2';
+
+/**
+ * A cross pattée turned 45° into an ×, `r` from its centre to the tip of each arm: the arms flare
+ * out to a wide, slightly hollowed end.
+ */
+function crossPattee(x: number, y: number, r: number): string {
+  const neck = r * 0.16;
+  const end = r * 0.5;
+  const dip = r * 0.82;
+  const arm = [
+    [neck, neck],
+    [end, r],
+    [0, dip],
+    [-end, r],
+    [-neck, neck],
+  ];
+  const pts: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const t = Math.PI / 4 - (i * Math.PI) / 2;
+    const cos = Math.cos(t);
+    const sin = Math.sin(t);
+    for (const [u, v] of arm.slice(i === 0 ? 0 : 1)) {
+      // u runs across the arm, v along it; turn the arm to its corner.
+      pts.push(`${(x + v! * cos - u! * sin).toFixed(2)},${(y + v! * sin + u! * cos).toFixed(2)}`);
+    }
+  }
+  return `M${pts.join(' L')} Z`;
 }
 
 function HouseShape({
@@ -618,6 +650,8 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const chosen = useTheme();
   const theme = given ?? chosen;
   const fx = theme.pieceEffect === 'glow' ? 'url(#glow)' : 'url(#lift)';
+  // Painted pieces read the finish as they draw, so a new pick has to redraw the board.
+  usePieceFinish();
   const patterned = new Set(theme.patterned ?? []);
   const hexes = useMemo(() => Object.values(state.hexes), [state.hexes]);
   const canal = useMemo(() => canalLinks(state, S), [state]);
@@ -1218,6 +1252,18 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               return (
                 <g key={p.id}>
                   <Ship a={a} b={b} color={color(p.owner)} theme={theme} fx={fx} />
+                  {p.props.boost === true && sprite(theme, 'extra-sails', 0, 0, 1) !== null && (
+                    <g pointerEvents="none" filter="url(#lift)">
+                      {sprite(
+                        theme,
+                        'extra-sails',
+                        (a.x + b.x) / 2 + S * 0.36,
+                        (a.y + b.y) / 2 + S * 0.19,
+                        0.34,
+                      )}
+                      <title>Extra sails: two more moves this turn</title>
+                    </g>
+                  )}
                   {theme.crateCargo ? (
                     <Cargo
                       theme={theme}
@@ -1341,43 +1387,66 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         if (!h || n <= 0) return null;
         const c = hexToPixel(h.q, h.r, S);
         const lair = h.type === 'desert';
+        // A painted dragon curled beside the number disc, where the board has one.
+        const drop = S * (theme.tokenDrop ?? 0);
+        const painted = sprite(
+          theme,
+          'dragon1',
+          c.x + S * (TOKEN_R + 0.12),
+          c.y + drop + S * (TOKEN_R + 0.02),
+          0.4,
+        );
         return (
           <g key={`dragon-${id}`} className="dragon" pointerEvents="none">
-            {!lair && <polygon points={hexPoints(h.q, h.r)} fill="#5b0f0a" opacity={0.38} />}
-            <g filter="url(#lift)">
-              <circle
-                cx={c.x}
-                cy={c.y + (lair ? 0 : S * 0.5)}
-                r={S * (lair ? 0.3 : 0.2)}
-                fill="#7a1a12"
-                stroke="#f6d27a"
-                strokeWidth={2}
+            {!lair && (
+              <polygon
+                className="hex-glow"
+                points={hexPoints(h.q, h.r, 0.96)}
+                fill="none"
+                stroke={DRAGON_PINK}
+                strokeWidth={S * 0.07}
+                strokeLinejoin="round"
+                filter="url(#glow)"
               />
-              <text
-                x={c.x}
-                y={c.y + (lair ? S * 0.02 : S * 0.5)}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={S * (lair ? 0.3 : 0.22)}
-              >
-                🐉
-              </text>
-              {lair && (
+            )}
+            {!lair && painted ? (
+              <g filter="url(#lift)">{painted}</g>
+            ) : (
+              <g filter="url(#lift)">
+                <circle
+                  cx={c.x}
+                  cy={c.y + (lair ? 0 : S * 0.5)}
+                  r={S * (lair ? 0.3 : 0.2)}
+                  fill="#7a1a12"
+                  stroke="#f6d27a"
+                  strokeWidth={2}
+                />
                 <text
-                  x={c.x + S * 0.24}
-                  y={c.y + S * 0.26}
+                  x={c.x}
+                  y={c.y + (lair ? S * 0.02 : S * 0.5)}
                   textAnchor="middle"
-                  fontSize={S * 0.2}
-                  fontWeight={700}
-                  fill="#f6d27a"
-                  stroke="#3a0b07"
-                  strokeWidth={3}
-                  paintOrder="stroke"
+                  dominantBaseline="central"
+                  fontSize={S * (lair ? 0.3 : 0.22)}
                 >
-                  {n}
+                  🐉
                 </text>
-              )}
-            </g>
+                {lair && (
+                  <text
+                    x={c.x + S * 0.24}
+                    y={c.y + S * 0.26}
+                    textAnchor="middle"
+                    fontSize={S * 0.2}
+                    fontWeight={700}
+                    fill="#f6d27a"
+                    stroke="#3a0b07"
+                    strokeWidth={3}
+                    paintOrder="stroke"
+                  >
+                    {n}
+                  </text>
+                )}
+              </g>
+            )}
             <title>
               {lair
                 ? `${n} dragon${n === 1 ? '' : 's'} in the desert`
@@ -1396,20 +1465,22 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           const [a, b] = edgeEnds(e, g);
           const x = (a.x + b.x) / 2;
           const y = (a.y + b.y) / 2;
-          const k = S * 0.09;
           return (
             <g key={`cut-${p.id}`} className="road-cut" pointerEvents="none">
               <path
-                d={`M${x - k},${y - k} L${x + k},${y + k} M${x + k},${y - k} L${x - k},${y + k}`}
-                stroke="#f6d27a"
-                strokeWidth={4}
-                strokeLinecap="round"
+                d={crossPattee(x, y, S * 0.19)}
+                fill="#b3193a"
+                stroke="#fff"
+                strokeWidth={S * 0.07}
+                strokeLinejoin="round"
+                paintOrder="stroke"
               />
               <path
-                d={`M${x - k},${y - k} L${x + k},${y + k} M${x + k},${y - k} L${x - k},${y + k}`}
-                stroke="#7a1a12"
-                strokeWidth={2}
-                strokeLinecap="round"
+                d={crossPattee(x, y, S * 0.19)}
+                fill="#b3193a"
+                stroke="#4a0716"
+                strokeWidth={S * 0.03}
+                strokeLinejoin="round"
               />
               <title>Cut by dragons</title>
             </g>
@@ -1992,11 +2063,22 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 )}
               </>
             );
+            // A metropolis replaces the city with a tower in the player's colour, its emblem on
+            // top in the track's own colour; a damaged city is drawn broken and dimmed.
+            const metro = typeof p.props.metropolis === 'string' ? p.props.metropolis : null;
+            const tower =
+              p.type === 'city' && metro
+                ? sprite(theme, `metro-tower-${metro}`, c.x, c.y + S * 0.2, 1.05, pieceColor(p))
+                : null;
+            const broken =
+              p.type === 'city' && !tower && p.props.damaged === true
+                ? sprite(theme, 'city-broken', c.x, c.y + S * 0.2, 0.84, pieceColor(p))
+                : null;
             return (
               <g key={p.id} filter={fx} opacity={p.props.damaged === true ? 0.6 : 1}>
                 {p.props.damaged === true && <title>Damaged in battle</title>}
                 {!paintedHouse && walls}
-                {(p.type === 'harbor' && harborArt) || (
+                {(p.type === 'harbor' && harborArt) || tower || broken || (
                   <HouseShape
                     x={c.x}
                     y={c.y}
@@ -2055,34 +2137,26 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                       <title>Citadel (a point more)</title>
                     </g>
                   )}
-                {typeof p.props.metropolis === 'string' &&
-                  sprite(theme, `metro-${p.props.metropolis}`, 0, 0, 1) !== null && (
-                    <g pointerEvents="none">
-                      {sprite(
-                        theme,
-                        `metro-${p.props.metropolis}`,
-                        c.x - S * 0.34,
-                        c.y + S * 0.12,
-                        0.5,
-                      )}
-                      <title>{`Metropolis (${p.props.metropolis})`}</title>
-                    </g>
-                  )}
-                {typeof p.props.metropolis === 'string' &&
-                  sprite(theme, `metro-${p.props.metropolis}`, 0, 0, 1) === null && (
-                    <g>
-                      <rect
-                        x={c.x - S * 0.07}
-                        y={c.y - S * (paintedHouse ? 0.64 : 0.42)}
-                        width={S * 0.14}
-                        height={S * 0.24}
-                        fill={TRACK_COLOR[p.props.metropolis] ?? '#fff'}
-                        stroke={theme.outline}
-                        strokeWidth={2}
-                      />
-                      <title>{`Metropolis (${p.props.metropolis})`}</title>
-                    </g>
-                  )}
+                {metro && tower && (
+                  <g pointerEvents="none">
+                    {sprite(theme, `metro-emblem-${metro}`, c.x, c.y + S * 0.2, 1.05)}
+                    <title>{`Metropolis (${metro})`}</title>
+                  </g>
+                )}
+                {metro && !tower && (
+                  <g>
+                    <rect
+                      x={c.x - S * 0.07}
+                      y={c.y - S * (paintedHouse ? 0.64 : 0.42)}
+                      width={S * 0.14}
+                      height={S * 0.24}
+                      fill={TRACK_COLOR[metro] ?? '#fff'}
+                      stroke={theme.outline}
+                      strokeWidth={2}
+                    />
+                    <title>{`Metropolis (${metro})`}</title>
+                  </g>
+                )}
               </g>
             );
           })();

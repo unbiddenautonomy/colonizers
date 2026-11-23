@@ -5,6 +5,7 @@ import { PALETTE as TILE_PALETTE } from '../tiles.tsx';
 import type { ArtSet } from './art.ts';
 import { LAND_ICON, RARE_LAND } from './landIcons.tsx';
 import { BASE, H, W, type BaseType } from './hex.ts';
+import { pieceFinish, type Finish } from '../finishStore.ts';
 
 export { BASE, CX, CY, H, poly, r1, W, type BaseType } from './hex.ts';
 
@@ -78,7 +79,29 @@ const PIECE = { settlement: 0.5, city: 0.84, ship: 0.6, robber: 1 };
 const ROBBER_FOOT = 0.4;
 const ROBBER_BACK = 0.09;
 
-/** A painting in white and grey, multiplied by the player's colour, with a rim in the board's ink. */
+/** A colour as r, g, b in 0..1; grey when it can't be read. */
+function rgb(color: string): [number, number, number] {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+  if (!m) return [0.6, 0.6, 0.6];
+  const h = m[1]!.length === 3 ? [...m[1]!].map((c) => c + c).join('') : m[1]!;
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+}
+
+/** The ramp a grey turns into: black lines stay near black, whites take a pale tint. */
+function ramp(c: number, finish: Finish): string {
+  const mix = (w: number) => c + (1 - c) * w;
+  const steps =
+    finish === 'lounge'
+      ? [0.02, c * 0.2, c * 0.36, c * 0.52, c * 0.7, mix(0.08)]
+      : [0.02, c * 0.25, c * 0.5, c * 0.75, c * 0.95, mix(0.15)];
+  return steps.map((v) => v.toFixed(3)).join(' ');
+}
+
+/**
+ * A painting in white and grey, finished in the player's colour, with a rim in the board's ink.
+ * Enamel maps the greys onto a ramp of the colour and adds a gloss from the top left; Enamel +
+ * glow adds a soft halo in the colour; Lounge jewel deepens the ramp and sets the piece in gold.
+ */
 function tinted(
   href: string,
   x: number,
@@ -88,34 +111,123 @@ function tinted(
   rim: string,
   s: number,
 ) {
-  const id = `tint-${color.replace(/[^a-z0-9]/gi, '')}`;
+  const finish = pieceFinish();
+  const [r, g, b] = rgb(color);
+  const id = `tint-${finish}-${color.replace(/[^a-z0-9]/gi, '')}-${rim.replace(/[^a-z0-9]/gi, '')}`;
+  const light = <feDistantLight azimuth={225} elevation={42} />;
   return (
     <g>
-      <filter id={id} colorInterpolationFilters="sRGB">
-        {/* Lift the greys first, so the shading keeps the colour bright instead of muddying it;
-            black lines stay black. */}
-        <feComponentTransfer in="SourceGraphic" result="lit">
-          <feFuncR type="gamma" exponent={0.55} />
-          <feFuncG type="gamma" exponent={0.55} />
-          <feFuncB type="gamma" exponent={0.55} />
+      <filter id={id} x="-40%" y="-40%" width="180%" height="180%" colorInterpolationFilters="sRGB">
+        <feColorMatrix
+          in="SourceGraphic"
+          type="matrix"
+          values="0.3 0.59 0.11 0 0  0.3 0.59 0.11 0 0  0.3 0.59 0.11 0 0  0 0 0 1 0"
+          result="grey"
+        />
+        <feComponentTransfer in="grey" result="ramp">
+          <feFuncR type="table" tableValues={ramp(r, finish)} />
+          <feFuncG type="table" tableValues={ramp(g, finish)} />
+          <feFuncB type="table" tableValues={ramp(b, finish)} />
         </feComponentTransfer>
-        <feFlood floodColor={color} />
-        <feBlend in2="lit" mode="multiply" />
-        <feComposite in2="SourceAlpha" operator="in" result="piece" />
-        {/* A thin rim in the board's own ink, the same for every player, so the piece
-            stands off any hex. Only the solid body grows it: a faint fringe left from the
-            painting's backdrop must not swell into a box around the piece. */}
+        {/* Only the solid body counts as the piece: a faint fringe left from the painting's
+            backdrop must not swell into a box around it. */}
         <feComponentTransfer in="SourceAlpha" result="body">
           <feFuncA type="linear" slope={4} intercept={-2.4} />
         </feComponentTransfer>
-        <feMorphology in="body" operator="dilate" radius={0.022 * s} result="grown" />
+        <feGaussianBlur in="body" stdDeviation={0.045 * s} result="bump" />
+        <feSpecularLighting
+          in="bump"
+          surfaceScale={4}
+          specularConstant={0.9}
+          specularExponent={22}
+          lightingColor="#fff"
+          result="shine"
+        >
+          {light}
+        </feSpecularLighting>
+        <feComposite in="shine" in2="body" operator="in" result="gloss" />
+        <feComposite in="ramp" in2="gloss" operator="arithmetic" k2={1} k3={0.55} result="lit" />
+        <feComposite in="lit" in2="SourceAlpha" operator="in" result="piece" />
+        {/* A thin rim in the board's own ink, the same for every player, so the piece stands
+            off any hex. */}
+        <feMorphology in="body" operator="dilate" radius={0.02 * s} result="grown" />
         <feFlood floodColor={rim} />
         <feComposite in2="grown" operator="in" result="rim" />
-        <feMerge>
-          <feMergeNode in="rim" />
-          <feMergeNode in="piece" />
-        </feMerge>
+        {finish === 'glow' && (
+          <>
+            <feGaussianBlur in="body" stdDeviation={0.09 * s} result="spread" />
+            <feFlood floodColor={color} floodOpacity={0.95} />
+            <feComposite in2="spread" operator="in" result="halo" />
+            <feMerge>
+              <feMergeNode in="halo" />
+              <feMergeNode in="halo" />
+              <feMergeNode in="rim" />
+              <feMergeNode in="piece" />
+            </feMerge>
+          </>
+        )}
+        {finish === 'lounge' && (
+          <>
+            <feMorphology in="body" operator="dilate" radius={0.045 * s} result="trim" />
+            <feFlood floodColor="#d9a93a" />
+            <feComposite in2="trim" operator="in" result="goldBase" />
+            <feGaussianBlur in="trim" stdDeviation={0.01 * s} result="trimBump" />
+            <feSpecularLighting
+              in="trimBump"
+              surfaceScale={3}
+              specularConstant={0.9}
+              specularExponent={14}
+              lightingColor="#fff4cf"
+              result="trimShine"
+            >
+              {light}
+            </feSpecularLighting>
+            <feComposite in="trimShine" in2="trim" operator="in" result="sheen" />
+            <feComposite
+              in="goldBase"
+              in2="sheen"
+              operator="arithmetic"
+              k2={1}
+              k3={0.6}
+              result="gold"
+            />
+            <feMorphology in="body" operator="dilate" radius={0.062 * s} result="outerShape" />
+            <feFlood floodColor={rim} />
+            <feComposite in2="outerShape" operator="in" result="outer" />
+            <feMorphology in="body" operator="erode" radius={0.035 * s} result="core" />
+            <feComposite in="body" in2="core" operator="out" result="edge" />
+            <feGaussianBlur in="edge" stdDeviation={0.012 * s} result="edgeSoft" />
+            <feFlood
+              floodColor={`rgb(${[r, g, b].map((c) => Math.round((c + (1 - c) * 0.45) * 255)).join(',')})`}
+              floodOpacity={0.7}
+            />
+            <feComposite in2="edgeSoft" operator="in" />
+            <feComposite in2="SourceAlpha" operator="in" result="bevel" />
+            <feMerge>
+              <feMergeNode in="outer" />
+              <feMergeNode in="gold" />
+              <feMergeNode in="rim" />
+              <feMergeNode in="piece" />
+              <feMergeNode in="bevel" />
+            </feMerge>
+          </>
+        )}
+        {finish === 'enamel' && (
+          <feMerge>
+            <feMergeNode in="rim" />
+            <feMergeNode in="piece" />
+          </feMerge>
+        )}
       </filter>
+      {/* Room for the halo and the trim: an effect on a group around the piece (the board's
+          lift) clips to the group's box, which would cut the glow off square. */}
+      <rect
+        x={x - size / 2 - 0.3 * s}
+        y={y - size - 0.3 * s}
+        width={size + 0.6 * s}
+        height={size + 0.6 * s}
+        fill="none"
+      />
       <image
         href={href}
         x={x - size / 2}

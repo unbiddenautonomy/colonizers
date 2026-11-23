@@ -31,6 +31,7 @@ import {
   useExpansionLock,
   useTheme,
 } from '../theme/themes.tsx';
+import { FinishPicker } from '../theme/finish.tsx';
 import { DicePicker } from '../ui/Dice.tsx';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { RESOURCE_ICON } from '../theme/clean.ts';
@@ -387,6 +388,7 @@ export function NewGame({
               <LookPicker />
               <ThemePicker />
               <DicePicker />
+              <FinishPicker />
             </div>
           </div>
           <LookArt />

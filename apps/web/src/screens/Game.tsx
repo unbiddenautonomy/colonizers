@@ -32,6 +32,7 @@ import { Chat } from '../ui/Chat.tsx';
 import { TurnTimer } from '../ui/TurnTimer.tsx';
 import { isExpansionGame, ThemePicker, useExpansionLock, useTheme } from '../theme/themes.tsx';
 import { RESOURCE_ICON } from '../theme/clean.ts';
+import { FinishPicker } from '../theme/finish.tsx';
 import { DicePicker, DiceTray } from '../ui/Dice.tsx';
 import { ZoomPane } from '../ui/ZoomPane.tsx';
 import { CardFlights } from '../ui/Flights.tsx';
@@ -897,6 +898,7 @@ export function Game({
           <SoundToggle />
           <ThemePicker compact />
           <DicePicker compact />
+          <FinishPicker compact />
           <MotionPicker compact />
           <button
             type="button"

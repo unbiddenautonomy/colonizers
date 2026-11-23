@@ -7,7 +7,7 @@ import { paintedBoard } from './painted.tsx';
  * a bearded robber in red.
  *
  * Still borrowed from Basic Clean until the casino add-ons sheet arrives (src/art/casino/):
- * barb1-3, camel, cargo-*, citadel, crown, diocese, festival, metro-*, monument, nukemark,
+ * barb1-3, camel, cargo-*, citadel, crown, diocese, festival, metro-tower-*, metro-emblem-*, monument, nukemark,
  * prince, silo, village.
  */
 export const casinoEmeraldBoard = paintedBoard({
