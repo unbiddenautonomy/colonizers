@@ -11,6 +11,7 @@ import { beastsBoard } from './boards/beasts.tsx';
 import { navyBoard } from './boards/navy.tsx';
 import { casinoEmeraldBoard } from './boards/casino.tsx';
 import { basicCleanBoard } from './boards/basicClean.tsx';
+import { onePieceBoard } from './boards/onePiece.tsx';
 import { woodTheme } from './pictures.tsx';
 import { prefPicked } from './prefs.ts';
 import { playerColorsFor } from './playerColors.ts';
@@ -29,6 +30,7 @@ const BOARDS: Theme[] = [
   beastsBoard,
   navyBoard,
   casinoEmeraldBoard,
+  onePieceBoard,
   basicCleanBoard,
 ];
 
@@ -68,7 +70,7 @@ let forced: string | null = null;
  * Boards with their own art for every expansion piece and marker. A game with any expansion
  * shows one of these; the others draw generic stand-ins, so they are kept for the base game.
  */
-export const EXPANSION_THEMES: readonly string[] = ['basic-clean', 'casino-emerald'];
+export const EXPANSION_THEMES: readonly string[] = ['basic-clean', 'casino-emerald', 'one-piece'];
 
 /** True when a game's modules go beyond the base game and its house rules. */
 export function isExpansionGame(modules: readonly string[]): boolean {
@@ -163,7 +165,7 @@ export function ThemeLockNote() {
   if (forced !== null || !locked || themeById(pick).id === theme.id) return null;
   return (
     <p className="theme-note">
-      🎨 Expansions are played on Basic or Casino, which have art for every piece. Your{' '}
+      🎨 Expansions are played on Basic, Casino or One Piece, which have art for every piece. Your{' '}
       {themeById(pick).name} board comes back for base games.
     </p>
   );
@@ -199,7 +201,7 @@ export function ThemePicker({ compact }: { compact?: boolean }) {
       </select>
       {aside && !compact && (
         <span className="theme-note">
-          Expansions use Basic or Casino. {aside.name} is back for base games.
+          Expansions use Basic, Casino or One Piece. {aside.name} is back for base games.
         </span>
       )}
       {aside && compact && <span aria-hidden="true">ⓘ</span>}

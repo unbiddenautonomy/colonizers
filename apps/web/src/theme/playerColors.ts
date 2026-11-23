@@ -54,6 +54,7 @@ const FAMILY: [prefix: string, set: string][] = [
   ['navy-', 'navy'],
   ['casino-', 'casino'],
   ['basic-clean', 'basic'],
+  ['one-piece', 'strawhat'],
 ];
 
 /** The player colours for a board id, or undefined to keep the board's own. */
