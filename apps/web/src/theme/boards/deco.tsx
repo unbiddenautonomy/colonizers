@@ -6,10 +6,7 @@ import { BASE, H, seaTile, skin, W, type BaseType } from './kit.tsx';
 
 /**
  * Grand Saloon boards: 1930s liner lacquer. Each land is one deep colour with a single gold-lined
- * icon. Across all the land at once is one faint figure in the manner of the Nazca
- * geoglyphs, drawn in board units so its lines cross from hex to hex and pass behind the icons and
- * numbers. The sea is quiet fan
- * scales. Numbers are set in Jost, a plain
+ * icon. The sea is quiet fan scales. Numbers are set in Jost, a plain
  * geometric face that reads at a glance. Settlements are stepped towers, cities skyscrapers with a
  * spire, and the robber is a jewel thief in a top hat.
  */
@@ -30,8 +27,6 @@ interface Ink {
   faceText: string;
   hot: string;
   thief: string;
-  /** The geoglyph's line colour. */
-  glyph: string;
 }
 
 function art(k: Ink): Record<BaseType, ReactNode> {
@@ -151,90 +146,8 @@ function pieces(k: Ink): ThemePieces {
   };
 }
 
-/** The geoglyph tile, centred on the board's centre. */
-const NAZCA_W = 960;
-const NAZCA_H = 840;
-
-/**
- * One great figure across the whole board, drawn as a geoglyph is: a single unbroken outline. It
- * is a hummingbird in the Nazca manner (an ancient design, long in the public domain), wings
- * spread over the land, its long beak reaching to the upper right, its tail fanned below.
- */
-function nazca(k: Ink): ReactNode {
-  const ox = NAZCA_W / 2;
-  const oy = NAZCA_H / 2 + 10;
-  const pts = (list: [number, number][]) =>
-    list.map(([x, y], i) => `${i ? 'L' : 'M'}${ox + x},${oy + y}`).join(' ');
-  const wing = (side: 1 | -1) =>
-    pts(
-      (
-        [
-          [26, -58],
-          [232, -150],
-          [246, -124],
-          [210, -104],
-          [244, -86],
-          [206, -66],
-          [238, -46],
-          [198, -28],
-          [226, -6],
-          [30, 18],
-        ] as [number, number][]
-      ).map(([x, y]) => [x * side, y]),
-    );
-  const d = [
-    // Beak: a long narrow wedge from the head.
-    pts([
-      [-7, -128],
-      [170, -246],
-      [8, -120],
-    ]),
-    // Head and body as one outline, the eye a ring.
-    `M${ox - 26},${oy - 54} C${ox - 40},${oy - 120} ${ox + 40},${oy - 150} ${ox + 26},${oy - 54} C${ox + 34},${oy + 20} ${ox + 20},${oy + 80} ${ox + 14},${oy + 112} L${ox - 14},${oy + 112} C${ox - 20},${oy + 80} ${ox - 34},${oy + 20} ${ox - 26},${oy - 54} Z`,
-    `M${ox - 6},${oy - 100} a6,6 0 1 0 12,0 a6,6 0 1 0 -12,0`,
-    wing(1),
-    wing(-1),
-    // Tail: a fan of feathers.
-    pts([
-      [-14, 112],
-      [-64, 222],
-      [-34, 208],
-      [-22, 236],
-      [0, 212],
-      [22, 236],
-      [34, 208],
-      [64, 222],
-      [14, 112],
-    ]),
-  ].join(' ');
-  return (
-    <pattern
-      key="nazca"
-      id="deco-nazca"
-      patternUnits="userSpaceOnUse"
-      x={-NAZCA_W / 2}
-      y={-NAZCA_H / 2}
-      width={NAZCA_W}
-      height={NAZCA_H}
-    >
-      <path
-        d={d}
-        transform={`translate(${ox} ${oy}) scale(0.9) translate(${-ox} ${-oy})`}
-        fill={k.glyph}
-        fillOpacity={0.1}
-        fillRule="nonzero"
-        stroke={k.glyph}
-        strokeOpacity={0.55}
-        strokeWidth={2.4}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </pattern>
-  );
-}
-
 function decoSkin(id: string, name: string, description: string, k: Ink): Theme {
-  const t = skin({
+  return skin({
     id,
     name,
     description,
@@ -258,19 +171,8 @@ function decoSkin(id: string, name: string, description: string, k: Ink): Theme 
       tokenFont: "Jost, 'Futura', system-ui, sans-serif",
       pieces: pieces(k),
       boardBackground: `radial-gradient(circle at 50% 45%, ${k.sea} 0%, ${k.edge} 100%)`,
-      landOverlay: 'deco-nazca',
     },
   });
-  const own = t.patterns!;
-  return {
-    ...t,
-    patterns: () => (
-      <>
-        {nazca(k)}
-        {own()}
-      </>
-    ),
-  };
 }
 
 export const decoEmeraldBoard = decoSkin(
@@ -303,7 +205,6 @@ export const decoEmeraldBoard = decoSkin(
     faceText: '#14211b',
     hot: '#9b2a1a',
     thief: '#121212',
-    glyph: '#f6ead0',
   },
 );
 
@@ -337,6 +238,5 @@ export const decoIvoryBoard = decoSkin(
     faceText: '#14365c',
     hot: '#a3352a',
     thief: '#15212e',
-    glyph: '#14365c',
   },
 );

@@ -29,8 +29,8 @@ describe('player colours', () => {
     },
   );
 
-  it('every board but Clean has a set of its own', () => {
-    const own = THEMES.filter((t) => t.id !== 'clean' && t.players[0]!.color === '#d55e00');
+  it('every board has a set of its own', () => {
+    const own = THEMES.filter((t) => t.players[0]!.color === '#d55e00');
     expect(own.map((t) => t.id)).toEqual([]);
   });
 });

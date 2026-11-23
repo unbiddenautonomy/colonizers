@@ -4,11 +4,9 @@ import { ear, ell, P, type EarShape, type IconSet, type Part } from './icons.tsx
  * Each skin family's own drawings of the six resources, in the same 40 × 24 box and with the same
  * part roles as the plain set in icons.tsx, so a skin's colours carry over unchanged.
  *
- * - Tabletop Pop: chunky stickers. Round trees, a brick wall, a front-on sheep, a fat sheaf, a
- *   speckled ore boulder, a prickly pear.
  * - Grand Saloon: symmetric 1930s figures. Three spires, a stepped brick ziggurat, a ram's head,
  *   a sheaf with cut kernels, a cut rock, a sunrise.
- * - Wonderland: storybook things. Cloud trees, a teetering brick stack, a ball of wool with
+ * - Wonderland (now used only by the Big Mom board): storybook things. Cloud trees, a teetering brick stack, a ball of wool with
  *   needles, two ears tied with a bow, a rock with a pick, an hourglass.
  * - Archipelago: island things. Palms, sun-dried blocks, a sheep, a wheat stalk with leaves, a
  *   cairn of beach stones, a starfish.
@@ -71,13 +69,6 @@ function rhomb(cx: number, cy: number, rx: number, ry: number, deg = 0): string 
   return poly([at(0, -ry), at(rx, 0), at(0, ry), at(-rx, 0)]);
 }
 
-/** A tree crown with a pointed top and a round bottom, `h` tall. */
-function teardrop(cx: number, top: number, r: number, h: number): string {
-  const cy = top + h - r;
-  const k = top + (h - r) * 0.35;
-  return `M${pt(cx, top)} C${pt(cx + r * 0.55, k)} ${pt(cx + r, cy - r * 0.75)} ${pt(cx + r, cy)} A${r},${r} 0 0 1 ${pt(cx - r, cy)} C${pt(cx - r, cy - r * 0.75)} ${pt(cx - r * 0.55, k)} ${pt(cx, top)} Z`;
-}
-
 /** A starfish: five arms with round tips and hollow sides. */
 function starfish(cx: number, cy: number, outer: number, deg = 0): string {
   const at = (a: number, r: number) => {
@@ -122,60 +113,6 @@ function brick3d(x: number, y: number, w: number, h: number, d: number): Part[] 
     P('body', poly(front)),
   ];
 }
-
-// ---- Tabletop Pop ----
-
-const FAT_EAR: EarShape = { pairs: 2, kx: 1.3, ky: 2.5, gap: 3.9, spread: 2.15, tilt: 26 };
-
-export const POP_ICONS: IconSet = {
-  // Two trees with round crowns coming to a point.
-  forest: [
-    P('body', rrect(11.9, 15, 3.2, 8.8, 1)),
-    P('body', rrect(28.8, 17.5, 2.4, 6.3, 0.8)),
-    P('body', teardrop(13.5, 0.5, 7.6, 18)),
-    P('body', teardrop(30, 6.5, 5.4, 13.5)),
-  ],
-  // A brick wall with a step in its top.
-  hills: [
-    P('body', 'M3,23 V5 H26 V11 H37 V23 Z'),
-    P(
-      'line',
-      'M3,11 H26 M3,17 H37 M14.5,5 V11 M9,11 V17 M20.5,11 V17 M32,11 V17 M14.5,17 V23 M26,17 V23',
-    ),
-  ],
-  // A sheep seen from the front: fleece, a dark face with ears out to the sides, a woolly top.
-  pasture: [
-    P('line', 'M15,18 V23.6 M25,18 V23.6'),
-    P('body', fleece(20, 11, 14, 7.4, 9)),
-    P('solid', ell(11.8, 10.6, 3.6, 1.5, 18)),
-    P('solid', ell(28.2, 10.6, 3.6, 1.5, -18)),
-    P('solid', ell(20, 13.2, 4.4, 5.8)),
-    P('body', fleece(20, 7.4, 4.6, 2.4, 5)),
-  ],
-  // Three fat ears of wheat standing side by side.
-  fields: [
-    ...ear(11, 24, 19, -14, FAT_EAR),
-    ...ear(20, 24, 22.5, 0, FAT_EAR),
-    ...ear(29, 24, 19, 14, FAT_EAR),
-  ],
-  // A chunk of ore with flecks, a smaller one beside it.
-  mountains: [
-    P('body', 'M3,23 L4.6,14.6 L10.6,8 L19.5,5.6 L27,9.4 L30.6,16.4 L29.4,23 Z'),
-    P('body', 'M26.5,23 L27.4,18 L31.6,15.2 L35.8,17.4 L37,23 Z'),
-    P('solid', rhomb(11, 15.5, 1.7, 1.2, 20)),
-    P('solid', rhomb(19, 11, 1.7, 1.2, -15)),
-    P('solid', rhomb(20.5, 18.6, 1.7, 1.2, 10)),
-    P('solid', rhomb(32, 19.8, 1.4, 1, -10)),
-  ],
-  // A fat cactus with a bud on top.
-  desert: [
-    P('line', 'M5,23.4 H35'),
-    P('body', 'M17,19 H12.3 A3.3,3.3 0 0 1 9,15.7 V11.3 A2.3,2.3 0 0 1 13.6,11.3 V14.4 H17 Z'),
-    P('body', 'M23,16 H27.7 A3.3,3.3 0 0 0 31,12.7 V8.3 A2.3,2.3 0 0 0 26.4,8.3 V11.4 H23 Z'),
-    P('body', 'M17,23.4 V7 A3,3 0 0 1 23,7 V23.4 Z'),
-    P('solid', circ(20, 3.6, 1.4)),
-  ],
-};
 
 // ---- Grand Saloon ----
 

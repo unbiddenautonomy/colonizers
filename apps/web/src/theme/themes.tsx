@@ -1,13 +1,9 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { cleanTheme, RESOURCE_COLOR, type Theme } from './clean.ts';
+import { RESOURCE_COLOR, type Theme } from './clean.ts';
 import { decoEmeraldBoard, decoIvoryBoard } from './boards/deco.tsx';
-import { wonderGlassBoard, wonderTeaBoard } from './boards/wonder.tsx';
 import { islesLagoonBoard, islesNightBoard } from './boards/isles.tsx';
-import { benchDarkBoard, benchLightBoard } from './boards/bench.tsx';
-import { popArcadeBoard, popCitrusBoard, popGrapeBoard, popSorbetBoard } from './boards/pop.tsx';
 import { chartSurveyBoard } from './boards/chart.tsx';
 import { masqVelvetBoard } from './boards/masq.tsx';
-import { sunriseMorningBoard } from './boards/sunrise.tsx';
 import { strawHatBoard } from './boards/strawhat.tsx';
 import { heartBoard } from './boards/heart.tsx';
 import { bigMomBoard } from './boards/bigmom.tsx';
@@ -16,27 +12,15 @@ import { navyBoard } from './boards/navy.tsx';
 import { casinoEmeraldBoard } from './boards/casino.tsx';
 import { basicCleanBoard } from './boards/basicClean.tsx';
 import { woodTheme } from './pictures.tsx';
-import { tilesTheme } from './tiles.tsx';
 import { prefPicked } from './prefs.ts';
 import { playerColorsFor } from './playerColors.ts';
 
 const BOARDS: Theme[] = [
-  tilesTheme,
   woodTheme,
-  cleanTheme,
-  benchDarkBoard,
-  benchLightBoard,
-  popGrapeBoard,
-  popSorbetBoard,
-  popCitrusBoard,
-  popArcadeBoard,
   decoEmeraldBoard,
   decoIvoryBoard,
-  wonderTeaBoard,
-  wonderGlassBoard,
   islesLagoonBoard,
   islesNightBoard,
-  sunriseMorningBoard,
   masqVelvetBoard,
   chartSurveyBoard,
   strawHatBoard,
@@ -56,7 +40,7 @@ export const THEMES: Theme[] = BOARDS.map((t) => {
     : t;
 });
 
-/** What a new device shows. */
+/** What a new device shows, and what a removed or unknown pick falls back to. */
 export const DEFAULT_THEME = THEMES.find((t) => t.id === 'basic-clean')!;
 
 export function themeById(id: string | null | undefined): Theme {
@@ -70,7 +54,8 @@ const listeners = new Set<() => void>();
 
 function read(): string {
   try {
-    return localStorage.getItem(KEY) ?? DEFAULT_THEME.id;
+    // A board that has since been removed falls back to the default.
+    return themeById(localStorage.getItem(KEY)).id;
   } catch {
     return DEFAULT_THEME.id;
   }

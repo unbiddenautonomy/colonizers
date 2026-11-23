@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUTO, DEFAULT_LOOK, lookById, LOOKS } from './looks.tsx';
+import { DEFAULT_LOOK, lookById, LOOKS } from './looks.tsx';
 
 const lum = (hex: string) => {
   const n = hex.replace('#', '');
@@ -15,9 +15,17 @@ const ratio = (a: string, b: string) => {
 describe('looks', () => {
   it('starts new devices on Basic Clean, with its own board', () => {
     expect(DEFAULT_LOOK).toBe('clean-basic');
-    expect(lookById(DEFAULT_LOOK, true).board).toBe('basic-clean');
-    expect(lookById('nope', false).id).toBe('clean-basic');
-    expect(lookById(AUTO, true).id).toBe('basicbench-dark');
+    expect(lookById(DEFAULT_LOOK).board).toBe('basic-clean');
+    expect(lookById('nope').id).toBe('clean-basic');
+    // Removed looks, and the old BasicBench "match device" pick, fall back to the default.
+    for (const gone of [
+      'basicbench-auto',
+      'basicbench-dark',
+      'pop-grape',
+      'wonder-tea',
+      'sunrise-morning',
+    ])
+      expect(lookById(gone).id).toBe('clean-basic');
   });
 
   it('has unique ids', () => {

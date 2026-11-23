@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DECO_ICONS, ISLES_ICONS, POP_ICONS, WONDER_ICONS } from './iconSets.ts';
+import { DECO_ICONS, ISLES_ICONS, WONDER_ICONS } from './iconSets.ts';
 import { ICONS, type IconSet } from './icons.tsx';
 import { BASE } from './kit.tsx';
 
 const SETS: Record<string, IconSet> = {
-  pop: POP_ICONS,
   deco: DECO_ICONS,
   wonder: WONDER_ICONS,
   isles: ISLES_ICONS,

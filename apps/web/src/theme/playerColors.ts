@@ -3,43 +3,14 @@
  * the default's order of hues (red, blue, orange, green, pink, then a sky, white or purple, yellow
  * and one more) so a seat reads much the same from board to board, and every pair in a set stays
  * well apart (see playerColors.test.ts). A player's shape still marks the seat whatever the colour.
- * The Clean board keeps its Okabe–Ito set, which holds up best for colour blindness.
  */
 export const PLAYER_COLORS: Record<string, readonly string[]> = {
-  /** Bright game-box colours for the Tiles and Wooden boards. */
+  /** Bright game-box colours for the Wooden board. */
   classic: ['#e53228', '#1e6be0', '#ff9a00', '#17a34a', '#d6339c', '#22b8e6', '#ffd51a', '#8a5cf0'],
-  /** Lit up, to stand off a dark bench. */
-  'bench-dark': [
-    '#ff5a4e',
-    '#4ea8ff',
-    '#ffb547',
-    '#3ddc84',
-    '#ff6ec7',
-    '#5ef0ff',
-    '#f5e663',
-    '#b48cff',
-  ],
-  /** Deep, to stand off a pale bench. */
-  'bench-light': [
-    '#d7261e',
-    '#1557c0',
-    '#ec7d00',
-    '#0f8f45',
-    '#c22c8d',
-    '#0a9bc8',
-    '#d9b200',
-    '#6d3fd6',
-  ],
-  /** Candy brights. */
-  pop: ['#ff4f6d', '#3d7bff', '#ff9f1c', '#18c08f', '#ff5fd2', '#29d3ff', '#ffe03d', '#9b5cff'],
   /** Jewel tones: ruby, sapphire, amber, jade, amethyst. */
   deco: ['#d4352a', '#2456c9', '#f08a24', '#16a36d', '#c2408f', '#2bb3c9', '#f2d04b', '#7b4fd1'],
-  /** Storybook colours: the Queen's red, Alice's blue, the Cheshire Cat's pink. */
-  wonder: ['#e0384a', '#3c63d6', '#f2913a', '#2f9e5a', '#d659b8', '#3bb8d8', '#f5d13a', '#8e5bd6'],
   /** Tropical: coral, mango, hibiscus and a shell white. */
   isles: ['#ff5a3c', '#2a6fdb', '#ffa62b', '#1fae6a', '#ff4fa3', '#f7f2e8', '#ffd84a', '#8a5ae6'],
-  /** Clear morning colours. */
-  sunrise: ['#e63b2e', '#2264d1', '#ff8a1f', '#1e9e4a', '#e2479b', '#7b4fd6', '#ffd43a', '#f5f5f5'],
   /** Bright silks against the velvet. */
   masq: ['#e3324a', '#4b7dff', '#ffb02e', '#3fd08a', '#ff6fc0', '#58d6ff', '#ffe066', '#b38bff'],
   /** Inks on survey paper. */
@@ -71,15 +42,9 @@ export const PLAYER_COLORS: Record<string, readonly string[]> = {
 
 /** Which set a board takes, by its id or the start of it. */
 const FAMILY: [prefix: string, set: string][] = [
-  ['tiles', 'classic'],
   ['wood', 'classic'],
-  ['bench-dark', 'bench-dark'],
-  ['bench-light', 'bench-light'],
-  ['pop-', 'pop'],
   ['deco-', 'deco'],
-  ['wonder-', 'wonder'],
   ['isles-', 'isles'],
-  ['sunrise-', 'sunrise'],
   ['masq-', 'masq'],
   ['chart-', 'chart'],
   ['strawhat-', 'strawhat'],
