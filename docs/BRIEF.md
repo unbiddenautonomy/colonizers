@@ -56,4 +56,5 @@ A private, original-art remake of a hex-and-resources trading game (Catan / Colo
 
 - Start each piece of work in its own thread, and keep the project chat for routing.
 - Update this file in the same PR when something above changes, so the next restart stays cheap.
+- New painted art for a board goes in with `scripts/import-art.py` (resizes, keys out backgrounds, splits sheets).
 - Open images only when needed, since they cost tokens.

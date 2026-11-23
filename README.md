@@ -20,6 +20,8 @@ packages/
   stats/        Game stats, achievements and career totals, worked out by replaying a game
   maps/         Map files, preset boards, board generator, fairness report, Seafarers scenarios
   rulebook/     Plain-language rule pages, card glossary, cost card data
+scripts/
+  import-art.py  Turns painted artwork into a board skin's art files (needs Python 3 with Pillow and NumPy; usage in the file)
 docs/
   BRIEF.md      One-page project brief: current state, rules and decisions. Read first
   PLAN.md       Master plan
