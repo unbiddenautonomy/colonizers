@@ -21,6 +21,7 @@ packages/
   maps/         Map files, preset boards, board generator, fairness report, Seafarers scenarios
   rulebook/     Plain-language rule pages, card glossary, cost card data
 docs/
+  BRIEF.md      One-page project brief: current state, rules and decisions. Read first
   PLAN.md       Master plan
   DEPLOY.md     How deploys work and the one-time Cloudflare setup
   FREE-TIER.md  Cloudflare free plan limits and what they mean for the design

@@ -1,5 +1,7 @@
 # Notes for Claude
 
+Start with [docs/BRIEF.md](docs/BRIEF.md): where the project stands, Nachi's preferences, and what is decided. Keep it current when you change something it describes.
+
 ## Commits, pushes and CI minutes
 
 GitHub Actions minutes are limited each month, so:
