@@ -13,12 +13,8 @@ export interface Look {
   id: string;
   /** The theme it belongs to; a theme can have several colour schemes or modes. */
   family:
-    | 'basicbench'
-    | 'pop'
     | 'deco'
-    | 'wonderland'
     | 'isles'
-    | 'sunrise'
     | 'masquerade'
     | 'chart'
     | 'strawhat'
@@ -71,184 +67,6 @@ export interface Frames {
   /** How far the drawing reaches past the panel's box. */
   outset: number;
 }
-
-const night: Look = {
-  id: 'basicbench-dark',
-  family: 'basicbench',
-  familyName: 'BasicBench',
-  name: 'Dark',
-  dark: true,
-  board: 'bench-dark',
-  tokens: {
-    bg: '#0b1422',
-    card: '#13213a',
-    raised: '#1b2e4f',
-    sunk: '#0f1a2c',
-    text: '#eaf0f8',
-    soft: '#b9c4d6',
-    muted: '#9aa8bf',
-    faint: '#8c98ad',
-    accent: '#e8b04b',
-    accentText: '#1a1406',
-    border: '#22324f',
-    dash: '#2a3b5c',
-    good: '#5fb3b3',
-    bad: '#ff8a80',
-    heading: "'DM Serif Display', Georgia, serif",
-    body: 'Inter, system-ui, sans-serif',
-    shadow: '0 12px 40px rgb(0 0 0 / 0.25)',
-  },
-};
-
-const atelier: Look = {
-  id: 'basicbench-light',
-  family: 'basicbench',
-  familyName: 'BasicBench',
-  name: 'Light',
-  dark: false,
-  board: 'bench-light',
-  tokens: {
-    bg: '#f5f0e6',
-    card: '#ffffff',
-    raised: '#eef5f1',
-    sunk: '#fbf8f1',
-    text: '#1f2624',
-    soft: '#3a4240',
-    muted: '#4f574f',
-    faint: '#6e685c',
-    accent: '#0f5e52',
-    accentText: '#ffffff',
-    border: '#e2d9c6',
-    dash: '#cfc4ad',
-    good: '#6e9f6a',
-    bad: '#b3261e',
-    heading: 'Fraunces, Georgia, serif',
-    body: 'Manrope, system-ui, sans-serif',
-    shadow: '0 8px 24px rgb(15 94 82 / 0.08)',
-  },
-};
-
-const POP_TYPE = {
-  heading: "'Space Grotesk', system-ui, sans-serif",
-  body: 'Inter, system-ui, sans-serif',
-};
-
-/** Tabletop Pop: chunky outlines, offset shadows and bright flat colour, in four schemes. */
-const grape: Look = {
-  id: 'pop-grape',
-  family: 'pop',
-  familyName: 'Tabletop Pop',
-  name: 'Grape Soda',
-  dark: false,
-  board: 'pop-grape',
-  tokens: {
-    bg: '#f3f1fa',
-    card: '#ffffff',
-    raised: '#ece9ff',
-    sunk: '#ffffff',
-    text: '#17152b',
-    soft: '#3d3b55',
-    muted: '#55536b',
-    faint: '#686680',
-    accent: '#5a4afb',
-    accentText: '#ffffff',
-    border: '#17152b',
-    dash: '#c9c6dc',
-    good: '#3fbf73',
-    bad: '#d6304a',
-    ...POP_TYPE,
-    shadow: '6px 6px 0 #17152b',
-    ink: '#17152b',
-    pop: '#ffb547',
-  },
-};
-
-const sorbet: Look = {
-  id: 'pop-sorbet',
-  family: 'pop',
-  familyName: 'Tabletop Pop',
-  name: 'Sorbet',
-  dark: false,
-  board: 'pop-sorbet',
-  tokens: {
-    bg: '#fff1ea',
-    card: '#ffffff',
-    raised: '#ffe0e6',
-    sunk: '#fffaf7',
-    text: '#2b1620',
-    soft: '#4a2f3a',
-    muted: '#6a4d58',
-    faint: '#795d6d',
-    accent: '#bb2e60',
-    accentText: '#ffffff',
-    border: '#2b1620',
-    dash: '#e7c7cf',
-    good: '#2fa58a',
-    bad: '#b3261e',
-    ...POP_TYPE,
-    shadow: '6px 6px 0 #2b1620',
-    ink: '#2b1620',
-    pop: '#7fe0c5',
-  },
-};
-
-const citrus: Look = {
-  id: 'pop-citrus',
-  family: 'pop',
-  familyName: 'Tabletop Pop',
-  name: 'Citrus Club',
-  dark: false,
-  board: 'pop-citrus',
-  tokens: {
-    bg: '#f4f8e4',
-    card: '#ffffff',
-    raised: '#e3f4d0',
-    sunk: '#fbfdf3',
-    text: '#14231c',
-    soft: '#2f4338',
-    muted: '#4b5f53',
-    faint: '#5c6f63',
-    accent: '#16795f',
-    accentText: '#ffffff',
-    border: '#14231c',
-    dash: '#c7d6b4',
-    good: '#16795f',
-    bad: '#c2410c',
-    ...POP_TYPE,
-    shadow: '6px 6px 0 #14231c',
-    ink: '#14231c',
-    pop: '#ffd23f',
-  },
-};
-
-const arcade: Look = {
-  id: 'pop-arcade',
-  family: 'pop',
-  familyName: 'Tabletop Pop',
-  name: 'Arcade Night',
-  dark: true,
-  board: 'pop-arcade',
-  tokens: {
-    bg: '#141029',
-    card: '#221c46',
-    raised: '#2f2760',
-    sunk: '#1a1536',
-    text: '#f6f2ff',
-    soft: '#d6cff5',
-    muted: '#b3a9e0',
-    faint: '#9c91c9',
-    accent: '#ff5fb8',
-    accentText: '#1a0b16',
-    border: '#000000',
-    dash: '#463c80',
-    good: '#3df5d0',
-    bad: '#ff7a7a',
-    ...POP_TYPE,
-    shadow: '6px 6px 0 #000000',
-    ink: '#000000',
-    pop: '#3df5d0',
-  },
-};
 
 // ---- Grand Saloon: a 1930s ocean liner's first-class saloon ----
 // Lacquer, gold leaf and stepped corners. Two schemes: Emerald Night and Ivory Deck.
@@ -318,76 +136,6 @@ const ivoryDeck: Look = {
     pop: '#14365c',
     motif:
       "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cg fill='none' stroke='%23a8873e' stroke-opacity='0.16' stroke-width='1'%3E%3Cpath d='M0 60 A60 60 0 0 1 60 0'/%3E%3Cpath d='M0 60 A45 45 0 0 1 45 15'/%3E%3Cpath d='M0 60 A30 30 0 0 1 30 30'/%3E%3Cpath d='M60 60 A60 60 0 0 1 120 0'/%3E%3Cpath d='M60 60 A45 45 0 0 1 105 15'/%3E%3Cpath d='M60 60 A30 30 0 0 1 90 30'/%3E%3C/g%3E%3C/svg%3E\")",
-  },
-};
-
-// ---- Wonderland: a tea party behind the looking-glass ----
-
-// Playfair for titles over Caslon text: the look of a Victorian storybook, both sturdy enough to read.
-const WONDER_TYPE = {
-  heading: "'Playfair Display', Georgia, serif",
-  body: "'Libre Caslon Text', Georgia, serif",
-};
-
-const teaParty: Look = {
-  id: 'wonder-tea',
-  family: 'wonderland',
-  familyName: 'Wonderland',
-  name: 'Mad Tea Party',
-  dark: false,
-  board: 'wonder-tea',
-  tokens: {
-    bg: '#f6efe2',
-    card: '#fffaf0',
-    raised: '#fdeef0',
-    sunk: '#fffdf8',
-    text: '#1c1626',
-    soft: '#352c42',
-    muted: '#574d63',
-    faint: '#71677c',
-    accent: '#b3122e',
-    accentText: '#fffaf0',
-    border: '#1c1626',
-    dash: '#cdbfa8',
-    good: '#1f7f7a',
-    bad: '#b3122e',
-    ...WONDER_TYPE,
-    shadow: '0 2px 0 #1c1626, 0 14px 28px rgb(28 22 38 / 0.14)',
-    ink: '#1c1626',
-    pop: '#6c3fa0',
-    motif:
-      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' fill='%23f6efe2'/%3E%3Cpath d='M0 0h40v40H0zM40 40h40v40H40z' fill='%231c1626' fill-opacity='0.045'/%3E%3C/svg%3E\")",
-  },
-};
-
-const lookingGlass: Look = {
-  id: 'wonder-glass',
-  family: 'wonderland',
-  familyName: 'Wonderland',
-  name: 'Through the Looking-Glass',
-  dark: true,
-  board: 'wonder-glass',
-  tokens: {
-    bg: '#17112a',
-    card: '#221a3d',
-    raised: '#2e2350',
-    sunk: '#1b1432',
-    text: '#f4ecff',
-    soft: '#d9cdf2',
-    muted: '#b6a8d6',
-    faint: '#9a8bbe',
-    accent: '#ff5d8f',
-    accentText: '#1c0a14',
-    border: '#d9cdf2',
-    dash: '#463a6e',
-    good: '#62d6c4',
-    bad: '#ff5d8f',
-    ...WONDER_TYPE,
-    shadow: '0 2px 0 #0b0716, 0 18px 36px rgb(0 0 0 / 0.4)',
-    ink: '#d9cdf2',
-    pop: '#b48cff',
-    motif:
-      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' fill='%2317112a'/%3E%3Cpath d='M0 0h40v40H0zM40 40h40v40H40z' fill='%23b48cff' fill-opacity='0.06'/%3E%3C/svg%3E\")",
   },
 };
 
@@ -500,40 +248,6 @@ const nightTide = isles(
   },
   '#6fcfc0',
 );
-
-// ---- Sunrise Deck: a cartoon voyage on a scrubbed deck ----
-
-const sunriseMorning: Look = {
-  id: 'sunrise-morning',
-  family: 'sunrise',
-  familyName: 'Sunrise Deck',
-  name: 'Morning',
-  dark: false,
-  board: 'sunrise-morning',
-  tokens: {
-    bg: '#efd9ae',
-    card: '#fff8e6',
-    raised: '#ffefc6',
-    sunk: '#fbf0d6',
-    text: '#1d2433',
-    soft: '#2a3346',
-    muted: '#3f4960',
-    faint: '#4e566b',
-    accent: '#b81f27',
-    accentText: '#fff8e6',
-    border: '#1d2433',
-    dash: '#c9ad7e',
-    good: '#2e7d4f',
-    bad: '#b81f27',
-    heading: "'Lilita One', 'Nunito', system-ui, sans-serif",
-    body: "'Nunito', system-ui, sans-serif",
-    shadow: '4px 5px 0 #1d2433',
-    ink: '#1d2433',
-    pop: '#e9b938',
-    motif:
-      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cpath d='M119.5 0V60' stroke='%23c49a5e' stroke-opacity='0.6'/%3E%3Ccircle cx='112' cy='8' r='1.4' fill='%23a77a42' fill-opacity='0.45'/%3E%3Ccircle cx='112' cy='52' r='1.4' fill='%23a77a42' fill-opacity='0.45'/%3E%3C/svg%3E\")",
-  },
-};
 
 // ---- Masquerade: the card table of a flamboyant underworld ----
 
@@ -855,19 +569,10 @@ const basicClean: Look = {
 };
 
 export const LOOKS: Look[] = [
-  night,
-  atelier,
-  grape,
-  sorbet,
-  citrus,
-  arcade,
   emeraldNight,
   ivoryDeck,
-  teaParty,
-  lookingGlass,
   lagoon,
   nightTide,
-  sunriseMorning,
   masqVelvet,
   chartSurvey,
   strawHat,
@@ -879,14 +584,10 @@ export const LOOKS: Look[] = [
   basicClean,
 ];
 
-/** Picks that aren't a single look: BasicBench following the device's light or dark setting. */
-export const AUTO = 'basicbench-auto';
-
-/** What a device with no saved pick shows: Basic Clean. */
+/** What a device with no saved pick shows, and what a removed or unknown pick falls back to. */
 export const DEFAULT_LOOK = basicClean.id;
 
-export function lookById(id: string, prefersDark: boolean): Look {
-  if (id === AUTO) return prefersDark ? night : atelier;
+export function lookById(id: string): Look {
   return LOOKS.find((l) => l.id === id) ?? basicClean;
 }
 
@@ -897,7 +598,8 @@ const listeners = new Set<() => void>();
 
 function read(): string {
   try {
-    return localStorage.getItem(KEY) ?? DEFAULT_LOOK;
+    // A look that has since been removed falls back to the default.
+    return lookById(localStorage.getItem(KEY) ?? DEFAULT_LOOK).id;
   } catch {
     return DEFAULT_LOOK;
   }
@@ -906,24 +608,14 @@ function read(): string {
 let picked = read();
 let forced: string | null = null;
 
-const media =
-  typeof window !== 'undefined' && window.matchMedia
-    ? window.matchMedia('(prefers-color-scheme: dark)')
-    : null;
-let prefersDark = media?.matches ?? false;
-media?.addEventListener?.('change', (e) => {
-  prefersDark = e.matches;
-  for (const l of listeners) l();
-});
-
 function emit() {
   for (const l of listeners) l();
 }
 
 export function setLook(id: string): void {
-  picked = id;
+  picked = lookById(id).id;
   try {
-    localStorage.setItem(KEY, id);
+    localStorage.setItem(KEY, picked);
   } catch {
     // Private mode: the choice lasts until the page closes.
   }
@@ -941,13 +633,12 @@ function subscribe(l: () => void): () => void {
   return () => listeners.delete(l);
 }
 
-const snapshot = () => `${forced ?? picked}|${prefersDark ? 1 : 0}`;
+const snapshot = () => forced ?? picked;
 
-/** The look this device shows, and the raw pick (which may be "auto"). */
+/** The look this device shows, and its id. */
 export function useLook(): { look: Look; pick: string; forced: boolean } {
-  const s = useSyncExternalStore(subscribe, snapshot, snapshot);
-  const [pick, dark] = s.split('|') as [string, string];
-  return { look: lookById(pick, dark === '1'), pick, forced: forced !== null };
+  const pick = useSyncExternalStore(subscribe, snapshot, snapshot);
+  return { look: lookById(pick), pick, forced: forced !== null };
 }
 
 /** Near-black or white, whichever reads better on the colour. */
@@ -1013,13 +704,13 @@ export function LookStyles() {
 /** Picking a look also lays out its own board skin; the board can still be changed after. */
 function pickLook(id: string): void {
   setLook(id);
-  const board = lookById(id, prefersDark).board;
+  const board = lookById(id).board;
   const hasBoard = THEMES.some((t) => t.id === board);
   if (hasBoard) setTheme(board);
   prefPicked(hasBoard ? { look: id, board } : { look: id });
 }
 
-/** The look picked on this device (may be "auto"). */
+/** The look picked on this device. */
 export function lookPick(): string {
   return picked;
 }
@@ -1035,7 +726,6 @@ export function LookPicker() {
       <select value={pick} onChange={(e) => pickLook(e.target.value)} aria-label="Look">
         {families.map((f) => (
           <optgroup key={f} label={f}>
-            {f === 'BasicBench' && <option value={AUTO}>BasicBench · Match device</option>}
             {LOOKS.filter((l) => l.familyName === f).map((l) => (
               <option key={l.id} value={l.id}>
                 {l.familyName} · {l.name}

@@ -90,6 +90,7 @@ type Pt = { x: number; y: number };
 export type PlayerShape =
   'circle' | 'square' | 'triangle' | 'diamond' | 'star' | 'hexagon' | 'cross' | 'pentagon';
 
+/** The plain base every other board builds on. No longer offered as a board of its own. */
 export const cleanTheme: Theme = {
   id: 'clean',
   name: 'Clean',

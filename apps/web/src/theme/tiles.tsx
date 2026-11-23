@@ -5,6 +5,9 @@ import { tilePatterns, type Palette } from './motifs.tsx';
  * Tiles: bold, flat, screen-printed tiles with thick dark outlines, like a
  * wooden board with printed hexes. Zigzag mountains, round-canopy forest,
  * herringbone brick, wheat sprigs, sheep and scalloped sea.
+ *
+ * No longer offered as a board of its own: it is the base the Wooden board and
+ * the painted-board kit build on.
  */
 
 export const PALETTE: Record<string, Palette> = {

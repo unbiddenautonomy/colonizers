@@ -13,7 +13,7 @@ import type {
   SiteSettings,
 } from '../../../server/src/accountTypes.ts';
 import { saveName, savedName, visitedRooms } from './identity.ts';
-import { AUTO, DEFAULT_LOOK, lookPick, LOOKS, setForcedLook, setLook } from '../theme/looks.tsx';
+import { DEFAULT_LOOK, lookPick, LOOKS, setForcedLook, setLook } from '../theme/looks.tsx';
 import { onPrefPicked } from '../theme/prefs.ts';
 import { DEFAULT_THEME, setForcedTheme, setTheme, themePick, THEMES } from '../theme/themes.tsx';
 import {
@@ -107,8 +107,7 @@ function syncPrefs(user: PublicUser): void {
   if (syncedFor === user.id) return;
   syncedFor = user.id;
   const saved = user.prefs;
-  if (saved.look && (saved.look === AUTO || LOOKS.some((l) => l.id === saved.look)))
-    setLook(saved.look);
+  if (saved.look && LOOKS.some((l) => l.id === saved.look)) setLook(saved.look);
   if (saved.board && THEMES.some((t) => t.id === saved.board)) setTheme(saved.board);
   const design = parseCustomDice(saved.diceFaces);
   if (design) setCustomDice(design);

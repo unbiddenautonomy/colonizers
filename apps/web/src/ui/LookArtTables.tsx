@@ -1,46 +1,9 @@
 /**
- * Header art for the three table themes (Sunrise Deck, Masquerade, Storm Chart), drawn in each
+ * Header art for the two table themes (Masquerade, Storm Chart), drawn in each
  * look's colour tokens plus the few colours that belong to the picture itself.
  */
 
 const ink = 'var(--shell-ink)';
-
-/** A little ship setting out on the swell as the sun comes up behind it. */
-export function SunriseArt() {
-  const line = { stroke: ink, strokeWidth: 3, strokeLinejoin: 'round' as const };
-  const rays = Array.from({ length: 7 }, (_, i) => {
-    const a = Math.PI + (Math.PI / 8) * (i + 1);
-    return `M${262 + Math.cos(a) * 62} ${150 + Math.sin(a) * 62} L${262 + Math.cos(a) * 80} ${150 + Math.sin(a) * 80}`;
-  }).join(' ');
-  return (
-    <svg className="look-art" viewBox="0 0 360 200" aria-hidden="true">
-      <path d={rays} stroke={ink} strokeWidth={4} strokeLinecap="round" />
-      <path d="M210 150 A52 52 0 0 1 314 150 Z" fill="var(--shell-pop)" {...line} />
-      {/* The sea */}
-      <path
-        d="M6 150 q15 -10 30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 V196 H6 Z"
-        fill="#3d9bd1"
-        {...line}
-      />
-      <path
-        d="M40 176 q10 -7 20 0 t20 0 M220 182 q10 -7 20 0 t20 0"
-        fill="none"
-        stroke="#bfe3f6"
-        strokeWidth={3}
-        strokeLinecap="round"
-      />
-      {/* The ship */}
-      <path d="M128 140 V40" {...line} />
-      <path d="M131 46 Q170 60 166 112 H131 Z" fill="var(--shell-card)" {...line} />
-      <path d="M125 58 Q100 92 104 120 H125 Z" fill="var(--shell-card)" {...line} />
-      <path d="M128 40 L150 46 L128 52 Z" fill="var(--shell-accent)" {...line} />
-      <path d="M76 132 H186 Q182 154 162 160 H96 Q80 154 76 132 Z" fill="#8a5a2b" {...line} />
-      <path d="M84 142 H180" stroke="#c08a55" strokeWidth={3} strokeLinecap="round" />
-      <circle cx={112} cy={148} r={4} fill="var(--shell-card)" {...line} strokeWidth={2} />
-      <circle cx={146} cy={148} r={4} fill="var(--shell-card)" {...line} strokeWidth={2} />
-    </svg>
-  );
-}
 
 const SPADE =
   'M0,-6 C3,-3 6,-1 6,2 C6,4.5 3.5,5.5 1.2,4 L2,7 H-2 L-1.2,4 C-3.5,5.5 -6,4.5 -6,2 C-6,-1 -3,-3 0,-6 Z';
