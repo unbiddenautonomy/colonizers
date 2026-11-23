@@ -10,7 +10,6 @@ import { masqVelvetBoard } from './boards/masq.tsx';
 import { sunriseMorningBoard } from './boards/sunrise.tsx';
 import { strawHatBoard } from './boards/strawhat.tsx';
 import { heartBoard } from './boards/heart.tsx';
-import { whitebeardBoard } from './boards/whitebeard.tsx';
 import { bigMomBoard } from './boards/bigmom.tsx';
 import { beastsBoard } from './boards/beasts.tsx';
 import { navyBoard } from './boards/navy.tsx';
@@ -42,7 +41,6 @@ const BOARDS: Theme[] = [
   chartSurveyBoard,
   strawHatBoard,
   heartBoard,
-  whitebeardBoard,
   bigMomBoard,
   beastsBoard,
   navyBoard,

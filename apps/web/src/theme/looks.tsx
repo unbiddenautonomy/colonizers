@@ -23,7 +23,6 @@ export interface Look {
     | 'chart'
     | 'strawhat'
     | 'heart'
-    | 'whitebeard'
     | 'bigmom'
     | 'wano'
     | 'navy'
@@ -682,37 +681,6 @@ const heart: Look = {
   },
 };
 
-/** Whitebeard Pirates: sailor's tattoo flash on old paper. */
-const whitebeard: Look = {
-  id: 'whitebeard-moby',
-  family: 'whitebeard',
-  familyName: GRAND_LINE,
-  name: 'Whitebeard Pirates',
-  dark: false,
-  board: 'whitebeard-moby',
-  tokens: {
-    bg: '#efe3c8',
-    card: '#faf3e3',
-    raised: '#fff9ec',
-    sunk: '#f2e8d2',
-    text: '#1a1414',
-    soft: '#2b2220',
-    muted: '#463a35',
-    faint: '#56483f',
-    accent: '#a82c24',
-    accentText: '#fff8ec',
-    border: '#1a1414',
-    dash: '#c7b48e',
-    good: '#2a7a6e',
-    bad: '#a82c24',
-    heading: "'Rye', Georgia, serif",
-    body: "'Bitter', Georgia, serif",
-    shadow: '0 8px 22px rgba(26, 20, 20, 0.16)',
-    ink: '#1a1414',
-    pop: '#e8b63a',
-  },
-};
-
 /** Big Mom Pirates: Totto Land, strawberry icing and sprinkles. */
 const bigMom: Look = {
   id: 'bigmom-cake',
@@ -904,7 +872,6 @@ export const LOOKS: Look[] = [
   chartSurvey,
   strawHat,
   heart,
-  whitebeard,
   bigMom,
   wano,
   navy,
