@@ -1607,6 +1607,19 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
           const c = cornerToPixel(corner, S);
           const tier = Number(p.props.tier ?? 1);
           const r = S * 0.17;
+          // A stronger dragon stands bigger, and its pips (the knight level it takes to beat it)
+          // sit in a row under its feet.
+          const art = sprite(
+            theme,
+            `dragon${tier}`,
+            c.x,
+            c.y + S * 0.3,
+            [0.5, 0.62, 0.76][tier - 1] ?? 0.62,
+            dragonTint(tier),
+            true,
+          );
+          const pipY = art ? c.y + S * 0.38 : c.y + r + S * 0.05;
+          const pipR = S * (art ? 0.045 : 0.03);
           return (
             <g
               key={p.id}
@@ -1614,7 +1627,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               filter="url(#lift)"
               {...motionAttrs(p.id, `corner:${corner}`, c.x, c.y, { kind: 'dragon' })}
             >
-              {sprite(theme, `dragon${tier}`, c.x, c.y + S * 0.3, 0.62, dragonTint(tier), true) ?? (
+              {art ?? (
                 <Dragon
                   x={c.x}
                   y={c.y}
@@ -1624,12 +1637,12 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
               {Array.from({ length: tier }, (_, i) => (
                 <circle
                   key={i}
-                  cx={c.x + (i - (tier - 1) / 2) * S * 0.08}
-                  cy={c.y + r + S * 0.05}
-                  r={S * 0.03}
+                  cx={c.x + (i - (tier - 1) / 2) * pipR * 2.6}
+                  cy={pipY}
+                  r={pipR}
                   fill="#f6d27a"
                   stroke="#3a0b07"
-                  strokeWidth={1}
+                  strokeWidth={art ? 1.6 : 1}
                 />
               ))}
               <title>
