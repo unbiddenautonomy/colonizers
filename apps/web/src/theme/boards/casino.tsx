@@ -6,9 +6,8 @@ import { paintedBoard } from './painted.tsx';
  * each with a bold icon on top, a deep night sea, crisp white pieces in the player's colour and
  * a bearded robber in red.
  *
- * Still borrowed from Basic Clean until the casino add-ons sheet arrives (src/art/casino/):
- * barb1-3, camel, cargo-*, citadel, crown, diocese, festival, metro-tower-*, metro-emblem-*, monument, nukemark,
- * prince, silo, village.
+ * Its add-ons (barbarians, camel, cargo, citadel, crown, diocese, festival, monument, silo …) come
+ * from the Lounge sheet; the metropolis towers are shared with Basic Clean, tinted per player.
  */
 export const casinoEmeraldBoard = paintedBoard({
   id: 'casino-emerald',
