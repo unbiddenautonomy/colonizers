@@ -411,7 +411,14 @@ function Knight({
   fx: string;
 }) {
   const k = S * 0.22;
-  const art = sprite(theme, `knight${level}`, x, y + S * 0.27, 0.62, color);
+  const art = sprite(
+    theme,
+    `knight${level}`,
+    x,
+    y + S * 0.27,
+    0.62 * (theme.knightScale ?? 1),
+    color,
+  );
   if (art)
     return (
       <g filter={fx} opacity={active ? 1 : 0.55}>
@@ -600,11 +607,11 @@ function Battlement({ x, y, ink }: { x: number; y: number; ink: string }) {
   }).join(' ');
   return (
     <g pointerEvents="none">
-      <path d={d} fill="#b9b2a6" stroke={ink} strokeWidth={1.6} strokeLinejoin="round" />
+      <path d={d} fill="#f2efe8" stroke={ink} strokeWidth={1.6} strokeLinejoin="round" />
       <path
         d={`M${x - w / 2},${y + h / 2} H${x + w / 2} ${joints}`}
-        stroke={ink}
-        strokeOpacity={0.45}
+        stroke="#8f8a82"
+        strokeOpacity={0.6}
         strokeWidth={1}
       />
     </g>
@@ -2165,7 +2172,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 ? sprite(theme, 'city-broken', c.x, c.y + S * 0.2, 0.84, pieceColor(p))
                 : null;
             return (
-              <g key={p.id} filter={fx} opacity={p.props.damaged === true ? 0.6 : 1}>
+              <g key={p.id} filter={fx} opacity={p.props.damaged === true ? 0.9 : 1}>
                 {p.props.damaged === true && <title>Damaged in battle</title>}
                 {!paintedHouse && walls}
                 {(p.type === 'harbor' && harborArt) || tower || broken || (

@@ -25,4 +25,6 @@ export const onePieceBoard = paintedBoard({
   sea: '#1f4f8f',
   ink: '#1c1a1a',
   robber: '#d9d9d9',
+  // Zoro stands a little larger than other boards' knights.
+  rest: { knightScale: 1.15 },
 });
