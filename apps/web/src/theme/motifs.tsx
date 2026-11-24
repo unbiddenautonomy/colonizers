@@ -493,6 +493,8 @@ export function tilePatterns(palettes: Record<string, Palette>, sea: Palette): R
  */
 export interface PictureSet {
   hexes: Record<string, string>;
+  /** An object drawn in the top of a hex, over its picture (logs on forest …), by hex type. */
+  icons?: Record<string, string>;
   sea:
     { href: string; perHex: true } | { href: string; perHex: false; width: number; height: number };
 }
@@ -503,16 +505,29 @@ export function pictureTilePatterns(
   sea: Palette,
 ): ReactNode {
   const drawn = Object.fromEntries(Object.entries(palettes).filter(([t]) => !set.hexes[t]));
-  const hexImage = (id: string, href: string) => (
+  const hexImage = (id: string, href: string, icon?: string) => (
     <pattern key={id} id={id} patternUnits="objectBoundingBox" width="1" height="1">
       <rect width={W} height={H} fill={sea.base} />
       <image href={href} width={W} height={H} preserveAspectRatio="none" />
+      {icon && (
+        // In the top of the hex, clear of a number disc lowered below the centre.
+        <image
+          href={icon}
+          x={W / 2 - 0.19 * H}
+          y={0.26 * H - 0.19 * H}
+          width={0.38 * H}
+          height={0.38 * H}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      )}
     </pattern>
   );
   return (
     <>
       {drawnPatterns(drawn)}
-      {Object.entries(set.hexes).map(([type, href]) => hexImage(`pat-${type}`, href))}
+      {Object.entries(set.hexes).map(([type, href]) =>
+        hexImage(`pat-${type}`, href, set.icons?.[type]),
+      )}
       {set.sea.perHex ? (
         hexImage('pat-sea', set.sea.href)
       ) : (

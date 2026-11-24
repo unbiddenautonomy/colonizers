@@ -12,9 +12,10 @@ import { navyBoard } from './boards/navy.tsx';
 import { casinoEmeraldBoard } from './boards/casino.tsx';
 import { basicCleanBoard } from './boards/basicClean.tsx';
 import { onePieceBoard } from './boards/onePiece.tsx';
-import { woodTheme } from './pictures.tsx';
+import { woodIconsTheme, woodTheme } from './pictures.tsx';
 import { prefPicked } from './prefs.ts';
 import { playerColorsFor } from './playerColors.ts';
+import { useLandIcons } from './landIcons.ts';
 
 const BOARDS: Theme[] = [
   woodTheme,
@@ -41,6 +42,12 @@ export const THEMES: Theme[] = BOARDS.map((t) => {
     ? { ...t, players: t.players.map((p, i) => ({ ...p, color: colors[i] ?? p.color })) }
     : t;
 });
+
+/** The Wooden board with an object drawn on each land, for players who turn land icons on. */
+const WOOD_WITH_ICONS: Theme = {
+  ...woodIconsTheme,
+  players: THEMES.find((t) => t.id === 'wood')!.players,
+};
 
 /** What a new device shows, and what a removed or unknown pick falls back to. */
 export const DEFAULT_THEME = THEMES.find((t) => t.id === 'basic-clean')!;
@@ -70,7 +77,12 @@ let forced: string | null = null;
  * Boards with their own art for every expansion piece and marker. A game with any expansion
  * shows one of these; the others draw generic stand-ins, so they are kept for the base game.
  */
-export const EXPANSION_THEMES: readonly string[] = ['basic-clean', 'casino-emerald', 'one-piece'];
+export const EXPANSION_THEMES: readonly string[] = [
+  'basic-clean',
+  'casino-emerald',
+  'one-piece',
+  'wood',
+];
 
 /** True when a game's modules go beyond the base game and its house rules. */
 export function isExpansionGame(modules: readonly string[]): boolean {
@@ -134,7 +146,9 @@ function subscribe(l: () => void): () => void {
 
 /** The theme this device shows. Each player can pick their own, even mid-game. */
 export function useTheme(): Theme {
-  return themeById(useSyncExternalStore(subscribe, shown));
+  const theme = themeById(useSyncExternalStore(subscribe, shown));
+  const icons = useLandIcons();
+  return theme.id === 'wood' && icons ? WOOD_WITH_ICONS : theme;
 }
 
 /** A card's colour in a theme, falling back to the Clean colours. */
@@ -165,8 +179,8 @@ export function ThemeLockNote() {
   if (forced !== null || !locked || themeById(pick).id === theme.id) return null;
   return (
     <p className="theme-note">
-      🎨 Expansions are played on Basic, Casino or One Piece, which have art for every piece. Your{' '}
-      {themeById(pick).name} board comes back for base games.
+      🎨 Expansions are played on Basic, Casino, One Piece or the Wooden board, which have art for
+      every piece. Your {themeById(pick).name} board comes back for base games.
     </p>
   );
 }

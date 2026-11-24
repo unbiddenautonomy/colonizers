@@ -30,8 +30,9 @@ A private, original-art remake of a hex-and-resources trading game (Catan / Colo
 ## Current state of the look
 
 - **Default board:** Basic Clean.
-- **Expansion games** (any module beyond base and variants) allow only boards with full piece sets: **Basic Clean, Casino (Emerald & Burgundy, also called Lounge) and One Piece** (see `EXPANSION_THEMES` in `apps/web/src/theme/themes.tsx`). Other boards switch to Basic for that game with a short note and switch back afterwards.
-- **Other boards, for the base game:** Wooden board (Medium greens), Deco Emerald and Ivory, Isles Lagoon and Night, Masquerade Velvet, Chart Survey, Straw Hat, Heart, Big Mom, Beasts, Navy.
+- **Expansion games** (any module beyond base and variants) allow only boards with full piece sets: **Basic Clean, Casino (Emerald & Burgundy, also called Lounge), One Piece and the Wooden board** (see `EXPANSION_THEMES` in `apps/web/src/theme/themes.tsx`). Other boards switch to Basic for that game with a short note and switch back afterwards.
+- **Other boards, for the base game:** Deco Emerald and Ivory, Isles Lagoon and Night, Masquerade Velvet, Chart Survey, Straw Hat, Heart, Big Mom, Beasts, Navy.
+- **Wooden board** (Nachi's sheets, Nov 2026; `scripts/cut-wood-sheets.py` cuts them into `apps/web/src/art/wood/`): printed tiles for the rarer lands, plus a setting for land icons ("Lands": tiles only or tiles + icons, per device). Metropolises are the sheet's towers with emblems drawn as vectors (`theme/woodEmblems.tsx`); dragons keep their own colours; the stone buildings (chapel, monument, tower, silo) have an owner-coloured part; city walls are plain brown bars with raised ends, the city sitting in them like a cup. Nachi likes to see a picture before any visual change goes in.
 - **Piece finish:** Enamel is the default. Enamel + glow and Lounge jewel are the other options.
 - **Dragons:** Gold enamel is the default, with Emerald as an option. They are bigger and darker, show strength as 1 to 3 gold pips, and are neutral (not player coloured).
 - **Extra sails:** a gold aura plus thin wind lines that arch upward.

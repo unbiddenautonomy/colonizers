@@ -255,7 +255,7 @@ function tinted(
  * are painted in white and grey and multiplied by the player's colour, so whites take the colour,
  * greys shade it and black lines stay black.
  */
-function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): ThemePieces {
+export function paintedPieces(p: ArtSet, drawn: ThemePieces | undefined, rim: string): ThemePieces {
   const out: ThemePieces = { ...drawn };
   if (p.settlement || p.city) {
     const draw = drawn?.house;

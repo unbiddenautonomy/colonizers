@@ -283,6 +283,7 @@ function sprite(
   size: number,
   color?: string,
   plain?: boolean,
+  owner?: string,
 ): ReactNode {
   return (
     theme.pieces?.sprite?.({
@@ -293,6 +294,7 @@ function sprite(
       s: S,
       ...(color ? { color } : {}),
       ...(plain ? { plain } : {}),
+      ...(owner ? { owner } : {}),
     }) ?? null
   );
 }
@@ -347,7 +349,7 @@ function markerArt(theme: Theme, icon: string, x: number, y: number, owner?: str
   if (!key) return null;
   const foot = y + S * 0.2;
   if (WHITE_FIGURES.has(key)) return sprite(theme, key, x, foot, 0.44, owner);
-  const art = sprite(theme, key, x, foot, 0.44);
+  const art = sprite(theme, key, x, foot, 0.44, undefined, undefined, owner);
   if (!art) return null;
   return (
     <>
@@ -530,15 +532,26 @@ function Ship({
             d={`M${-k * 1.3},${-k * 0.1} h${k * 2.6} l${-k * 0.5},${k * 0.7} h${-k * 1.6} z`}
             fill={color}
             stroke={theme.outline}
-            strokeWidth={2}
+            strokeWidth={theme.shadePieces ? 2.5 : 2}
             strokeLinejoin="round"
           />
           <path
             d={`M${-k * 0.1},${-k * 0.15} v${-k * 1.1} l${k * 0.85},${k * 1.1} z`}
-            fill={theme.harborFace}
+            // On a board with shaded wooden houses the ship is one wooden piece like them: all in
+            // the player's colour under the same flat shade.
+            fill={theme.shadePieces ? color : theme.harborFace}
             stroke={theme.outline}
-            strokeWidth={1.5}
+            strokeWidth={theme.shadePieces ? 2.5 : 1.5}
+            strokeLinejoin="round"
           />
+          {theme.shadePieces && (
+            <g fill="url(#wood-shade)" pointerEvents="none">
+              <path
+                d={`M${-k * 1.3},${-k * 0.1} h${k * 2.6} l${-k * 0.5},${k * 0.7} h${-k * 1.6} z`}
+              />
+              <path d={`M${-k * 0.1},${-k * 0.15} v${-k * 1.1} l${k * 0.85},${k * 1.1} z`} />
+            </g>
+          )}
         </g>
       )}
       <title>Ship</title>
@@ -621,7 +634,42 @@ function armyArt(theme: Theme, army: Piece, x: number, y: number, fill: string):
 }
 
 /** A stretch of city wall with battlements, its top edge at y, centred on x. */
-function Battlement({ x, y, ink }: { x: number; y: number; ink: string }) {
+/** The bar of a wall, its top edge on the city's foot and its two ends raised past the city's
+ *  sides, so the city sits in it like a cup. Same outline as the city, so the borders meet. */
+const WALL_H = 0.09;
+function WallCup({ x, y, fill, ink }: { x: number; y: number; fill: string; ink: string }) {
+  const half = S * 0.26; // the city's half width
+  const end = S * 0.06;
+  const lip = S * 0.07;
+  const h = S * WALL_H;
+  const x0 = x - half - end;
+  const x1 = x + half + end;
+  const d = `M${x0},${y + h} V${y - lip} H${x0 + end} V${y} H${x1 - end} V${y - lip} H${x1} V${y + h} Z`;
+  return (
+    <path
+      d={d}
+      fill={fill}
+      stroke={ink}
+      strokeWidth={2.5}
+      strokeLinejoin="miter"
+      pointerEvents="none"
+    />
+  );
+}
+
+function Battlement({
+  x,
+  y,
+  ink,
+  fill = '#f2efe8',
+  joint = '#8f8a82',
+}: {
+  x: number;
+  y: number;
+  ink: string;
+  fill?: string;
+  joint?: string;
+}) {
   const w = S * 0.7;
   const h = S * 0.1;
   const m = S * 0.055;
@@ -640,10 +688,10 @@ function Battlement({ x, y, ink }: { x: number; y: number; ink: string }) {
   }).join(' ');
   return (
     <g pointerEvents="none">
-      <path d={d} fill="#f2efe8" stroke={ink} strokeWidth={1.6} strokeLinejoin="round" />
+      <path d={d} fill={fill} stroke={ink} strokeWidth={1.6} strokeLinejoin="round" />
       <path
         d={`M${x - w / 2},${y + h / 2} H${x + w / 2} ${joints}`}
-        stroke="#8f8a82"
+        stroke={joint}
         strokeOpacity={0.6}
         strokeWidth={1}
       />
@@ -766,6 +814,21 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
   const color = (seat: number | null) =>
     seat === null ? '#444' : (theme.players[seat]?.color ?? '#999');
   // Two-player duel rules: the neutral builders' pieces are white and black.
+  /** How far a building under a city drops to clear the walls below it (a Wooden-board wall). */
+  const wallDrop = (corner: string) => {
+    if (!theme.wallTint) return 0;
+    const city = pieces.find(
+      (q) => q.type === 'city' && q.at.kind === 'corner' && q.at.id === corner,
+    );
+    const n = city
+      ? typeof city.props.walls === 'number'
+        ? city.props.walls
+        : city.props.wall === true
+          ? 1
+          : 0
+      : 0;
+    return n ? S * (WALL_H * n + 0.06) : 0;
+  };
   const pieceColor = (p: { owner: number | null; props: Record<string, unknown> }) =>
     p.owner === null && typeof p.props.neutral === 'number'
       ? (NEUTRAL_COLORS[p.props.neutral] ?? '#444')
@@ -1133,8 +1196,9 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const sc = sh ? hexToPixel(sh.q, sh.r, S) : { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
         const mx = (a.x + b.x) / 2;
         const my = (a.y + b.y) / 2;
-        const px = mx + (sc.x - mx) * 0.55;
-        const py = my + (sc.y - my) * 0.55;
+        const reach = theme.harborReach ?? 0.55;
+        const px = mx + (sc.x - mx) * reach;
+        const py = my + (sc.y - my) * reach;
         return (
           <g key={hb.edge} className="harbor">
             <line x1={a.x} y1={a.y} x2={px} y2={py} stroke={theme.harborWood} strokeWidth={4} />
@@ -1191,7 +1255,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         .map((p) => {
           const edge = (p.at as { id: EdgeId }).id;
           const [a, b] = edgeEnds(edge, g);
-          const k = 0.16;
+          const k = p.type === 'river' ? 0.16 : (theme.roadInset ?? 0.16);
           const attrs =
             p.type === 'river'
               ? {}
@@ -1864,7 +1928,13 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const x = k.x + (c.x - k.x) * 0.42;
         const y = k.y + (c.y - k.y) * 0.42;
         const r = S * 0.13;
-        const art = markerArt(theme, GWP_ICON[m.building], x, y, color(m.owner));
+        const art = markerArt(
+          theme,
+          GWP_ICON[m.building],
+          x,
+          y + wallDrop(m.corner),
+          color(m.owner),
+        );
         if (art)
           return (
             <g
@@ -1946,7 +2016,13 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
         const r = S * 0.15;
         const x = k.x + (m.slot === 1 ? S * 0.32 : 0);
         const y = k.y - (m.slot === 0 ? 0 : S * 0.34);
-        const art = markerArt(theme, m.icon, x, y, m.owner === null ? undefined : color(m.owner));
+        const art = markerArt(
+          theme,
+          m.icon,
+          x,
+          y + (edge || m.slot !== 0 ? 0 : wallDrop(m.at)),
+          m.owner === null ? undefined : color(m.owner),
+        );
         if (art)
           return (
             <g key={m.key} className="church-marker" pointerEvents="none" filter="url(#lift)">
@@ -2164,13 +2240,15 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             // A painted city stands taller and wider than the drawn one and would hide walls
             // behind it, so on a painted board they are drawn in front, along its foot.
             const paintedHouse = theme.painted === true && !!theme.pieces?.house;
-            const wallY = paintedHouse ? 0.14 : 0.08;
+            const wallCount =
+              typeof p.props.walls === 'number' ? p.props.walls : p.props.wall === true ? 1 : 0;
+            const wallY = theme.wallTint ? 0.18 : paintedHouse ? 0.14 : 0.08;
             const harborArt =
               p.type === 'harbor'
                 ? sprite(theme, 'harbor', c.x, c.y + S * 0.2, 0.62, pieceColor(p))
                 : null;
             const wallArt =
-              p.props.wall === true || typeof p.props.walls === 'number'
+              (p.props.wall === true || typeof p.props.walls === 'number') && !theme.wallTint
                 ? sprite(theme, 'wall', c.x, c.y + S * 0.34, 0.42)
                 : null;
             const walls = wallArt ? (
@@ -2189,14 +2267,23 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                           ? 1
                           : 0,
                   },
-                  (_, i) => (
-                    <Battlement
-                      key={`wall-${i}`}
-                      x={c.x}
-                      y={c.y + S * (wallY + i * 0.11)}
-                      ink={theme.outline}
-                    />
-                  ),
+                  (_, i) =>
+                    theme.wallTint ? (
+                      <WallCup
+                        key={`wall-${i}`}
+                        x={c.x}
+                        y={c.y + S * (wallY + (wallCount - 1 - i) * WALL_H)}
+                        ink={theme.outline}
+                        fill={theme.wallTint === 'owner' ? color(p.owner) : theme.wallTint}
+                      />
+                    ) : (
+                      <Battlement
+                        key={`wall-${i}`}
+                        x={c.x}
+                        y={c.y + S * (wallY + i * 0.11)}
+                        ink={theme.outline}
+                      />
+                    ),
                 )}
                 {(typeof p.props.walls === 'number' || p.props.wall === true) && (
                   <title>
@@ -2211,8 +2298,15 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             // top in the track's own colour; a damaged city is drawn broken and dimmed.
             const metro = typeof p.props.metropolis === 'string' ? p.props.metropolis : null;
             const tower =
-              p.type === 'city' && metro
-                ? sprite(theme, `metro-tower-${metro}`, c.x, c.y + S * 0.2, 1.05, pieceColor(p))
+              p.type === 'city' && metro && !theme.metroBadge
+                ? sprite(
+                    theme,
+                    `metro-tower-${metro}`,
+                    c.x,
+                    c.y + S * 0.2,
+                    1.05 * (theme.metroScale ?? 1),
+                    pieceColor(p),
+                  )
                 : null;
             const broken =
               p.type === 'city' && !tower && p.props.damaged === true
@@ -2283,11 +2377,23 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                   )}
                 {metro && tower && (
                   <g pointerEvents="none">
-                    {sprite(theme, `metro-emblem-${metro}`, c.x, c.y + S * 0.2, 1.05)}
+                    {sprite(
+                      theme,
+                      `metro-emblem-${metro}`,
+                      c.x,
+                      c.y + S * 0.2,
+                      1.05 * (theme.metroScale ?? 1),
+                    )}
                     <title>{`Metropolis (${metro})`}</title>
                   </g>
                 )}
-                {metro && !tower && (
+                {metro && theme.metroBadge && p.type === 'city' && (
+                  <g pointerEvents="none">
+                    {theme.metroBadge(metro, c.x, c.y - S * 0.38, S * 0.4)}
+                    <title>{`Metropolis (${metro})`}</title>
+                  </g>
+                )}
+                {metro && !tower && !theme.metroBadge && (
                   <g>
                     <rect
                       x={c.x - S * 0.07}
