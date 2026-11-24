@@ -1,4 +1,5 @@
 import { useTheme } from './themes.tsx';
+import { setLandIcons, useLandIcons } from './landIcons.ts';
 import {
   DRAGON_COLOURS,
   FINISHES,
@@ -15,6 +16,21 @@ export function FinishPicker({ compact }: { compact?: boolean }) {
   const theme = useTheme();
   const finish = usePieceFinish();
   const dragon = useDragonColour();
+  const icons = useLandIcons();
+  if (theme.id === 'wood')
+    return (
+      <label className="theme-picker" title="Draw an object on each land, or show only the tiles">
+        {compact ? <span aria-hidden="true">🪵</span> : 'Lands '}
+        <select
+          value={icons ? 'on' : 'off'}
+          onChange={(e) => setLandIcons(e.target.value === 'on')}
+          aria-label="Land icons"
+        >
+          <option value="off">Tiles only</option>
+          <option value="on">Tiles + icons</option>
+        </select>
+      </label>
+    );
   if (theme.painted !== true) return null;
   return (
     <>

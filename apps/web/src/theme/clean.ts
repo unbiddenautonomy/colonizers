@@ -61,6 +61,18 @@ export interface Theme {
   /** How far below the hex centre the number disc sits, as a share of the hex size, leaving
    *  the top of the hex for the land's picture. */
   tokenDrop?: number;
+  /** How far a road is pulled in from each corner, as a share of the edge. 0.16 when unset;
+   *  a board with small houses pulls in less, so its roads still meet them. */
+  roadInset?: number;
+  /** How far out to sea a harbor's sign stands, as a share of the way from the coast to the
+   *  sea hex's centre. 0.55 when unset. */
+  harborReach?: number;
+  /** How much smaller or larger than usual the board's metropolis towers are. 1 when unset. */
+  metroScale?: number;
+  /** Draws a metropolis as an ordinary city with this badge above it, instead of a tower. */
+  /** Walls drawn as plain tiles: in the owner's colour, or in this colour. */
+  wallTint?: 'owner' | string;
+  metroBadge?: (track: string, x: number, y: number, size: number) => ReactNode;
   /** Which way the board's ship faces, so wind lines can trail from its stern. Left when unset. */
   shipBow?: 'left' | 'right';
   /** How much larger than usual the board's knight pictures are drawn. 1 when unset. */
@@ -100,6 +112,8 @@ export interface ThemePieces {
     size: number;
     color?: string;
     plain?: boolean;
+    /** Whose it is, for a board that marks a building's owner on the painting itself. */
+    owner?: string;
     s: number;
   }) => ReactNode;
 }
