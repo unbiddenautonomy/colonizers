@@ -9,6 +9,8 @@ import {
 } from '@colonizers/engine';
 import { library } from './library.ts';
 import { recordLocalGame } from './localStats.ts';
+import { AFTER_ROLL_MS } from '../ui/diceClock.ts';
+import { motionScale } from '../ui/motion.tsx';
 
 export interface LogEntry {
   seq: number;
@@ -163,6 +165,12 @@ export function useLocalGame(saved: SavedGame) {
   useEffect(() => {
     const seats = Object.keys(bots).map(Number);
     if (!seats.length || game.state.winner !== null) return;
+    // After a roll the bots wait for the dice to land and the cards to rise from their lands.
+    const lastAction = gameRef.current.actions[gameRef.current.actions.length - 1];
+    const pause =
+      lastAction?.type === 'roll'
+        ? Math.max(BOT_DELAY_MS, AFTER_ROLL_MS * motionScale())
+        : BOT_DELAY_MS;
     const timer = setTimeout(() => {
       const state = gameRef.current.state;
       const waiting = library.waitingOn(state).filter((s) => bots[s]);
@@ -200,7 +208,7 @@ export function useLocalGame(saved: SavedGame) {
       }
       // A bot waiting on an answer to its offer looks again shortly.
       setGame((g) => ({ ...g }));
-    }, BOT_DELAY_MS);
+    }, pause);
     return () => clearTimeout(timer);
   }, [game, bots, apply]);
 

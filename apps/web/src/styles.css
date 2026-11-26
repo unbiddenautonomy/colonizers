@@ -739,6 +739,14 @@ select {
   line-height: 1.4;
 }
 
+/* Each player's name in their colour, outlined so light colours still read on a light card. */
+.log-name {
+  font-weight: 700;
+  text-shadow:
+    0 0 1px rgb(0 0 0 / 0.55),
+    0 0 1px rgb(0 0 0 / 0.55);
+}
+
 .game-log-line.system {
   background: transparent;
   color: var(--muted);

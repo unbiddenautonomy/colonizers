@@ -67,7 +67,7 @@ export const DEFAULT_CUSTOM_DICE: CustomDice = {
   body: '#1f5f4a',
   ink: '#f6e7b8',
   style: 'pips',
-  faces: ['🌲', '🧱', '🐑', '🌾', '⛰️', '⭐'],
+  faces: ['🌲', '🧱', '🐑', '🌾', '🪨', '⭐'],
 };
 
 /** Longest symbol on a face, in UTF-16 units: room for one emoji with a modifier, or two letters. */

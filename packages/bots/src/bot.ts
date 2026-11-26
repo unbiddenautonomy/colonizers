@@ -160,9 +160,14 @@ export function chooseAction(
     return lib.waitingOn(full).some((s) => s !== seat) ? null : best.action;
   }
 
-  if (config.level === 'easy') return easyPick(scored, rand);
-
   let ranked = scored.sort((a, b) => b.score - a.score || b.tie - a.tie);
+  if (config.level === 'easy') {
+    const pick = easyPick(ranked, rand);
+    // A move that leaves the bot worse off than stopping (a pointless trade) is never a
+    // sensible second choice: it ends the turn instead.
+    const endScore = end ? (ranked.find((s) => s.action === end)?.score ?? -Infinity) : -Infinity;
+    return end && pick.score <= endScore + 0.05 ? end : pick.action;
+  }
   if (config.level === 'hard')
     ranked = lookAhead(lib, state, seat, config, ranked, opts.budgetMs ?? 2500);
 
@@ -260,17 +265,15 @@ function scoreAll(
   return out;
 }
 
-/** Easy bots: usually a decent move, sometimes a random one. */
-function easyPick(scored: Scored[], rand: () => number): Action {
-  if (rand() < 0.3) return scored[Math.floor(rand() * scored.length)]!.action;
-  const top = Math.max(...scored.map((s) => s.score));
-  const weights = scored.map((s) => Math.exp((s.score - top) / 2.5));
-  let r = rand() * weights.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < scored.length; i++) {
-    r -= weights[i]!;
-    if (r <= 0) return scored[i]!.action;
-  }
-  return scored[0]!.action;
+/**
+ * Easy bots never play a random move, which would look silly. From the moves ranked best first,
+ * they take the best 40% of the time, the second best 30%, and one of the third to fifth best
+ * the other 30%.
+ */
+function easyPick(ranked: Scored[], rand: () => number): Scored {
+  const r = rand();
+  const i = r < 0.4 ? 0 : r < 0.7 ? 1 : 2 + Math.floor(rand() * 3);
+  return ranked[Math.min(i, ranked.length - 1)]!;
 }
 
 /**

@@ -40,6 +40,39 @@ export function groupTurns(log: { event: GameEvent }[], names: string[]): Turn[]
   return turns;
 }
 
+/** A line of the log with each player's name written in that player's colour. */
+function Named({
+  text,
+  names,
+  players,
+}: {
+  text: string;
+  names: string[];
+  players: { color: string }[];
+}) {
+  const seats = names
+    .map((n, seat) => ({ n, seat }))
+    .filter(({ n, seat }) => n && players[seat])
+    .sort((a, b) => b.n.length - a.n.length);
+  if (!seats.length) return <>{text}</>;
+  const escape = (n: string) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${seats.map(({ n }) => escape(n)).join('|')})`, 'g'));
+  return (
+    <>
+      {parts.map((part, i) => {
+        const hit = i % 2 === 1 ? seats.find(({ n }) => n === part) : undefined;
+        return hit ? (
+          <span key={i} className="log-name" style={{ color: players[hit.seat]!.color }}>
+            {part}
+          </span>
+        ) : (
+          part
+        );
+      })}
+    </>
+  );
+}
+
 /**
  * The game log as a chat you can scroll back through: one group per turn, each line marked with
  * the player who did it, and a filter to follow one player.
@@ -123,7 +156,17 @@ export function GameLog({
                   size={12}
                 />
               )}
-              <span>{t.player === null ? 'Setup' : `${names[t.player] ?? 'Someone'}'s turn`}</span>
+              <span>
+                {t.player === null ? (
+                  'Setup'
+                ) : (
+                  <Named
+                    text={`${names[t.player] ?? 'Someone'}'s turn`}
+                    names={names}
+                    players={players}
+                  />
+                )}
+              </span>
             </p>
             <ol>
               {t.lines.map((l) => (
@@ -136,7 +179,7 @@ export function GameLog({
                       : undefined
                   }
                 >
-                  {l.text}
+                  <Named text={l.text} names={names} players={players} />
                 </li>
               ))}
             </ol>

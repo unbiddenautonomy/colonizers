@@ -410,8 +410,8 @@ function Lobby({
                 <strong>{m.name}</strong>
               )}
               {m.bot && (
-                <span className="pill" title={STYLE_INFO[m.bot.style].text}>
-                  🤖 {LEVEL_INFO[m.bot.level].name} · {STYLE_INFO[m.bot.style].name}
+                <span className="pill" title={LEVEL_INFO[m.bot.level].text}>
+                  🤖 {LEVEL_INFO[m.bot.level].name}
                 </span>
               )}
               {m.id === room.hostId && <span title="Host">👑</span>}
@@ -895,7 +895,7 @@ function Lobby({
 
 function AddBot({ send }: { send: (msg: ClientMessage) => boolean }) {
   const [level, setLevel] = useState<Level>('medium');
-  const [style, setStyle] = useState<Style>('balanced');
+  const [style, setStyle] = useState<Style | 'mixed'>('mixed');
   return (
     <div className="row add-bot">
       <select
@@ -911,16 +911,27 @@ function AddBot({ send }: { send: (msg: ClientMessage) => boolean }) {
       </select>
       <select
         value={style}
-        onChange={(e) => setStyle(e.target.value as Style)}
+        onChange={(e) => setStyle(e.target.value as Style | 'mixed')}
         aria-label="Bot style"
       >
-        {STYLES.map((st) => (
-          <option key={st} value={st} title={STYLE_INFO[st].text}>
-            {STYLE_INFO[st].name}
-          </option>
-        ))}
+        <option value="mixed" title="Each bot plays its own way.">
+          Mixed
+        </option>
+        <option value="balanced" title={STYLE_INFO.balanced.text}>
+          {STYLE_INFO.balanced.name}
+        </option>
       </select>
-      <button type="button" onClick={() => send({ type: 'addBot', level, style })}>
+      <button
+        type="button"
+        onClick={() =>
+          send({
+            type: 'addBot',
+            level,
+            // Mixed gives each bot one of the playing styles, kept behind the scenes.
+            style: style === 'mixed' ? STYLES[Math.floor(Math.random() * STYLES.length)]! : style,
+          })
+        }
+      >
         🤖 Add a bot
       </button>
     </div>

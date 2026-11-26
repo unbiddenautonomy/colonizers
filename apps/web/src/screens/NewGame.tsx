@@ -482,12 +482,12 @@ export function NewGame({
                     value={botStyle}
                     onChange={(e) => setBotStyle(e.target.value as Style | 'mixed')}
                   >
-                    <option value="mixed">Mixed</option>
-                    {STYLES.map((st) => (
-                      <option key={st} value={st} title={STYLE_INFO[st].text}>
-                        {STYLE_INFO[st].name}
-                      </option>
-                    ))}
+                    <option value="mixed" title="Each bot plays its own way.">
+                      Mixed
+                    </option>
+                    <option value="balanced" title={STYLE_INFO.balanced.text}>
+                      {STYLE_INFO.balanced.name}
+                    </option>
                   </select>
                 </label>
               )}
