@@ -7,7 +7,15 @@ import {
   type GameState,
   Ctx,
 } from '@colonizers/engine';
-import { botName, chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
+import {
+  BOT_PACE,
+  botName,
+  chooseAction,
+  newMemory,
+  rollShowMs,
+  type BotConfig,
+  type BotMemory,
+} from '@colonizers/bots';
 import { accounts, USER_HEADER } from './auth.ts';
 import type { Env } from './env.ts';
 import {
@@ -36,11 +44,6 @@ const CHAT_GAP_MS = 600;
 const NUDGE_GAP_MS = 20_000;
 /** Pause between bot moves, so people can follow them. */
 const BOT_DELAY_MS = 700;
-/**
- * After a roll, nobody's bot moves until the dice have landed on screen (about 1.2s) and the
- * cards they paid have risen from their lands: a turn never ends under rolling dice.
- */
-const AFTER_ROLL_MS = 2100;
 /** How long Hard bots may think about one move. */
 const BOT_BUDGET_MS = 2500;
 const MAX_BOTS = 7;
@@ -493,7 +496,8 @@ export class GameRoom extends DurableObject<Env> {
       JSON.stringify(action),
     );
     const entries = r.events.map((event) => ({ seq: r.state.seq, event }));
-    if (r.events.some((e) => e.type === 'rolled')) this.lastRollAt = Date.now();
+    const show = rollShowMs(r.events);
+    if (show) this.stillAt = Date.now() + show + BOT_PACE.afterStill;
     game.log.push(...entries);
     if (game.log.length > LOG_KEPT) game.log.splice(0, game.log.length - LOG_KEPT);
     this.broadcastGame(entries);
@@ -598,11 +602,15 @@ export class GameRoom extends DurableObject<Env> {
 
   // ---- Bots ----
 
-  /** Lets bots take their next move after a short pause. Safe to call often. */
-  private lastRollAt = 0;
+  /**
+   * After a roll, nobody's bot moves until the dice have landed on screen and the cards they paid
+   * have arrived, and a beat after: worked out from the roll, since the room can't see screens.
+   */
+  private stillAt = 0;
 
+  /** Lets bots take their next move after a short pause. Safe to call often. */
   private scheduleBots(delay = BOT_DELAY_MS): void {
-    delay = Math.max(delay, this.lastRollAt + AFTER_ROLL_MS - Date.now());
+    delay = Math.max(delay, this.stillAt - Date.now());
     if (this.botTimer || this.status !== 'playing') return;
     if (![...this.members.values()].some((m) => m.bot && m.seat !== null)) return;
     this.botTimer = setTimeout(() => {

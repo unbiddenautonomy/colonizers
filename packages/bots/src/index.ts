@@ -24,3 +24,4 @@ export function botName(taken: string[], rand: () => number = Math.random): stri
   const list = free.length ? free : BOT_NAMES;
   return list[Math.floor(rand() * list.length)]!;
 }
+export { BOT_PACE, ROLL_SHOW, rollShowMs } from './pace.ts';
