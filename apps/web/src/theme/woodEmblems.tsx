@@ -199,3 +199,66 @@ export function woodBadge(track: string, x: number, y: number, size: number): Re
     </g>
   );
 }
+
+/** A thin black anchor of height `h` centred on (x, y). */
+function anchor(x: number, y: number, h: number): ReactNode {
+  const top = y - h / 2;
+  const bottom = y + h / 2;
+  const ring = h * 0.12;
+  const bar = y - h * 0.2;
+  const d = [
+    `M${x},${top + ring * 2} V${bottom}`,
+    `M${x - h * 0.24},${bar} H${x + h * 0.24}`,
+    `M${x - h * 0.42},${y + h * 0.1} Q${x - h * 0.38},${bottom} ${x},${bottom} Q${x + h * 0.38},${bottom} ${x + h * 0.42},${y + h * 0.1}`,
+    `M${x - h * 0.42},${y + h * 0.1} l${-h * 0.09},${-h * 0.04} M${x + h * 0.42},${y + h * 0.1} l${h * 0.09},${-h * 0.04}`,
+  ].join(' ');
+  return (
+    <g fill="none" stroke="#111" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx={x} cy={top + ring} r={ring} />
+      <path d={d} />
+    </g>
+  );
+}
+
+/** A harbor settlement: the settlement's own house, a little larger, on a small pier of the
+ *  owner's colour, with a thin black anchor inside the house. Drawn with the board's house
+ *  outline and shading so the two read as one family. `y` is the sprite's foot, as the board
+ *  places painted pieces. */
+export function woodHarbor(x: number, y: number, s: number, color: string, ink: string): ReactNode {
+  const k = s * 0.2 * 1.15;
+  const cy = y - 0.2 * s; // the middle of the corner
+  const base = cy + k * 0.8; // the house's floor
+  const house = `M${x - k * 0.85},${base} v${-k} l${k * 0.85},${-k * 0.8} l${k * 0.85},${k * 0.8} v${k} z`;
+  const deck = { x: x - k * 1.25, y: base, w: k * 2.5, h: k * 0.34 };
+  const post = (px: number) => (
+    <rect
+      key={px}
+      x={px - k * 0.09}
+      y={deck.y + deck.h}
+      width={k * 0.18}
+      height={k * 0.5}
+      fill={color}
+      stroke={ink}
+      strokeWidth={1.8}
+    />
+  );
+  return (
+    <g pointerEvents="none">
+      {post(deck.x + k * 0.3)}
+      {post(deck.x + deck.w - k * 0.3)}
+      <rect
+        x={deck.x}
+        y={deck.y}
+        width={deck.w}
+        height={deck.h}
+        fill={color}
+        stroke={ink}
+        strokeWidth={2.2}
+      />
+      <rect x={deck.x} y={deck.y} width={deck.w} height={deck.h} fill="url(#wood-shade)" />
+      <path d={house} fill={color} stroke={ink} strokeWidth={2.5} strokeLinejoin="round" />
+      <path d={house} fill="url(#wood-shade)" />
+      {anchor(x, base - k * 0.72, k * 0.82)}
+    </g>
+  );
+}

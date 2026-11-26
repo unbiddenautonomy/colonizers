@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { woodBadge, woodEmblem } from './woodEmblems.tsx';
+import { woodBadge, woodEmblem, woodHarbor } from './woodEmblems.tsx';
 import type { Theme, ThemePieces } from './clean.ts';
 import { pictureTilePatterns, type Palette, type PictureSet } from './motifs.tsx';
 import { PALETTE as TILE_PALETTE, tilesTheme } from './tiles.tsx';
@@ -114,6 +114,7 @@ function woodPieces(rim: string): ThemePieces {
     sprite: (o) => {
       const metro = /^metro-emblem-(\w+)$/.exec(o.key);
       if (metro?.[1]) return woodEmblem(metro[1], o.x, o.y, o.size);
+      if (o.key === 'harbor' && o.color) return woodHarbor(o.x, o.y, o.s, o.color, rim);
       const part = WOOD_ART[`${o.key}-accent`];
       const owner = o.owner ?? o.color;
       if (part) {
