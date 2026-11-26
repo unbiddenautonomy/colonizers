@@ -53,6 +53,7 @@ import { useScrollHint } from '../ui/scrollHint.ts';
 import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { GameLog } from '../ui/GameLog.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
+import { Legend } from '../ui/Legend.tsx';
 import {
   BarbarianTrack,
   CK_BOARD_PHASES,
@@ -685,6 +686,7 @@ export function Game({
   );
   const setCamelBid = (b: { wool: number; grain: number }) => setBidFor({ key: voteKey, ...b });
   const [rulebook, setRulebook] = useState<{ page: string | null } | null>(null);
+  const [legend, setLegend] = useState(false);
   /** The game-over box can be put away, to look at the final board. */
   const [overClosed, setOverClosed] = useState(false);
   /** Fades the end of the player strip that has more players along it. */
@@ -902,8 +904,23 @@ export function Game({
           <MotionPicker compact />
           <button
             type="button"
+            className="icon legend-button"
+            onClick={() => {
+              setMenuOpen(false);
+              setLegend(true);
+            }}
+            aria-label="Open legend"
+            title="Legend: every piece and tile"
+          >
+            ◈
+          </button>
+          <button
+            type="button"
             className="icon help"
-            onClick={() => setRulebook({ page: null })}
+            onClick={() => {
+              setMenuOpen(false);
+              setRulebook({ page: null });
+            }}
             aria-label="Open rulebook"
           >
             ?
@@ -2002,6 +2019,10 @@ export function Game({
             </div>
           )}
         </Modal>
+      )}
+
+      {legend && (
+        <Legend state={state} seat={viewer ?? state.turn.player} onClose={() => setLegend(false)} />
       )}
 
       {rulebook && (

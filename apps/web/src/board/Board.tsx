@@ -51,6 +51,8 @@ import { WonderMarkers } from './WonderArt.tsx';
 import { dragonTint, useDragonColour, usePieceFinish } from '../theme/finishStore.ts';
 
 const S = 60;
+/** The board's hex size, in its own units, for drawings framed on it (the legend). */
+export const BOARD_UNIT = S;
 /**
  * How dark the robber's hex goes. A painted hex needs a far lighter wash: the same shade that
  * reads as "nothing is produced here" over flat colour simply blots out a picture.
@@ -91,6 +93,8 @@ interface BoardProps {
   theme?: Theme;
   /** Hex to flash, e.g. the one that just produced. */
   rolled?: number | null | undefined;
+  /** A viewBox to show instead of the whole board, for a close-up (the legend's samples). */
+  frame?: string;
 }
 
 function hexPoints(q: number, r: number, scale = 1): string {
@@ -167,6 +171,8 @@ function HouseShape({
 
 /** The neutral builders in two-player duel games: white and black. */
 const NEUTRAL_COLORS = ['#f4f1ea', '#2f2f35'];
+
+const LAND_WATER_VEHICLES = new Set(['train', 'ferry', 'plane']);
 
 const CARGO_ICON: Record<string, string> = {
   settler: '🧑‍🌾',
@@ -559,6 +565,15 @@ function Ship({
   );
 }
 
+/**
+ * An invisible disc in the middle of an edge piece. A filter's area is measured from the
+ * piece's outline without its stroke, so a road on an upright edge (a line with no width)
+ * had no area at all and its drop shadow hid the whole road. The disc gives it some width.
+ */
+function FilterRoom({ a, b }: { a: { x: number; y: number }; b: { x: number; y: number } }) {
+  return <circle cx={(a.x + b.x) / 2} cy={(a.y + b.y) / 2} r={S * 0.14} fill="none" />;
+}
+
 /** True for a light colour, which wants dark marks on it. */
 function isLight(hex: string): boolean {
   const n = parseInt(hex.replace('#', '').slice(0, 6), 16);
@@ -778,7 +793,7 @@ function Dragon({ x, y, fill }: { x: number; y: number; fill: string }) {
   );
 }
 
-function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProps) {
+function BoardImpl({ state, targets, onAction, theme: given, rolled, frame }: BoardProps) {
   const chosen = useTheme();
   const theme = given ?? chosen;
   const fx = theme.pieceEffect === 'glow' ? 'url(#glow)' : 'url(#lift)';
@@ -936,7 +951,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
     <svg
       ref={svgRef}
       className="board"
-      viewBox={viewBox}
+      viewBox={frame ?? viewBox}
       role="img"
       aria-label="Game board"
       onClick={tapNearby}
@@ -992,7 +1007,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             ? theme.sea
             : (theme.terrain[type] ?? '#ccc');
         return (
-          <g key={h.id}>
+          <g key={h.id} className="hex-tile">
             <polygon
               points={hexPoints(h.q, h.r)}
               fill={fill}
@@ -1393,20 +1408,21 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             }
             if (p.type === 'road' && p.props.damaged)
               return (
-                <line
-                  key={p.id}
-                  x1={a.x + (b.x - a.x) * k}
-                  y1={a.y + (b.y - a.y) * k}
-                  x2={b.x - (b.x - a.x) * k}
-                  y2={b.y - (b.y - a.y) * k}
-                  stroke={color(p.owner)}
-                  strokeWidth={S * 0.13}
-                  strokeDasharray={`${S * 0.1} ${S * 0.06}`}
-                  opacity={0.75}
-                  filter={fx}
-                >
-                  <title>Damaged road: repair it before building new roads</title>
-                </line>
+                <g key={p.id} filter={fx}>
+                  <FilterRoom a={a} b={b} />
+                  <line
+                    x1={a.x + (b.x - a.x) * k}
+                    y1={a.y + (b.y - a.y) * k}
+                    x2={b.x - (b.x - a.x) * k}
+                    y2={b.y - (b.y - a.y) * k}
+                    stroke={color(p.owner)}
+                    strokeWidth={S * 0.13}
+                    strokeDasharray={`${S * 0.1} ${S * 0.06}`}
+                    opacity={0.75}
+                  >
+                    <title>Damaged road: repair it before building new roads</title>
+                  </line>
+                </g>
               );
             if (p.type === 'ship')
               return (
@@ -1442,6 +1458,7 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             if (theme.pieces?.road)
               return (
                 <g key={p.id} filter={fx}>
+                  <FilterRoom a={a} b={b} />
                   {theme.pieces.road({
                     a: { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k },
                     b: { x: b.x - (b.x - a.x) * k, y: b.y - (b.y - a.y) * k },
@@ -1451,17 +1468,18 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
                 </g>
               );
             return (
-              <line
-                key={p.id}
-                x1={a.x + (b.x - a.x) * k}
-                y1={a.y + (b.y - a.y) * k}
-                x2={b.x - (b.x - a.x) * k}
-                y2={b.y - (b.y - a.y) * k}
-                stroke={pieceColor(p)}
-                strokeWidth={S * 0.13}
-                strokeLinecap="round"
-                filter={fx}
-              />
+              <g key={p.id} filter={fx}>
+                <FilterRoom a={a} b={b} />
+                <line
+                  x1={a.x + (b.x - a.x) * k}
+                  y1={a.y + (b.y - a.y) * k}
+                  x2={b.x - (b.x - a.x) * k}
+                  y2={b.y - (b.y - a.y) * k}
+                  stroke={pieceColor(p)}
+                  strokeWidth={S * 0.13}
+                  strokeLinecap="round"
+                />
+              </g>
             );
           })();
           return (
@@ -2002,51 +2020,6 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
       })}
 
       {[
-        ...seatMarkers(state),
-        ...churchMarkers(state),
-        ...witchesMarkers(state),
-        ...sfCornerMarkers(state),
-      ].map((m) => {
-        const edge = m.at.startsWith('e:');
-        if (edge && !g.edgeCorners.has(m.at as EdgeId)) return null;
-        const [a, b] = edge ? edgeEnds(m.at as EdgeId, g) : [null, null];
-        const k =
-          a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : cornerToPixel(m.at as CornerId, S);
-        // A Diocese or Citadel above its city, the Inquisitor to its right, a festival chip on the piece.
-        const r = S * 0.15;
-        const x = k.x + (m.slot === 1 ? S * 0.32 : 0);
-        const y = k.y - (m.slot === 0 ? 0 : S * 0.34);
-        const art = markerArt(
-          theme,
-          m.icon,
-          x,
-          y + (edge || m.slot !== 0 ? 0 : wallDrop(m.at)),
-          m.owner === null ? undefined : color(m.owner),
-        );
-        if (art)
-          return (
-            <g key={m.key} className="church-marker" pointerEvents="none" filter="url(#lift)">
-              {art}
-              <title>{m.title}</title>
-            </g>
-          );
-        return (
-          <g key={m.key} className="church-marker" pointerEvents="none" filter="url(#lift)">
-            <circle
-              cx={x}
-              cy={y}
-              r={r}
-              fill={m.owner === null ? '#fbf3e2' : color(m.owner)}
-              stroke={theme.outline}
-              strokeWidth={1.5}
-            />
-            <MarkerIcon theme={theme} icon={m.icon} x={x} y={y} r={r} fontSize={r * 1.1} />
-            <title>{m.title}</title>
-          </g>
-        );
-      })}
-
-      {[
         ...neutralMarkers(state),
         ...princesMarkers(state),
         ...soldiersMarkers(state),
@@ -2217,7 +2190,9 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             p.type !== 'army' &&
             p.type !== 'nuke' &&
             // The Wizard shows as a marker beside its building.
-            p.type !== 'wizard',
+            p.type !== 'wizard' &&
+            // Land & Water's vehicles are drawn by landWaterVehicles, not as a house.
+            !LAND_WATER_VEHICLES.has(p.type),
         )
         .map((p) => {
           const corner = (p.at as { id: CornerId }).id;
@@ -2419,6 +2394,53 @@ function BoardImpl({ state, targets, onAction, theme: given, rolled }: BoardProp
             </g>
           );
         })}
+
+      {/* City seats, festivals, the Inquisitor and the Wizard go on top of the buildings they mark:
+          drawn underneath, a tall painted city hid a Diocese or Citadel standing above it. */}
+      {[
+        ...seatMarkers(state),
+        ...churchMarkers(state),
+        ...witchesMarkers(state),
+        ...sfCornerMarkers(state),
+      ].map((m) => {
+        const edge = m.at.startsWith('e:');
+        if (edge && !g.edgeCorners.has(m.at as EdgeId)) return null;
+        const [a, b] = edge ? edgeEnds(m.at as EdgeId, g) : [null, null];
+        const k =
+          a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : cornerToPixel(m.at as CornerId, S);
+        // A Diocese or Citadel above its city, the Inquisitor to its right, a festival chip on the piece.
+        const r = S * 0.15;
+        const x = k.x + (m.slot === 1 ? S * 0.32 : 0);
+        const y = k.y - (m.slot === 0 ? 0 : S * 0.34);
+        const art = markerArt(
+          theme,
+          m.icon,
+          x,
+          y + (edge || m.slot !== 0 ? 0 : wallDrop(m.at)),
+          m.owner === null ? undefined : color(m.owner),
+        );
+        if (art)
+          return (
+            <g key={m.key} className="church-marker" pointerEvents="none" filter="url(#lift)">
+              {art}
+              <title>{m.title}</title>
+            </g>
+          );
+        return (
+          <g key={m.key} className="church-marker" pointerEvents="none" filter="url(#lift)">
+            <circle
+              cx={x}
+              cy={y}
+              r={r}
+              fill={m.owner === null ? '#fbf3e2' : color(m.owner)}
+              stroke={theme.outline}
+              strokeWidth={1.5}
+            />
+            <MarkerIcon theme={theme} icon={m.icon} x={x} y={y} r={r} fontSize={r * 1.1} />
+            <title>{m.title}</title>
+          </g>
+        );
+      })}
 
       {pieces
         .filter((p) => p.type === 'nuke' && p.at.kind === 'corner')

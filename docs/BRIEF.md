@@ -41,6 +41,7 @@ A private, original-art remake of a hex-and-resources trading game (Catan / Colo
 - **City walls:** white marble.
 - **Merchant and army:** use sheet art on Basic, Lounge and One Piece.
 - **Citadel, diocese, monument, silo:** keep their painted colours on a player-coloured base.
+- **Legend:** the ◈ button in the game header (in the ☰ menu on phones) opens a pop-up of every piece and tile in this game, each drawn by the real board in the current board's art (`apps/web/src/ui/Legend.tsx`). Add an entry there when a new piece or tile is drawn on the board.
 - **One Piece combined board:** Straw Hat crew colours for players. Law rides as settler cargo, a Marine ship is the neutral pirate ship, Zoro is 15% bigger with white pants, and the player ship has a skull sail.
 
 ## Decided, don't reopen
