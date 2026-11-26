@@ -72,7 +72,10 @@ export const STYLE_INFO: Record<Style, { name: string; text: string }> = {
 };
 
 export const LEVEL_INFO: Record<Level, { name: string; text: string }> = {
-  easy: { name: 'Easy', text: 'Sensible moves with some randomness. Good for learning.' },
+  easy: {
+    name: 'Easy',
+    text: 'Plays good moves, but often not the very best one. Good for learning.',
+  },
   medium: {
     name: 'Medium',
     text: 'Weighs every move by production, points and what it can build next.',
