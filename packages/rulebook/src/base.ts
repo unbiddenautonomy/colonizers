@@ -8,7 +8,7 @@ export const baseRules: RulebookModule = {
     lumber: { name: 'Lumber', icon: '🌲' },
     wool: { name: 'Wool', icon: '🐑' },
     grain: { name: 'Grain', icon: '🌾' },
-    ore: { name: 'Ore', icon: '⛰️' },
+    ore: { name: 'Ore', icon: '🪨' },
     hills: { name: 'Hills', icon: '🧱' },
     forest: { name: 'Forest', icon: '🌲' },
     pasture: { name: 'Pasture', icon: '🐑' },
@@ -191,7 +191,7 @@ Someone else takes it only by building a strictly longer road. An opponent's set
 - Forest makes lumber 🌲
 - Pasture makes wool 🐑
 - Fields make grain 🌾
-- Mountains make ore ⛰️
+- Mountains make ore 🪨
 - Desert makes nothing. The robber starts there.
 - Sea surrounds the island. Harbors on the coast give better bank trades.`,
     },

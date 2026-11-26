@@ -60,7 +60,7 @@ describe('rulebook', () => {
   });
 
   it('names cards with icons', () => {
-    expect(nameOf('ore')).toEqual({ name: 'Ore', icon: '⛰️' });
+    expect(nameOf('ore')).toEqual({ name: 'Ore', icon: '🪨' });
     expect(nameOf('mystery').name).toBe('mystery');
   });
 });

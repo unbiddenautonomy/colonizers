@@ -54,6 +54,7 @@ import { PlayerBadge } from '../ui/PlayerBadge.tsx';
 import { GameLog } from '../ui/GameLog.tsx';
 import { Rulebook } from '../ui/Rulebook.tsx';
 import { Legend } from '../ui/Legend.tsx';
+import { useDiceRolling } from '../ui/diceClock.ts';
 import {
   BarbarianTrack,
   CK_BOARD_PHASES,
@@ -752,6 +753,11 @@ export function Game({
   const lastRoll =
     (state.data.base?.lastRoll as { dice: Record<string, number>; total: number } | undefined) ??
     null;
+  const rollKey = lastRoll
+    ? `${state.turn.number}-${lastRoll.total}-${JSON.stringify(lastRoll.dice)}`
+    : null;
+  // A turn can't be ended while its dice are still rolling.
+  const diceRolling = useDiceRolling(rollKey);
   const offer = baseData(ctx).trade;
 
   // Phones: while nothing on the table needs this player, the hand folds down to
@@ -1076,7 +1082,7 @@ export function Game({
         {lastRoll && (
           <DiceTray
             dice={lastRoll.dice}
-            rollKey={`${state.turn.number}-${lastRoll.total}-${JSON.stringify(lastRoll.dice)}`}
+            rollKey={rollKey!}
             icons={EVENT_ICON}
             faces={state.settings.ckEventFaces as string[] | undefined}
           >
@@ -1574,7 +1580,7 @@ export function Game({
                 <button
                   type="button"
                   className="primary"
-                  disabled={!has('endTurn')}
+                  disabled={!has('endTurn') || diceRolling}
                   onClick={() => act({ type: 'endTurn', player: actor })}
                   data-shortcut="e"
                   title="End turn (E)"

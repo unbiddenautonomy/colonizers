@@ -202,7 +202,7 @@ export const RESOURCE_ICON: Record<string, string> = {
   lumber: '🌲',
   wool: '🐑',
   grain: '🌾',
-  ore: '⛰️',
+  ore: '🪨',
   paper: '📜',
   cloth: '🧵',
   coin: '🪙',

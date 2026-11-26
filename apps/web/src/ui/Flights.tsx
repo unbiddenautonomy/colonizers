@@ -7,6 +7,7 @@ import type { LogEntry } from '../game/useLocalGame.ts';
 import { freshSince, logMark, type LogMark } from '../game/freshLog.ts';
 import { nameOf } from '@colonizers/rulebook';
 import { motionScale } from './motion.tsx';
+import { diceSettleMs } from './diceClock.ts';
 
 /**
  * Cards that fly across the screen when they change hands: production from
@@ -103,6 +104,8 @@ interface Flight {
   /** Shown face up: a card type, or a label like "🏆". */
   face: string | null;
   label?: string;
+  /** Produced on a land: rises from it and waits a moment before setting off. */
+  rise?: boolean;
 }
 
 export function CardFlights({
@@ -148,6 +151,13 @@ export function CardFlights({
       if (from && to && flights.length < MAX_FLIGHTS)
         flights.push(label === undefined ? { from, to, face } : { from, to, face, label });
     };
+    /** A card produced on a land: it rises from that land first, then flies. */
+    const fromLand = (hex: HexId | undefined, to: Point | null, card: string) => {
+      const from = hex ? hexPoint(ctx, hex) : null;
+      if (from && to && flights.length < MAX_FLIGHTS)
+        flights.push({ from, to, face: card, rise: true });
+      else add(bankPoint(), to, card);
+    };
     const each = (cards: Cards | undefined, fn: (card: string) => void) => {
       for (const [card, n] of Object.entries(cards ?? {}))
         for (let i = 0; i < Math.min(n, 6); i++) fn(card);
@@ -170,8 +180,7 @@ export function CardFlights({
             for (const [card, n] of Object.entries(cards)) {
               const hexes = sourceHexes(ctx, seat, card, e.total as number);
               for (let i = 0; i < Math.min(n, 6); i++) {
-                const hex = hexes[i % Math.max(1, hexes.length)];
-                add(hex ? hexPoint(ctx, hex) : bankPoint(), to, card);
+                fromLand(hexes[i % Math.max(1, hexes.length)], to, card);
               }
             }
           }
@@ -181,8 +190,7 @@ export function CardFlights({
           const seat = e.player as number;
           touch(seat);
           each(e.cards as Cards, (card) => {
-            const hex = sourceHexes(ctx, seat, card)[0];
-            add(hex ? hexPoint(ctx, hex) : bankPoint(), seatPoint(seat), card);
+            fromLand(sourceHexes(ctx, seat, card)[0], seatPoint(seat), card);
           });
           break;
         }
@@ -261,6 +269,8 @@ export function CardFlights({
       }
     };
     for (const { event } of fresh) handle(event);
+    // Cards a roll pays only set off once the dice have landed.
+    const wait = fresh.some(({ event }) => event.type === 'rolled') ? diceSettleMs() : 0;
 
     // Everything else that changed hands: losers pay winners where both moved, else the bank.
     const gains: { seat: number; card: string }[] = [];
@@ -297,20 +307,40 @@ export function CardFlights({
       const lift = Math.min(120, 30 + Math.hypot(dx, dy) * 0.2);
       const at = (t: number, up: number, scale: number) =>
         `translate(${f.from.x + dx * t}px, ${f.from.y + dy * t - up}px) translate(-50%, -50%) scale(${scale})`;
-      const anim = el.animate(
-        [
-          { transform: at(0, 0, 0.4), opacity: 0 },
-          { transform: at(0.08, lift * 0.3, 1.1), opacity: 1, offset: 0.15 },
-          { transform: at(0.5, lift, 1), opacity: 1, offset: 0.5 },
-          { transform: at(1, 0, 0.6), opacity: 0.3 },
-        ],
-        {
-          duration: 700 * k,
-          delay: i * 70 * k,
-          easing: 'cubic-bezier(.4,0,.2,1)',
-          fill: 'both',
-        },
-      );
+      // Production: the cards rise out of the land together, hang there a moment so you
+      // can see where they came from, then each sets off for its owner in turn.
+      const RISE = 36;
+      const anim = f.rise
+        ? el.animate(
+            [
+              { transform: at(0, 0, 0.4), opacity: 0, easing: 'cubic-bezier(.2,.8,.3,1)' },
+              { transform: at(0, RISE + 6, 1.1), opacity: 1, offset: 0.2 },
+              { transform: at(0, RISE, 1), opacity: 1, offset: 0.26 },
+              { transform: at(0, RISE, 1), opacity: 1, offset: 0.45, easing: 'ease-in' },
+              {
+                transform: at(0.5, RISE * 0.5 + lift, 1),
+                opacity: 1,
+                offset: 0.72,
+                easing: 'ease-out',
+              },
+              { transform: at(1, 0, 0.6), opacity: 0.3 },
+            ],
+            { duration: 1900 * k, delay: wait + i * 120 * k, fill: 'both' },
+          )
+        : el.animate(
+            [
+              { transform: at(0, 0, 0.4), opacity: 0 },
+              { transform: at(0.08, lift * 0.3, 1.1), opacity: 1, offset: 0.15 },
+              { transform: at(0.5, lift, 1), opacity: 1, offset: 0.5 },
+              { transform: at(1, 0, 0.6), opacity: 0.3 },
+            ],
+            {
+              duration: 1000 * k,
+              delay: wait + i * 90 * k,
+              easing: 'cubic-bezier(.4,0,.2,1)',
+              fill: 'both',
+            },
+          );
       anim.onfinish = () => el.remove();
       anim.oncancel = () => el.remove();
     });
@@ -327,7 +357,11 @@ export function CardFlights({
           { transform: 'translate(-50%, -50%) scale(1)', opacity: 1, offset: 0.75 },
           { transform: 'translate(-50%, -60%) scale(1)', opacity: 0 },
         ],
-        { duration: 1300 * Math.max(k, 0.7), delay: flights.length ? 300 * k : 0, fill: 'both' },
+        {
+          duration: 1300 * Math.max(k, 0.7),
+          delay: wait + (flights.length ? 300 * k : 0),
+          fill: 'both',
+        },
       );
       anim.onfinish = () => el.remove();
       anim.oncancel = () => el.remove();
