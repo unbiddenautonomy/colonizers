@@ -132,7 +132,8 @@ button.icon {
   padding: 4px;
 }
 
-button.help {
+button.help,
+button.legend-button {
   font-weight: 800;
   font-size: 1.1rem;
   border-radius: 50%;
@@ -4168,4 +4169,110 @@ html[data-backdrop] .setup-page {
   .hex-glow {
     animation: none;
   }
+}
+
+/* The legend: every tile, piece and mark, each in the board's own art, cropped to the item. */
+.legend-section h3 {
+  margin: 16px 0 8px;
+  font-size: 1rem;
+}
+
+.legend-section:first-child h3 {
+  margin-top: 4px;
+}
+
+.legend-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 8px;
+}
+
+.legend-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--fg, #000) 4%, transparent);
+}
+
+.legend-item.wide {
+  grid-column: 1 / -1;
+}
+
+/* Variants stand side by side, each in its own picture at one scale. */
+.legend-pictures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.legend-item strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.legend-item p {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  opacity: 0.85;
+}
+
+.legend-item p.legend-marks {
+  margin-top: 4px;
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.legend-art {
+  height: 96px;
+  max-width: 288px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--board-bg, var(--sea, #4a90c2));
+}
+
+.legend-art .board {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* A piece is shown on its own: the land under it would only hide it. */
+.legend-piece .hex-tile {
+  display: none;
+}
+
+.legend-others {
+  margin-top: 18px;
+}
+
+.legend-others summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 8px 0;
+}
+
+@media (max-width: 600px) {
+  .legend-art {
+    height: 80px;
+    max-width: 240px;
+  }
+
+  .legend-item.wide {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* In the phone menu the buttons are wide, so the legend's says what it is. */
+.head-actions.open .legend-button::after {
+  content: ' Legend';
+  font-weight: 600;
+  margin-left: 6px;
 }
