@@ -67,7 +67,7 @@ ADDONS = [
     ['citadel', 'diocese', 'monument', 'silo', 'festival'],
     [None, None, None, 'cargo-settler', 'cargo-crew'],
     ['cargo-fish', 'cargo-spice', 'cargo-army', None, None],
-    [None, 'harbor', 'village', None, 'camel'],
+    [None, None, 'village', None, 'camel'],
     ['barb1', 'barb2', 'barb3', None, 'prince'],
 ]
 # Height of the label under a labelled add-on, cut off.
@@ -83,7 +83,7 @@ PIECE_CELLS: dict = {}
 TINTED = {
     'knight1', 'knight2', 'knight3', 'merchant', 'damsel', 'wizard', 'junker', 'duke',
     'scholar', 'inquisitor', 'envoy', 'army', 'nuke', 'train', 'ferry', 'plane',
-    'city-broken', 'harbor', 'metro-tower-trade', 'metro-tower-politics', 'metro-tower-science',
+    'city-broken', 'metro-tower-trade', 'metro-tower-politics', 'metro-tower-science',
 }
 
 
