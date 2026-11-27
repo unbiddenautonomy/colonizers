@@ -7,7 +7,7 @@ _Snapshot as of 23 Nov 2026, after PR #128. Read this first when starting fresh.
 A private, original-art remake of a hex-and-resources trading game (Catan / Colonist style) for Nachi's friend groups. It runs as a webapp that works on phones and desktops and syncs live across devices. It has accounts, achievements, bots, hotseat play and online rooms, and it runs on free hosting.
 
 - **Repo:** `unbiddenautonomy/colonizers` (public). Default branch `main`.
-- **Live site:** https://colonizers.workiket.workers.dev
+- **Live site:** https://colonizers.unbidden.workers.dev
 - **Stack:** pnpm monorepo, Node 22. `apps/web` is React + Vite with an SVG board. `apps/server` is a Cloudflare Worker with one Durable Object per room. Rules live in `packages/engine` plus one package per module in `packages/modules/*`. There are also `bots`, `stats`, `maps`, `rulebook` and `modes` packages.
 - **Docs in the repo:** this file, `CLAUDE.md` (working rules, read it), `docs/PLAN.md` (master plan, rules, piece counts, phases), `docs/DEPLOY.md`, `docs/FREE-TIER.md`, `docs/EXPANSION-REQUIREMENTS.md`.
 - **Modules built:** base, seafarers, cities-knights, traders-barbarians, explorers-pirates, special-maps, variants, plus the expansion and scenario modules under `packages/modules/` (church, civilisations, greed-wealth-power, investors-speculators, kingdoms-warriors, land-water, princes-explorers, soldiers-armies, strategist, treasures-dragons, witches, world-wonders).
