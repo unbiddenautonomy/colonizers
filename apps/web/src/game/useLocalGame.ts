@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { chooseAction, newMemory, type BotConfig, type BotMemory } from '@colonizers/bots';
+import {
+  BOT_PACE,
+  chooseAction,
+  newMemory,
+  type BotConfig,
+  type BotMemory,
+} from '@colonizers/bots';
 import {
   RuleError,
   type Action,
@@ -9,8 +15,7 @@ import {
 } from '@colonizers/engine';
 import { library } from './library.ts';
 import { recordLocalGame } from './localStats.ts';
-import { AFTER_ROLL_MS } from '../ui/diceClock.ts';
-import { motionScale } from '../ui/motion.tsx';
+import { screenBusyFor } from '../ui/diceClock.ts';
 
 export interface LogEntry {
   seq: number;
@@ -28,8 +33,6 @@ export interface SavedGame {
   mapKey?: string;
 }
 
-/** Pause between bot moves, so people can follow them. */
-const BOT_DELAY_MS = 650;
 /**
  * Turns of the bot loop with nothing moving before the game is treated as
  * stopped. Comfortably longer than the 12s a bot will wait for an answer to a
@@ -165,13 +168,14 @@ export function useLocalGame(saved: SavedGame) {
   useEffect(() => {
     const seats = Object.keys(bots).map(Number);
     if (!seats.length || game.state.winner !== null) return;
-    // After a roll the bots wait for the dice to land and the cards to rise from their lands.
-    const lastAction = gameRef.current.actions[gameRef.current.actions.length - 1];
-    const pause =
-      lastAction?.type === 'roll'
-        ? Math.max(BOT_DELAY_MS, AFTER_ROLL_MS * motionScale())
-        : BOT_DELAY_MS;
-    const timer = setTimeout(() => {
+    let later: ReturnType<typeof setTimeout> | undefined;
+    const move = () => {
+      // Dice still rolling or cards still flying: the bots wait for them to finish, then a beat.
+      const busy = screenBusyFor();
+      if (busy > 0) {
+        later = setTimeout(move, busy + BOT_PACE.afterStill);
+        return;
+      }
       const state = gameRef.current.state;
       const waiting = library.waitingOn(state).filter((s) => bots[s]);
       try {
@@ -208,8 +212,12 @@ export function useLocalGame(saved: SavedGame) {
       }
       // A bot waiting on an answer to its offer looks again shortly.
       setGame((g) => ({ ...g }));
-    }, pause);
-    return () => clearTimeout(timer);
+    };
+    const timer = setTimeout(move, BOT_PACE.move);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(later);
+    };
   }, [game, bots, apply]);
 
   /** Who should be holding the device right now. */

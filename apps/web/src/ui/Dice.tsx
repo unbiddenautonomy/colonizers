@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import { keepScreenBusy } from './diceClock.ts';
 import { motionScale } from './motion.tsx';
 import { Modal } from './Modal.tsx';
 import { prefPicked } from '../theme/prefs.ts';
@@ -311,15 +312,21 @@ const PIPS: Record<number, number[]> = {
   6: [0, 2, 3, 5, 6, 8],
 };
 
-/** Each face's place on the cube, and the turn that brings it to the front. */
-const FACE: Record<number, { place: string; show: string }> = {
-  1: { place: 'rotateY(0deg)', show: 'rotateX(0deg) rotateY(0deg)' },
-  6: { place: 'rotateY(180deg)', show: 'rotateX(0deg) rotateY(-180deg)' },
-  2: { place: 'rotateY(90deg)', show: 'rotateX(0deg) rotateY(-90deg)' },
-  5: { place: 'rotateY(-90deg)', show: 'rotateX(0deg) rotateY(90deg)' },
-  3: { place: 'rotateX(90deg)', show: 'rotateX(-90deg) rotateY(0deg)' },
-  4: { place: 'rotateX(-90deg)', show: 'rotateX(90deg) rotateY(0deg)' },
+/** Each face's place on the cube, and the turn (about X, then Y) that brings it to the front. */
+const FACE: Record<number, { place: string; rx: number; ry: number }> = {
+  1: { place: 'rotateY(0deg)', rx: 0, ry: 0 },
+  6: { place: 'rotateY(180deg)', rx: 0, ry: -180 },
+  2: { place: 'rotateY(90deg)', rx: 0, ry: -90 },
+  5: { place: 'rotateY(-90deg)', rx: 0, ry: 90 },
+  3: { place: 'rotateX(90deg)', rx: -90, ry: 0 },
+  4: { place: 'rotateX(-90deg)', rx: 90, ry: 0 },
 };
+
+/** The cube's turn showing face `n`, give or take a turn still to come. */
+function shows(n: number, x = 0, y = 0, z = 0): string {
+  const f = FACE[n]!;
+  return `rotateX(${f.rx + x}deg) rotateY(${f.ry + y}deg) rotateZ(${z}deg)`;
+}
 
 /** What a face shows: a label, a number, a symbol with its number, or pips. */
 function FaceContent({
@@ -375,6 +382,49 @@ const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)]!;
 
 /**
+ * One throw, sampled over its length (0 to 1): how far along the table the die has come (0 to 1),
+ * how high it is (in hops), how much it shows, and how much it rocks as it settles. It falls in,
+ * bounces twice, each time lower and sooner, and rolls to a stop: friction slows it evenly, so it
+ * never rushes and then crawls.
+ */
+export function throwFrames(samples = 48) {
+  // Landings, and the height of the bounce after each: a bounce takes time with the root of its height.
+  const LAND = [0.24, 0.52, 0.68];
+  const FALL = 1.5;
+  const BOUNCE = [1, 0.33];
+  const height = (u: number): number => {
+    if (u < LAND[0]!) {
+      const s = u / LAND[0]!;
+      return FALL * (1 - s * s);
+    }
+    for (let i = 0; i < BOUNCE.length; i++) {
+      const a = LAND[i]!;
+      const b = LAND[i + 1]!;
+      if (u < b) {
+        const s = (u - a) / (b - a);
+        return BOUNCE[i]! * 4 * s * (1 - s);
+      }
+    }
+    return 0;
+  };
+  const SETTLE = 0.82;
+  const at = new Set<number>(LAND);
+  for (let i = 0; i <= samples; i++) at.add(i / samples);
+  return [...at]
+    .sort((a, b) => a - b)
+    .map((u) => {
+      const r = u < SETTLE ? 0 : (u - SETTLE) / (1 - SETTLE);
+      return {
+        offset: u,
+        travel: 1 - (1 - u) ** 2.2,
+        height: height(u),
+        opacity: Math.min(1, u / 0.12),
+        settle: Math.sin(r * Math.PI * 2) * (1 - r),
+      };
+    });
+}
+
+/**
  * A die as a small cube. When `rollKey` changes it is thrown in from a
  * random side, tumbling, and lands showing `value`. Faces can carry labels
  * (the Cities & Knights event die): the rolled label is put on the front face.
@@ -426,38 +476,37 @@ export function Die({
           : dir === 'top'
             ? [side, -dist]
             : [side, dist];
-    const duration = rand(650, 950) * k;
-    const delay = index * rand(40, 110) * k;
-    // Two bounces on the way in, smaller each time.
-    const hop = rand(18, 34);
+    const duration = rand(950, 1150) * k;
+    const delay = index * rand(40, 100) * k;
+    const hop = rand(18, 30);
+    const spin = (turns: number) => 360 * turns * pick([1, -1]);
+    const from = {
+      x: spin(Math.round(rand(2, 3))) + rand(0, 90),
+      y: spin(Math.round(rand(2, 3))) + rand(0, 90),
+      z: rand(-180, 180),
+    };
+    const rock = rand(3, 6) * pick([1, -1]);
+    // The throw is worked out as it would happen and sampled, then played back evenly, so its
+    // speed is the throw's own: no easing curve stretches one part of it.
+    const frames = throwFrames().map(({ offset, travel, height, opacity, settle }) => {
+      const left = 1 - travel;
+      const lift = height * hop;
+      return {
+        offset,
+        opacity,
+        move: `translate(${sx * left}px, ${sy * left - lift}px) scale(${1 + height * 0.15})`,
+        turn: shows(face, from.x * left + rock * settle, from.y * left, from.z * left),
+      };
+    });
+    const timing = { duration, delay, easing: 'linear', fill: 'backwards' } as const;
+    keepScreenBusy(delay + duration);
     w.animate(
-      [
-        { transform: `translate(${sx}px, ${sy}px) scale(1.25)`, opacity: 0 },
-        { offset: 0.15, opacity: 1 },
-        {
-          offset: 0.55,
-          transform: `translate(${sx * 0.18}px, ${sy * 0.18 - hop}px) scale(1.1)`,
-        },
-        { offset: 0.75, transform: `translate(${sx * 0.04}px, 0px) scale(1)` },
-        { offset: 0.87, transform: `translate(0px, ${-hop * 0.3}px) scale(1)` },
-        { transform: 'translate(0px, 0px) scale(1)', opacity: 1 },
-      ],
-      { duration, delay, easing: 'cubic-bezier(.22,.7,.3,1)', fill: 'backwards' },
+      frames.map(({ offset, move, opacity }) => ({ offset, transform: move, opacity })),
+      timing,
     );
-    const turns = () => 360 * Math.round(rand(2, 4)) * pick([1, -1]);
     c.animate(
-      [
-        {
-          transform: `rotateX(${turns() + rand(0, 90)}deg) rotateY(${turns() + rand(0, 90)}deg) rotateZ(${rand(-180, 180)}deg)`,
-        },
-        { transform: `${FACE[face]!.show} rotateZ(0deg)` },
-      ],
-      {
-        duration: duration * 0.92,
-        delay,
-        easing: 'cubic-bezier(.15,.65,.25,1)',
-        fill: 'backwards',
-      },
+      frames.map(({ offset, turn }) => ({ offset, transform: turn })),
+      timing,
     );
   }, [rollKey, face, index]);
 
@@ -470,11 +519,7 @@ export function Die({
       role="img"
       aria-label={label ?? String(value)}
     >
-      <div
-        ref={cube}
-        className="die-cube"
-        style={{ transform: `${FACE[face]!.show} rotateZ(0deg)` }}
-      >
+      <div ref={cube} className="die-cube" style={{ transform: shows(face) }}>
         {[1, 2, 3, 4, 5, 6].map((n) => (
           <Face
             key={n}

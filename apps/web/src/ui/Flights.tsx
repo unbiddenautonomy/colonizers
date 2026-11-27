@@ -7,7 +7,8 @@ import type { LogEntry } from '../game/useLocalGame.ts';
 import { freshSince, logMark, type LogMark } from '../game/freshLog.ts';
 import { nameOf } from '@colonizers/rulebook';
 import { motionScale } from './motion.tsx';
-import { diceSettleMs } from './diceClock.ts';
+import { ROLL_SHOW } from '@colonizers/bots';
+import { diceSettleMs, keepScreenBusy } from './diceClock.ts';
 
 /**
  * Cards that fly across the screen when they change hands: production from
@@ -36,7 +37,7 @@ const COMMODITY_FROM: Record<string, string> = {
   bread: 'fields',
   gold: 'gold',
 };
-const MAX_FLIGHTS = 28;
+const MAX_FLIGHTS = ROLL_SHOW.maxCards;
 
 /** Each seat's hand, for spotting changes no event case covered. */
 function hands(ctx: Ctx): Cards[] {
@@ -325,7 +326,11 @@ export function CardFlights({
               },
               { transform: at(1, 0, 0.6), opacity: 0.3 },
             ],
-            { duration: 1900 * k, delay: wait + i * 120 * k, fill: 'both' },
+            {
+              duration: ROLL_SHOW.cardMs * k,
+              delay: wait + i * ROLL_SHOW.staggerMs * k,
+              fill: 'both',
+            },
           )
         : el.animate(
             [
@@ -341,6 +346,8 @@ export function CardFlights({
               fill: 'both',
             },
           );
+      const { delay = 0, duration = 0 } = anim.effect?.getTiming() ?? {};
+      keepScreenBusy(Number(delay) + Number(duration));
       anim.onfinish = () => el.remove();
       anim.oncancel = () => el.remove();
     });
